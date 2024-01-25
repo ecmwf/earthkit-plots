@@ -14,71 +14,101 @@
 
 import warnings
 
-import earthkit.data
+from earthkit.plots import times
+from earthkit.plots.schemas import schema
+
 import xarray as xr
+import numpy as np
+import earthkit.data
 
-from . import metadata, transformers
-from .schema import schema
+AXES = ["x", "y"]
 
-
-INPUT_ONLY_KWARGS = ["cyclic"]
-
-
-def discard_input_only_kwargs(function):
-    def wrapper(self, *args, **kwargs):
-        result = function(self, *args, **kwargs)
-        if result is not None:
-            
-            args, kwargs = result
-            if kwargs.get("cyclic"):
-                lengths = [len(kwargs[axis]) for axis in self.AXES]
-                min_len = min(lengths)
-                max_len = max(lengths)
-                if min_len != max_len:
-                    for axis in self.AXES:
-                        if len(kwargs[axis]) == max_len-2:
-                            kwargs[axis] = transformers.cyclify(kwargs[axis])
-
-            for kwarg in INPUT_ONLY_KWARGS:
-                result[1].pop(kwarg, None)
-        return result
-    return wrapper
+def _earthkitify(data):
+    if isinstance(data, (list, tuple)):
+        data = np.array(data)
+    if not isinstance(data, earthkit.data.core.Base):
+        data = earthkit.data.from_object(data)
+    return data
 
 
-@discard_input_only_kwargs
-def xarray(self, data, args, kwargs):
-    if isinstance(data, earthkit.data.core.Base):
-        try:
-            dataset = data.to_xarray().squeeze()
-        except (NotImplementedError, ValueError):
-            return None
-    else:
-        try:
-            dataset = earthkit.data.from_object(data).to_xarray().squeeze()
-        except (NotImplementedError, ValueError):
-            return None
+def to_xarray(data):
+    return _earthkitify(data).to_xarray().squeeze()
 
-    if len(dataset.dims) != 1:
-        raise ValueError(
-            f"data must have exactly 1 dimension, but found "
-            f"{len(dataset.dims)}; please reduce the data down to 1 dimension"
-        )
-    dim = list(dataset.dims)[0]
 
-    data_vars = list(dataset.data_vars)
+def to_pandas(data):
+    try:
+        return _earthkitify(data).to_pandas()
+    except NotImplementedError:
+        return _earthkitify(data).to_xarray().squeeze().to_pandas()
+
+
+def to_numpy(data):
+    return _earthkitify(data).to_numpy()
+
+
+def sanitise(axes=("x", "y"), multiplot=True):
+    def decorator(function):
+        def wrapper(data=None, *args, time_frequency=None, time_aggregation="mean", aggregation=None, deaccumulate=False, **kwargs):
+            time_axis = kwargs.pop("time_axis", 0)
+            traces = []
+            if data is not None:
+                ds = to_xarray(data)
+                time_dim = times.guess_time_dim(ds)
+                data_vars = list(ds.data_vars)
+                if time_frequency is not None:
+                    if isinstance(time_aggregation, (list, tuple)):
+                        for i, var_name in enumerate(data_vars):
+                            ds[var_name] = getattr(ds[var_name].resample(**{time_dim: time_frequency}), time_aggregation[i])()
+                    else:
+                        ds = getattr(ds.resample(**{time_dim: time_frequency}), time_aggregation)()
+                    time_axis = 1
+                if aggregation is not None:
+                    ds = getattr(ds, aggregation)(dim=times.guess_non_time_dim(ds))
+                    if "name" not in kwargs:
+                        kwargs["name"] = aggregation
+                if deaccumulate:
+                    if isinstance(deaccumulate, str):
+                        ds[deaccumulate] = ds[deaccumulate].diff(dim=time_dim)
+                    else:
+                        ds = ds.diff(dim=time_dim)
+                if len(data_vars) > 1:
+                    repeat_kwargs = {k: v for k, v in kwargs.items() if k!="time_frequency"}
+                    repeat_kwargs
+                    return [
+                        wrapper(ds[data_var], *args, time_axis=time_axis, **repeat_kwargs)
+                        for data_var in data_vars
+                    ]
+                if len(ds.dims) == 2 and multiplot:
+                    expand_dim = times.guess_non_time_dim(ds)
+                    for i in range(len(ds[expand_dim])):
+                        kwargs["name"] = f"{expand_dim}={ds[expand_dim][i].item()}"
+                        trace_kwargs = get_xarray_kwargs(
+                            ds.isel(**{expand_dim: i}), axes, kwargs)
+                        traces.append(function(*args, **trace_kwargs))
+                else:
+                    trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
+                    if not multiplot:
+                        trace_kwargs["time_axis"] = time_axis
+                    traces.append(function(*args, **trace_kwargs))
+            else:
+                traces.append(function(*args, **kwargs))
+            return traces
+        return wrapper
+    return decorator
+
+
+def get_xarray_kwargs(data, axes, kwargs):
+    data = to_xarray(data)
+    kwargs = kwargs.copy()
+    data_vars = list(data.data_vars)
+    dim = list(data.dims)[-1]
 
     axis_attrs = dict()
     assigned_attrs = [
-        kwargs.get(axis).split(".")[-1] for axis in self.AXES if axis in kwargs
+        kwargs.get(axis).split(".")[-1] for axis in axes if axis in kwargs
     ]
-    for axis in self.AXES:
-        hovertemplate = kwargs.get("hovertemplate")
-        transformer = None
+    for axis in axes:
         attr = kwargs.get(axis)
-        if isinstance(attr, str) and "." in attr:
-            transformer = attr
-            attr = attr.split(".")[-1]
-
         if attr is None:
             if dim not in list(axis_attrs.values())+assigned_attrs:
                 attr = dim
@@ -89,68 +119,8 @@ def xarray(self, data, args, kwargs):
                         f"dataset contains more than one data variable; "
                         f"variable '{attr}' has been selected for plotting"
                     )
-                if "{axis}" in hovertemplate:
-                    kwargs["hovertemplate"] = hovertemplate.format(axis=axis)
 
-        kwargs[axis] = dataset[attr].values
+        kwargs[axis] = data[attr].values
         axis_attrs[axis] = attr
-        if transformer is not None:
-            kwargs = self.transform(transformer, axis, kwargs)
-
-        if getattr(self.layout, f"{axis}axis").title.text is None:
-            title = metadata.get_axis_title(dataset, attr)
-            self.update_layout(**{f"{axis}axis": {"title": title}})
-
-    return args, kwargs
-
-
-@discard_input_only_kwargs
-def numpy(self, data, args, kwargs):
-    if isinstance(data, earthkit.data.core.Base):
-        try:
-            ndarray = data.to_numpy()
-        except (NotImplementedError, ValueError):
-            return None
-    else:
-        try:
-            ndarray = earthkit.data.from_object(data).to_numpy()
-        except (NotImplementedError, ValueError):
-            return None
-
-    x = kwargs.get("x")
-    y = kwargs.get("y")
-    if isinstance(x, str):
-        kwargs = self.transform(x, "x", kwargs)
-        x = kwargs["x"]
-    if isinstance(y, str):
-        kwargs = self.transform(y, "y", kwargs)
-        y = kwargs["y"]
-
-    if x is None and y is None:
-        if ndarray.ndim == 1:
-            y = ndarray
-            x = list(range(len(y)))
-        elif ndarray.ndim == 2:
-            y, x = ndarray
-        else:
-            raise ValueError(
-                f"data must have at most 2 dimensions, but found {ndarray.ndim}"
-            )
-    elif x is None:
-        x = ndarray
-    elif y is None:
-        y = ndarray
-
-    kwargs = {**kwargs, **{"x": x, "y": y}}
-
-    return args, kwargs
-
-
-@discard_input_only_kwargs
-def plotly(self, data, args, kwargs):
-    transformed_axes = []
-    for axis in self.AXES:
-        if isinstance(kwargs.get(axis), str):
-            kwargs = self.transform(kwargs[axis], axis, kwargs)
-            transformed_axes.append(axis)
-    return args, kwargs
+    
+    return kwargs
