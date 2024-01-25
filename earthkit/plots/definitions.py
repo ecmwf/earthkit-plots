@@ -12,11 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-def get(key, kwargs):
-    if key in kwargs:
-        value = kwargs[key]
-    else:
-        magic_key, *child_key = key.split("_")
-        child_key = "_".join(child_key)
-        value = kwargs.get(magic_key, dict()).get(child_key)
-    return value
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).parents[1]
+DATA_DIR = Path(__file__).parents[0] / "data"
+SCHEMA_DIR = DATA_DIR / "schemas"
