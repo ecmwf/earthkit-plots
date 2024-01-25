@@ -15,3 +15,5 @@ dependencies:
 - plotly
 - numpy
 - xarray
+- earthkit-data
+- pyyaml
