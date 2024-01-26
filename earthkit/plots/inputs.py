@@ -14,14 +14,13 @@
 
 import warnings
 
-from earthkit.plots import times
-from earthkit.plots.schemas import schema
-
-import xarray as xr
-import numpy as np
 import earthkit.data
+import numpy as np
+
+from earthkit.plots import times
 
 AXES = ["x", "y"]
+
 
 def _earthkitify(data):
     if isinstance(data, (list, tuple)):
@@ -48,7 +47,15 @@ def to_numpy(data):
 
 def sanitise(axes=("x", "y"), multiplot=True):
     def decorator(function):
-        def wrapper(data=None, *args, time_frequency=None, time_aggregation="mean", aggregation=None, deaccumulate=False, **kwargs):
+        def wrapper(
+            data=None,
+            *args,
+            time_frequency=None,
+            time_aggregation="mean",
+            aggregation=None,
+            deaccumulate=False,
+            **kwargs,
+        ):
             time_axis = kwargs.pop("time_axis", 0)
             traces = []
             if data is not None:
@@ -58,9 +65,14 @@ def sanitise(axes=("x", "y"), multiplot=True):
                 if time_frequency is not None:
                     if isinstance(time_aggregation, (list, tuple)):
                         for i, var_name in enumerate(data_vars):
-                            ds[var_name] = getattr(ds[var_name].resample(**{time_dim: time_frequency}), time_aggregation[i])()
+                            ds[var_name] = getattr(
+                                ds[var_name].resample(**{time_dim: time_frequency}),
+                                time_aggregation[i],
+                            )()
                     else:
-                        ds = getattr(ds.resample(**{time_dim: time_frequency}), time_aggregation)()
+                        ds = getattr(
+                            ds.resample(**{time_dim: time_frequency}), time_aggregation
+                        )()
                     time_axis = 1
                 if aggregation is not None:
                     ds = getattr(ds, aggregation)(dim=times.guess_non_time_dim(ds))
@@ -72,10 +84,14 @@ def sanitise(axes=("x", "y"), multiplot=True):
                     else:
                         ds = ds.diff(dim=time_dim)
                 if len(data_vars) > 1:
-                    repeat_kwargs = {k: v for k, v in kwargs.items() if k!="time_frequency"}
+                    repeat_kwargs = {
+                        k: v for k, v in kwargs.items() if k != "time_frequency"
+                    }
                     repeat_kwargs
                     return [
-                        wrapper(ds[data_var], *args, time_axis=time_axis, **repeat_kwargs)
+                        wrapper(
+                            ds[data_var], *args, time_axis=time_axis, **repeat_kwargs
+                        )
                         for data_var in data_vars
                     ]
                 if len(ds.dims) == 2 and multiplot:
@@ -83,7 +99,8 @@ def sanitise(axes=("x", "y"), multiplot=True):
                     for i in range(len(ds[expand_dim])):
                         kwargs["name"] = f"{expand_dim}={ds[expand_dim][i].item()}"
                         trace_kwargs = get_xarray_kwargs(
-                            ds.isel(**{expand_dim: i}), axes, kwargs)
+                            ds.isel(**{expand_dim: i}), axes, kwargs
+                        )
                         traces.append(function(*args, **trace_kwargs))
                 else:
                     trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
@@ -93,7 +110,9 @@ def sanitise(axes=("x", "y"), multiplot=True):
             else:
                 traces.append(function(*args, **kwargs))
             return traces
+
         return wrapper
+
     return decorator
 
 
@@ -110,7 +129,7 @@ def get_xarray_kwargs(data, axes, kwargs):
     for axis in axes:
         attr = kwargs.get(axis)
         if attr is None:
-            if dim not in list(axis_attrs.values())+assigned_attrs:
+            if dim not in list(axis_attrs.values()) + assigned_attrs:
                 attr = dim
             else:
                 attr = data_vars[0]
@@ -122,5 +141,5 @@ def get_xarray_kwargs(data, axes, kwargs):
 
         kwargs[axis] = data[attr].values
         axis_attrs[axis] = attr
-    
+
     return kwargs
