@@ -34,7 +34,7 @@ figures:
         showline: true
         zeroline: false
       height: 750
-      showlegend: False
+      showlegend: false
   stripes:
     layout:
       height: 300

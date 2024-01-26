@@ -1,7 +1,6 @@
-
 import plotly.graph_objects as go
 
-from earthkit.plots import utils, inputs
+from earthkit.plots import inputs
 from earthkit.plots.schemas import schema
 
 
