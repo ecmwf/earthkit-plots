@@ -2,7 +2,7 @@ TIME_DIMS = ["time", "t", "month"]
 
 
 def guess_time_dim(data):
-    dims = dict(data.squeeze().dims)
+    dims = list(data.squeeze().dims)
     for dim in TIME_DIMS:
         if dim in dims:
             return dim
