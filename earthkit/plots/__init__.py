@@ -19,3 +19,11 @@ try:
 except ImportError:  # pragma: no cover
     # Local copy or not installed with setuptools
     __version__ = "999"
+
+from earthkit.plots.charts import Chart
+from earthkit.plots.schemas import schema
+
+__all__ = [
+    "Chart",
+    "schema",
+]
