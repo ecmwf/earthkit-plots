@@ -54,6 +54,7 @@ def sanitise(axes=("x", "y"), multiplot=True):
             time_aggregation="mean",
             aggregation=None,
             deaccumulate=False,
+            order=None,
             **kwargs,
         ):
             time_axis = kwargs.pop("time_axis", 0)
@@ -61,7 +62,7 @@ def sanitise(axes=("x", "y"), multiplot=True):
             if data is not None:
                 ds = to_xarray(data)
                 time_dim = times.guess_time_dim(ds)
-                data_vars = list(ds.data_vars)
+                data_vars = order or list(ds.data_vars)
                 if time_frequency is not None:
                     if isinstance(time_aggregation, (list, tuple)):
                         for i, var_name in enumerate(data_vars):
@@ -87,7 +88,6 @@ def sanitise(axes=("x", "y"), multiplot=True):
                     repeat_kwargs = {
                         k: v for k, v in kwargs.items() if k != "time_frequency"
                     }
-                    repeat_kwargs
                     return [
                         wrapper(
                             ds[data_var], *args, time_axis=time_axis, **repeat_kwargs
