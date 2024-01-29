@@ -47,6 +47,8 @@ class Chart:
         self._subplot_titles = dict()
         self._subplot_y_titles = None
         self._layout_override = dict()
+        
+        self._prepared = False
     
     def add_traces(method):
         def wrapper(self, *args, units=None, order=None, **kwargs):
@@ -150,7 +152,9 @@ class Chart:
     def title(self, label):
         self._layout_override["title"] = label
 
-    def show(self):
+    def _prepare_fig(self):
+        if self._prepared:
+            return
         layout = {
             **schema.figures.figure.layout,
             **self._layout_override,
@@ -170,4 +174,12 @@ class Chart:
                 }
             )
         self.fig.for_each_annotation(lambda a: a.update(text = self._subplot_titles[a.text]))
+        self._prepared = True
+
+    def show(self):
+        self._prepare_fig()
         return self.fig.show()
+
+    def save(self, filename):
+        self._prepare_fig()
+        return self.fig.write_image(filename)
