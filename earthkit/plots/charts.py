@@ -1,9 +1,7 @@
-from earthkit.plots import metadata
 from plotly.subplots import make_subplots
 
-from earthkit.plots import bar, box, inputs, line
+from earthkit.plots import bar, box, inputs, line, metadata
 from earthkit.plots.schemas import schema
-
 
 ADD_TRACE_KWARGS = [
     "row",
@@ -47,18 +45,16 @@ class Chart:
         self._subplot_titles = dict()
         self._subplot_y_titles = None
         self._layout_override = dict()
-        
+
         self._prepared = False
-    
+
     def add_traces(method):
         def wrapper(self, *args, units=None, order=None, **kwargs):
-                
-            trace_kwargs = {
-                k: kwargs.pop(k) for k in ADD_TRACE_KWARGS if k in kwargs
-            }
+
+            trace_kwargs = {k: kwargs.pop(k) for k in ADD_TRACE_KWARGS if k in kwargs}
             if "column" in trace_kwargs:
                 trace_kwargs["col"] = trace_kwargs.pop("column")
-            
+
             title = ""
             units_string = ""
             if args:
@@ -77,30 +73,36 @@ class Chart:
                     if self._fig is None:
                         self._rows = self._rows or len(traces)
                         self._columns = self._columns or 1
-                        self._subplot_y_titles = [" "]*(self._rows*self._columns)
+                        self._subplot_y_titles = [" "] * (self._rows * self._columns)
                     for sub_trace in trace:
                         if not isinstance(sub_trace, (list, tuple)):
-                            sub_trace = [sub_trace]    
+                            sub_trace = [sub_trace]
                         actual_trace_kwargs = {
-                            k: v for k, v in trace_kwargs.items()
+                            k: v
+                            for k, v in trace_kwargs.items()
                             if k not in ("row", "col")
                         }
-                        row = trace_kwargs.get("row", i+1)
+                        row = trace_kwargs.get("row", i + 1)
                         col = trace_kwargs.get("col", 1)
-                        j = self._columns*(row-1) + (col-1)
-                        
+                        j = self._columns * (row - 1) + (col - 1)
+
                         if isinstance(title, list):
-                            self._subplot_titles = {str(k): title[k] for k in range(len(title))}
+                            self._subplot_titles = {
+                                str(k): title[k] for k in range(len(title))
+                            }
                             self._subplot_y_titles = units_string
                         else:
                             self._subplot_titles[str(j)] = title
                             self._subplot_y_titles[j] = units_string
-                        
+
                         for actual_trace in sub_trace:
-                            self.add_trace(actual_trace, row=row, col=col, **actual_trace_kwargs)
+                            self.add_trace(
+                                actual_trace, row=row, col=col, **actual_trace_kwargs
+                            )
                 else:
                     self.add_trace(trace, **trace_kwargs)
             return self
+
         return wrapper
 
     @property
@@ -109,7 +111,7 @@ class Chart:
             self._fig = make_subplots(
                 rows=self.rows,
                 cols=self.columns,
-                subplot_titles=[f"{i}" for i in range(self._rows*self._columns)],
+                subplot_titles=[f"{i}" for i in range(self._rows * self._columns)],
                 **self._subplots_kwargs,
             )
         return self._fig
@@ -173,7 +175,9 @@ class Chart:
                     },
                 }
             )
-        self.fig.for_each_annotation(lambda a: a.update(text = self._subplot_titles[a.text]))
+        self.fig.for_each_annotation(
+            lambda a: a.update(text=self._subplot_titles[a.text])
+        )
         self._prepared = True
 
     def show(self):
