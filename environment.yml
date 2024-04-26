@@ -1,0 +1,19 @@
+channels:
+- conda-forge
+- nodefaults
+dependencies:
+- make
+- mypy
+- myst-parser
+- pre-commit
+- pydata-sphinx-theme
+- pytest
+- pytest-cov
+# DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
+- earthkit-data
+- matplotlib
+- cartopy
+- pyyaml
+- numpy
+- pip:
+  - adjustText

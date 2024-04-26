@@ -1,0 +1,134 @@
+# Style
+font: Roboto
+cmap: plasma
+n_levels: 12
+figsize: [7, 7]
+dpi: 100
+extract_domain: true
+style_library: default
+use_preferred_styles: false
+interpolate_target_resolution: 1
+
+# Projections and interpolation
+reference_crs: PlateCarree
+interpolation: None
+
+# Dates and times
+date_format: "%Y-%m-%d"
+time_format: "%H:%M"
+
+# Plotting defaults
+contour:
+  line_colors: navy
+  labels: false
+  label_fontsize: 7
+  linewidths: 0.5
+  trasnform_first: true
+contourf:
+  trasnform_first: true
+point:
+  marker: o
+legend:
+  location: bottom
+  format: "%.4g"
+title:
+  wrap: true
+  horizontalalignment: center
+  fontsize: 12
+barbs:
+  length: 4
+  linewidth: 0.5
+  sizes:
+    spacing: 0.25
+  color: "#555"
+  # regrid_shape: 30
+quiver: {}
+  # scale: 250
+  # regrid_shape: 20
+scatter:
+  s: 36
+  edgecolors: black
+  missing_values:
+    color: none
+    hatch: ////////
+  linewidths: 0.5
+gridpoints:
+  s: 4
+  marker: .
+  edgecolors: null
+  missing_values: null
+  z: false
+  color: red
+  legend_style: null
+point_cloud:
+  s: 12
+  marker: o
+  edgecolors: null
+boxplot:
+  sym: x
+
+# Auxilliary layers defaults
+coastlines:
+  linewidth: 0.8
+  edgecolor: "#555"
+  facecolor: none
+borders:
+  linestyle: "--"
+  linewidth: 0.5
+  edgecolor: [0.2, 0.2, 0.2]
+  facecolor: none
+countries:
+  linestyle: "-"
+  linewidth: 0.5
+  edgecolor: grey
+  facecolor: lightgrey
+unit_boundaries:
+  linestyle: [0, [5, 8]]
+  linewidth: 0.5
+  edgecolor: [0.3, 0.3, 0.3]
+  facecolor: none
+disputed_boundaries:
+  linestyle: [0, [5, 1]]
+  linewidth: 0.5
+  edgecolor: [0.75, 0.2, 0.2]
+  facecolor: none
+administrative_areas:
+  linestyle: ":"
+  linewidth: 0.5
+  edgecolor: [0.2, 0.2, 0.2]
+  facecolor: none
+roads:
+  linestyle: "-"
+  linewidth: 0.5
+  edgecolor: "#ffcc00"
+  alpha: 0.5
+  facecolor: "none"
+land:
+  zorder: 0
+  color: "#E0CBA8"
+urban_areas:
+  color: "#bb8d44"
+ocean:
+  color: "#97B6E1"
+rivers:
+  edgecolor: "#97B6E1"
+lakes:
+  facecolor: "#A5D5F2"
+  edgecolor: "#97B6E1"
+shapes:
+  facecolor: steelblue
+  linewidth: 0.5
+  edgecolor: black
+gridlines:
+  linewidth: 0.75
+  linestyle: "-"
+  color: "#bbb"
+  alpha: 0.8
+  x_inline: false
+  y_inline: false
+  draw_labels: ["bottom", "left"]
+  rotate_labels: false
+  xlabel_style:
+    color: "#777"
+  ylabel_style:
+    color: "#777"
