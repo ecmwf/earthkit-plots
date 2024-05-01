@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 
-from earthkit.plots import utils, identifiers
+from earthkit.plots import identifiers
+from earthkit.plots.utils import string_utils
 from earthkit.plots.metadata.formatters import LayerFormatter, SubplotFormatter, SourceFormatter
 from earthkit.plots.sources import get_source, single
 from earthkit.plots.schemas import schema
@@ -261,7 +262,7 @@ class Subplot:
                 for key in set(keys):
                     template = template.replace("{" + key, "{" + key + f"!{i}")
                 title_parts.append(template)
-            template = utils.list_to_human(title_parts)
+            template = string_utils.list_to_human(title_parts)
         return template
 
     @property
@@ -376,7 +377,7 @@ class Subplot:
 
     def format_string(self, string, unique=True, grouped=True):
         if not grouped:
-            return utils.list_to_human(
+            return string_utils.list_to_human(
                 [LayerFormatter(layer).format(string) for layer in self.layers]
             )
         else:

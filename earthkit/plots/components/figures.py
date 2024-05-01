@@ -80,17 +80,17 @@ class Figure:
         self._last_subplot_location = row, column
         return row, column
 
-    def add_subplot(self, row=None, column=None, domain=None, **kwargs):
-        if domain is None:
-            domain = self._domain
+    def add_subplot(self, row=None, column=None, **kwargs):
         row, column = self._determine_row_column(row, column)
-        subplot = Subplot(row=row, column=column, domain=domain, figure=self, **kwargs)
+        subplot = Subplot(row=row, column=column, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
-    def add_map(self, row=None, column=None, **kwargs):
+    def add_map(self, row=None, column=None, domain=None, **kwargs):
+        if domain is None:
+            domain = self._domain
         row, column = self._determine_row_column(row, column)
-        subplot = Map(row=row, column=column, figure=self, **kwargs)
+        subplot = Map(row=row, column=column, domain=domain, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
     
@@ -262,3 +262,6 @@ class Figure:
 
     def show(self, *args, **kwargs):
         return plt.show(*args, **kwargs)
+
+    def save(self, *args, bbox_inches="tight", **kwargs):
+        return plt.savefig(*args, bbox_inches=bbox_inches, **kwargs)
