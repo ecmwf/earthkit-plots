@@ -163,8 +163,8 @@ class Chart:
         }
         self.fig.update_layout(**layout)
         for i in range(self.rows * self.columns):
-            y_key = f"yaxis{i + 1 if i>0 else ''}"
-            x_key = f"xaxis{i + 1 if i>0 else ''}"
+            y_key = f"yaxis{i + 1 if i > 0 else ''}"
+            x_key = f"xaxis{i + 1 if i > 0 else ''}"
 
             self.fig.update_layout(
                 **{
