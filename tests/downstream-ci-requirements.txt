@@ -1,0 +1,8 @@
+plotly
+numpy
+xarray
+earthkit-data
+pyyaml
+# for testing
+pytest
+pytest-cov
