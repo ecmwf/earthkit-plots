@@ -12,14 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import itertools
 import dateutil
 from string import Formatter
+from zoneinfo import ZoneInfo
 
 import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.utils import string_utils
+from earthkit.plots.schemas import schema
+
+
+logger = logging.getLogger(__name__)
 
 
 def parse_time(time):
@@ -204,13 +210,15 @@ class FigureFormatter(BaseFormatter):
 
 
 class TimeFormatter:
-    def __init__(self, times):
+    def __init__(self, times, time_zone=None):
         if not isinstance(times, (list, tuple)):
             times = [times]
         for i, time in enumerate(times):
             if not isinstance(time, dict):
                 times[i] = {"time": time}
         self.times = times
+        time_zone = time_zone or schema.time_zone
+        self._time_zone = time_zone if time_zone is None else ZoneInfo(time_zone)
 
     def _extract_time(method):
         def wrapper(self):
@@ -219,7 +227,21 @@ class TimeFormatter:
             if len(np.array(times).shape) > 1 and np.array(times).shape[0]==1:
                 times = times[0]
             _, indices = np.unique(times, return_index=True)
-            return [times[i] for i in sorted(indices)]
+            result = [times[i] for i in sorted(indices)]
+            if self._time_zone is not None:
+                logger.warning("Time zone features are currently EXPERIMENTAL")
+                if None in [t.tzinfo for t in result]:
+                    logger.warning(
+                        "Attempting time zone conversion, but some data has no "
+                        "time zone metadata; assuming UTC"
+                    )
+                    result = [
+                        t if t.tzinfo is not None
+                        else t.replace(tzinfo=ZoneInfo("UTC"))
+                        for t in result
+                    ]
+                result = [t.astimezone(tz=self._time_zone) for t in result]
+            return result
 
         return property(wrapper)
 
@@ -230,6 +252,26 @@ class TimeFormatter:
     @property
     def time(self):
         return self.valid_time
+
+    @property
+    def time_zone(self):
+        if self._time_zone is None:
+            logger.warning("Time zone features are currently EXPERIMENTAL")
+        valid_times = self.valid_time
+        if None in [vt.tzinfo for vt in valid_times]:
+            logger.warning(
+                "Some of the data is missing time zone metadata; assuming UTC"
+            )
+            valid_times = [
+                t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
+                for t in valid_times
+            ]
+        offsets = [vt.utcoffset().seconds//3600 for vt in valid_times]
+        time_zones = [
+            f"UTC{offset:+d}" if offset else "UTC" for offset in offsets]
+        return time_zones
+
+        
 
     @_extract_time
     def base_time(self):

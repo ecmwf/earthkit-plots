@@ -26,7 +26,7 @@ DEFAULT_ANALYSIS_TITLE = (
     "{variable_name} at {valid_time:%H:%M} on {valid_time:%Y-%m-%d}"
 )
 
-TIME_KEYS = ["base_time", "valid_time", "lead_time", "time"]
+TIME_KEYS = ["base_time", "valid_time", "lead_time", "time", "time_zone"]
 
 MAGIC_KEYS = {
     "variable_name": {

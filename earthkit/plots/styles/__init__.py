@@ -89,7 +89,7 @@ class Style:
 
     def __init__(
         self,
-        colors=schema.cmap,
+        colors=schema.default_cmap,
         levels=None,
         gradients=None,
         normalize=True,

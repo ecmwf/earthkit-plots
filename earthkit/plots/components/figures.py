@@ -25,14 +25,14 @@ from earthkit.plots.utils import string_utils
 
 class Figure:
     
-    def __init__(self, rows=1, columns=1, size=schema.figsize, domain=None, **kwargs):
+    def __init__(self, rows=1, columns=1, size=None, domain=None, **kwargs):
         self.rows = rows
         self.columns = columns
         
         self._row = 0
         self._col = 0
         
-        self.fig = plt.figure(figsize=size, constrained_layout=True, dpi=schema.dpi)
+        self.fig = plt.figure(figsize=size, constrained_layout=True)
         self.gridspec = self.fig.add_gridspec(rows, columns, **kwargs)
         
         self._domain = domain

@@ -1,31 +1,97 @@
-# Style
-font: Roboto
-cmap: plasma
-n_levels: 12
-figsize: [7, 7]
-dpi: 100
-extract_domain: true
+## EARTHKIT-PLOTS DEFAULT SCHEMA
+
+# *************************************************************************** #
+# * MATPLOTLIB RCPARAMS                                                     * #
+# *************************************************************************** #
+## This is a shortcut for setting the matplotlib style sheet to use, and is
+## equivalent to `matplotlib.pyplot.style.use`.
+## NOTE: Any rcParams set below will override values from the style sheet!
+# style_sheet: default
+
+# The following section contains a YAML representation of matplotlib rcParams.
+# Nested keys in this section map to the matplotlib dot notation when setting
+# rcParams - i.e. `figure.figsize: 7, 7`` can be set with:
+# figure:
+#   figsize: [7, 7]
+# NOTE: only some rcParams can be set using this configuration. If you want
+# more control over matplotlib rcParams, consider using a matplotlib style
+# sheet.
+figure:
+  figsize: [7, 7]
+  dpi: 100
+axes:
+  linewidth: 0.75
+  edgecolor: "#AAAAAA"
+font:
+  family: Roboto
+text:
+  color: "#333333"
+
+
+# *************************************************************************** #
+# * STYLES                                                                  * #
+# *************************************************************************** #
+# The colormap to use when none is specified or detected
+default_cmap: plasma
+
+# The number of levels to use in default styles
+default_style_levels: 12
+
+# The style library to use for automatic styling
 style_library: default
+
+# If true, force the use of the preferred style for a given variable as provided
+# by the style library, forcing unit conversion if necessary
 use_preferred_styles: false
+
+# EXPERIMENTAL
+# The lat-lon target resolution when interpolating unstructured data
 interpolate_target_resolution: 1
 
-# Projections and interpolation
-reference_crs: PlateCarree
-interpolation: None
 
-# Dates and times
+# *************************************************************************** #
+# * GEOSPATIAL                                                              * #
+# *************************************************************************** #
+# If true, pre-process the data before plotting by extracting the target domain.
+# This speeds up plotting when the data has a larger geospatial extent than the
+# target map, but can occasionally result in strange behaviour with less common
+# data preojections.
+extract_domain: true
+
+# The assumed CRS for geospatial visualisation when none is found
+reference_crs: PlateCarree
+
+
+# *************************************************************************** #
+# * DATES & TIMES                                                           * #
+# *************************************************************************** #
+# The default format to use for dates in titles and labels
 date_format: "%Y-%m-%d"
+
+# The default format to use for times in titles and labels
 time_format: "%H:%M"
 
-# Plotting defaults
+# EXPERIMENTAL
+# The time zone to use in titles and labels
+# This is highly experimental - most weather and climate datasets do not include
+# any time zone metadata, and the assumption is that any time without a time
+# zone is UTC.
+time_zone: null
+
+
+# *************************************************************************** #
+# * DEFAULT PLOTTING STYLES                                                 * #
+# *************************************************************************** #
+# The following keys can take any valid keyword argument that the corresponding
+# plotting method understands
 contour:
   line_colors: navy
   labels: false
   label_fontsize: 7
   linewidths: 0.5
-  trasnform_first: true
+  transform_first: true
 contourf:
-  trasnform_first: true
+  transform_first: true
 point:
   marker: o
 legend:
@@ -41,10 +107,7 @@ barbs:
   sizes:
     spacing: 0.25
   color: "#555"
-  # regrid_shape: 30
 quiver: {}
-  # scale: 250
-  # regrid_shape: 20
 scatter:
   s: 36
   edgecolors: black
@@ -67,7 +130,10 @@ point_cloud:
 boxplot:
   sym: x
 
-# Auxilliary layers defaults
+
+# *************************************************************************** #
+# * AUXILLIARY DATA LAYERS STYLES                                           * #
+# *************************************************************************** #
 coastlines:
   linewidth: 0.8
   edgecolor: "#555"
