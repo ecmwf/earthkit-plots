@@ -1,10 +1,20 @@
 import io
+import warnings
+import json
 import uuid
 from pathlib import Path
 from IPython.display import IFrame, Image
 
-from earthkit.plots.components._coastlines import COASTLINES
-from earthkit.plots import styles
+from earthkit.plots import ancillary
+
+
+RESOLUTIONS = {
+    "low": 10,
+    "medium": 30,
+    "high": 50,
+    "very high": 150,
+}
+
 
 GLOBE_HTML = """
 <head>
@@ -58,8 +68,13 @@ GLOBE_HTML = """
 """
 
 def globe(data, style=None, out_fn = None, out_path='.',
-          size=500, **kwargs):
+          size=500, resolution="medium", how="block", **kwargs):
     """Generate an IFrame containing a templated javascript package."""
+    warnings.warn(
+        "Generting interactive globes is an EXPERIMENTAL feature and may cause "
+        "issues with your Jupyter session"
+    )
+    
     from earthkit.plots import Figure
     import matplotlib.pyplot as plt
     import base64
@@ -67,14 +82,16 @@ def globe(data, style=None, out_fn = None, out_path='.',
     
     img_url = "test.png"
     
-    figure = Figure(left=0, right=1, bottom=0, top=1, size=(30, 30))
+    figsize = RESOLUTIONS[resolution]
+    
+    figure = Figure(left=0, right=1, bottom=0, top=1, size=(figsize, figsize))
     
     crs = data.projection().to_cartopy_crs()
     if crs.__class__.__name__ != "PlateCarree":
         crs = ccrs.PlateCarree()
     
     subplot = figure.add_map(crs=crs)
-    subplot.block(data, style=style, transform_first=True)
+    getattr(subplot, how)(data, style=style, transform_first=True)
     extent = subplot.ax.get_extent()
     if extent != (-180.0, 180.0, -90.0, 90.0):
         subplot.ax.set_global()
@@ -93,13 +110,20 @@ def globe(data, style=None, out_fn = None, out_path='.',
     
     image = Image(img_url)
     
-    img_url = "data:image/png;base64," + base64.b64encode(image.data).decode('ascii')
+    img_url = (
+      "data:image/png;base64," + base64.b64encode(image.data).decode('ascii'))
+ 
+    coastlines = ancillary.load("coastlines", "geo")
  
     # The open "wt" parameters are: write, text mode;
     with io.open(filepath, 'wt', encoding='utf8') as outfile:
         # The data is passed in as a dictionary so we can pass different
         # arguments to the template
-        outfile.write(GLOBE_HTML.format(img_url=img_url, width=size, height=size, coastlines=COASTLINES))
+        outfile.write(
+          GLOBE_HTML.format(
+            img_url=img_url, width=size, height=size, coastlines=coastlines,
+          )
+        )
  
     return IFrame(src=filepath, width=size, height=size)
 

@@ -16,12 +16,13 @@ import glob
 import os
 
 from matplotlib import font_manager, rcParams
+import matplotlib.pyplot as plt
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.definitions import FONTS_DIR
+from earthkit.plots.definitions import FONTS_DIR, SCHEMA_DIR
 from earthkit.plots.schemas import schema
 
 try:
@@ -91,7 +92,7 @@ def register_fonts():
 
 
 register_fonts()
-rcParams["font.family"] = schema.font
-rcParams["text.color"] = "#333"
-rcParams["axes.linewidth"] = 0.75
-rcParams["axes.edgecolor"] = "#aaa"
+# rcParams["font.family"] = schema.font
+# rcParams["text.color"] = "#333"
+# rcParams["axes.linewidth"] = 0.75
+# rcParams["axes.edgecolor"] = "#aaa"

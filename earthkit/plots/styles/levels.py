@@ -16,8 +16,10 @@ import math
 
 import numpy as np
 
+from earthkit.plots.schemas import schema
 
-def auto_range(data, divergence_point=None, n_levels=8):
+
+def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels):
     """
     Attempt to generate a suitable range of levels for arbitrary input data.
 

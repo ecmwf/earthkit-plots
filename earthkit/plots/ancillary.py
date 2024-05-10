@@ -17,11 +17,13 @@ from functools import partial
 
 import cartopy
 import yaml
+import json
 
 from earthkit.plots import definitions
 
 READERS = {
     ".yml": partial(yaml.load, Loader=yaml.SafeLoader),
+    ".json": json.load,
 }
 
 

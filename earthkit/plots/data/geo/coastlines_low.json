@@ -1,4 +1,3 @@
-COASTLINES = """
 [
   {
     "coords": [
@@ -21585,4 +21584,3 @@ COASTLINES = """
     }
   }
 ]
-"""

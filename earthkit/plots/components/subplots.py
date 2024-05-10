@@ -211,6 +211,12 @@ class Subplot:
             nest = source.metadata("orderingConvention", default=None) == "nested"
             kwargs["transform"] = self.crs
             mappable = healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
+        elif source.metadata("gridType", default=None) == "reduced_gg" and method_name=="pcolormesh":
+            from earthkit.plots.geo import reduced_gg
+            x_values = source.x_values
+            y_values = source.y_values
+            kwargs["transform"] = self.crs
+            mappable = reduced_gg.nnshow(z_values, x_values, y_values, ax=self.ax, style=style, **kwargs)
         else:
             x_values = source.x_values
             y_values = source.y_values
@@ -340,7 +346,7 @@ class Subplot:
     def quiver(self, *args, **kwargs):
         """"""
     
-    @schema.barbs.apply()
+    # @schema.barbs.apply()
     @plot_vector()
     def barbs(self, *args, **kwargs):
         """"""

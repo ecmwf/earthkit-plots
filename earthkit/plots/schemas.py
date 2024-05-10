@@ -15,12 +15,42 @@
 import os
 
 import yaml
+from matplotlib import rcParams
+import matplotlib.pyplot as plt
 
 from earthkit.plots import definitions
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 
 _DEFAULT_SCHEMA = "default"
+
+
+RCPARAMS = [
+    'backends',
+    'lines',
+    'patches',
+    'hatches',
+    # 'boxplot',
+    'font',
+    'text',
+    'latex',
+    'axes',
+    'dates',
+    'ticks',
+    'grids',
+    # 'legend',
+    'figure',
+    'images',
+    # 'contour',
+    'errorbar',
+    'histogram',
+    # 'scatter',
+    'agg',
+    'paths',
+    'saving',
+    'interactive keymaps',
+    'animation',
+]
 
 
 class SchemaNotFoundError(FileNotFoundError):
@@ -57,13 +87,27 @@ class _set:
 
 class Schema(dict):
     """Class for containing and maintaining global style settings."""
+    
+    PROTECTED_KEYS = ["_parent"]
 
     parsers = {
         "reference_crs": parse_crs,
     }
 
-    def __init__(self, **kwargs):
+    def __init__(self, parent=None, **kwargs):
+        self._parent = parent
         self._update(**kwargs)
+        self._apply_rcParams()
+
+    def _apply_rcParams(self):
+        if "style_sheet" in self:
+            plt.style.use(self["style_sheet"])
+        for param, config in self.items():
+            if param in RCPARAMS:
+                for member, value in config.items():
+                    if member in Schema.PROTECTED_KEYS:
+                        continue
+                    rcParams[".".join((param, member))] = value
 
     def __getattr__(self, key):
         if key in self:
@@ -72,11 +116,13 @@ class Schema(dict):
 
     def __setattr__(self, key, value):
         if isinstance(value, dict) and not isinstance(value, Schema):
-            value = Schema(**value)
+            value = Schema(parent=key, **value)
         try:
             self[key] = value
         except KeyError:
             raise AttributeError(key)
+        if self._parent in RCPARAMS and key not in Schema.PROTECTED_KEYS:
+            rcParams[".".join((self._parent, key))] = value
 
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -99,12 +145,18 @@ class Schema(dict):
     def _update_kwargs(self, kwargs, keys):
         schema_kwargs = self._to_dict()
         if keys:
-            schema_kwargs = {key: schema_kwargs[key] for key in keys}
+            schema_kwargs = {
+                key: schema_kwargs[key]
+                for key in keys
+                if key not in Schema.PROTECTED_KEYS
+            }
         return recursive_dict_update(schema_kwargs, kwargs)
 
     def _to_dict(self):
         d = dict()
         for key in self:
+            if key in Schema.PROTECTED_KEYS:
+                continue
             value = getattr(self, key)
             if isinstance(value, type(self)):
                 value = value._to_dict()
