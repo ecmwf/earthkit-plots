@@ -18,6 +18,7 @@ import inspect
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.interpolate import make_interp_spline, BSpline
 
 from earthkit.plots import metadata, styles
 from earthkit.plots.schemas import schema
@@ -32,6 +33,10 @@ __all__ = [
     "DEFAULT_STYLE",
     "_STYLE_KWARGS",
 ]
+
+
+def linspace_datetime64(start_date, end_date, n):
+    return np.linspace(0, 1, n) * (end_date - start_date) + start_date
 
 
 class Style:
@@ -472,7 +477,7 @@ class Style:
             kwargs["c"] = kwargs.pop("c", values)
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
-    def line(self, ax, x, y, values, s=3, *args, **kwargs):
+    def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
         Plot a scatter plot using this `Style`.
 
@@ -495,8 +500,26 @@ class Style:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
             kwargs["c"] = kwargs.pop("c", values)
-    
-        return ax.plot(x, y, *args, **kwargs)
+        
+        if mode == "spline":
+            if np.issubdtype(x.dtype, np.datetime64):
+                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x)*5))
+            else:
+                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x)*5))
+
+            spline = make_interp_spline(x, y, k=3)
+            y_smooth = spline(x_smooth)
+            
+            marker = kwargs.pop("marker", None)
+            mappable = ax.plot(x_smooth, y_smooth, *args, **kwargs)
+            if marker is not None:
+                kwargs.pop("linewidth", None)
+                color = mappable[0].get_color()
+                self.line(ax, x, y, values, *args, marker=marker, color=color, linewidth=0, **kwargs)   
+        else:
+            mappable = ax.plot(x, y, *args, **kwargs)
+        
+        return mappable
 
     def values_to_colors(self, values, data=None):
         """
@@ -627,6 +650,7 @@ class Contour(Style):
         interpolate=True,
         **kwargs,
     ):
+        
         super().__init__(colors=colors, **kwargs)
         self._line_colors = line_colors
         self.labels = labels
@@ -739,4 +763,4 @@ class Hatched(Contour):
 
 DEFAULT_STYLE = Style()
 
-_STYLE_KWARGS = inspect.getargspec(Style)[0]
+_STYLE_KWARGS = list(set(inspect.getargspec(Style)[0] + inspect.getargspec(Contour)[0]))

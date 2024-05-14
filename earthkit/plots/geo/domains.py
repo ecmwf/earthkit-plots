@@ -206,7 +206,7 @@ class Domain:
         return can_bbox
 
     def extract(self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()):
-        if self.is_complete and schema.extract_domain:
+        if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
             roll_by = None
 

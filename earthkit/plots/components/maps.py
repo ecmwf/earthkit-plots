@@ -94,7 +94,6 @@ class Map(Subplot):
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
          source = get_source(data=data, x=x, y=y)
          labels = SourceFormatter(source).format(label)
-         print(labels, "FOOBARBAZ")
          crs = source.crs or ccrs.PlateCarree()
          for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), transform=crs, **kwargs)

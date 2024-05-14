@@ -24,7 +24,7 @@ from earthkit.plots.metadata.formatters import LayerFormatter, SubplotFormatter,
 from earthkit.plots.sources import get_source, single
 from earthkit.plots.schemas import schema
 from earthkit.plots.components.layers import Layer
-from earthkit.plots.styles import Style, _STYLE_KWARGS
+from earthkit.plots.styles import Style, Contour, auto, _STYLE_KWARGS, DEFAULT_STYLE
 
 
 DEFAULT_FORMATS = ['%Y', '%b', '%-d', '%H:%M', '%H:%M', '%S.%f']
@@ -196,9 +196,13 @@ class Subplot:
         
         if method_name == "contourf":
             source.regrid = True
-        
         if style is None:
-            style = Style(**{key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs})
+            style_kwargs = {key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs}
+            if style_kwargs:
+                style_class = Style if not method_name.startswith("contour") else Contour
+                style = style_class(**style_kwargs)
+            else:
+                style = auto.guess_style(source, units=source.units)
         
         if (data is None and z is None) or (z is not None and not z):
             z_values = None
@@ -235,6 +239,33 @@ class Subplot:
                 self.ax, x_values, y_values, z_values, **kwargs)
         self.layers.append(Layer(source, mappable, self, style))
         return mappable
+
+    def _extract_plottables_2(self, data=None, x=None, y=None, z=None, every=None, source_units=None, extract_domain=False, **kwargs):
+        if source_units is not None:
+            source = get_source(data=data, x=x, y=y, z=z, units=source_units)
+        else:
+            source = get_source(data=data, x=x, y=y, z=z)
+        kwargs = {**self._plot_kwargs(source), **kwargs}
+        
+        if (data is None and z is None) or (z is not None and not z):
+            z_values = None
+        else:
+            z_values = source.z_values
+
+        x_values = source.x_values
+        y_values = source.y_values
+            
+        if every is not None:
+            x_values = x_values[::every]
+            y_values = y_values[::every]
+            if z_values is not None:
+                z_values = z_values[::every, ::every]
+            
+        if self.domain is not None and extract_domain:
+            x_values, y_values, z_values = self.domain.extract(
+                x_values, y_values, z_values, source_crs=source.crs,
+            )
+        return x_values, y_values, z_values
 
     @property
     def figure(self):
@@ -295,6 +326,15 @@ class Subplot:
     @plot_2D()
     def line(self, *args, **kwargs):
         """"""
+    
+    def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
+        x1, y1, _ = self._extract_plottables_2(y=data_1, **kwargs)
+        x2, y2, _ = self._extract_plottables_2(y=data_2, **kwargs)
+        kwargs.pop("x")
+        mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
+        self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
+        return mappable
+        
     
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
          source = get_source(data=data, x=x, y=y)

@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
+from pathlib import Path
 
 import yaml
 from matplotlib import rcParams
 import matplotlib.pyplot as plt
 
+from earthkit.plots._plugins import PLUGINS
 from earthkit.plots import definitions
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
@@ -215,14 +216,18 @@ class Schema(dict):
         >>> schema.use("default")
         >>> schema.use("~/custom.yaml")
         """
-        file_name = definitions.SCHEMA_DIR / f"{name}.yaml"
-        if not os.path.exists(file_name):
-            if os.path.exists(name):
-                file_name = name
-            else:
-                raise SchemaNotFoundError(f"no schema '{name}' found")
+        if name not in PLUGINS:
+            file_name = Path(name).expanduser()
+            if not file_name.exists():
+                raise SchemaNotFoundError(f"No plugin '{name}' found")
+        elif PLUGINS[name].get("schema") is None:
+            raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
+        else:
+            file_name = PLUGINS[name]["schema"]
+
         with open(file_name, "r") as f:
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
+
         self._reset(**kwargs)
 
     def _reset(self, **kwargs):

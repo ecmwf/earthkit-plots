@@ -12,26 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import glob
 import os
+import glob
+from pathlib import Path
 
 import yaml
 
 from earthkit.plots import definitions, styles
+from earthkit.plots._plugins import PLUGINS
+from earthkit.plots.schemas import schema
 from earthkit.plots.metadata.units import are_equal
 
 
 def guess_style(data, units=None):
-    from earthkit.maps import schema
-
-    if os.path.exists(schema.style_library):
-        styles_path = f"{schema.style_library}/*"
+    if not schema.automatic_styles or schema.style_library is None:
+        return styles.DEFAULT_STYLE
+    
+    if schema.style_library not in PLUGINS:
+        path = Path(schema.style_library).expanduser()
+        identities_path = path / "identities"
+        styles_path = path / "styles"
     else:
-        styles_path = definitions.STYLES_DIR / (
-            "*" if schema.style_library == "default" else f"{schema.style_library}/*"
-        )
+        identities_path = PLUGINS[schema.style_library]["identities"]
+        styles_path = PLUGINS[schema.style_library]["styles"]
 
-    for fname in glob.glob(str(styles_path)):
+    identity = None
+
+    for fname in glob.glob(str(identities_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:
                 config = yaml.load(f, Loader=yaml.SafeLoader)
@@ -40,24 +47,37 @@ def guess_style(data, units=None):
 
         for criteria in config["criteria"]:
             for key, value in criteria.items():
-                if data.metadata(key, default=None) != value:
+                if data.metadata(key, default=None) == value:
+                    identity = config["id"]
                     break
             else:
-                break
+                continue
+            break
         else:
             continue
         break
     else:
         return styles.DEFAULT_STYLE
 
-    if units is None:
-        style = config["styles"][config["preferred-style"]]
+    for fname in glob.glob(str(styles_path / "*")):
+        if os.path.isfile(fname):
+            with open(fname, "r") as f:
+                style_config = yaml.load(f, Loader=yaml.SafeLoader)
+        else:
+            continue
+        if style_config["id"] == identity:
+            break
     else:
-        for _, style in config["styles"].items():
+        return styles.DEFAULT_STYLE
+    
+    if schema.use_preferred_units:
+        style = style_config["styles"][style_config["optimal"]]
+    else:
+        for _, style in style_config["styles"].items():
             if are_equal(style.get("units"), units):
                 break
         else:
             # No style matching units found; return default
-            return styles.Style(units=units)
+            return styles.DEFAULT_STYLE
 
     return styles.Style.from_dict(style)
