@@ -61,6 +61,12 @@ class Figure:
                     f"No subplots have method '{method.__name__}'"
                 )
         return wrapper
+
+    def multi_plot(method):
+        def wrapper(self, data, *args, **kwargs):
+            for datum, subplot in zip(data, self.subplots):
+                getattr(subplot, method.__name__)(datum, *args, **kwargs)
+        return wrapper
     
     def _determine_row_column(self, row, column):
         if row is not None and column is not None:
@@ -72,11 +78,11 @@ class Figure:
                 row = self._last_subplot_location[0]
             if column is None:
                 column = self._last_subplot_location[1]
-        if column < self.columns-1:
-            column = column + 1
-        else:
-            column = 0
-            row = row + 1
+            if column < self.columns-1:
+                column = column + 1
+            else:
+                column = 0
+                row = row + 1
         self._last_subplot_location = row, column
         return row, column
 
@@ -186,6 +192,18 @@ class Figure:
     
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
+        """"""
+    
+    @multi_plot
+    def block(self, *args, **kwargs):
+        """"""
+    
+    @multi_plot
+    def contourf(self, *args, **kwargs):
+        """"""
+    
+    @multi_plot
+    def contour(self, *args, **kwargs):
         """"""
     
     def gridlines(self, *args, sharex=False, sharey=False, **kwargs):

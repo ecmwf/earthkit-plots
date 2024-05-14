@@ -15,14 +15,13 @@
 import glob
 import os
 
-from matplotlib import font_manager, rcParams
-import matplotlib.pyplot as plt
+from matplotlib import font_manager
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.definitions import FONTS_DIR, SCHEMA_DIR
+from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.schemas import schema
 
 try:
@@ -43,46 +42,6 @@ __all__ = [
 ]
 
 
-def _quickplot(function):
-    def wrapper(*args, **kwargs):
-        figure = Figure()
-        subplot = figure.add_subplot(0, 0)
-        getattr(subplot, function.__name__)(*args, **kwargs)
-        return subplot
-
-    return wrapper
-
-
-@_quickplot
-def line(*args, **kwargs):
-    """Quick plot"""
-
-
-@_quickplot
-def bar(*args, **kwargs):
-    """Quick plot"""
-
-
-@_quickplot
-def scatter(*args, **kwargs):
-    """Quick plot"""
-
-
-@_quickplot
-def block(*args, **kwargs):
-    """Quick plot"""
-
-
-@_quickplot
-def contour(*args, **kwargs):
-    """Quick plot"""
-
-
-@_quickplot
-def contourf(*args, **kwargs):
-    """Quick plot"""
-
-
 def register_fonts():
     fontpaths = glob.glob(os.path.join(FONTS_DIR, "*"))
     for fontpath in fontpaths:
@@ -92,7 +51,3 @@ def register_fonts():
 
 
 register_fonts()
-# rcParams["font.family"] = schema.font
-# rcParams["text.color"] = "#333"
-# rcParams["axes.linewidth"] = 0.75
-# rcParams["axes.edgecolor"] = "#aaa"

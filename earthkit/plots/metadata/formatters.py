@@ -229,7 +229,6 @@ class TimeFormatter:
             _, indices = np.unique(times, return_index=True)
             result = [times[i] for i in sorted(indices)]
             if self._time_zone is not None:
-                logger.warning("Time zone features are currently EXPERIMENTAL")
                 if None in [t.tzinfo for t in result]:
                     logger.warning(
                         "Attempting time zone conversion, but some data has no "
@@ -254,9 +253,7 @@ class TimeFormatter:
         return self.valid_time
 
     @property
-    def time_zone(self):
-        if self._time_zone is None:
-            logger.warning("Time zone features are currently EXPERIMENTAL")
+    def utc_offset(self):
         valid_times = self.valid_time
         if None in [vt.tzinfo for vt in valid_times]:
             logger.warning(
@@ -267,8 +264,7 @@ class TimeFormatter:
                 for t in valid_times
             ]
         offsets = [vt.utcoffset().seconds//3600 for vt in valid_times]
-        time_zones = [
-            f"UTC{offset:+d}" if offset else "UTC" for offset in offsets]
+        time_zones = [f"UTC{offset:+d}" for offset in offsets]
         return time_zones
 
         
