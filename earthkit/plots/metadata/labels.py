@@ -16,7 +16,6 @@ import warnings
 
 from earthkit.plots.metadata.formatters import TimeFormatter, format_month
 
-
 DEFAULT_FORECAST_TITLE = (
     "{variable_name}\n"
     "Base time: {base_time:%H:%M} on {base_time:%Y-%m-%d}   "
@@ -41,7 +40,13 @@ MAGIC_KEYS = {
     },
     "values": {
         "function": lambda data: data.values,
-    }
+    },
+}
+
+CRS_NAMES = {
+    "PlateCarree": "Plate Carrée",
+    "NorthPolarStereo": "North Polar Stereographic",
+    "SouthPolarStereo": "South Polar Stereographic",
 }
 
 
@@ -89,10 +94,13 @@ def extract(data, attr, default=None):
                 break
         else:
             warnings.warn(f'No key "{attr}" found in layer metadata.')
-        
+
         if remove_underscores:
             if isinstance(label, (list, tuple)):
-                label = [l.replace("_", " ") if isinstance(l, str) else l for l in label ]
+                label = [
+                    lab.replace("_", " ") if isinstance(lab, str) else lab
+                    for lab in label
+                ]
             elif isinstance(label, str):
                 label = label.replace("_", " ")
 

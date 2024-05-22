@@ -12,40 +12,62 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 
 import matplotlib.pyplot as plt
 
-from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.components.layers import LayerGroup
 from earthkit.plots.components.maps import Map
+from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
 
 
 class Figure:
-    
     def __init__(self, rows=1, columns=1, size=None, domain=None, **kwargs):
         self.rows = rows
         self.columns = columns
-        
+
         self._row = 0
         self._col = 0
-        
-        self.fig = plt.figure(figsize=size, constrained_layout=True)
+
+        figsize = self._parse_size(size)
+
+        self.fig = plt.figure(figsize=figsize, constrained_layout=True)
         self.gridspec = self.fig.add_gridspec(rows, columns, **kwargs)
-        
+
         self._domain = domain
-        
+
         self.subplots = []
         self._last_subplot_location = None
         self._isubplot = 0
-    
+
     def __len__(self):
         return len(self.subplots)
 
     def __getitem__(self, i):
         return self.subplots[i]
+
+    def _parse_size(self, size):
+        if size is not None:
+            figsize = []
+            for length in size:
+                if isinstance(length, str):
+                    if length.isnumeric():
+                        length = float(length)
+                    else:
+                        match = re.match(r"([0-9]+)([a-z]+)", length, re.I)
+                        value, units = match.groups()
+                        value = float(value)
+                        if units == "px":
+                            length = value / schema.figure.dpi
+                        elif units == "cm":
+                            length = value * 2.54
+                figsize.append(length)
+        else:
+            figsize = size
+        return figsize
 
     def apply_to_subplots(method):
         def wrapper(self, *args, **kwargs):
@@ -60,14 +82,16 @@ class Figure:
                 raise NotImplementedError(
                     f"No subplots have method '{method.__name__}'"
                 )
+
         return wrapper
 
     def multi_plot(method):
         def wrapper(self, data, *args, **kwargs):
             for datum, subplot in zip(data, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
+
         return wrapper
-    
+
     def _determine_row_column(self, row, column):
         if row is not None and column is not None:
             pass
@@ -78,7 +102,7 @@ class Figure:
                 row = self._last_subplot_location[0]
             if column is None:
                 column = self._last_subplot_location[1]
-            if column < self.columns-1:
+            if column < self.columns - 1:
                 column = column + 1
             else:
                 column = 0
@@ -99,7 +123,7 @@ class Figure:
         subplot = Map(row=row, column=column, domain=domain, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
-    
+
     def subplot_titles(self, *args, **kwargs):
         return [subplot.title(*args, **kwargs) for subplot in self.subplots]
 
@@ -169,61 +193,79 @@ class Figure:
                     ax.set_anchor(anchor)
 
         return legends
-    
+
     @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """"""
-    
+
     @apply_to_subplots
     def countries(self, *args, **kwargs):
         """"""
-    
+
     @apply_to_subplots
     def land(self, *args, **kwargs):
         """"""
-    
+
     @apply_to_subplots
     def borders(self, *args, **kwargs):
         """"""
-    
+
+    @apply_to_subplots
+    def quick_layers(self, *args, **kwargs):
+        """"""
+
     @apply_to_subplots
     def administrative_areas(self, *args, **kwargs):
         """"""
-    
+
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
         """"""
-    
+
     @multi_plot
     def block(self, *args, **kwargs):
         """"""
-    
+
     @multi_plot
     def contourf(self, *args, **kwargs):
         """"""
-    
+
     @multi_plot
     def contour(self, *args, **kwargs):
         """"""
-    
+
     def gridlines(self, *args, sharex=False, sharey=False, **kwargs):
         draw_labels = kwargs.pop("draw_labels", ["left", "bottom"])
         if draw_labels is True:
             draw_labels = ["left", "right", "bottom", "top"]
         for subplot in self.subplots:
-            subplot_draw_labels = [item for item in draw_labels]
-            if sharex:
-                if "top" in draw_labels and subplot.row != 0:
-                    subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "top"]
-                if "bottom" in draw_labels and subplot.row != max(sp.row for sp in self.subplots):
-                    subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "bottom"]
-            if sharey:
-                if "left" in draw_labels and subplot.column != 0:
-                    subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "left"]
-                if "right" in draw_labels and subplot.column != max(sp.column for sp in self.subplots):
-                    subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "right"]
+            if draw_labels:
+                subplot_draw_labels = [item for item in draw_labels]
+                if sharex:
+                    if "top" in draw_labels and subplot.row != 0:
+                        subplot_draw_labels = [
+                            loc for loc in subplot_draw_labels if loc != "top"
+                        ]
+                    if "bottom" in draw_labels and subplot.row != max(
+                        sp.row for sp in self.subplots
+                    ):
+                        subplot_draw_labels = [
+                            loc for loc in subplot_draw_labels if loc != "bottom"
+                        ]
+                if sharey:
+                    if "left" in draw_labels and subplot.column != 0:
+                        subplot_draw_labels = [
+                            loc for loc in subplot_draw_labels if loc != "left"
+                        ]
+                    if "right" in draw_labels and subplot.column != max(
+                        sp.column for sp in self.subplots
+                    ):
+                        subplot_draw_labels = [
+                            loc for loc in subplot_draw_labels if loc != "right"
+                        ]
+            else:
+                subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
-
 
     @schema.title.apply()
     def title(self, label=None, unique=True, grouped=True, y=None, **kwargs):
@@ -271,7 +313,9 @@ class Figure:
             ]
             result = string_utils.list_to_human(results)
         else:
-            result = formatters.FigureFormatter(self.subplots, unique=unique).format(string)
+            result = formatters.FigureFormatter(self.subplots, unique=unique).format(
+                string
+            )
         return result
 
     @property
@@ -282,4 +326,6 @@ class Figure:
         return plt.show(*args, **kwargs)
 
     def save(self, *args, bbox_inches="tight", **kwargs):
-        return plt.savefig(*args, bbox_inches=bbox_inches, **kwargs)
+        return plt.savefig(
+            *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
+        )

@@ -14,43 +14,42 @@
 
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import yaml
 from matplotlib import rcParams
-import matplotlib.pyplot as plt
 
 from earthkit.plots._plugins import PLUGINS
-from earthkit.plots import definitions
-from earthkit.plots.utils.dict_utils import recursive_dict_update
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
+from earthkit.plots.utils.dict_utils import recursive_dict_update
 
 _DEFAULT_SCHEMA = "default"
 
 
 RCPARAMS = [
-    'backends',
-    'lines',
-    'patches',
-    'hatches',
+    "backends",
+    "lines",
+    "patches",
+    "hatches",
     # 'boxplot',
-    'font',
-    'text',
-    'latex',
-    'axes',
-    'dates',
-    'ticks',
-    'grids',
+    "font",
+    "text",
+    "latex",
+    "axes",
+    "dates",
+    "ticks",
+    "grids",
     # 'legend',
-    'figure',
-    'images',
+    "figure",
+    "images",
     # 'contour',
-    'errorbar',
-    'histogram',
+    "errorbar",
+    "histogram",
     # 'scatter',
-    'agg',
-    'paths',
-    'saving',
-    'interactive keymaps',
-    'animation',
+    "agg",
+    "paths",
+    "saving",
+    "interactive keymaps",
+    "animation",
 ]
 
 
@@ -88,7 +87,7 @@ class _set:
 
 class Schema(dict):
     """Class for containing and maintaining global style settings."""
-    
+
     PROTECTED_KEYS = ["_parent"]
 
     parsers = {

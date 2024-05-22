@@ -12,22 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import glob
+import os
 from pathlib import Path
 
 import yaml
 
-from earthkit.plots import definitions, styles
+from earthkit.plots import styles
 from earthkit.plots._plugins import PLUGINS
-from earthkit.plots.schemas import schema
 from earthkit.plots.metadata.units import are_equal
+from earthkit.plots.schemas import schema
 
 
 def guess_style(data, units=None):
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
-    
+
     if schema.style_library not in PLUGINS:
         path = Path(schema.style_library).expanduser()
         identities_path = path / "identities"
@@ -69,7 +69,7 @@ def guess_style(data, units=None):
             break
     else:
         return styles.DEFAULT_STYLE
-    
+
     if schema.use_preferred_units:
         style = style_config["styles"][style_config["optimal"]]
     else:

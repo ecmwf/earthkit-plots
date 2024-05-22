@@ -153,6 +153,12 @@ class Levels:
             kwargs = {"levels": config}
         return cls(**kwargs)
 
+    def __eq__(self, other):
+        if self._levels is not None:
+            return self._levels == other._levels
+        else:
+            return False
+
     def __init__(
         self,
         levels=None,

@@ -14,18 +14,18 @@
 
 
 import matplotlib as mpl
-from svgpathtools import svg2paths
 from svgpath2mpl import parse_path
+from svgpathtools import svg2paths
 
 from earthkit.plots.definitions import SYMBOLS_DIR
 
 
 def get_symbol(name):
-    _, attributes = svg2paths(SYMBOLS_DIR / f'{name}.svg')
-    marker = parse_path(attributes[0]['d'])
+    _, attributes = svg2paths(SYMBOLS_DIR / f"{name}.svg")
+    marker = parse_path(attributes[0]["d"])
     marker.vertices -= marker.vertices.mean(axis=0)
     marker = marker.transformed(mpl.transforms.Affine2D().rotate_deg(180))
-    marker = marker.transformed(mpl.transforms.Affine2D().scale(-1,1))
+    marker = marker.transformed(mpl.transforms.Affine2D().scale(-1, 1))
     return marker
 
 

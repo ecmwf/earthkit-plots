@@ -1,8 +1,7 @@
-
-
 import cartopy.crs as ccrs
 import healpy as hp
 import numpy as np
+
 
 def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     """
@@ -35,7 +34,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     )
     res = np.full(latlon.shape[:-1], np.nan, dtype=var.dtype)
     res[valid] = var[pix]
-    
+
     if style is not None:
         kwargs = {**kwargs, **style.to_pcolormesh_kwargs(res)}
 

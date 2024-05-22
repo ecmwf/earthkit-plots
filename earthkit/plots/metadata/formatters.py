@@ -12,18 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import itertools
-import dateutil
+import logging
 from string import Formatter
 from zoneinfo import ZoneInfo
 
+import dateutil
 import numpy as np
 
 from earthkit.plots import metadata
-from earthkit.plots.utils import string_utils
 from earthkit.plots.schemas import schema
-
+from earthkit.plots.utils import string_utils
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +223,7 @@ class TimeFormatter:
         def wrapper(self):
             attr = method.__name__
             times = [self._named_time(time, attr) for time in self.times]
-            if len(np.array(times).shape) > 1 and np.array(times).shape[0]==1:
+            if len(np.array(times).shape) > 1 and np.array(times).shape[0] == 1:
                 times = times[0]
             _, indices = np.unique(times, return_index=True)
             result = [times[i] for i in sorted(indices)]
@@ -235,8 +234,7 @@ class TimeFormatter:
                         "time zone metadata; assuming UTC"
                     )
                     result = [
-                        t if t.tzinfo is not None
-                        else t.replace(tzinfo=ZoneInfo("UTC"))
+                        t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
                         for t in result
                     ]
                 result = [t.astimezone(tz=self._time_zone) for t in result]
@@ -263,11 +261,9 @@ class TimeFormatter:
                 t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
                 for t in valid_times
             ]
-        offsets = [vt.utcoffset().seconds//3600 for vt in valid_times]
+        offsets = [vt.utcoffset().seconds // 3600 for vt in valid_times]
         time_zones = [f"UTC{offset:+d}" for offset in offsets]
         return time_zones
-
-        
 
     @_extract_time
     def base_time(self):

@@ -14,8 +14,8 @@
 
 from functools import cached_property
 
-import numpy as np
 import cartopy.crs as ccrs
+import numpy as np
 
 from earthkit.plots.sources.single import SingleSource
 
@@ -34,7 +34,6 @@ def get_points(dx):
 
 
 class EarthkitSource(SingleSource):
-    
     @cached_property
     def data(self):
         if hasattr(self._data, "__len__") and len(self._data) == 1:
@@ -46,16 +45,16 @@ class EarthkitSource(SingleSource):
         if value == default:
             value = self.data.metadata(key, default=default)
         return value
-    
+
     def datetime(self, *args, **kwargs):
         return self.data.datetime(*args, **kwargs)
-    
+
     def extract_xyz(self):
         x, y, z = self._x, self._y, self._z
         if self._x is None and self._y is None and self._z is None:
             x, y = self.extract_xy()
         return x, y, z
-    
+
     @cached_property
     def dims(self):
         return list(self.data.dims)
@@ -76,7 +75,7 @@ class EarthkitSource(SingleSource):
 
     def extract_x(self):
         return self.extract_xy()[0]
-    
+
     def extract_y(self):
         return self.extract_xy()[1]
 
@@ -94,7 +93,7 @@ class EarthkitSource(SingleSource):
                 {"grid": [1, 1]},
             )
         return z_values
-    
+
     @property
     def crs(self):
         if self._crs is None:
@@ -127,7 +126,7 @@ class EarthkitSource(SingleSource):
         if self._v is None:
             self._v = "v"
         return self.data.sel(short_name=self._v).to_numpy(flatten=False).squeeze()
-    
+
     @cached_property
     def magnitude_values(self):
-        return (self.u_values**2 + self.v_values**2)**0.5
+        return (self.u_values**2 + self.v_values**2) ** 0.5

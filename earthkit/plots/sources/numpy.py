@@ -20,7 +20,6 @@ from earthkit.plots.sources.single import SingleSource
 
 
 class NumpySource(SingleSource):
-    
     @cached_property
     def data(self):
         if self._data is not None:

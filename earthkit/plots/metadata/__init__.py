@@ -14,7 +14,6 @@
 
 from earthkit.plots.metadata import formatters, labels, units
 
-
 __all__ = [
     "formatters",
     "labels",

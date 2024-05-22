@@ -33,10 +33,6 @@ def test_GEO_DIR():
     assert os.path.exists(definitions.GEO_DIR)
 
 
-def test_SCHEMA_DIR():
-    assert os.path.exists(definitions.SCHEMA_DIR)
-
-
 def test_STATIC_DIR():
     assert os.path.exists(definitions.STATIC_DIR)
 

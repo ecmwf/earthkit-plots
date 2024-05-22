@@ -63,7 +63,7 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
     if ax is None:
         kwargs["ax"] = layer.axes
     else:
-        kwargs["cax"] = ax    
+        kwargs["cax"] = ax
 
     cbar = layer.fig.colorbar(
         layer.mappable,

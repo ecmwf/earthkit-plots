@@ -56,11 +56,11 @@ def test_BoundingBox_to_cartopy_bounds():
 
 def test_BoundingBox_to_bbox():
     bbox = bounds.BoundingBox(-25, 40, 34, 72)
-    new_bbox = bbox.to_bbox(ccrs.LambertAzimuthalEqualArea())   
+    new_bbox = bbox.to_bbox(ccrs.LambertAzimuthalEqualArea())
     assert new_bbox.x_min == pytest.approx(-2390669)
     assert new_bbox.x_max == pytest.approx(3763307)
     assert new_bbox.y_min == pytest.approx(3715828)
-    assert new_bbox.y_max == pytest.approx(7690470) 
+    assert new_bbox.y_max == pytest.approx(7690470)
     assert new_bbox.crs == ccrs.LambertAzimuthalEqualArea()
 
 
@@ -87,12 +87,12 @@ def test_BoundingBox_to_optimised_bbox_0_360():
 def test_BoundingBox_to_optimised_bbox_europe():
     bbox = bounds.BoundingBox(-25, 40, 34, 72)
     optimised_bbox = bbox.to_optimised_bbox()
-    
+
     assert optimised_bbox.x_min == pytest.approx(-2968299)
     assert optimised_bbox.x_max == pytest.approx(2968299)
     assert optimised_bbox.y_min == pytest.approx(-2126073)
     assert optimised_bbox.y_max == pytest.approx(2386970)
-    
+
     assert optimised_bbox.crs == ccrs.AlbersEqualArea(
         central_latitude=53,
         central_longitude=7.5,

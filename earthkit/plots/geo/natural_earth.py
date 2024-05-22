@@ -17,7 +17,6 @@ import cartopy.io.shapereader as shpreader
 from earthkit.plots.geo.bounds import BoundingBox
 from earthkit.plots.utils import string_utils
 
-
 DEFAULT_CAPITAL_CITIES_KWARGS = {
     "marker": "s",
     "s": 25,
@@ -67,22 +66,22 @@ RESOLUTIONS = {
 def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="low"):
     resolutions = list(RESOLUTIONS)
     valid_resolutions = resolutions[
-        resolutions.index(min_resolution):resolutions.index(max_resolution)+1
+        resolutions.index(min_resolution) : resolutions.index(max_resolution) + 1
     ]
     if resolution is None:
-            bbox = BoundingBox(*ax.get_extent(), crs=crs)
-            latlon_extents = list(bbox.to_latlon_bbox())
-            min_diff = min(
-                (latlon_extents[1] - latlon_extents[0]),
-                (latlon_extents[3] - latlon_extents[2]),
-            )
-            if min_diff < 15:
-                resolution = "high"
-            elif min_diff < 50:
-                resolution = "medium"
-            else:
-                resolution = "low"
-    
+        bbox = BoundingBox(*ax.get_extent(), crs=crs)
+        latlon_extents = list(bbox.to_latlon_bbox())
+        min_diff = min(
+            (latlon_extents[1] - latlon_extents[0]),
+            (latlon_extents[3] - latlon_extents[2]),
+        )
+        if min_diff < 15:
+            resolution = "high"
+        elif min_diff < 50:
+            resolution = "medium"
+        else:
+            resolution = "low"
+
     if resolution in RESOLUTIONS:
         if resolutions.index(resolution) < resolutions.index(min_resolution):
             resolution = min_resolution
@@ -96,7 +95,6 @@ def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="l
             f"{string_utils.list_to_human(valid_resolutions, conjunction='or')}"
         )
     return resolution
-        
 
 
 class NaturalEarthDomain:

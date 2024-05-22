@@ -14,7 +14,6 @@
 
 
 class GridSpec:
-    
     @classmethod
     def from_data(cls, data):
         for kls in [HEALPix, ReducedGG]:
@@ -29,7 +28,7 @@ class GridSpec:
         else:
             return
         return kls(data)
-    
+
     def __init__(self, data):
         self.data = data
 
@@ -39,7 +38,7 @@ class GridSpec:
 
 class ReducedGG(GridSpec):
     CRITERIA = {"gridType": "reduced_gg"}
-    
+
     def to_dict(self):
         n = self.data.metadata("N", default=None)
         if n is not None:
@@ -52,7 +51,7 @@ class ReducedGG(GridSpec):
 
 class HEALPix(GridSpec):
     CRITERIA = {"gridType": "healpix"}
-    
+
     def to_dict(self):
         n = self.data.metadata("Nside", default=None)
         o = self.data.metadata("orderingConvention", default=None)
