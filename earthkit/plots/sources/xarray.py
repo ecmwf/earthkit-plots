@@ -21,7 +21,6 @@ from earthkit.plots.sources.single import SingleSource
 
 
 class XarraySource(SingleSource):
-    
     @cached_property
     def data(self):
         return self._data.squeeze()
@@ -45,14 +44,14 @@ class XarraySource(SingleSource):
             if hasattr(value, "values"):
                 value = value.values
         return value
-    
+
     def datetime(self, *args, **kwargs):
         datetimes = [pd.to_datetime(dt).to_pydatetime() for dt in self.data.time.values]
         return {
             "base_time": datetimes,
             "valid_time": datetimes,
         }
-    
+
     def extract_xyz(self):
         x, y, z = self._x, self._y, self._z
         if self._x is None and self._y is None and self._z is None:
@@ -60,19 +59,19 @@ class XarraySource(SingleSource):
             z = None
             if hasattr(self.data, "data_vars"):
                 for z in list(self.data.data_vars):
-                    if set(self.data[z].dims) ==  set(self.dims):
+                    if set(self.data[z].dims) == set(self.dims):
                         break
                 else:
                     z = None
         return x, y, z
-    
+
     @cached_property
     def dims(self):
         return list(self.data.dims)
 
     def extract_xy(self):
         x = self._x or identifiers.find_x(self.dims)
-        y = self._y or identifiers.find_y(self.dims)            
+        y = self._y or identifiers.find_y(self.dims)
 
         if (x is not None and x == y) or (x is None and y is not None):
             if self._x is not None:
@@ -80,38 +79,38 @@ class XarraySource(SingleSource):
                 y = None
             else:
                 x = [dim for dim in self.dims if dim != y][0]
-        
+
         if x is None:
             if len(self.dims) == 2:
                 y, x = self.dims
             else:
                 x = self.dims[0]
-        
+
         if y is None:
             y = [dim for dim in self.dims if dim != x][0]
-                
+
         return x, y
 
     def extract_x(self):
         return self.extract_xy()[0]
-    
+
     def extract_y(self):
         return self.extract_xy()[1]
 
     def extract_z(self):
         z = super().extract_z()
         return z
-    
+
     def extract_u(self):
         if self._u is None:
             self._u = "u10"
         return self._u
-    
+
     def extract_v(self):
         if self._v is None:
             self._v = "v10"
         return self._v
-    
+
     @property
     def crs(self):
         if self._crs is None:
@@ -155,7 +154,7 @@ class XarraySource(SingleSource):
             x, y = self.extract_xy()
             if [y, x] != [c for c in data.dims if c in [y, x]]:
                 values = values.T
-        
+
         return values
 
     @cached_property
@@ -167,7 +166,7 @@ class XarraySource(SingleSource):
     def v_values(self):
         self.extract_v()
         return self.data[self._v].values.squeeze()
-    
+
     @cached_property
     def magnitude_values(self):
-        return (self.u_values**2 + self.v_values**2)**0.5
+        return (self.u_values**2 + self.v_values**2) ** 0.5

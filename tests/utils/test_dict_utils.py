@@ -18,14 +18,13 @@ from earthkit.plots.utils import dict_utils
 def test_recursive_dict_update_unnested():
     dict_1 = {"a": 1, "b": 2}
     dict_2 = {"a": 10, "c": 3}
-    assert dict_utils.recursive_dict_update(dict_1, dict_2) == {
-        "a": 10, "b": 2, "c": 3
-    }
+    assert dict_utils.recursive_dict_update(dict_1, dict_2) == {"a": 10, "b": 2, "c": 3}
 
 
 def test_recursive_dict_update_nested():
     dict_1 = {"font": {"size": 10, "family": "Lato"}, "size": 20}
     dict_2 = {"font": {"size": 12, "color": "red"}}
     assert dict_utils.recursive_dict_update(dict_1, dict_2) == {
-        "font": {"size": 12, "color": "red", "family": "Lato"}, "size": 20
+        "font": {"size": 12, "color": "red", "family": "Lato"},
+        "size": 20,
     }

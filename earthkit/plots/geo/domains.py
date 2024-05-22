@@ -13,16 +13,16 @@
 # limitations under the License.
 
 import warnings
+
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.schemas import schema
-from earthkit.plots.utils import string_utils
-from earthkit.plots.identifiers import LATITUDE, LONGITUDE
 from earthkit.plots.ancillary import load
 from earthkit.plots.geo.bounds import BoundingBox
-from earthkit.plots.geo.coordinate_reference_systems import dict_to_crs, DEFAULT_CRS
-
+from earthkit.plots.geo.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
+from earthkit.plots.identifiers import LATITUDE, LONGITUDE
+from earthkit.plots.schemas import schema
+from earthkit.plots.utils import string_utils
 
 NO_TRANSFORM_FIRST = [
     ccrs.Stereographic,
@@ -56,8 +56,7 @@ def force_0_to_360(x):
 def is_latlon(data):
     dataset = data.to_xarray().squeeze()
     return all(
-        any(name in dataset.dims for name in names)
-        for names in (LATITUDE, LONGITUDE)
+        any(name in dataset.dims for name in names) for names in (LATITUDE, LONGITUDE)
     )
 
 
@@ -110,16 +109,19 @@ class Domain:
             else:
                 bounds = domain_config.get("bounds")
                 domain_crs = dict_to_crs(domain_config.get("crs"))
-                
+
             if crs is not None:
                 bbox = BoundingBox.from_bbox(
-                    bounds, source_crs=domain_crs, target_crs=crs,
+                    bounds,
+                    source_crs=domain_crs,
+                    target_crs=crs,
                 )
             elif domain_crs is not None:
                 bbox = BoundingBox(*bounds, crs=domain_crs)
             else:
                 bbox = BoundingBox.from_bbox(
-                    bounds, source_crs=domain_crs,
+                    bounds,
+                    source_crs=domain_crs,
                 ).to_optimised_bbox()
             crs = bbox.crs
             bounds = list(bbox)
@@ -131,7 +133,7 @@ class Domain:
             bounds = source.bounds
             crs = source.crs
         return cls(bounds, crs, domain_name)
-    
+
     @classmethod
     def from_bbox(cls, *args, name=None, **kwargs):
         bbox = BoundingBox.from_bbox(*args, **kwargs)
@@ -139,7 +141,7 @@ class Domain:
 
     @classmethod
     def from_data(cls, data):
-        bbox=[None, None, None, None]
+        bbox = [None, None, None, None]
         try:
             crs = data.projection().to_cartopy_crs()
         except AttributeError:
@@ -147,22 +149,22 @@ class Domain:
                 lons = data.to_points()["x"]
                 if isinstance(lons[0], (list, np.ndarray)):
                     lons = lons[0]
-                crs = ccrs.PlateCarree(central_longitude=lons[len(lons)//2])
+                crs = ccrs.PlateCarree(central_longitude=lons[len(lons) // 2])
             else:
-                 raise ValueError("unable to determine CRS of data") 
+                raise ValueError("unable to determine CRS of data")
         return cls(bbox, crs=crs)
-    
+
     def __init__(self, bbox, crs=DEFAULT_CRS, name=None):
         self.bbox = BoundingBox(*bbox, crs)
         self._name = name
-        
+
     @property
     def name(self):
         if isinstance(self._name, list):
             return string_utils.list_to_human(self._name)
         else:
             return self._name
-            
+
     def __add__(self, second_domain):
         if isinstance(self._name, list):
             if isinstance(second_domain._name, list):
@@ -175,7 +177,7 @@ class Domain:
             name = [self._name, second_domain._name]
         bbox = self.bbox + second_domain.bbox
         return Domain.from_bbox(bbox, name=name)
-    
+
     @property
     def crs(self):
         return self.bbox.crs
@@ -189,7 +191,7 @@ class Domain:
                 bounds = list(self.bbox.to_latlon_bbox())
                 strings = []
                 for value, ordinal in zip(bounds, "WESN"):
-                    strings.append(f"{value:.5g}°"+(ordinal if value != 0 else ""))
+                    strings.append(f"{value:.5g}°" + (ordinal if value != 0 else ""))
                 string = ", ".join(strings)
             return string
         return self.name
@@ -205,7 +207,9 @@ class Domain:
             can_bbox = False
         return can_bbox
 
-    def extract(self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()):
+    def extract(
+        self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()
+    ):
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
             roll_by = None
@@ -217,17 +221,13 @@ class Domain:
                     for i in range(2):
                         if -180 > crs_bounds[i] or crs_bounds[i] > 180:
                             crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
-            elif (
-                crs_bounds[0] < 180
-                and crs_bounds[1] > 180
-                and (x >= 0).any()
-            ):
+            elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
                 if crs_bounds[1] > x.max():
                     roll_by = roll_from_minus_180_180_to_0_360(x)
                     x = force_0_to_360(x)
                     for i in range(2):
                         crs_bounds[i] = force_0_to_360(crs_bounds[i])
-            
+
             if roll_by is not None:
                 x = np.roll(x, roll_by, axis=1)
                 y = np.roll(y, roll_by, axis=1)
@@ -284,7 +284,7 @@ class PresetDomain(Domain):
     BBOX = BoundingBox(-180, 180, -90, 90)
     CRS = ccrs.PlateCarree()
     NAME = "Custom Domain"
-    
+
     def __init__(self, bbox=None, crs=None, name=None):
         if bbox is None:
             bbox = self.BBOX

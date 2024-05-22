@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 import inspect
+import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import make_interp_spline, BSpline
+from scipy.interpolate import interp1d, make_interp_spline
 
 from earthkit.plots import metadata, styles
 from earthkit.plots.schemas import schema
@@ -105,10 +105,11 @@ class Style:
         legend_kwargs=None,
         categories=None,
         ticks=None,
+        preferred_method="block",
         **kwargs,
     ):
         if categories is not None and levels is None:
-            levels = range(len(categories)+1)
+            levels = range(len(categories) + 1)
         self._colors = colors
         self._levels = (
             levels
@@ -142,6 +143,7 @@ class Style:
             self._legend_kwargs["extend"] = kwargs["extend"]
 
         self._kwargs = kwargs
+        self._preferred_method = preferred_method
 
     # TODO
     # def to_yaml(self):
@@ -150,6 +152,12 @@ class Style:
     # TODO
     # def to_magics_style(self):
     #     pass
+
+    def __eq__(self, other):
+        keys = ["_levels", "_colors"]
+        return all(
+            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
+        )
 
     def levels(self, data=None):
         """
@@ -311,7 +319,7 @@ class Style:
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""
-        return self.contourf(*args, **kwargs)
+        return self.pcolormesh(*args, **kwargs)
 
     def contourf(self, ax, x, y, values, *args, **kwargs):
         """
@@ -460,7 +468,7 @@ class Style:
         kwargs.pop("transform_first", None)
         missing_values = kwargs.pop("missing_values", None)
         original_kwargs = kwargs.copy()
-        
+
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
@@ -472,7 +480,13 @@ class Style:
             y = y[np.invert(missing_idx)]
             values = values[np.invert(missing_idx)]
             if missing_values:
-                ax.scatter(missing_x, missing_y, s=s, *args, **{**original_kwargs, **missing_values})
+                ax.scatter(
+                    missing_x,
+                    missing_y,
+                    s=s,
+                    *args,
+                    **{**original_kwargs, **missing_values},
+                )
         if values is not None:
             kwargs["c"] = kwargs.pop("c", values)
         return ax.scatter(x, y, s=s, *args, **kwargs)
@@ -495,30 +509,72 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.scatter`.
         """
         kwargs.pop("transform_first", None)
-        
+
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
             kwargs["c"] = kwargs.pop("c", values)
-        
+
         if mode == "spline":
             if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x)*5))
+                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
             else:
-                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x)*5))
+                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
 
             spline = make_interp_spline(x, y, k=3)
             y_smooth = spline(x_smooth)
-            
+
             marker = kwargs.pop("marker", None)
             mappable = ax.plot(x_smooth, y_smooth, *args, **kwargs)
             if marker is not None:
                 kwargs.pop("linewidth", None)
                 color = mappable[0].get_color()
-                self.line(ax, x, y, values, *args, marker=marker, color=color, linewidth=0, **kwargs)   
+                self.line(
+                    ax,
+                    x,
+                    y,
+                    values,
+                    *args,
+                    marker=marker,
+                    color=color,
+                    linewidth=0,
+                    **kwargs,
+                )
+
+        elif mode == "smooth":
+            if np.issubdtype(x.dtype, np.datetime64):
+                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
+            else:
+                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
+            func = interp1d(
+                x,
+                y,
+                axis=0,  # interpolate along columns
+                bounds_error=False,
+                kind="linear",
+                fill_value=(y[0], y[-1]),
+            )
+            y_smooth = func(x_smooth)
+
+            marker = kwargs.pop("marker", None)
+            mappable = ax.plot(x_smooth, y_smooth, *args, **kwargs)
+            if marker is not None:
+                kwargs.pop("linewidth", None)
+                color = mappable[0].get_color()
+                self.line(
+                    ax,
+                    x,
+                    y,
+                    values,
+                    *args,
+                    marker=marker,
+                    color=color,
+                    linewidth=0,
+                    **kwargs,
+                )
         else:
             mappable = ax.plot(x, y, *args, **kwargs)
-        
+
         return mappable
 
     def values_to_colors(self, values, data=None):
@@ -634,7 +690,6 @@ class Style:
 
 
 class Categorical(Style):
-    
     def __init__(self, *args, **kwargs):
         kwargs["legend_style"] = "disjoint"
         super().__init__(*args, **kwargs)
@@ -648,10 +703,11 @@ class Contour(Style):
         labels=False,
         label_kwargs=None,
         interpolate=True,
+        preferred_method="contour",
         **kwargs,
     ):
-        
-        super().__init__(colors=colors, **kwargs)
+
+        super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
         self._line_colors = line_colors
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()

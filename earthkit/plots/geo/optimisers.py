@@ -16,7 +16,6 @@ import inspect
 
 import cartopy.crs as ccrs
 
-
 GLOBE_AREA = 64800  # 360*180
 
 
@@ -33,10 +32,7 @@ class OptimisedCRS:
             for attr in attributes
             if not (attr[0].startswith("__") and attr[0].endswith("__"))
         ]
-        return {
-            attr[0].lower(): getattr(optimiser, attr[1])
-            for attr in attributes
-        }
+        return {attr[0].lower(): getattr(optimiser, attr[1]) for attr in attributes}
 
     def cartopy_crs(self):
         return self.__class__.__name__

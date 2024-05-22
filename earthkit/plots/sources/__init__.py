@@ -14,16 +14,19 @@
 
 import earthkit.data as ek_data
 
+from earthkit.plots.sources.earthkit import EarthkitSource
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
-from earthkit.plots.sources.earthkit import EarthkitSource
 
 
-def get_source(data=None, x=None, y=None, z=None, u=None, v=None, **kwargs):
+def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwargs):
     cls = NumpySource
-    if data is not None:
+    core_data = data
+    if len(args) == 1 and core_data is None:
+        core_data = args[0]
+    if core_data is not None:
         if data.__class__.__name__ in ("Dataset", "DataArray"):
             cls = XarraySource
-        elif isinstance(data, ek_data.core.Base):
+        elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
-    return cls(data=data, x=x, y=y, z=z, u=u, v=v, **kwargs)
+    return cls(*args, data=data, x=x, y=y, z=z, u=u, v=v, **kwargs)

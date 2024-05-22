@@ -1,16 +1,18 @@
-
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.schemas import schema
 
 
 def _quickplot(function):
-    def wrapper(*args, **kwargs):
+    def wrapper(*args, return_subplot=False, **kwargs):
         figure = Figure()
         subplot = figure.add_subplot()
         getattr(subplot, function.__name__)(*args, **kwargs)
         for method in schema.quickplot_workflow:
             getattr(subplot, method)()
-        return subplot
+        if return_subplot:
+            return subplot
+        else:
+            subplot.show()
 
     return wrapper
 
@@ -18,6 +20,9 @@ def _quickplot(function):
 @_quickplot
 def line(*args, **kwargs):
     """Quick plot"""
+
+
+plot = line
 
 
 @_quickplot

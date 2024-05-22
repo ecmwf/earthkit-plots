@@ -14,12 +14,10 @@
 
 from pathlib import Path
 
-
 ROOT_DIR = Path(__file__).parents[2]
 DATA_DIR = Path(__file__).parents[0] / "data"
 TESTS_DIR = ROOT_DIR / "tests"
 GEO_DIR = DATA_DIR / "geo"
-SCHEMA_DIR = DATA_DIR / "schemas"
 STATIC_DIR = DATA_DIR / "static"
 FONTS_DIR = STATIC_DIR / "fonts"
 SYMBOLS_DIR = STATIC_DIR / "symbols"

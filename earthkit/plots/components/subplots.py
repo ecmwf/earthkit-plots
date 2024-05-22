@@ -12,40 +12,48 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 
 from earthkit.plots import identifiers
-from earthkit.plots.utils import string_utils
-from earthkit.plots.metadata.formatters import LayerFormatter, SubplotFormatter, SourceFormatter
-from earthkit.plots.sources import get_source, single
-from earthkit.plots.schemas import schema
 from earthkit.plots.components.layers import Layer
-from earthkit.plots.styles import Style, Contour, auto, _STYLE_KWARGS, DEFAULT_STYLE
+from earthkit.plots.metadata.formatters import (
+    LayerFormatter,
+    SourceFormatter,
+    SubplotFormatter,
+)
+from earthkit.plots.schemas import schema
+from earthkit.plots.sources import get_source, single
+from earthkit.plots.styles import _STYLE_KWARGS, Contour, Style, auto
+from earthkit.plots.utils import string_utils
 
-
-DEFAULT_FORMATS = ['%Y', '%b', '%-d', '%H:%M', '%H:%M', '%S.%f']
-ZERO_FORMATS = ['%Y', '%b\n%Y', '%-d\n%b %Y', '%H:%M', '%H:%M', '%S.%f']
+DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
+ZERO_FORMATS = ["%Y", "%b\n%Y", "%-d\n%b %Y", "%H:%M", "%H:%M", "%S.%f"]
 
 
 class Subplot:
-    
     def __init__(self, row=0, column=0, figure=None, **kwargs):
         self._figure = figure
         self._ax = None
         self._ax_kwargs = kwargs
-        
+
         self.layers = []
 
         self.row = row
         self.column = column
-        
+
         self.domain = None
-    
-    def set_major_xticks(self, frequency=None, format=None, highlight=None, highlight_color="red", **kwargs):
+
+    def set_major_xticks(
+        self,
+        frequency=None,
+        format=None,
+        highlight=None,
+        highlight_color="red",
+        **kwargs,
+    ):
         formats = DEFAULT_FORMATS
         if frequency is None:
             locator = mdates.AutoDateLocator(maxticks=30)
@@ -65,13 +73,14 @@ class Subplot:
                 locator = mdates.HourLocator(interval=interval)
 
         if format:
-            formats = [format]*6
-                    
+            formats = [format] * 6
+
         formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False)
+            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
+        )
         self.ax.xaxis.set_major_locator(locator)
         self.ax.xaxis.set_major_formatter(formatter)
-        
+
         if highlight is not None:
             dates = [mdates.num2date(i) for i in self.ax.get_xticks()]
             for i, date in enumerate(dates):
@@ -88,7 +97,6 @@ class Subplot:
                 if highlight_this:
                     self.ax.get_xticklabels()[i].set_color(highlight_color)
 
-
     def set_minor_xticks(self, frequency=None):
         if frequency is None:
             locator = mdates.AutoDateLocator(maxticks=30)
@@ -97,17 +105,35 @@ class Subplot:
                 interval = int(frequency.lstrip("D") or "1")
                 locator = mdates.DayLocator(interval=interval)
         self.ax.xaxis.set_minor_locator(locator)
-    
+
     def plot_2D(method_name=None):
         def decorator(method):
-            def wrapper(self, data=None, x=None, y=None, z=None, style=None, units=None, **kwargs):
+            def wrapper(
+                self,
+                *args,
+                data=None,
+                x=None,
+                y=None,
+                z=None,
+                style=None,
+                units=None,
+                **kwargs,
+            ):
                 return self._extract_plottables(
                     method_name or method.__name__,
-                    data=data, x=x, y=y, z=z, style=style, **kwargs,
+                    args=args,
+                    data=data,
+                    x=x,
+                    y=y,
+                    z=z,
+                    style=style,
+                    **kwargs,
                 )
+
             return wrapper
+
         return decorator
-    
+
     def plot_box(method_name=None):
         def decorator(method):
             def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
@@ -119,12 +145,17 @@ class Subplot:
                 else:
                     positions = source.x_values
                 widths = min(0.5, np.diff(positions).min() * 0.7)
-                mappable = m(source.z_values, positions=positions, widths=widths, **kwargs)
+                mappable = m(
+                    source.z_values, positions=positions, widths=widths, **kwargs
+                )
                 self.layers.append(Layer(source, mappable, self, style))
                 if isinstance(source._x, str):
                     if source._x in identifiers.TIME:
                         locator = mdates.AutoDateLocator(maxticks=30)
-                        formatter = mdates.ConciseDateFormatter(locator, formats=['%Y', '%b', '%-d %b', '%H:%M', '%H:%M', '%S.%f'])
+                        formatter = mdates.ConciseDateFormatter(
+                            locator,
+                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
+                        )
                         self.ax.xaxis.set_major_locator(locator)
                         self.ax.xaxis.set_major_formatter(formatter)
                     else:
@@ -132,36 +163,71 @@ class Subplot:
                 if isinstance(source._z, str):
                     self.ax.set_ylabel(source._z)
                 return mappable
+
             return wrapper
+
         return decorator
 
     def plot_3D(method_name=None, extract_domain=False):
         def decorator(method):
-            def wrapper(self, data=None, x=None, y=None, z=None, style=None, every=None, **kwargs):
+            def wrapper(
+                self,
+                data=None,
+                x=None,
+                y=None,
+                z=None,
+                style=None,
+                every=None,
+                **kwargs,
+            ):
                 return self._extract_plottables(
                     method_name or method.__name__,
-                    data=data, x=x, y=y, z=z, style=style, every=every, extract_domain=extract_domain, **kwargs,
+                    args=tuple(),
+                    data=data,
+                    x=x,
+                    y=y,
+                    z=z,
+                    style=style,
+                    every=every,
+                    extract_domain=extract_domain,
+                    **kwargs,
                 )
+
             return wrapper
+
         return decorator
 
     def plot_vector(method_name=None):
         def decorator(method):
-            def wrapper(self, data=None, x=None, y=None, z=None, u=None, v=None, colors=False, every=None, **kwargs):
+            def wrapper(
+                self,
+                data=None,
+                x=None,
+                y=None,
+                z=None,
+                u=None,
+                v=None,
+                colors=False,
+                every=None,
+                **kwargs,
+            ):
                 source = get_source(data=data, x=x, y=y, z=z, u=u, v=v)
                 kwargs = {**self._plot_kwargs(source), **kwargs}
                 m = getattr(self.ax, method_name or method.__name__)
-                
+
                 x_values = source.x_values
                 y_values = source.y_values
                 u_values = source.u_values
                 v_values = source.v_values
-                
+
                 if self.domain is not None:
                     x_values, y_values, _, [u_values, v_values] = self.domain.extract(
-                        x_values, y_values, extra_values=[u_values, v_values], source_crs=source.crs,
+                        x_values,
+                        y_values,
+                        extra_values=[u_values, v_values],
+                        source_crs=source.crs,
                     )
-                
+
                 if every is None:
                     args = [x_values, y_values, u_values, v_values]
                 else:
@@ -176,7 +242,7 @@ class Subplot:
                         args.append(source.magnitude_values)
                     else:
                         args.append(source.magnitude_values[::every, ::every])
-                
+
                 mappable = m(*args, **kwargs)
                 self.layers.append(Layer(source, mappable, self))
                 if isinstance(source._x, str):
@@ -184,69 +250,115 @@ class Subplot:
                 if isinstance(source._y, str):
                     self.ax.set_ylabel(source._y)
                 return mappable
+
             return wrapper
+
         return decorator
 
-    def _extract_plottables(self, method_name, data=None, x=None, y=None, z=None, style=None, every=None, source_units=None, extract_domain=False, **kwargs):
+    def _extract_plottables(
+        self,
+        method_name,
+        args,
+        data=None,
+        x=None,
+        y=None,
+        z=None,
+        style=None,
+        units=None,
+        every=None,
+        source_units=None,
+        extract_domain=False,
+        **kwargs,
+    ):
         if source_units is not None:
-            source = get_source(data=data, x=x, y=y, z=z, units=source_units)
+            source = get_source(*args, data=data, x=x, y=y, z=z, units=source_units)
         else:
-            source = get_source(data=data, x=x, y=y, z=z)
+            source = get_source(*args, data=data, x=x, y=y, z=z)
         kwargs = {**self._plot_kwargs(source), **kwargs}
-        
+
         if method_name == "contourf":
             source.regrid = True
         if style is None:
-            style_kwargs = {key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs}
+            style_kwargs = {
+                key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs
+            }
             if style_kwargs:
-                style_class = Style if not method_name.startswith("contour") else Contour
-                style = style_class(**style_kwargs)
+                style_class = (
+                    Style if not method_name.startswith("contour") else Contour
+                )
+                style = style_class(**{**style_kwargs, **{"units": units}})
             else:
-                style = auto.guess_style(source, units=source.units)
-        
+                style = auto.guess_style(source, units=units or source.units)
+
         if (data is None and z is None) or (z is not None and not z):
             z_values = None
         else:
             z_values = style.convert_units(source.z_values, source.units)
             z_values = style.apply_scale_factor(z_values)
-            
-        if source.metadata("gridType", default=None) == "healpix" and method_name=="pcolormesh":
+
+        if (
+            source.metadata("gridType", default=None) == "healpix"
+            and method_name == "pcolormesh"
+        ):
             from earthkit.plots.geo import healpix
+
             nest = source.metadata("orderingConvention", default=None) == "nested"
             kwargs["transform"] = self.crs
-            mappable = healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
-        elif source.metadata("gridType", default=None) == "reduced_gg" and method_name=="pcolormesh":
+            mappable = healpix.nnshow(
+                z_values, ax=self.ax, nest=nest, style=style, **kwargs
+            )
+        elif (
+            source.metadata("gridType", default=None) == "reduced_gg"
+            and method_name == "pcolormesh"
+        ):
             from earthkit.plots.geo import reduced_gg
+
             x_values = source.x_values
             y_values = source.y_values
             kwargs["transform"] = self.crs
-            mappable = reduced_gg.nnshow(z_values, x_values, y_values, ax=self.ax, style=style, **kwargs)
+            mappable = reduced_gg.nnshow(
+                z_values, x_values, y_values, ax=self.ax, style=style, **kwargs
+            )
         else:
             x_values = source.x_values
             y_values = source.y_values
-            
+
             if every is not None:
                 x_values = x_values[::every]
                 y_values = y_values[::every]
                 if z_values is not None:
                     z_values = z_values[::every, ::every]
-            
+
             if self.domain is not None and extract_domain:
                 x_values, y_values, z_values = self.domain.extract(
-                    x_values, y_values, z_values, source_crs=source.crs,
+                    x_values,
+                    y_values,
+                    z_values,
+                    source_crs=source.crs,
                 )
             mappable = getattr(style, method_name)(
-                self.ax, x_values, y_values, z_values, **kwargs)
+                self.ax, x_values, y_values, z_values, **kwargs
+            )
         self.layers.append(Layer(source, mappable, self, style))
         return mappable
 
-    def _extract_plottables_2(self, data=None, x=None, y=None, z=None, every=None, source_units=None, extract_domain=False, **kwargs):
+    def _extract_plottables_2(
+        self,
+        data=None,
+        x=None,
+        y=None,
+        z=None,
+        every=None,
+        source_units=None,
+        extract_domain=False,
+        **kwargs,
+    ):
         if source_units is not None:
             source = get_source(data=data, x=x, y=y, z=z, units=source_units)
         else:
             source = get_source(data=data, x=x, y=y, z=z)
         kwargs = {**self._plot_kwargs(source), **kwargs}
-        
+
         if (data is None and z is None) or (z is not None and not z):
             z_values = None
         else:
@@ -254,31 +366,35 @@ class Subplot:
 
         x_values = source.x_values
         y_values = source.y_values
-            
+
         if every is not None:
             x_values = x_values[::every]
             y_values = y_values[::every]
             if z_values is not None:
                 z_values = z_values[::every, ::every]
-            
+
         if self.domain is not None and extract_domain:
             x_values, y_values, z_values = self.domain.extract(
-                x_values, y_values, z_values, source_crs=source.crs,
+                x_values,
+                y_values,
+                z_values,
+                source_crs=source.crs,
             )
         return x_values, y_values, z_values
 
     @property
     def figure(self):
         from earthkit.plots import Figure
+
         if self._figure is None:
             self._figure = Figure(1, 1)
             self._figure.subplots = [self]
         return self._figure
-    
+
     @property
     def fig(self):
         return self.figure.fig
-    
+
     @property
     def ax(self):
         if self._ax is None:
@@ -316,17 +432,17 @@ class Subplot:
 
     def _plot_kwargs(self, *args, **kwargs):
         return dict()
-    
+
     def coastlines(self, *args, **kwargs):
         raise NotImplementedError
-    
+
     def gridlines(self, *args, **kwargs):
         raise NotImplementedError
-    
+
     @plot_2D()
     def line(self, *args, **kwargs):
         """"""
-    
+
     def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
         x1, y1, _ = self._extract_plottables_2(y=data_1, **kwargs)
         x2, y2, _ = self._extract_plottables_2(y=data_2, **kwargs)
@@ -334,18 +450,24 @@ class Subplot:
         mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
         self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
         return mappable
-        
-    
+
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
-         source = get_source(data=data, x=x, y=y)
-         labels = SourceFormatter(source).format(label)
-         for label, x, y in zip(labels, source.x_values, source.y_values):
+        source = get_source(data=data, x=x, y=y)
+        labels = SourceFormatter(source).format(label)
+        for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), **kwargs)
-    
+
+    def plot(self, *args, style=None, **kwargs):
+        if style is not None:
+            method = getattr(self, style._preferred_method)
+        else:
+            method = self.block
+        return method(*args, style=style, **kwargs)
+
     @plot_2D()
     def bar(self, *args, **kwargs):
         """"""
-    
+
     @schema.scatter.apply()
     @plot_2D()
     def scatter(self, *args, **kwargs):
@@ -355,42 +477,42 @@ class Subplot:
     @plot_box()
     def boxplot(self, *args, **kwargs):
         """"""
-    
+
     @plot_3D(extract_domain=True)
     def pcolormesh(self, *args, **kwargs):
         """"""
-    
+
     @schema.contour.apply()
     @plot_3D(extract_domain=True)
     def contour(self, *args, **kwargs):
         """"""
-    
+
     @plot_3D(extract_domain=True)
     def contourf(self, *args, **kwargs):
         """"""
-    
+
     @plot_3D()
     def tripcolor(self, *args, **kwargs):
         """"""
-    
+
     @plot_3D()
     def tricontour(self, *args, **kwargs):
         """"""
-    
+
     @plot_3D()
     def tricontourf(self, *args, **kwargs):
         """"""
-    
+
     @schema.quiver.apply()
     @plot_vector()
     def quiver(self, *args, **kwargs):
         """"""
-    
+
     # @schema.barbs.apply()
     @plot_vector()
     def barbs(self, *args, **kwargs):
         """"""
-    
+
     block = pcolormesh
 
     @schema.legend.apply()

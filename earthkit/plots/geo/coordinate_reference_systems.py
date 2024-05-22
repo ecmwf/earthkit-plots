@@ -14,7 +14,6 @@
 
 import cartopy.crs as ccrs
 
-
 DEFAULT_CRS = ccrs.PlateCarree()
 
 CYLINDRICAL_COORDINATE_SYSTEMS = [
@@ -68,7 +67,6 @@ def dict_to_crs(kwargs):
     """
     crs = getattr(ccrs, kwargs.pop("name"))
     return crs(**kwargs)
-
 
 
 def string_to_crs(string):
@@ -195,6 +193,5 @@ def is_cylindrical(crs):
     bool
     """
     return any(
-        isinstance(crs, candidate)
-        for candidate in CYLINDRICAL_COORDINATE_SYSTEMS
+        isinstance(crs, candidate) for candidate in CYLINDRICAL_COORDINATE_SYSTEMS
     )

@@ -89,15 +89,14 @@ def is_regular_latlon(data):
     """Determine whether data is on a regular lat-lon grid."""
     dataset = data.to_xarray().squeeze()
     return all(
-        any(name in dataset.dims for name in names)
-        for names in (LATITUDE, LONGITUDE)
+        any(name in dataset.dims for name in names) for names in (LATITUDE, LONGITUDE)
     )
 
 
 def xarray_variable_name(dataset, element=None):
     """
     Get the best long name representing the variable in an xarray Dataset.
-    
+
     Parameters
     ----------
     dataarray : xarray.Dataset

@@ -50,18 +50,18 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         if extend_levels:
             levels = [-np.inf] + levels + [np.inf]
         extend_colors = 2
-        color_levels = [min(levels)-1] + levels + [max(levels)+1]
+        color_levels = [min(levels) - 1] + levels + [max(levels) + 1]
     elif extend == "max":
         if extend_levels:
             levels += [np.inf]
         extend_colors = 1
-        color_levels = levels + [max(levels)+1]
+        color_levels = levels + [max(levels) + 1]
     elif extend == "min":
         if extend_levels:
             levels = [-np.inf] + levels
         extend_colors = 1
-        color_levels = [min(levels)-1] + levels
-    
+        color_levels = [min(levels) - 1] + levels
+
     if extend_levels:
         color_levels = levels
 
@@ -82,10 +82,9 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
             cmap_colors = colors[1:]
         elif extend == "max":
             cmap_colors = colors[:-1]
-        cmap = colormap(name="", colors=cmap_colors, N=len(cmap_colors)-1)
+        cmap = colormap(name="", colors=cmap_colors, N=len(cmap_colors) - 1)
         cmap.set_over(colors[-1])
         cmap.set_under(colors[0])
-    
 
     norm = None
     if normalize:

@@ -28,8 +28,8 @@
 
 
 from earthkit.plots import metadata
-from earthkit.plots.utils import string_utils
 from earthkit.plots.metadata.formatters import LayerFormatter
+from earthkit.plots.utils import string_utils
 
 
 class Layer:

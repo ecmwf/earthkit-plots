@@ -2,16 +2,17 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 
-from earthkit.plots.sources import get_source
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.styles.levels import step_range
 from earthkit.plots.geo import domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
+from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
+from earthkit.plots.sources import get_source
+from earthkit.plots.styles.levels import step_range
+from earthkit.plots.utils import string_utils
 
 
 class Map(Subplot):
-    
     def __init__(self, *args, domain=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
         if domain is None:
@@ -32,7 +33,7 @@ class Map(Subplot):
             elif isinstance(domain, domains.Domain):
                 self.domain = domain
             self._crs = crs or self.domain.bbox.crs
-        self.natural_earth_resolution = None
+        self.natural_earth_resolution = "medium"
 
     @property
     def crs(self):
@@ -42,10 +43,14 @@ class Map(Subplot):
             return self.domain.bbox.crs
         elif self._crs is None:
             return ccrs.PlateCarree()
-            
+
     @property
     def crs_name(self):
-            return self.crs.__class__.__name__
+        class_name = self.crs.__class__.__name__
+        return CRS_NAMES.get(
+            class_name,
+            " ".join(string_utils.split_camel_case(class_name)),
+        )
 
     @property
     def domain_name(self):
@@ -66,7 +71,7 @@ class Map(Subplot):
     @property
     def fig(self):
         return self.figure.fig
-    
+
     @property
     def ax(self):
         if self._ax is None:
@@ -92,10 +97,10 @@ class Map(Subplot):
         return self.scatter(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
-         source = get_source(data=data, x=x, y=y)
-         labels = SourceFormatter(source).format(label)
-         crs = source.crs or ccrs.PlateCarree()
-         for label, x, y in zip(labels, source.x_values, source.y_values):
+        source = get_source(data=data, x=x, y=y)
+        labels = SourceFormatter(source).format(label)
+        crs = source.crs or ccrs.PlateCarree()
+        for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), transform=crs, **kwargs)
 
     @schema.point_cloud.apply()
@@ -106,7 +111,12 @@ class Map(Subplot):
         return self.scatter(*args, **kwargs)
 
     def _add_polygon_labels(
-        self, records, x_key=None, y_key=None, label_key=None, adjust_labels=False,
+        self,
+        records,
+        x_key=None,
+        y_key=None,
+        label_key=None,
+        adjust_labels=False,
     ):
         label_kwargs = dict()
         label_kwargs = {
@@ -152,6 +162,7 @@ class Map(Subplot):
             texts.append(text)
         if adjust_labels:
             from adjustText import adjust_text
+
             adjust_text(texts)
         return texts
 
@@ -165,26 +176,41 @@ class Map(Subplot):
         line=False,
     ):
         def decorator(method):
-            def wrapper(self, *args, resolution=None, include=None, exclude=None, labels=False, adjust_labels=False, **kwargs):
+            def wrapper(
+                self,
+                *args,
+                resolution=None,
+                include=None,
+                exclude=None,
+                labels=False,
+                adjust_labels=False,
+                **kwargs,
+            ):
                 if resolution is None:
                     resolution = self.natural_earth_resolution
                 resolution = natural_earth.get_resolution(
-                    resolution, self.ax, self.crs, max_resolution, min_resolution,
+                    resolution,
+                    self.ax,
+                    self.crs,
+                    max_resolution,
+                    min_resolution,
                 )
-                
+
                 if line:
                     if "color" in kwargs:
                         kwargs["edgecolor"] = kwargs.pop("color")
-                
+
                 shape_name = name
                 if isinstance(name, dict):
                     shape_name = name[resolution]
 
                 shpfilename = shpreader.natural_earth(
-                    resolution=resolution, category=category, name=shape_name,
+                    resolution=resolution,
+                    category=category,
+                    name=shape_name,
                 )
                 reader = shpreader.Reader(shpfilename)
-                
+
                 records = reader.records()
 
                 filtered_records = []
@@ -192,42 +218,45 @@ class Map(Subplot):
                     filtered_records = list(reader.records())
                 else:
                     exclude = (
-                        [exclude] if not (
-                            isinstance(exclude, (list, tuple))or exclude is None
-                        ) else exclude
+                        [exclude]
+                        if not (isinstance(exclude, (list, tuple)) or exclude is None)
+                        else exclude
                     )
                     include = (
-                        [include] if not (
-                            isinstance(include, (list, tuple))or include is None
-                        ) else include
+                        [include]
+                        if not (isinstance(include, (list, tuple)) or include is None)
+                        else include
                     )
                     for record in records:
                         value = record.attributes.get(default_attribute)
-                        if (
-                            (include is None or value in include) and
-                            (exclude is None or value not in exclude)
+                        if (include is None or value in include) and (
+                            exclude is None or value not in exclude
                         ):
                             filtered_records.append(record)
                     if exclude is not None:
                         for record in records:
                             if record.attributes.get(default_attribute) in include:
                                 filtered_records.append(record)
-            
+
                 if labels:
                     if not isinstance(labels, str):
                         labels = default_label
                     self._add_polygon_labels(
-                        filtered_records, x_key="LABEL_X", y_key="LABEL_Y",
-                        label_key=labels, adjust_labels=adjust_labels,
+                        filtered_records,
+                        x_key="LABEL_X",
+                        y_key="LABEL_Y",
+                        label_key=labels,
+                        adjust_labels=adjust_labels,
                     )
-                
+
                 feature = cfeature.ShapelyFeature(
-                    [record.geometry for record in filtered_records],
-                    ccrs.PlateCarree()
+                    [record.geometry for record in filtered_records], ccrs.PlateCarree()
                 )
-                
+
                 return self.ax.add_feature(feature, *args, **kwargs)
+
             return wrapper
+
         return decorator
 
     @schema.coastlines.apply()
@@ -241,7 +270,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.borders.apply()
     @natural_earth_layer("cultural", "admin_0_boundary_lines_land", line=True)
     def borders(self, *args, **kwargs):
@@ -253,7 +282,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.unit_boundaries.apply()
     @natural_earth_layer(
         "cultural",
@@ -273,7 +302,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.disputed_boundaries.apply()
     @natural_earth_layer(
         "cultural",
@@ -293,10 +322,11 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.administrative_areas.apply()
     @natural_earth_layer(
-        "cultural", "admin_1_states_provinces",
+        "cultural",
+        "admin_1_states_provinces",
         default_attribute="name",
         default_label="name",
         line=True,
@@ -310,7 +340,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.countries.apply()
     @natural_earth_layer("cultural", "admin_0_countries", default_label="ISO_A2_EH")
     def countries(self, *args, **kwargs):
@@ -322,7 +352,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.land.apply()
     @natural_earth_layer("physical", "land")
     def land(self, *args, **kwargs):
@@ -334,7 +364,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.ocean.apply()
     @natural_earth_layer("physical", "ocean")
     def ocean(self, *args, **kwargs):
@@ -346,7 +376,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.urban_areas.apply()
     @natural_earth_layer("cultural", "urban_areas")
     def urban_areas(self, *args, **kwargs):
@@ -358,7 +388,7 @@ class Map(Subplot):
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
         """
-    
+
     @schema.countries.apply()
     @natural_earth_layer("cultural", "admin_0_map_units", default_label="ADM0_TLC")
     def map_units(self, *args, **kwargs):
@@ -381,7 +411,7 @@ class Map(Subplot):
         small_cities_kwargs=None,
         adjust_labels=False,
         **kwargs,
-    ):        
+    ):
         if density is None:
             density = self.natural_earth_resolution
         density = natural_earth.get_resolution(density, self.ax, self.crs)
@@ -391,13 +421,9 @@ class Map(Subplot):
                 kwargs or natural_earth.DEFAULT_CAPITAL_CITIES_KWARGS
             )
         if medium_cities_kwargs is None:
-            medium_cities_kwargs = (
-                kwargs or natural_earth.DEFAULT_MEDIUM_CITIES_KWARGS
-            )
+            medium_cities_kwargs = kwargs or natural_earth.DEFAULT_MEDIUM_CITIES_KWARGS
         if small_cities_kwargs is None:
-            small_cities_kwargs = (
-                kwargs or natural_earth.DEFAULT_SMALL_CITIES_KWARGS
-            )
+            small_cities_kwargs = kwargs or natural_earth.DEFAULT_SMALL_CITIES_KWARGS
 
         fname = shpreader.natural_earth(
             resolution=density,
@@ -441,6 +467,7 @@ class Map(Subplot):
                 texts.append(text)
         if adjust_labels:
             from adjustText import adjust_text
+
             adjust_text(texts)
         return texts
 
@@ -453,7 +480,7 @@ class Map(Subplot):
 
             img = PIL.Image.open(img)
         return self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
-    
+
     @schema.shapes.apply()
     def shapes(
         self,
@@ -483,3 +510,10 @@ class Map(Subplot):
         if ystep is not None:
             kwargs["ylocs"] = step_range([-90, 90], ystep, yref)
         self.ax.gridlines(*args, **kwargs)
+
+    def quick_layers(self):
+        """ """
+        self.land()
+        self.coastlines()
+        self.borders()
+        self.gridlines()
