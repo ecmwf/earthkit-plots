@@ -74,6 +74,7 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
         **kwargs,
     )
     cbar.ax.minorticks_off()
+    cbar.ax.tick_params(size=0)
 
     if cbar.solids is not None:
         cbar.solids.set(alpha=1)

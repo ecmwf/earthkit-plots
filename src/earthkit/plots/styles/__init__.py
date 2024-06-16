@@ -653,6 +653,10 @@ class Style:
 
     def colorbar(self, *args, **kwargs):
         """Create a colorbar legend for this `Style`."""
+        ticks = self._legend_kwargs.get("ticks")
+        if ticks is None and self._levels._levels is not None:
+            if len(np.unique(np.ediff1d(self._levels._levels))) != 1:
+                self._legend_kwargs["ticks"] = self._levels._levels
         return styles.legends.colorbar(*args, **kwargs)
 
     def disjoint(self, *args, **kwargs):
@@ -933,6 +937,12 @@ class Hatched(Contour):
         self.hatches = hatches
         self._foreground_colors = self._colors
         self._colors = background_colors or [(0, 0, 0, 0)]
+
+    def __eq__(self, other):
+        keys = ["_levels", "_colors", "_foreground_colors", "hatches"]
+        return all(
+            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
+        )
 
     def contourf(self, *args, **kwargs):
         """
