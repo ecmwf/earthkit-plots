@@ -23,7 +23,7 @@ class OptimisedCRS:
     """
     Base class for optimised cartopy CRS classes.
     """
-    
+
     def to_ccrs(self, optimiser):
         return getattr(ccrs, self.cartopy_crs())(**self.get_kwargs(optimiser))
 
@@ -73,7 +73,7 @@ class SouthPolarStereo(OptimisedCRS):
 class CRSOptimiser:
     """
     Base class for optimising cartopy CRS classes based on domain extents.
-    
+
     Parameters
     ----------
     extents : list

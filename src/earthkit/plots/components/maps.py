@@ -16,7 +16,7 @@ from earthkit.plots.utils import string_utils
 class Map(Subplot):
     """
     A specialized Subplot for plotting geospatial data.
-    
+
     Parameters
     ----------
     row : int, optional
@@ -35,7 +35,7 @@ class Map(Subplot):
     **kwargs
         Additional keyword arguments to pass to the matplotlib Axes object.
     """
-    
+
     def __init__(self, *args, domain=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
         if domain is None:
@@ -124,7 +124,7 @@ class Map(Subplot):
     def gridpoints(self, *args, **kwargs):
         """
         Plot gridpoint centroids on the map.
-        
+
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
@@ -149,7 +149,7 @@ class Map(Subplot):
     def point_cloud(self, *args, **kwargs):
         """
         Plot a point cloud on the map.
-        
+
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
@@ -463,7 +463,7 @@ class Map(Subplot):
     ):
         """
         Add city markers to the map.
-        
+
         Parameters
         ----------
         density : str or int, optional
@@ -480,7 +480,7 @@ class Map(Subplot):
         small_cities_kwargs : dict, optional
             Keyword arguments to pass to the scatter method for small cities.
         adjust_labels : bool, optional
-            Whether to adjust the positions of city labels to avoid overlap. 
+            Whether to adjust the positions of city labels to avoid overlap.
             Default is False. Note that this adjustment can be slow for large
             numbers of labels.
         **kwargs
@@ -548,7 +548,7 @@ class Map(Subplot):
     def stock_img(self, *args, **kwargs):
         """
         Add the cartopy stock image to the map.
-        
+
         Parameters
         ----------
         *args
@@ -561,7 +561,7 @@ class Map(Subplot):
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
         Add an image to the map.
-        
+
         Parameters
         ----------
         img : str or PIL.Image
@@ -591,7 +591,7 @@ class Map(Subplot):
     ):
         """
         Add shapes to the map.
-        
+
         Parameters
         ----------
         shapes : str or cartopy.io.shapereader.Reader
@@ -626,7 +626,7 @@ class Map(Subplot):
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
         """
         Add gridlines to the map.
-        
+
         Parameters
         ----------
         *args
@@ -651,7 +651,7 @@ class Map(Subplot):
     def standard_layers(self):
         """
         Add standard map layers to the map.
-        
+
         This method adds the following layers to the map:
         - land
         - coastlines

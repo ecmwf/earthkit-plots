@@ -101,7 +101,7 @@ def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="l
 class NaturalEarthDomain:
     """
     Class for building map domains and CRS based on a Natural Earth shape.
-    
+
     Parameters
     ----------
     domain_name : str

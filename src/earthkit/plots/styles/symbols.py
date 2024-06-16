@@ -23,7 +23,7 @@ from earthkit.plots.definitions import SYMBOLS_DIR
 def get_symbol(name):
     """
     Get a symbol from an SVG file.
-    
+
     Parameters
     ----------
     name : str

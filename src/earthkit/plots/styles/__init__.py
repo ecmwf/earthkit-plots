@@ -38,7 +38,7 @@ __all__ = [
 def linspace_datetime64(start_date, end_date, n):
     """
     Generate a linearly spaced array of datetime64 objects.
-    
+
     Parameters
     ----------
     start_date : numpy.datetime64
@@ -94,7 +94,7 @@ class Style:
 
     @classmethod
     def from_dict(cls, kwargs):
-        """Create a `Style` from a dictionary."""        
+        """Create a `Style` from a dictionary."""
         style_type = kwargs.pop("type")
         if "levels" in kwargs:
             kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
@@ -268,7 +268,7 @@ class Style:
             self.extend,
             extend_levels=extend_levels,
         )
-        
+
         cmap.set_bad(alpha=0)
 
         return {
@@ -633,7 +633,7 @@ class Style:
     def legend(self, *args, **kwargs):
         """
         Create the default legend for this `Style`.
-        
+
         Parameters
         ----------
         *args : list
@@ -754,7 +754,7 @@ class Categorical(Style):
 class Contour(Style):
     """
     A style for plotting contour data.
-    
+
     Parameters
     ----------
     colors : str or list or matplotlib.colors.Colormap, optional
@@ -814,7 +814,7 @@ class Contour(Style):
     def to_contour_kwargs(self, data):
         """
         Generate `contour` arguments required for plotting data in this `Style`.
-        
+
         Parameters
         ----------
         data : numpy.ndarray
@@ -836,7 +836,7 @@ class Contour(Style):
     def contourf(self, ax, x, y, values, *args, **kwargs):
         """
         Plot shaded contours using this `Style`.
-        
+
         Parameters
         ----------
         ax : matplotlib.axes.Axes
@@ -858,7 +858,7 @@ class Contour(Style):
     def contour(self, *args, **kwargs):
         """
         Plot line contours using this `Style`.
-        
+
         Parameters
         ----------
         *args
@@ -884,7 +884,7 @@ class Contour(Style):
     ):
         """
         Add labels to a contour plot.
-        
+
         Parameters
         ----------
         mappable : matplotlib.contour.ContourSet
@@ -919,7 +919,7 @@ class Contour(Style):
 class Hatched(Contour):
     """
     A style for plotting hatched contours.
-    
+
     Parameters
     ----------
     *args
@@ -931,7 +931,7 @@ class Hatched(Contour):
     **kwargs
         The keyword arguments to pass to the `Contour` constructor.
     """
-    
+
     def __init__(self, *args, hatches=".", background_colors=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.hatches = hatches
@@ -947,7 +947,7 @@ class Hatched(Contour):
     def contourf(self, *args, **kwargs):
         """
         Plot hatched shaded contours using this `Style`.
-        
+
         Parameters
         ----------
         *args
@@ -968,7 +968,7 @@ class Hatched(Contour):
     def colorbar(self, *args, **kwargs):
         """
         Create a colorbar legend for this `Style`.
-        
+
         Parameters
         ----------
         *args
@@ -989,7 +989,7 @@ class Hatched(Contour):
     def disjoint(self, layer, *args, **kwargs):
         """
         Create a disjoint legend for this `Style`.
-        
+
         Parameters
         ----------
         layer : earthkit.maps.charts.layers.Layer
@@ -1012,4 +1012,6 @@ class Hatched(Contour):
 
 DEFAULT_STYLE = Style()
 
-_STYLE_KWARGS = list(set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0]))
+_STYLE_KWARGS = list(
+    set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
+)

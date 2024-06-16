@@ -14,11 +14,11 @@
 
 from itertools import cycle
 
+import earthkit.data
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
-import earthkit.data
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
 from earthkit.plots.metadata.formatters import (
@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, single
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Style, auto
-from earthkit.plots.utils import string_utils, iter_utils
+from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -38,10 +38,10 @@ ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 class Subplot:
     """
     A single plot within a Figure.
-    
+
     A Subplot is a container for one or more Layers, each of which is a plot of
     a single data source.
-    
+
     Parameters
     ----------
     row : int, optional
@@ -53,7 +53,7 @@ class Subplot:
     **kwargs
         Additional keyword arguments to pass to the matplotlib Axes constructor.
     """
-    
+
     def __init__(self, row=0, column=0, figure=None, **kwargs):
         self._figure = figure
         self._ax = None
@@ -486,7 +486,7 @@ class Subplot:
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -515,9 +515,9 @@ class Subplot:
 
     @schema.envelope.apply()
     def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.4, **kwargs):
-        prop_cycle = plt.rcParams['axes.prop_cycle']
-        facecolor = kwargs.pop("facecolor", next(cycle(prop_cycle.by_key()['color'])))
-        color = kwargs.pop("color", next(cycle(prop_cycle.by_key()['color'])))
+        prop_cycle = plt.rcParams["axes.prop_cycle"]
+        facecolor = kwargs.pop("facecolor", next(cycle(prop_cycle.by_key()["color"])))
+        color = kwargs.pop("color", next(cycle(prop_cycle.by_key()["color"])))
         if isinstance(data, earthkit.data.core.Base):
             data = data.to_xarray()
         if dim is None:
@@ -525,14 +525,26 @@ class Subplot:
         for q in iter_utils.symmetrical_iter(quantiles):
             lines = data.quantile(q, dim=dim)
             if isinstance(q, tuple):
-                x, y1, _ = self._extract_plottables_2(y=lines.sel(quantile=q[0]), **kwargs)
-                _, y2, _ = self._extract_plottables_2(y=lines.sel(quantile=q[1]), **kwargs)
-                mappable = self.ax.fill_between(x=x, y1=y1, y2=y2, facecolor=facecolor, alpha=alpha, **{k: v for k, v in kwargs.items() if k != "x"})
+                x, y1, _ = self._extract_plottables_2(
+                    y=lines.sel(quantile=q[0]), **kwargs
+                )
+                _, y2, _ = self._extract_plottables_2(
+                    y=lines.sel(quantile=q[1]), **kwargs
+                )
+                mappable = self.ax.fill_between(
+                    x=x,
+                    y1=y1,
+                    y2=y2,
+                    facecolor=facecolor,
+                    alpha=alpha,
+                    **{k: v for k, v in kwargs.items() if k != "x"},
+                )
             else:
                 x, y, _ = self._extract_plottables_2(y=lines, **kwargs)
-                mappable = self.ax.plot(x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"})
-                
-            
+                mappable = self.ax.plot(
+                    x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
+                )
+
         # kwargs.pop("x")
         # mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
         # self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
@@ -555,7 +567,7 @@ class Subplot:
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -578,7 +590,7 @@ class Subplot:
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -605,7 +617,7 @@ class Subplot:
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -631,7 +643,7 @@ class Subplot:
     def contour(self, *args, **kwargs):
         """
         Plot a contour plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -656,7 +668,7 @@ class Subplot:
     def contourf(self, *args, **kwargs):
         """
         Plot a filled contour plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -681,7 +693,7 @@ class Subplot:
     def tripcolor(self, *args, **kwargs):
         """
         Plot a tripcolor plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -706,7 +718,7 @@ class Subplot:
     def tricontour(self, *args, **kwargs):
         """
         Plot a tricontour plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -731,7 +743,7 @@ class Subplot:
     def tricontourf(self, *args, **kwargs):
         """
         Plot a filled tricontour plot on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -757,7 +769,7 @@ class Subplot:
     def quiver(self, *args, **kwargs):
         """
         Plot arrows on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -786,7 +798,7 @@ class Subplot:
     def barbs(self, *args, **kwargs):
         """
         Plot wind barbs on the Subplot.
-        
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
@@ -816,7 +828,7 @@ class Subplot:
     def legend(self, style=None, location=None, **kwargs):
         """
         Add a legend to the Subplot.
-        
+
         Parameters
         ----------
         style : Style, optional
@@ -851,7 +863,7 @@ class Subplot:
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
         """
         Add a title to the plot.
-        
+
         Parameters
         ----------
         label : str, optional
@@ -878,7 +890,7 @@ class Subplot:
     def format_string(self, string, unique=True, grouped=True):
         """
         Format a string with metadata from the Subplot.
-        
+
         Parameters
         ----------
         string : str
@@ -907,7 +919,7 @@ class Subplot:
 def thin_array(array, every=2):
     """
     Reduce the size of an array by taking every `every`th element.
-    
+
     Parameters
     ----------
     array : numpy.ndarray

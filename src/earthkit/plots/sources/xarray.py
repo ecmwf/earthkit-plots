@@ -23,7 +23,7 @@ from earthkit.plots.sources.single import SingleSource
 class XarraySource(SingleSource):
     """
     Source class for xarray data.
-    
+
     Parameters
     ----------
     data : xarray.Dataset
@@ -60,7 +60,7 @@ class XarraySource(SingleSource):
     def metadata(self, key, default=None):
         """
         Extract metadata from the data.
-        
+
         Parameters
         ----------
         key : str

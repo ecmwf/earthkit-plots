@@ -16,13 +16,13 @@
 def symmetrical_iter(lst):
     """
     Iterate over an iterable from both ends simultaneously.
-    
+
     Parameters
     ----------
     lst : iterable
         The iterable to iterate over.
     """
-    mid = (len(lst) + 1) // 2   
+    mid = (len(lst) + 1) // 2
     for x, y in zip(lst[:mid], lst[::-1]):
         if x is y:
             yield x
