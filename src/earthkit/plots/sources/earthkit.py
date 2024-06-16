@@ -29,7 +29,7 @@ except ImportError:
 def get_points(dx):
     """
     Get points for a grid with a given resolution.
-    
+
     Parameters
     ----------
     dx : float
@@ -44,7 +44,7 @@ def get_points(dx):
 class EarthkitSource(SingleSource):
     """
     Source class for earthkit data.
-    
+
     Parameters
     ----------
     data : earthkit.data.core.Base
@@ -71,7 +71,7 @@ class EarthkitSource(SingleSource):
     **kwargs
         Metadata keys and values to attach to this Source.
     """
-    
+
     @cached_property
     def data(self):
         """Return the original earthkit data."""
@@ -82,7 +82,7 @@ class EarthkitSource(SingleSource):
     def metadata(self, key, default=None):
         """
         Extract metadata from the data.
-        
+
         Parameters
         ----------
         key : str
@@ -98,7 +98,7 @@ class EarthkitSource(SingleSource):
     def datetime(self, *args, **kwargs):
         """
         Get the datetime of the data.
-        
+
         Parameters
         ----------
         *args

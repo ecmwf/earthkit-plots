@@ -20,7 +20,7 @@ from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColor
 def expand(colors, levels, extend_colors=0):
     """
     Generate a list of colours from a matplotlib colormap name and some levels.
-    
+
     Parameters
     ----------
     colors : str or list
@@ -48,7 +48,7 @@ def expand(colors, levels, extend_colors=0):
 def contour_line_colors(colors, levels):
     """
     Generate a list of colours from a matplotlib colormap name and some levels.
-    
+
     Parameters
     ----------
     colors : str or list
@@ -64,7 +64,7 @@ def contour_line_colors(colors, levels):
 def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=True):
     """
     Generate a colormap and a norm from a list of colours and levels.
-    
+
     Parameters
     ----------
     colors : str or list
@@ -132,7 +132,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
 def gradients(levels, colors, gradients, normalize, **kwargs):
     """
     Generate a colormap with a specified number of gradients between levels.
-    
+
     Parameters
     ----------
     levels : list

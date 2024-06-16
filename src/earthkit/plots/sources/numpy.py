@@ -22,7 +22,7 @@ from earthkit.plots.sources.single import SingleSource
 class NumpySource(SingleSource):
     """
     Source class for numpy data.
-    
+
     Parameters
     ----------
     data : numpy.ndarray

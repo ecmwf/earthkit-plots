@@ -22,7 +22,7 @@ from earthkit.plots.sources.xarray import XarraySource
 def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwargs):
     """
     Get a Source object from the given data.
-    
+
     Parameters
     ----------
     *args

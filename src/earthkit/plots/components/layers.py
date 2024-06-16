@@ -124,7 +124,7 @@ class LayerGroup:
     def legend(self, *args, **kwargs):
         """
         Add a legend for this layer group.
-        
+
         Parameters
         ----------
         *args : list
@@ -149,7 +149,7 @@ class LayerGroup:
     def format_string(self, string, unique=True):
         """
         Format a string with the layer group's metadata.
-        
+
         Parameters
         ----------
         string : str

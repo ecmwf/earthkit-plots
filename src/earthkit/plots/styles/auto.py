@@ -20,19 +20,19 @@ import yaml
 
 from earthkit.plots import styles
 from earthkit.plots._plugins import PLUGINS
-from earthkit.plots.metadata.units import are_equal, _NO_CF_UNITS
+from earthkit.plots.metadata.units import _NO_CF_UNITS, are_equal
 from earthkit.plots.schemas import schema
 
 
 def guess_style(data, units=None):
     """
     Guess the style to be applied to the data based on its metadata.
-    
+
     The style is guessed by comparing the metadata of the data to the identities
     and styles in the style library. The first identity that matches the metadata
     is used to select the style. If the style library is not set or no identity
     matches the metadata, the default style is returned.
-    
+
     Parameters
     ----------
     data : earthkit.plots.sources.Source

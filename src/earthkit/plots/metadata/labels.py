@@ -59,7 +59,7 @@ CRS_NAMES = {
 def default_label(data):
     """
     Get the default label type for a given data object (analysis or forecast).
-    
+
     Parameters
     ----------
     data : earthkit.plots.sources.Source
@@ -75,7 +75,7 @@ def default_label(data):
 def extract(data, attr, default=None):
     """
     Extract an attribute from a data object.
-    
+
     Parameters
     ----------
     data : earthkit.plots.sources.Source

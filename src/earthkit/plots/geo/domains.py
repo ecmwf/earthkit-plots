@@ -40,7 +40,7 @@ NO_BBOX = [
 def force_minus_180_to_180(x):
     """
     Force an array of longitudes to be in the range -180 to 180.
-    
+
     Parameters
     ----------
     x : array-like
@@ -52,7 +52,7 @@ def force_minus_180_to_180(x):
 def roll_from_0_360_to_minus_180_180(x):
     """
     Find the index at which an array of longitudes crosses the 180° meridian.
-    
+
     Parameters
     ----------
     x : array-like
@@ -64,7 +64,7 @@ def roll_from_0_360_to_minus_180_180(x):
 def roll_from_minus_180_180_to_0_360(x):
     """
     Find the index at which an array of longitudes crosses the 0° meridian.
-    
+
     Parameters
     ----------
     x : array-like
@@ -76,7 +76,7 @@ def roll_from_minus_180_180_to_0_360(x):
 def force_0_to_360(x):
     """
     Force an array of longitudes to be in the range 0 to 360.
-    
+
     Parameters
     ----------
     x : array-like
@@ -88,7 +88,7 @@ def force_0_to_360(x):
 def is_latlon(data):
     """
     Determine whether a dataset' coordinates are in latitude and longitude.
-    
+
     Parameters
     ----------
     data : xarray.Dataset or earthkit.data.core.Base
@@ -103,7 +103,7 @@ def is_latlon(data):
 def format_name(domain_name):
     """
     Format a domain name to match the lookup keys in the domain lookup.
-    
+
     Parameters
     ----------
     domain_name : str
@@ -129,14 +129,14 @@ def format_name(domain_name):
 def union(domains, name=None):
     """
     Combine multiple domains into a single domain.
-    
+
     Parameters
     ----------
     domains : list of Domain or str
         The domains to be combined.
     name : str, optional
         The name of the new domain.
-    
+
     Example
     -------
     >>> union(["Norway", "Sweden", "Finland"], name="Fennoscandia")
@@ -157,7 +157,7 @@ def union(domains, name=None):
 class Domain:
     """
     Class for storing domain information.
-    
+
     Parameters
     ----------
     bbox : list of float
@@ -167,15 +167,15 @@ class Domain:
     name : str, optional
         The name of the domain.
     """
-    
+
     @classmethod
     def from_string(cls, string, crs=None):
         """
         Create a domain from a string.
-        
+
         The name of the domain can be a country, region, or a custom domain as
         defined in the domain lookup associated with your schema.
-        
+
         Parameters
         ----------
         string : str
@@ -225,7 +225,7 @@ class Domain:
     def from_bbox(cls, *args, name=None, **kwargs):
         """
         Create a domain from a bounding box.
-        
+
         Parameters
         ----------
         *args : list of float
@@ -242,10 +242,10 @@ class Domain:
     def from_data(cls, data):
         """
         Create a domain from a dataset.
-        
+
         The domain will be created based on the bounding box and CRS of the
         dataset.
-        
+
         Parameters
         ----------
         data : xarray.Dataset or earthkit.data.core.Base
@@ -327,7 +327,7 @@ class Domain:
     ):
         """
         Slice data to fit the domain.
-        
+
         Parameters
         ----------
         x : array-like

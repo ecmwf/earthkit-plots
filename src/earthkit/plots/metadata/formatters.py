@@ -55,7 +55,7 @@ class BaseFormatter(Formatter):
     def convert_field(self, value, conversion):
         """
         Convert a field value according to the conversion type.
-        
+
         Parameters
         ----------
         value : object
@@ -76,7 +76,7 @@ class BaseFormatter(Formatter):
     def format_keys(self, format_string, kwargs):
         """
         Format keys in a format string.
-        
+
         Parameters
         ----------
         format_string : str
@@ -231,7 +231,7 @@ class FigureFormatter(BaseFormatter):
 class TimeFormatter:
     """
     Formatter of time data, enabling convient time labels.
-    
+
     Parameters
     ----------
     times : list
@@ -239,6 +239,7 @@ class TimeFormatter:
     time_zone : str, optional
         The time zone to be used for the times.
     """
+
     def __init__(self, times, time_zone=None):
         if not isinstance(times, (list, tuple)):
             times = [times]
@@ -328,7 +329,7 @@ class TimeFormatter:
 def format_month(data):
     """
     Extract the month of the data time.
-    
+
     Parameters
     ----------
     data : earthkit.maps.sources.Source

@@ -16,7 +16,7 @@
 class GridSpec:
     """
     A specification of a grid used in a Source.
-    
+
     Parameters
     ----------
     data : earthkit.plots.sources.Source
@@ -27,7 +27,7 @@ class GridSpec:
     def from_data(cls, data):
         """
         Identify and create a GridSpec object from the given data.
-        
+
         Parameters
         ----------
         data : earthkit.plots.sources.Source
@@ -55,7 +55,7 @@ class GridSpec:
 
 class ReducedGG(GridSpec):
     """A reduced Gaussian grid specification."""
-    
+
     CRITERIA = {"gridType": "reduced_gg"}
 
     def to_dict(self):

@@ -29,7 +29,7 @@ except ImportError:
 class SingleSource:
     """
     A single source of data for a plot.
-    
+
     Parameters
     ----------
     data : numpy.ndarray or earthkit.data.core.Base or xarray.DataArray
@@ -56,7 +56,7 @@ class SingleSource:
     **kwargs
         Metadata keys and values to attach to this Source.
     """
-    
+
     def __init__(
         self,
         *args,
@@ -126,7 +126,7 @@ class SingleSource:
     def gridspec(self):
         """
         The gridspec of the data.
-        
+
         The gridspec is used to determine the grid type of the data, which is
         required for regridding more complex grid types like reduced Gaussian
         grids.
@@ -161,7 +161,7 @@ class SingleSource:
     def metadata(self, key, default=None):
         """
         Extract metadata from the data.
-        
+
         Parameters
         ----------
         key : str
@@ -186,6 +186,7 @@ class SingleSource:
 
     def guess_xyz(method):
         """Decorator to guess the x, y and z values of the data."""
+
         def wrapper(self, *args, **kwargs):
             self._x, self._y, self._z = self.extract_xyz()
             return method(self, *args, **kwargs)

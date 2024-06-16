@@ -27,12 +27,12 @@ from earthkit.plots.utils import string_utils
 class Figure:
     """
     The overall canvas onto which subplots are drawn.
-    
+
     A Figure is a container for one or more Subplots, each of which can contain
     one or more Layers. The Figure is responsible for managing the layout of
     Subplots and Layers, as well as providing methods for adding common
     elements like legends and titles.
-    
+
     Parameters
     ----------
     rows : int, optional
@@ -48,6 +48,7 @@ class Figure:
     kwargs : dict, optional
         Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
     """
+
     def __init__(self, rows=1, columns=1, size=None, domain=None, **kwargs):
         self.rows = rows
         self.columns = columns
@@ -94,6 +95,7 @@ class Figure:
 
     def apply_to_subplots(method):
         """Decorator to apply a method to all subplots in the figure."""
+
         def wrapper(self, *args, **kwargs):
             success = False
             for subplot in self.subplots:
@@ -111,6 +113,7 @@ class Figure:
 
     def multi_plot(method):
         """Decorator to iterate simultaneously over data and subplots."""
+
         def wrapper(self, data, *args, **kwargs):
             for datum, subplot in zip(data, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
@@ -138,7 +141,7 @@ class Figure:
     def add_subplot(self, row=None, column=None, **kwargs):
         """
         Add a subplot to the figure.
-        
+
         Parameters
         ----------
         row : int, optional
@@ -156,7 +159,7 @@ class Figure:
     def add_map(self, row=None, column=None, domain=None, **kwargs):
         """
         Add a map to the figure.
-        
+
         Parameters
         ----------
         row : int, optional
@@ -179,7 +182,7 @@ class Figure:
     def subplot_titles(self, *args, **kwargs):
         """
         Set the titles of all subplots.
-        
+
         Parameters
         ----------
         label : str, optional
@@ -232,7 +235,7 @@ class Figure:
     def legend(self, *args, subplots=None, location=None, **kwargs):
         """
         Add legends to the figure.
-        
+
         Parameters
         ----------
         subplots : list, optional
@@ -276,7 +279,7 @@ class Figure:
     def coastlines(self, *args, **kwargs):
         """
         Add coastlines to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.coastlines`.
@@ -286,7 +289,7 @@ class Figure:
     def countries(self, *args, **kwargs):
         """
         Add countries to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.countries`.
@@ -296,7 +299,7 @@ class Figure:
     def urban_areas(self, *args, **kwargs):
         """
         Add urban areas to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.urban_areas`.
@@ -306,7 +309,7 @@ class Figure:
     def land(self, *args, **kwargs):
         """
         Add land polygons to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.land`.
@@ -316,7 +319,7 @@ class Figure:
     def borders(self, *args, **kwargs):
         """
         Add borders to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.borders`.
@@ -326,7 +329,7 @@ class Figure:
     def standard_layers(self, *args, **kwargs):
         """
         Add quick layers to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.quick_layers`.
@@ -336,7 +339,7 @@ class Figure:
     def administrative_areas(self, *args, **kwargs):
         """
         Add administrative areas to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.administrative_areas`.
@@ -346,7 +349,7 @@ class Figure:
     def stock_img(self, *args, **kwargs):
         """
         Add a stock image to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         Accepts the same arguments as `Map.stock_img`.
@@ -367,7 +370,7 @@ class Figure:
     def gridlines(self, *args, sharex=False, sharey=False, **kwargs):
         """
         Add gridlines to every `Map` subplot in the figure.
-        
+
         Parameters
         ----------
         sharex : bool, optional
@@ -472,7 +475,7 @@ class Figure:
     def save(self, *args, bbox_inches="tight", **kwargs):
         """
         Save the figure to a file.
-        
+
         Parameters
         ----------
         fname : str or file-like object

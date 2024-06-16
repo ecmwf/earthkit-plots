@@ -40,7 +40,7 @@ UNIT_EQUIVALENCE = {
 def are_equal(unit_1, unit_2):
     """
     Check if two units are equivalent.
-    
+
     Parameters
     ----------
     unit_1 : str
@@ -56,10 +56,10 @@ def are_equal(unit_1, unit_2):
 def anomaly_equivalence(units):
     """
     Check if units are equivalent for temperature anomalies.
-    
+
     This is a special case for temperature anomalies, for which Kelvin and
     Celsius are considered equivalent.
-    
+
     Parameters
     ----------
     units : str
@@ -71,7 +71,7 @@ def anomaly_equivalence(units):
 def convert(data, source_units, target_units):
     """
     Convert data from one set of units to another.
-    
+
     Parameters
     ----------
     data : numpy.ndarray
@@ -106,7 +106,7 @@ def format_units(units):
     ----------
     units : str
         The units to format.
-    
+
     Example
     -------
     >>> format_units("kg m-2")
