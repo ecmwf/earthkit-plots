@@ -323,7 +323,7 @@ class Figure:
         """
 
     @apply_to_subplots
-    def quick_layers(self, *args, **kwargs):
+    def standard_layers(self, *args, **kwargs):
         """
         Add quick layers to every `Map` subplot in the figure.
         

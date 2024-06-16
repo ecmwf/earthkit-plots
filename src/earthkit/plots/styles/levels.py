@@ -154,7 +154,7 @@ class Levels:
         return cls(**kwargs)
 
     def __eq__(self, other):
-        if self._levels is not None:
+        if self._levels is not None and other is not None:
             return self._levels == other._levels
         else:
             return False

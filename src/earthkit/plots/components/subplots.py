@@ -154,18 +154,16 @@ class Subplot:
         def decorator(method):
             def wrapper(
                 self,
-                *args,
                 data=None,
                 x=None,
                 y=None,
                 z=None,
                 style=None,
-                units=None,
                 **kwargs,
             ):
                 return self._extract_plottables(
                     method_name or method.__name__,
-                    args=args,
+                    args=tuple(),
                     data=data,
                     x=x,
                     y=y,
@@ -319,7 +317,6 @@ class Subplot:
         else:
             source = get_source(*args, data=data, x=x, y=y, z=z)
         kwargs = {**self._plot_kwargs(source), **kwargs}
-
         if method_name == "contourf":
             source.regrid = True
         if style is None:
@@ -333,7 +330,6 @@ class Subplot:
                 style = style_class(**{**style_kwargs, **{"units": units}})
             else:
                 style = auto.guess_style(source, units=units or source.units)
-
         if (data is None and z is None) or (z is not None and not z):
             z_values = None
         else:
@@ -785,7 +781,7 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.quiver`.
         """
 
-    # @schema.barbs.apply()
+    @schema.barbs.apply()
     @plot_vector()
     def barbs(self, *args, **kwargs):
         """

@@ -341,12 +341,15 @@ class Domain:
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the input data.
         """
+        x = np.array(x)
+        y = np.array(y)
+        values = np.array(values) if values is not None else None
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
             roll_by = None
 
             if crs_bounds[0] < 0:
-                if crs_bounds[0] < x.min() and (x > 180).any():
+                if crs_bounds[0] < np.array(x).min() and (x > 180).any():
                     roll_by = roll_from_0_360_to_minus_180_180(x)
                     x = force_minus_180_to_180(x)
                     for i in range(2):
