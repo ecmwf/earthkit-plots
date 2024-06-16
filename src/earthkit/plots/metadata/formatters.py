@@ -38,7 +38,7 @@ SPECIAL_METHODS = {
 
 class BaseFormatter(Formatter):
     """
-    Formatter of earthkit-maps components, enabling convient titles and labels.
+    Formatter of earthkit-plots components, enabling convient titles and labels.
     """
 
     #: Attributes of subplots which can be extracted by format strings
@@ -114,7 +114,7 @@ class BaseFormatter(Formatter):
 
 class SourceFormatter(BaseFormatter):
     """
-    Formatter of earthkit-maps `Layers`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
     def __init__(self, source):
@@ -126,7 +126,7 @@ class SourceFormatter(BaseFormatter):
 
 class LayerFormatter(BaseFormatter):
     """
-    Formatter of earthkit-maps `Layers`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
     def __init__(self, layer):
@@ -148,7 +148,7 @@ class LayerFormatter(BaseFormatter):
 
 class SubplotFormatter(BaseFormatter):
     """
-    Formatter of earthkit-maps `Subplots`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Subplots`, enabling convient titles and labels.
     """
 
     def __init__(self, subplot, unique=True):
@@ -190,7 +190,7 @@ class SubplotFormatter(BaseFormatter):
 
 class FigureFormatter(BaseFormatter):
     """
-    Formatter of earthkit-maps `Charts`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Charts`, enabling convient titles and labels.
     """
 
     def __init__(self, subplots, unique=True):

@@ -37,7 +37,7 @@ extensions = [
 autodoc_typehints = "none"
 
 # autoapi configuration
-autoapi_dirs = ["../earthkit/plots"]
+autoapi_dirs = ["../src/earthkit/plots"]
 autoapi_ignore = ["*/version.py", "sphinxext/*", "*/data/*"]
 autoapi_options = [
     "members",
