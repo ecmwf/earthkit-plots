@@ -15,7 +15,7 @@ First, clone the repository locally. You can use the following command:
 
 .. code-block:: shell
 
-   git clone --branch develop git@github.com:ecmwf/earthkit-maps.git
+   git clone --branch develop git@github.com:ecmwf/earthkit-plots.git
 
 
 Next, enter your git repository and run the following commands:
@@ -23,11 +23,11 @@ Next, enter your git repository and run the following commands:
 .. code-block:: shell
 
     make conda-env-update
-    conda activate earthkit-maps
+    conda activate earthkit-plots
     make setup
     pip install -e .
 
-This will create a new conda environment called "earthkit-maps" with all the dependencies installed into it. This setup enables the `pre-commit`_ hooks, performing a series of quality control checks on every commit. If any of these checks fails the commit will be rejected.
+This will create a new conda environment called "earthkit-plots" with all the dependencies installed into it. This setup enables the `pre-commit`_ hooks, performing a series of quality control checks on every commit. If any of these checks fails the commit will be rejected.
 
 Run unit tests
 ---------------
@@ -53,5 +53,5 @@ To build the documentation locally, please install the Python dependencies first
 To see the generated HTML documentation open the ``docs/_build/html/index.html`` file in your browser.
 
 
-.. _`Github`: https://github.com/ecmwf/earthkit-maps
+.. _`Github`: https://github.com/ecmwf/earthkit-plots
 .. _`pre-commit`: https://pre-commit.com/

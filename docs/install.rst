@@ -1,25 +1,19 @@
 Installation
 ============
 
-Installing **earthkit-maps**
+Installing **earthkit-plots**
 ----------------------------
 
-The easiest way to install **earthkit-maps** is with `pip`:
+The easiest way to install **earthkit-plots** is with `pip`:
 
 .. code-block:: bash
 
-    pip install earthkit-maps
-
-Alternatively, install via ``conda`` with:
-
-.. code-block:: bash
-
-    conda install earthkit-maps -c conda-forge
+    pip install earthkit-plots
 
 Optional dependencies
 ---------------------
 
-To take advantage of all **earthkit-maps** features, you will need a few
+To take advantage of all **earthkit-plots** features, you will need a few
 additional dependencies.
 
 - `SciPy <https://scipy.org/install/>`_: required for efficiently extracting
