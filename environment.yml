@@ -17,3 +17,4 @@ dependencies:
 - numpy
 - pip:
   - adjustText
+  - earthkit-plots-default-styles
