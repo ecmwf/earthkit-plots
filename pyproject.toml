@@ -1,19 +1,84 @@
 [build-system]
-requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+requires = [
+  "setuptools>=61",
+  "setuptools-scm>=8"
+]
+
+[project]
+authors = [
+  {name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int"}
+]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy"
+]
+dependencies = [
+  "earthkit-data",
+  "earthkit-plots-default-styles",
+  "cartopy>=0.22.0",
+  "cf-units",
+  "matplotlib",
+  "pyyaml",
+  "numpy",
+  "adjustText"
+]
+description = "Visualisation tools for earth science data"
+dynamic = [
+  "version"
+]
+license = {text = "Apache License Version 2.0"}
+name = "earthkit-plots"
+readme = "README.md"
+requires-python = ">=3.8"
+optional-dependencies.all = [
+  "cf_units"
+]
+optional-dependencies.test = [
+  "nbconvert",
+  "nbformat",
+  "pytest",
+  "pytest-cov",
+  "pytest-forked",
+  "pytest-timeout"
+]
+urls.Documentation = "https://earthkit-plots.readthedocs.io/"
+urls.Homepage = "https://github.com/ecmwf/earthkit-plots/"
+urls.Issues = "https://github.com/ecmwf/earthkit-plots.issues"
+urls.Repository = "https://github.com/ecmwf/earthkit-plots/"
 
 [tool.coverage.run]
-branch = true
+branch = "true"
 
 [tool.isort]
 profile = "black"
 
 [tool.pydocstyle]
-add_ignore = "D1"
+add_ignore = [
+  "D1",
+  "D200",
+  "D205",
+  "D400",
+  "D401"
+]
 convention = "numpy"
 
+[tool.setuptools.packages.find]
+include = [
+  "earthkit.plots"
+]
+where = [
+  "src/"
+]
+
 [tool.setuptools_scm]
-write_to = "earthkit/plots/version.py"
-write_to_template = '''
-# Do not change! Do not track in version control!
-__version__ = "{version}"
-'''
+version_file = "src/earthkit/plots/version.py"
