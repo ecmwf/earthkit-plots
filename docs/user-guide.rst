@@ -10,8 +10,7 @@ Here is a list of example notebooks to illustrate how to use earthkit-data.
     :maxdepth: 1
     :caption: User guide
 
-    examples/01-introduction.ipynb
-    examples/02-data-formats.ipynb
-    examples/03-styles.ipynb
-    examples/04-domains-and-coordinate-reference-systems.ipynb
-    examples/05-input-grids.ipynb
+    examples/guide/01-introduction.ipynb
+    examples/guide/02-components.ipynb
+    examples/guide/03-domains.ipynb
+    examples/guide/04-reusable-code.ipynb
