@@ -14,9 +14,9 @@ metadata standards.
 
 .. code-block:: python
 
-    qplt.plot(data)
+    qmap.plot(data, domain="Europe", units="celsius")
 
-.. image:: images/quickplot-era5-t2m-20220901.png
+.. image:: images/quickplot-era5-t2m-19931201.png
    :width: 600
 
 **earthkit-plots** also provides deep levels of customisation to tailor
