@@ -33,6 +33,6 @@ template-update:
 docs-build:
 	cd docs && rm -fr _api && make clean && make html
 
-# integration-tests:
+#integration-tests:
 #    python -m pytest -vv --cov=. --cov-report=$(COV_REPORT) tests/integration*.py
 #    python -m pytest -vv --doctest-glob='*.md'
