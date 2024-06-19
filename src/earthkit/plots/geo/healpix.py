@@ -11,6 +11,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     ax: axis to plot on
     kwargs: additional arguments to imshow
     """
+    kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
     # NOTE: we want the center coordinate of each pixel, thus we have to

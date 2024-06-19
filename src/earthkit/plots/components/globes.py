@@ -95,11 +95,14 @@ def globe(
 
     figure = Figure(left=0, right=1, bottom=0, top=1, size=(figsize, figsize))
 
-    crs = data.projection().to_cartopy_crs()
+    try:
+        crs = data.projection().to_cartopy_crs()
+    except AttributeError:
+        crs = ccrs.PlateCarree()
     if crs.__class__.__name__ != "PlateCarree":
         crs = ccrs.PlateCarree()
 
-    subplot = figure.add_map(crs=crs)
+    subplot = figure.add_map(crs=crs, domain=[-180, 180, -90, 90])
     getattr(subplot, how)(data, style=style, transform_first=True)
     extent = subplot.ax.get_extent()
     if extent != (-180.0, 180.0, -90.0, 90.0):
