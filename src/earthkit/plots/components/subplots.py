@@ -514,9 +514,11 @@ class Subplot:
         return mappable
 
     @schema.envelope.apply()
-    def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.4, **kwargs):
+    def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.15, **kwargs):
         prop_cycle = plt.rcParams["axes.prop_cycle"]
-        facecolor = kwargs.pop("facecolor", next(cycle(prop_cycle.by_key()["color"])))
+        facecolor = kwargs.pop(
+            "facecolor", kwargs.get("color", next(cycle(prop_cycle.by_key()["color"])))
+        )
         color = kwargs.pop("color", next(cycle(prop_cycle.by_key()["color"])))
         if isinstance(data, earthkit.data.core.Base):
             data = data.to_xarray()
@@ -541,6 +543,7 @@ class Subplot:
                 )
             else:
                 x, y, _ = self._extract_plottables_2(y=lines, **kwargs)
+                kwargs.pop("label", None)
                 mappable = self.ax.plot(
                     x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
                 )

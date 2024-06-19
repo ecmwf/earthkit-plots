@@ -19,8 +19,7 @@ from matplotlib import font_manager
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
-
-# from earthkit.plots.components.globes import globe
+from earthkit.plots.components.globes import globe
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
@@ -39,7 +38,7 @@ __all__ = [
     "Figure",
     "Subplot",
     "Map",
-    # "globe",
+    "globe",
     "schema",
     "styles",
 ]
