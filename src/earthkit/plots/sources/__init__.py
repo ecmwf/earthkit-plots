@@ -52,7 +52,7 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
     if len(args) == 1 and core_data is None:
         core_data = args[0]
     if core_data is not None:
-        if data.__class__.__name__ in ("Dataset", "DataArray"):
+        if core_data.__class__.__name__ in ("Dataset", "DataArray"):
             cls = XarraySource
         elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
