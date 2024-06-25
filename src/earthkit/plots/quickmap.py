@@ -35,6 +35,11 @@ def scatter(*args, **kwargs):
 
 
 @_quickmap
+def point_cloud(*args, **kwargs):
+    """Quick plot"""
+
+
+@_quickmap
 def block(*args, **kwargs):
     """Quick plot"""
 

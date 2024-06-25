@@ -92,7 +92,10 @@ class EarthkitSource(SingleSource):
         """
         value = super().metadata(key, default)
         if value == default:
-            value = self.data.metadata(key, default=default)
+            try:
+                value = self.data.metadata(key, default=default)
+            except NotImplementedError:
+                pass
         return value
 
     def datetime(self, *args, **kwargs):
