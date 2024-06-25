@@ -483,7 +483,12 @@ class Style:
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
-        if values is not None and missing_values is not None and np.isnan(values).any():
+        if (
+            values is not None
+            and missing_values is not None
+            and np.isnan(values).any()
+            and len(values.shape) > 1
+        ):
             missing_idx = np.where(np.isnan(values))
             missing_x = x[missing_idx]
             missing_y = y[missing_idx]

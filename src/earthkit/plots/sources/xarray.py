@@ -190,18 +190,17 @@ class XarraySource(SingleSource):
     def z_values(self):
         """The z values of the data."""
         values = None
-        if len(self.dims) > 1:
-            if self._z is None:
-                if not hasattr(self.data, "data_vars"):
-                    data = self.data
-                else:
-                    data = self.data[list(self.data.data_vars)[0]]
+        if self._z is None:
+            if not hasattr(self.data, "data_vars"):
+                data = self.data
             else:
-                data = self.data[self._z]
-            values = data.values
-            x, y = self.extract_xy()
-            if [y, x] != [c for c in data.dims if c in [y, x]]:
-                values = values.T
+                data = self.data[list(self.data.data_vars)[0]]
+        else:
+            data = self.data[self._z]
+        values = data.values
+        # x, y = self.extract_xy()
+        # if [y, x] != [c for c in data.dims if c in [y, x]]:
+        #     values = values.T
 
         return values
 
