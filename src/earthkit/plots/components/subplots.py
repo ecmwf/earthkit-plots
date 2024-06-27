@@ -28,7 +28,7 @@ from earthkit.plots.metadata.formatters import (
 )
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, single
-from earthkit.plots.styles import _STYLE_KWARGS, Contour, Style, auto
+from earthkit.plots.styles import _OVERRIDE_KWARGS, _STYLE_KWARGS, Contour, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -323,13 +323,17 @@ class Subplot:
             style_kwargs = {
                 key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs
             }
+            # These are kwargs which can be overridden without forcing a new Style
+            override_kwargs = {key: style_kwargs.pop(key) for key in _OVERRIDE_KWARGS}
             if style_kwargs:
                 style_class = (
                     Style if not method_name.startswith("contour") else Contour
                 )
                 style = style_class(**{**style_kwargs, **{"units": units}})
             else:
-                style = auto.guess_style(source, units=units or source.units)
+                style = auto.guess_style(
+                    source, units=units or source.units, **override_kwargs
+                )
         if (data is None and z is None) or (z is not None and not z):
             z_values = None
         else:

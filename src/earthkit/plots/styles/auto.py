@@ -24,7 +24,7 @@ from earthkit.plots.metadata.units import _NO_CF_UNITS, are_equal
 from earthkit.plots.schemas import schema
 
 
-def guess_style(data, units=None):
+def guess_style(data, units=None, **kwargs):
     """
     Guess the style to be applied to the data based on its metadata.
 
@@ -97,4 +97,4 @@ def guess_style(data, units=None):
             # No style matching units found; return default
             return styles.DEFAULT_STYLE
 
-    return styles.Style.from_dict(style)
+    return styles.Style.from_dict({**style, **kwargs})
