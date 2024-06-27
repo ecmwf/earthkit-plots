@@ -32,6 +32,7 @@ __all__ = [
     "Style",
     "DEFAULT_STYLE",
     "_STYLE_KWARGS",
+    "_OVERRIDE_KWARGS",
 ]
 
 
@@ -791,7 +792,7 @@ class Contour(Style):
     def __init__(
         self,
         colors=None,
-        line_colors=None,
+        line_colors="#555",
         labels=False,
         label_kwargs=None,
         interpolate=True,
@@ -826,6 +827,7 @@ class Contour(Style):
             The data to be plotted using this `Style`.
         """
         levels = self.levels(data)
+
         cmap, norm = styles.colors.cmap_and_norm(
             self._line_colors,
             levels,
@@ -1020,3 +1022,5 @@ DEFAULT_STYLE = Style()
 _STYLE_KWARGS = list(
     set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
 )
+
+_OVERRIDE_KWARGS = ["labels"]
