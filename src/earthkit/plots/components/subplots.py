@@ -324,7 +324,11 @@ class Subplot:
                 key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs
             }
             # These are kwargs which can be overridden without forcing a new Style
-            override_kwargs = {key: style_kwargs.pop(key) for key in _OVERRIDE_KWARGS}
+            override_kwargs = {
+                key: style_kwargs.pop(key)
+                for key in _OVERRIDE_KWARGS
+                if key in style_kwargs
+            }
             if style_kwargs:
                 style_class = (
                     Style if not method_name.startswith("contour") else Contour
