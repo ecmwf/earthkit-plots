@@ -17,7 +17,7 @@ import os
 
 from matplotlib import font_manager
 
-from earthkit.plots import styles
+from earthkit.plots import styles, cli
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
@@ -39,6 +39,7 @@ __all__ = [
     "Map",
     "schema",
     "styles",
+    "cli",
 ]
 
 
