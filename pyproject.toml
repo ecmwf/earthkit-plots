@@ -56,6 +56,9 @@ urls.Homepage = "https://github.com/ecmwf/earthkit-plots/"
 urls.Issues = "https://github.com/ecmwf/earthkit-plots.issues"
 urls.Repository = "https://github.com/ecmwf/earthkit-plots/"
 
+[project.scripts]
+earthkit-plots = "earthkit:plots.cli.cli"
+
 [tool.coverage.run]
 branch = "true"
 
