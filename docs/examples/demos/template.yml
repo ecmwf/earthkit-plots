@@ -1,0 +1,21 @@
+---
+figure:
+  size: [10, 6]
+
+workflow:
+  - subplot:
+      type: map
+      domain: Turkey
+      layers:
+      - plot:
+          source:
+            type: file
+            path: era5-2m-temperature-dec-1993.grib
+      - coastlines
+      - gridlines
+      - title:
+          label: "ERA5 2m temperature in {time:%B %Y} over {domain}"
+      - legend
+
+save:
+  fname: template.png
