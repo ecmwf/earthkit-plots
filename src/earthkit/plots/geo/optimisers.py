@@ -241,7 +241,7 @@ class SouthPolar(CRSOptimiser):
 class LargeEqatorial(CRSOptimiser):
     """A domain with a central longitude < ±25 degrees, covering > 20% of the globe."""
 
-    CRS = TransverseMercator
+    CRS = PlateCarree
 
 
 class Square(CRSOptimiser):
@@ -267,4 +267,4 @@ class Landscape(CRSOptimiser):
 class Portrait(CRSOptimiser):
     """A non-equitorial domain with an aspect ratio < 0.8."""
 
-    CRS = TransverseMercator
+    CRS = PlateCarree
