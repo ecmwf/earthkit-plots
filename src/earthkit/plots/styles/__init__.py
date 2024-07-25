@@ -1023,4 +1023,4 @@ _STYLE_KWARGS = list(
     set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
 )
 
-_OVERRIDE_KWARGS = ["labels"]
+_OVERRIDE_KWARGS = ["labels", "line_colors", "hatches"]
