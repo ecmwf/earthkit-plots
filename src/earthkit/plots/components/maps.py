@@ -538,7 +538,7 @@ class Map(Subplot):
                         zorder=10,
                         **text_kwargs,
                     )
-                texts.append(text)
+                    texts.append(text)
         if adjust_labels:
             from adjustText import adjust_text
 
