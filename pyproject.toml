@@ -26,7 +26,7 @@ dependencies = [
   "earthkit-data",
   "earthkit-plots-default-styles",
   "cartopy>=0.22.0",
-  "cf-units",
+  "pint",
   "matplotlib",
   "pyyaml",
   "numpy",
@@ -40,9 +40,6 @@ license = {text = "Apache License Version 2.0"}
 name = "earthkit-plots"
 readme = "README.md"
 requires-python = ">=3.8"
-optional-dependencies.all = [
-  "cf_units"
-]
 optional-dependencies.test = [
   "nbconvert",
   "nbformat",

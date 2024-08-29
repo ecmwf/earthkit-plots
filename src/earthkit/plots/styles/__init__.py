@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import inspect
-import warnings
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -82,7 +81,6 @@ class Style:
         any data incompatible with these units will not be able to use this
         `Style`. If `units` are not provided, then data plotted using this
         `Style` will remain in their original units.
-        Note that passing `units` requires `cf_units` to be installed.
     units_label : str, optional
         The label to use in titles and legends to represent the units of the
         data.
@@ -128,13 +126,6 @@ class Style:
         self.normalize = normalize
         self.gradients = gradients
 
-        if units is not None and metadata.units._NO_CF_UNITS:
-            warnings.warn(
-                "You must have cf-units installed to use unit conversion "
-                "features; since no cf-units installation was found, no units "
-                "will be applied to this style"
-            )
-            units = None
         self._units = units
         self._units_label = units_label
         self.scale_factor = scale_factor
@@ -219,7 +210,7 @@ class Style:
         values : numpy.ndarray
             The values to convert from their source units to this `Style`'s
             units.
-        source_units : str or cf_units.Unit
+        source_units : str
             The source units of the given values.
         short_name : str, optional
             The short name of the variable, which is used to make extra

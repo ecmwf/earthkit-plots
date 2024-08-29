@@ -12,12 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import re
 
-_NO_CF_UNITS = False
-try:
-    import cf_units
-except ImportError:
-    _NO_CF_UNITS = True
+from pint import UnitRegistry
+
+ureg = UnitRegistry()
+Q_ = ureg.Quantity
+
+
+def _pintify(unit_str):
+    # Replace spaces with dots
+    unit_str = unit_str.replace(" ", ".")
+
+    # Insert ^ between characters and numbers (including negative numbers)
+    unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
+
+    return ureg(unit_str).units
+
 
 #: Units for temperature anomalies.
 TEMPERATURE_ANOM_UNITS = [
@@ -25,11 +36,6 @@ TEMPERATURE_ANOM_UNITS = [
     "celsius",
 ]
 
-#: Pretty units for temperature.
-PRETTY_UNITS = {
-    "celsius": "°C",
-    "fahrenheit": "°F",
-}
 
 #: Unit equivalences.
 UNIT_EQUIVALENCE = {
@@ -48,9 +54,7 @@ def are_equal(unit_1, unit_2):
     unit_2 : str
         The second unit.
     """
-    if _NO_CF_UNITS:
-        raise ImportError("cf-units is required for checking unit equivalence")
-    return cf_units.Unit(unit_1) == cf_units.Unit(unit_2)
+    return _pintify(unit_1) == _pintify(unit_2)
 
 
 def anomaly_equivalence(units):
@@ -81,16 +85,16 @@ def convert(data, source_units, target_units):
     target_units : str
         The units to convert to.
     """
-    if _NO_CF_UNITS:
-        raise ImportError("cf-units is required for unit conversion")
+    source_units = _pintify(source_units)
+    target_units = _pintify(target_units)
     try:
-        result = cf_units.Unit(source_units).convert(data, target_units)
+        result = (data * source_units).to(target_units).magnitude
     except ValueError as err:
         for units in UNIT_EQUIVALENCE:
-            if cf_units.Unit(source_units) == cf_units.Unit(units):
+            if source_units == _pintify(units):
                 try:
-                    equal_units = UNIT_EQUIVALENCE[units]
-                    result = cf_units.Unit(equal_units).convert(data, target_units)
+                    equal_units = _pintify(UNIT_EQUIVALENCE[units])
+                    result = (data * equal_units).to(target_units)
                 except ValueError:
                     raise err
                 else:
@@ -98,7 +102,7 @@ def convert(data, source_units, target_units):
     return result
 
 
-def format_units(units):
+def format_units(units, exponential_notation=False):
     """
     Format units for display in LaTeX.
 
@@ -112,27 +116,7 @@ def format_units(units):
     >>> format_units("kg m-2")
     "$kg m^{-2}$"
     """
-    if _NO_CF_UNITS:
-        return f"${PRETTY_UNITS.get(units, units)}$"
-
-    from cf_units.tex import tex
-
-    for name, formatted_units in PRETTY_UNITS.items():
-        try:
-            if are_equal(units, name):
-                units = formatted_units
-                break
-        except ValueError:
-            continue
-    else:
-        try:
-            units = str(cf_units.Unit(units))
-        except ValueError:
-            pass
-
-    try:
-        formatted_units = f"${tex(units)}$"
-    except SyntaxError:
-        formatted_units = units
-
-    return formatted_units
+    latex_str = f"{_pintify(units):~L}"
+    if exponential_notation:
+        raise NotImplementedError("Exponential notation is not yet supported.")
+    return f"${latex_str}$"
