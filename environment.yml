@@ -13,6 +13,7 @@ dependencies:
 - earthkit-data
 - matplotlib
 - cartopy
+- pint
 - pyyaml
 - numpy
 - pip:
