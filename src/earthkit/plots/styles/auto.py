@@ -20,7 +20,7 @@ import yaml
 
 from earthkit.plots import styles
 from earthkit.plots._plugins import PLUGINS
-from earthkit.plots.metadata.units import _NO_CF_UNITS, are_equal
+from earthkit.plots.metadata.units import are_equal
 from earthkit.plots.schemas import schema
 
 
@@ -42,7 +42,7 @@ def guess_style(data, units=None, **kwargs):
         data, the data will be converted to the target units and the style
         will be adjusted accordingly.
     """
-    if not schema.automatic_styles or schema.style_library is None or _NO_CF_UNITS:
+    if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
     if schema.style_library not in PLUGINS:
