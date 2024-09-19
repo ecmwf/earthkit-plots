@@ -27,6 +27,7 @@ from earthkit.plots.metadata.formatters import (
     SubplotFormatter,
 )
 from earthkit.plots.schemas import schema
+from earthkit.plots.geo import grids
 from earthkit.plots.sources import get_source, single
 from earthkit.plots.styles import _OVERRIDE_KWARGS, _STYLE_KWARGS, Contour, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
@@ -338,7 +339,7 @@ class Subplot:
                 style = auto.guess_style(
                     source, units=units or source.units, **override_kwargs
                 )
-        if (data is None and z is None) or (z is not None and not z):
+        if data is None and z is None:
             z_values = None
         else:
             z_values = style.convert_units(source.z_values, source.units)
@@ -370,13 +371,18 @@ class Subplot:
         else:
             x_values = source.x_values
             y_values = source.y_values
+            
+            if method_name in ("contour", "contourf", "pcolormesh") and not grids.is_structured(x_values, y_values):
+                x_values, y_values, z_values = grids.interpolate_unstructured(
+                    x_values, y_values, z_values)
+                extract_domain = False
 
             if every is not None:
                 x_values = x_values[::every]
                 y_values = y_values[::every]
                 if z_values is not None:
                     z_values = z_values[::every, ::every]
-
+            
             if self.domain is not None and extract_domain:
                 x_values, y_values, z_values = self.domain.extract(
                     x_values,
@@ -866,7 +872,7 @@ class Subplot:
                 else:
                     loc = location
                 if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
+                    legend = layer.style.legend(layer, location=loc, label=kwargs.pop("label", ""), **kwargs)
                 legends.append(legend)
         return legends
 

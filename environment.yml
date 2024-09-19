@@ -16,6 +16,8 @@ dependencies:
 - pint
 - pyyaml
 - numpy
+- scipy
+- alphashape
 - pip:
   - adjustText
   - earthkit-plots-default-styles

@@ -30,6 +30,8 @@ dependencies = [
   "matplotlib",
   "pyyaml",
   "numpy",
+  "scipy",
+  "alphashape",
   "adjustText"
 ]
 description = "Visualisation tools for earth science data"
