@@ -13,7 +13,12 @@
 # limitations under the License.
 
 import numpy as np
-from scipy.interpolate import griddata
+
+_NO_SCIPY = False
+try:
+    from scipy.interpolate import griddata
+except ImportError:
+    _NO_SCIPY = True
 
 
 def is_structured(lat, lon, tol=1e-5):
@@ -70,6 +75,8 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     - grid_y: 2D grid of y-coordinates.
     - grid_z: 2D grid of interpolated z-values, with NaNs in large gap regions.
     """
+    if _NO_SCIPY:
+        raise ImportError("The 'scipy' package is required for interpolating unstructured data.")
     # Filter out NaN values from z and corresponding x, y
     mask = ~np.isnan(z)
     x_filtered = x[mask]
