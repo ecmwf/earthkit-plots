@@ -50,13 +50,13 @@ def is_structured(lat, lon, tol=1e-5):
 
     # If the product of unique lat/lon values doesn't match total points, it's unstructured
     return False
-  
+
 
 def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     """
     Interpolates unstructured data to a structured grid, handling NaNs in z-values
     and preventing interpolation across large gaps.
-    
+
     Parameters:
     - x: 1D array of x-coordinates.
     - y: 1D array of y-coordinates.
@@ -64,7 +64,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     - resolution: The number of points along each axis for the structured grid.
     - method: Interpolation method ('linear', 'nearest', 'cubic').
     - gap_threshold: The distance threshold beyond which interpolation is not performed (set to NaN).
-    
+
     Returns:
     - grid_x: 2D grid of x-coordinates.
     - grid_y: 2D grid of y-coordinates.
@@ -75,11 +75,18 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     x_filtered = x[mask]
     y_filtered = y[mask]
     z_filtered = z[mask]
-    
+
     # Create a structured grid
-    grid_x, grid_y = np.mgrid[x.min():x.max():resolution*1j, y.min():y.max():resolution*1j]
-    
+    grid_x, grid_y = np.mgrid[
+        x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
+    ]
+
     # Interpolate the filtered data onto the structured grid
-    grid_z = griddata(np.column_stack((x_filtered, y_filtered)), z_filtered, (grid_x, grid_y), method=method)
-    
+    grid_z = griddata(
+        np.column_stack((x_filtered, y_filtered)),
+        z_filtered,
+        (grid_x, grid_y),
+        method=method,
+    )
+
     return grid_x, grid_y, grid_z
