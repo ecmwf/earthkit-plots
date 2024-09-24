@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
 from itertools import cycle
 
 import earthkit.data
@@ -21,6 +22,7 @@ import numpy as np
 
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
+from earthkit.plots.geo import grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
     SourceFormatter,
@@ -338,7 +340,8 @@ class Subplot:
                 style = auto.guess_style(
                     source, units=units or source.units, **override_kwargs
                 )
-        if (data is None and z is None) or (z is not None and not z):
+
+        if data is None and z is None:
             z_values = None
         else:
             z_values = style.convert_units(source.z_values, source.units)
@@ -371,6 +374,19 @@ class Subplot:
             x_values = source.x_values
             y_values = source.y_values
 
+            if method_name in (
+                "contour",
+                "contourf",
+                "pcolormesh",
+            ) and not grids.is_structured(x_values, y_values):
+                x_values, y_values, z_values = grids.interpolate_unstructured(
+                    x_values,
+                    y_values,
+                    z_values,
+                    method=kwargs.pop("interpolation_method", "linear"),
+                )
+                extract_domain = False
+
             if every is not None:
                 x_values = x_values[::every]
                 y_values = y_values[::every]
@@ -383,6 +399,11 @@ class Subplot:
                     y_values,
                     z_values,
                     source_crs=source.crs,
+                )
+            if "interpolation_method" in kwargs:
+                kwargs.pop("interpolation_method")
+                warnings.warn(
+                    "The 'interpolation_method' argument is only valid for unstructured data."
                 )
             mappable = getattr(style, method_name)(
                 self.ax, x_values, y_values, z_values, **kwargs
