@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-DEFAULT_LEGEND_LABEL = "{variable_name} ({units})"
+DEFAULT_LEGEND_LABEL = ""  # {variable_name} ({units})"
 
 _DISJOINT_LEGEND_LOCATIONS = {
     "bottom": {
