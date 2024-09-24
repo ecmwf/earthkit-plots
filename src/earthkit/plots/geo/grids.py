@@ -16,14 +16,14 @@ import numpy as np
 from scipy.interpolate import griddata
 
 
-def is_structured(lat, lon, tol=1e-6):
+def is_structured(lat, lon, tol=1e-5):
     """
     Determines whether the latitude and longitude points form a structured grid.
 
     Parameters:
     - lat: A 1D or 2D array of latitude points.
     - lon: A 1D or 2D array of longitude points.
-    - tol: Tolerance for floating-point comparison (default 1e-6).
+    - tol: Tolerance for floating-point comparison (default 1e-5).
 
     Returns:
     - True if the data is structured (grid), False if it's unstructured.
@@ -37,7 +37,7 @@ def is_structured(lat, lon, tol=1e-6):
     unique_lon = np.unique(lon)
 
     # Structured grid condition: the number of unique lat/lon values should multiply to the number of total points
-    if len(unique_lat) * len(unique_lon) == len(lat.flatten()):
+    if len(unique_lat) * len(unique_lon) == len(lat) * len(lon):
         # Now check if the spacing is consistent
         lat_diff = np.diff(unique_lat)
         lon_diff = np.diff(unique_lon)
@@ -52,7 +52,7 @@ def is_structured(lat, lon, tol=1e-6):
     return False
   
 
-def interpolate_unstructured(x, y, z, resolution=100, method="cubic"):
+def interpolate_unstructured(x, y, z, resolution=100, method="bilinear"):
     """
     Interpolates unstructured data to a structured grid, handling NaNs in z-values
     and preventing interpolation across large gaps.
@@ -89,7 +89,7 @@ from scipy.interpolate import griddata
 import alphashape
 from shapely.geometry import Point
 
-def interpolate_unstructured(x, y, z, resolution=300, method="cubic", alpha=3):
+def interpolate_unstructured(x, y, z, resolution=300, method="cubic", alpha=4):
     """
     Interpolates unstructured data to a structured grid, handling NaNs in z-values
     and preventing interpolation outside a concave hull (alpha shape) of the point cloud.
