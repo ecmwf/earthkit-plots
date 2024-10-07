@@ -133,9 +133,17 @@ class EarthkitSource(SingleSource):
                 )
             points = get_points(1)
         else:
-            points = self.data.to_points(flatten=False)
-        x = points["x"]
-        y = points["y"]
+            try:
+                points = self.data.to_points(flatten=False)
+                x = points["x"]
+                y = points["y"]
+            except ValueError as e:
+                latlon = self.data.to_latlon(flatten=False)
+                lat = latlon["lat"]
+                lon = latlon["lon"]
+                transformed = self.crs.transform_points(ccrs.PlateCarree(), lon, lat)
+                x = transformed[:, :, 0]
+                y = transformed[:, :, 1]
         return x, y
 
     def extract_x(self):

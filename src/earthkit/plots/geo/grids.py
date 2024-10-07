@@ -21,59 +21,106 @@ except ImportError:
     _NO_SCIPY = True
 
 
-def is_structured(lat, lon, tol=1e-5):
+def is_structured(x, y, tol=1e-5):
     """
-    Determines whether the latitude and longitude points form a structured grid.
+    Determines whether the x and y points form a structured grid.
 
-    Parameters:
-    - lat: A 1D or 2D array of latitude points.
-    - lon: A 1D or 2D array of longitude points.
-    - tol: Tolerance for floating-point comparison (default 1e-5).
+    This function checks if the x and y coordinate arrays represent a structured
+    grid, i.e., a grid with consistent spacing between points. The function supports
+    1D arrays (representing coordinates of a grid) and 2D arrays (representing the
+    actual grid coordinates) of x and y.
 
-    Returns:
-    - True if the data is structured (grid), False if it's unstructured.
+    Parameters
+    ----------
+    x : array_like
+        A 1D or 2D array of x-coordinates. For example, this can be longitude or 
+        the x-coordinate in a Cartesian grid.
+    y : array_like
+        A 1D or 2D array of y-coordinates. For example, this can be latitude or 
+        the y-coordinate in a Cartesian grid.
+    tol : float, optional
+        Tolerance for floating-point comparison to account for numerical precision 
+        errors when checking spacing consistency. The default is 1e-5.
+
+    Returns
+    -------
+    bool
+        True if the data represents a structured grid, i.e., the spacing between 
+        consecutive points in both x and y is consistent. False otherwise.
     """
 
-    lat = np.asarray(lat)
-    lon = np.asarray(lon)
+    x = np.asarray(x)
+    y = np.asarray(y)
 
-    # Check if there are consistent spacing in latitudes and longitudes
-    unique_lat = np.unique(lat)
-    unique_lon = np.unique(lon)
+    # If both x and y are 1D arrays, ensure they can form a grid
+    if x.ndim == 1 and y.ndim == 1:
+        # Check if the number of points match (can form a meshgrid)
+        if len(x) * len(y) != x.size * y.size:
+            return False
+        
+        # Check consistent spacing in x and y
+        x_diff = np.diff(x)
+        y_diff = np.diff(y)
+        
+        x_spacing_consistent = np.all(np.abs(x_diff - x_diff[0]) < tol)
+        y_spacing_consistent = np.all(np.abs(y_diff - y_diff[0]) < tol)
 
-    # Structured grid condition: the number of unique lat/lon values should multiply to the number of total points
-    if len(unique_lat) * len(unique_lon) == len(lat) * len(lon):
-        # Now check if the spacing is consistent
-        lat_diff = np.diff(unique_lat)
-        lon_diff = np.diff(unique_lon)
+        return x_spacing_consistent and y_spacing_consistent
 
-        # Check if lat/lon differences are consistent
-        lat_spacing_consistent = np.all(np.abs(lat_diff - lat_diff[0]) < tol)
-        lon_spacing_consistent = np.all(np.abs(lon_diff - lon_diff[0]) < tol)
+    # If x and y are 2D arrays, verify they are structured as a grid
+    elif x.ndim == 2 and y.ndim == 2:
+        # Check if rows of x and y have consistent spacing along the grid lines
+        # x should vary only along one axis, y along the other axis
+        
+        x_rows_consistent = np.all(np.abs(np.diff(x, axis=1) - np.diff(x, axis=1)[:, 0:1]) < tol)
+        y_columns_consistent = np.all(np.abs(np.diff(y, axis=0) - np.diff(y, axis=0)[0:1, :]) < tol)
+        
+        return x_rows_consistent and y_columns_consistent
 
-        return lat_spacing_consistent and lon_spacing_consistent
+    else:
+        # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
+        return False
 
-    # If the product of unique lat/lon values doesn't match total points, it's unstructured
-    return False
 
 
 def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     """
-    Interpolates unstructured data to a structured grid, handling NaNs in z-values
-    and preventing interpolation across large gaps.
+    Interpolate unstructured data to a structured grid.
 
-    Parameters:
-    - x: 1D array of x-coordinates.
-    - y: 1D array of y-coordinates.
-    - z: 1D array of z values.
-    - resolution: The number of points along each axis for the structured grid.
-    - method: Interpolation method ('linear', 'nearest', 'cubic').
-    - gap_threshold: The distance threshold beyond which interpolation is not performed (set to NaN).
+    This function takes unstructured (scattered) data points and interpolates them
+    to a structured grid, handling NaN values in `z` and providing options for 
+    different interpolation methods. It creates a regular grid based on the given 
+    resolution and interpolates the z-values from the unstructured points onto this grid.
 
-    Returns:
-    - grid_x: 2D grid of x-coordinates.
-    - grid_y: 2D grid of y-coordinates.
-    - grid_z: 2D grid of interpolated z-values, with NaNs in large gap regions.
+    Parameters
+    ----------
+    x : array_like
+        1D array of x-coordinates.
+    y : array_like
+        1D array of y-coordinates.
+    z : array_like
+        1D array of z-values at each (x, y) point.
+    resolution : int, optional
+        The number of points along each axis for the structured grid.
+        Default is 1000.
+    method : {'linear', 'nearest', 'cubic'}, optional
+        The interpolation method to use. Default is 'linear'.
+        The methods supported are:
+        
+        - 'linear': Linear interpolation between points.
+        - 'nearest': Nearest-neighbor interpolation.
+        - 'cubic': Cubic interpolation, which may produce smoother results.
+
+    Returns
+    -------
+    grid_x : ndarray
+        2D array representing the x-coordinates of the structured grid.
+    grid_y : ndarray
+        2D array representing the y-coordinates of the structured grid.
+    grid_z : ndarray
+        2D array of interpolated z-values at the grid points. NaNs may be 
+        present in regions where interpolation was not possible (e.g., due to
+        large gaps in the data).
     """
     if _NO_SCIPY:
         raise ImportError(
