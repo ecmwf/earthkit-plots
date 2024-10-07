@@ -46,13 +46,12 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@v16
+      uses: mamba-org/setup-micromamba@v1
       with:
         environment-file: environment.yml
         environment-name: DEVELOP
-        channels: conda-forge
-        cache-env: true
-        extra-specs: |
+        cache-environment: true
+        create-args: >-
           python=3.10
     - name: Install package
       run: |
@@ -140,14 +139,13 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@v16
+      uses: mamba-org/setup-micromamba@v1
       with:
         environment-file: environment${{ matrix.extra }}.yml
         environment-name: DEVELOP${{ matrix.extra }}
-        channels: conda-forge
-        cache-env: true
-        cache-env-key: ubuntu-latest-${{ matrix.python-version }}${{ matrix.extra }}.
-        extra-specs: |
+        cache-environment: true
+        cache-environment-key: ubuntu-latest-${{ matrix.python-version }}${{ matrix.extra }}.
+        create-args: >-
           python=${{matrix.python-version }}
     - name: Install package
       run: |
