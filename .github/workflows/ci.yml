@@ -46,7 +46,7 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@v12
+      uses: mamba-org/provision-with-micromamba@v16
       with:
         environment-file: environment.yml
         environment-name: DEVELOP
@@ -140,7 +140,7 @@ jobs:
       with:
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
     - name: Install Conda environment with Micromamba
-      uses: mamba-org/provision-with-micromamba@v12
+      uses: mamba-org/provision-with-micromamba@v16
       with:
         environment-file: environment${{ matrix.extra }}.yml
         environment-name: DEVELOP${{ matrix.extra }}
