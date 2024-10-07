@@ -878,7 +878,7 @@ class Subplot:
             dummy = [[1, 2], [3, 4]]
             mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
             layer = Layer(single.SingleSource(), mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
+            legend = layer.style.legend(layer, **kwargs)
             legends.append(legend)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):
