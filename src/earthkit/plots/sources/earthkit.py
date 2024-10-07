@@ -137,7 +137,7 @@ class EarthkitSource(SingleSource):
                 points = self.data.to_points(flatten=False)
                 x = points["x"]
                 y = points["y"]
-            except ValueError as e:
+            except ValueError:
                 latlon = self.data.to_latlon(flatten=False)
                 lat = latlon["lat"]
                 lon = latlon["lon"]

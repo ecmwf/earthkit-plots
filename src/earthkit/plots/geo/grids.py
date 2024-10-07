@@ -33,19 +33,19 @@ def is_structured(x, y, tol=1e-5):
     Parameters
     ----------
     x : array_like
-        A 1D or 2D array of x-coordinates. For example, this can be longitude or 
+        A 1D or 2D array of x-coordinates. For example, this can be longitude or
         the x-coordinate in a Cartesian grid.
     y : array_like
-        A 1D or 2D array of y-coordinates. For example, this can be latitude or 
+        A 1D or 2D array of y-coordinates. For example, this can be latitude or
         the y-coordinate in a Cartesian grid.
     tol : float, optional
-        Tolerance for floating-point comparison to account for numerical precision 
+        Tolerance for floating-point comparison to account for numerical precision
         errors when checking spacing consistency. The default is 1e-5.
 
     Returns
     -------
     bool
-        True if the data represents a structured grid, i.e., the spacing between 
+        True if the data represents a structured grid, i.e., the spacing between
         consecutive points in both x and y is consistent. False otherwise.
     """
 
@@ -57,11 +57,11 @@ def is_structured(x, y, tol=1e-5):
         # Check if the number of points match (can form a meshgrid)
         if len(x) * len(y) != x.size * y.size:
             return False
-        
+
         # Check consistent spacing in x and y
         x_diff = np.diff(x)
         y_diff = np.diff(y)
-        
+
         x_spacing_consistent = np.all(np.abs(x_diff - x_diff[0]) < tol)
         y_spacing_consistent = np.all(np.abs(y_diff - y_diff[0]) < tol)
 
@@ -71,10 +71,14 @@ def is_structured(x, y, tol=1e-5):
     elif x.ndim == 2 and y.ndim == 2:
         # Check if rows of x and y have consistent spacing along the grid lines
         # x should vary only along one axis, y along the other axis
-        
-        x_rows_consistent = np.all(np.abs(np.diff(x, axis=1) - np.diff(x, axis=1)[:, 0:1]) < tol)
-        y_columns_consistent = np.all(np.abs(np.diff(y, axis=0) - np.diff(y, axis=0)[0:1, :]) < tol)
-        
+
+        x_rows_consistent = np.all(
+            np.abs(np.diff(x, axis=1) - np.diff(x, axis=1)[:, 0:1]) < tol
+        )
+        y_columns_consistent = np.all(
+            np.abs(np.diff(y, axis=0) - np.diff(y, axis=0)[0:1, :]) < tol
+        )
+
         return x_rows_consistent and y_columns_consistent
 
     else:
@@ -82,14 +86,13 @@ def is_structured(x, y, tol=1e-5):
         return False
 
 
-
 def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     """
     Interpolate unstructured data to a structured grid.
 
     This function takes unstructured (scattered) data points and interpolates them
-    to a structured grid, handling NaN values in `z` and providing options for 
-    different interpolation methods. It creates a regular grid based on the given 
+    to a structured grid, handling NaN values in `z` and providing options for
+    different interpolation methods. It creates a regular grid based on the given
     resolution and interpolates the z-values from the unstructured points onto this grid.
 
     Parameters
@@ -106,7 +109,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     method : {'linear', 'nearest', 'cubic'}, optional
         The interpolation method to use. Default is 'linear'.
         The methods supported are:
-        
+
         - 'linear': Linear interpolation between points.
         - 'nearest': Nearest-neighbor interpolation.
         - 'cubic': Cubic interpolation, which may produce smoother results.
@@ -118,7 +121,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     grid_y : ndarray
         2D array representing the y-coordinates of the structured grid.
     grid_z : ndarray
-        2D array of interpolated z-values at the grid points. NaNs may be 
+        2D array of interpolated z-values at the grid points. NaNs may be
         present in regions where interpolation was not possible (e.g., due to
         large gaps in the data).
     """
