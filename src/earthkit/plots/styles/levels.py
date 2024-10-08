@@ -50,8 +50,8 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
 
     if divergence_point is not None:
         max_diff = max(max_value - divergence_point, divergence_point - min_value)
-        max_value = divergence_point + max_diff
-        min_value = divergence_point - max_diff
+        max_value = max_diff
+        min_value = -max_diff
 
     data_range = max_value - min_value
 
@@ -62,6 +62,10 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
 
     min_value -= min_value % bin_width
     max_value -= max_value % -bin_width
+
+    if divergence_point is not None:
+        min_value += divergence_point
+        max_value += divergence_point
 
     return np.linspace(
         min_value,
