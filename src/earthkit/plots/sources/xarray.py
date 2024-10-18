@@ -14,6 +14,7 @@
 
 from functools import cached_property
 
+import numpy as np
 import pandas as pd
 
 from earthkit.plots import identifiers
@@ -82,7 +83,10 @@ class XarraySource(SingleSource):
 
     def datetime(self):
         """Get the datetime of the data."""
-        datetimes = [pd.to_datetime(dt).to_pydatetime() for dt in self.data.time.values]
+        datetimes = [
+            pd.to_datetime(dt).to_pydatetime()
+            for dt in np.atleast_1d(self.data.time.values)
+        ]
         return {
             "base_time": datetimes,
             "valid_time": datetimes,
