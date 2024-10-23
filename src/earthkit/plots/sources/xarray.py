@@ -179,10 +179,7 @@ class XarraySource(SingleSource):
     def x_values(self):
         """The x values of the data."""
         super().x_values
-        x = self.data[self._x].values
-        if self.extract_x() in identifiers.LONGITUDE and (max(abs(x)) > 180):
-            x -= 180
-        return x
+        return self.data[self._x].values
 
     @cached_property
     def y_values(self):
