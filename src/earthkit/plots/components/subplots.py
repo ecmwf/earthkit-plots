@@ -948,6 +948,10 @@ class Subplot:
         """Display the plot."""
         return self.figure.show()
 
+    def save(self, *args, **kwargs):
+        """Save the plot to a file."""
+        return self.figure.save(*args, **kwargs)
+
 
 def thin_array(array, every=2):
     """
