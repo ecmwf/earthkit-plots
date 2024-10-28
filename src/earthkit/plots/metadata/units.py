@@ -116,7 +116,7 @@ def format_units(units, exponential_notation=False):
     >>> format_units("kg m-2")
     "$kg m^{-2}$"
     """
-    units = earthkit.plots.metadata.units._pintify(units)
+    units = _pintify(units)
     if units.dimensionless:
         return "dimensionless"
     latex_str = f"{units:~L}"
