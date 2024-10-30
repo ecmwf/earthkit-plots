@@ -16,6 +16,7 @@ import earthkit.data as ek_data
 
 from earthkit.plots.sources.earthkit import EarthkitSource
 from earthkit.plots.sources.numpy import NumpySource
+from earthkit.plots.sources.tabular import TabularSource
 from earthkit.plots.sources.xarray import XarraySource
 
 
@@ -56,4 +57,6 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
             cls = XarraySource
         elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
+        elif core_data.__class__.__name__ in ("DataFrame", "Series"):
+            cls = TabularSource
     return cls(*args, data=data, x=x, y=y, z=z, u=u, v=v, **kwargs)
