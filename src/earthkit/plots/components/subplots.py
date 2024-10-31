@@ -396,7 +396,7 @@ class Subplot:
                 mappable = getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
-            except TypeError as err:
+            except (TypeError, ValueError) as err:
                 if not grids.is_structured(x_values, y_values):
                     x_values, y_values, z_values = grids.interpolate_unstructured(
                         x_values,
