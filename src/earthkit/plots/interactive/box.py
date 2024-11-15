@@ -30,6 +30,40 @@ DEFAULT_KWARGS = {
 
 @inputs.sanitise(multiplot=False)
 def box(*args, quantiles=DEFAULT_QUANTILES, time_axis=0, **kwargs):
+    """
+    Generate a set of box plot traces based on the provided data and quantiles.
+
+    Parameters
+    ----------
+    data : array-like or earthkit.data.FieldList
+        The data to be plotted.
+
+    *args : tuple
+        Positional arguments passed to the plotly `go.Box` constructors.
+
+    quantiles : list of float, optional
+        A list of quantiles to calculate for the data. The default is
+        [0.05, 0.25, 0.5, 0.75, 0.95]. Note that any number of quantiles
+        can be provided, but the default is based on the standard five-point
+        box plot.
+
+    time_axis : int, optional
+        The axis along which to calculate the quantiles. The default is 0.
+
+    **kwargs : dict
+        Additional keyword arguments passed to the `go.Box` constructor.
+
+    Returns
+    -------
+    list of plotly.graph_objects.Box
+
+    Notes
+    -----
+    - The width of the box plots is scaled based on the x-axis spacing.
+    - Extra boxes are added for quantiles beyond the standard five-point box plot.
+    - Hover information is included for quantile scatter points, showing the
+      quantile value and percentage.
+    """
     kwargs = {**DEFAULT_KWARGS, **kwargs}
 
     extra_boxes = (len(quantiles) - 5) // 2

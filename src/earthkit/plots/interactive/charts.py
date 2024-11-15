@@ -50,6 +50,19 @@ DEFAULT_LAYOUT = {
 
 
 class Chart:
+    """
+    A class for creating and managing multi-subplot interactive charts using Plotly.
+
+    Parameters
+    ----------
+    rows : int, optional
+        Number of rows in the chart grid. Default is 1.
+    columns : int, optional
+        Number of columns in the chart grid. Default is 1.
+    **kwargs : dict
+        Additional arguments passed to `plotly.subplots.make_subplots`.
+    """
+
     def __init__(self, rows=None, columns=None, **kwargs):
         self._rows = rows
         self._columns = columns
@@ -81,6 +94,9 @@ class Chart:
 
     @property
     def fig(self):
+        """
+        The Plotly figure object representing the chart.
+        """
         if self._fig is None:
             self._fig = make_subplots(
                 rows=self.rows,
@@ -92,21 +108,50 @@ class Chart:
 
     @property
     def rows(self):
+        """The number of rows in the chart grid."""
         if self._rows is None:
             self._rows = 1
         return self._rows
 
     @property
     def columns(self):
+        """The number of columns in the chart grid."""
         if self._columns is None:
             self._columns = 1
         return self._columns
 
     def add_trace(self, *args, **kwargs):
+        """
+        Adds a trace to the chart at the appropriate location.
+
+        Parameters
+        ----------
+        *args : tuple
+            Positional arguments passed to `plotly.graph_objects.Figure.add_trace`.
+        **kwargs : dict
+            Keyword arguments passed to `plotly.graph_objects.Figure.add_trace`.
+        """
         self.fig.add_trace(*args, **kwargs)
 
     @set_subplot_titles
     def line(self, *args, **kwargs):
+        """
+        Adds a line plot to the chart.
+
+        Parameters
+        ----------
+        data : array-like or earthkit.data.FieldList
+            The data to be plotted.
+        *args : tuple
+            Positional arguments passed to the line plot generation function.
+        **kwargs : dict
+            Additional options for customizing the line plot.
+
+        Notes
+        -----
+        Line plots are added as individual traces to each subplot.
+        Titles are inferred from data attributes if not provided.
+        """
         traces = line.line(*args, **kwargs)
         for i, trace in enumerate(traces):
             if isinstance(trace, list):
@@ -120,6 +165,40 @@ class Chart:
 
     @set_subplot_titles
     def box(self, *args, **kwargs):
+        """
+        Generate a set of box plot traces based on the provided data and quantiles.
+
+        Parameters
+        ----------
+        data : array-like or earthkit.data.FieldList
+            The data to be plotted.
+
+        *args : tuple
+            Positional arguments passed to the plotly `go.Box` constructors.
+
+        quantiles : list of float, optional
+            A list of quantiles to calculate for the data. The default is
+            [0.05, 0.25, 0.5, 0.75, 0.95]. Note that any number of quantiles
+            can be provided, but the default is based on the standard five-point
+            box plot.
+
+        time_axis : int, optional
+            The axis along which to calculate the quantiles. The default is 0.
+
+        **kwargs : dict
+            Additional keyword arguments passed to the `go.Box` constructor.
+
+        Returns
+        -------
+        list of plotly.graph_objects.Box
+
+        Notes
+        -----
+        - The width of the box plots is scaled based on the x-axis spacing.
+        - Extra boxes are added for quantiles beyond the standard five-point box plot.
+        - Hover information is included for quantile scatter points, showing the
+          quantile value and percentage.
+        """
         traces = box.box(*args, **kwargs)
         for i, trace in enumerate(traces):
             if isinstance(trace, list):
@@ -136,6 +215,23 @@ class Chart:
 
     @set_subplot_titles
     def bar(self, *args, **kwargs):
+        """
+        Adds a bar plot to the chart.
+
+        Parameters
+        ----------
+        data : array-like or earthkit.data.FieldList
+            The data to be plotted.
+        *args : tuple
+            Positional arguments passed to the bar plot generation function.
+        **kwargs : dict
+            Additional options for customizing the bar plot.
+
+        Notes
+        -----
+        Bar plots are added as individual traces to each subplot.
+        Titles are inferred from data attributes if not provided.
+        """
         traces = bar.bar(*args, **kwargs)
         for i, trace in enumerate(traces):
             if isinstance(trace, list):
@@ -148,9 +244,34 @@ class Chart:
                 self.add_trace(trace)
 
     def title(self, title):
+        """
+        Set the overall chart title.
+
+        Parameters
+        ----------
+        title : str
+            The title to display at the top of the chart.
+        """
         self._layout_override["title"] = title
 
     def show(self, *args, **kwargs):
+        """
+        Display the chart.
+
+        Parameters
+        ----------
+        *args : tuple
+            Additional arguments for `plotly.graph_objects.Figure.show`.
+        renderer : str, optional
+            The renderer to use for displaying the chart. The default is "browser".
+            For static plots, use "png".
+        **kwargs : dict
+            Additional options for rendering the chart.
+
+        Returns
+        -------
+        None
+        """
         layout = {
             **DEFAULT_LAYOUT,
             **self._layout_override,
