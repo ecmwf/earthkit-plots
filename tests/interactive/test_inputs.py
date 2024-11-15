@@ -1,8 +1,9 @@
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 import xarray as xr
-from earthkit.plots.interactive.inputs import _earthkitify, to_xarray, to_numpy
+
+from earthkit.plots.interactive.inputs import _earthkitify, to_numpy, to_xarray
 
 
 class MockEarthkitData:
@@ -22,6 +23,7 @@ class MockEarthkitData:
 @pytest.fixture
 def mock_earthkit(monkeypatch):
     """Mock the earthkit.data.from_object function to return mock data."""
+
     def mock_from_object(data):
         return MockEarthkitData(data)
 
