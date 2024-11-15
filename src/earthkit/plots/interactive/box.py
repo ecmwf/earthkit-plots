@@ -22,10 +22,15 @@ THINNEST = 0.3
 
 DEFAULT_QUANTILES = [0.05, 0.25, 0.5, 0.75, 0.95]
 
+DEFAULT_KWARGS = {
+    "line_color": "#6E78FA",
+    "fillcolor": "#B1B6FC",
+}
 
 @inputs.sanitise(multiplot=False)
-def box(*args, quantiles=None, time_axis=0, **kwargs):
-    quantiles = quantiles if quantiles is not None else DEFAULT_QUANTILES
+def box(*args, quantiles=DEFAULT_QUANTILES, time_axis=0, **kwargs):
+    kwargs = {**DEFAULT_KWARGS, **kwargs}
+  
     extra_boxes = (len(quantiles) - 5) // 2
 
     quantile_values = np.quantile(kwargs.pop("y"), quantiles, axis=time_axis)
