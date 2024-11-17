@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import math
-
 import numpy as np
 
 from earthkit.plots.schemas import schema
@@ -50,28 +48,28 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
 
     if divergence_point is not None:
         max_diff = max(max_value - divergence_point, divergence_point - min_value)
-        max_value = divergence_point + max_diff
-        min_value = divergence_point - max_diff
+        max_value = max_diff
+        min_value = -max_diff
 
     data_range = max_value - min_value
 
     initial_bin = data_range / n_levels
 
-    magnitude = 10 ** (math.floor(math.log(initial_bin, 10)))
+    magnitude = 10 ** (np.floor(np.log10(initial_bin)))
     bin_width = initial_bin - (initial_bin % -magnitude)
 
-    start = min_value - (min_value % magnitude)
+    min_value -= min_value % bin_width
+    max_value -= max_value % -bin_width
 
-    levels = np.arange(
-        start,
-        start + (bin_width * n_levels) + bin_width,
-        bin_width,
+    if divergence_point is not None:
+        min_value += divergence_point
+        max_value += divergence_point
+
+    return np.linspace(
+        min_value,
+        max_value,
+        n_levels + 1,
     ).tolist()
-
-    while levels[-2] >= max_value:
-        levels = levels[:-1]
-
-    return levels
 
 
 def step_range(data, step, reference=None):
