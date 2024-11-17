@@ -72,6 +72,7 @@ class Chart:
         self._subplots_kwargs = kwargs
         self._subplot_titles = None
         self._subplot_y_titles = None
+        self._subplot_x_titles = None
         self._layout_override = dict()
 
     def set_subplot_titles(method):
@@ -84,10 +85,14 @@ class Chart:
                         pass
                     else:
                         self._subplot_titles = list(ds.data_vars)
-                        self._subplot_y_titles = [
+                        titles = [
                             ds[data_var].attrs.get("units", "")
                             for data_var in ds.data_vars
                         ]
+                        if kwargs.get("y") is not None:
+                            self._subplot_x_titles = titles
+                        else:
+                            self._subplot_y_titles = titles
             return method(self, *args, **kwargs)
 
         return wrapper
@@ -286,13 +291,24 @@ class Chart:
         for i in range(self.rows * self.columns):
             y_key = f"yaxis{i+1 if i>0 else ''}"
             x_key = f"xaxis{i+1 if i>0 else ''}"
-            self.fig.update_layout(
-                **{
-                    x_key: layout["xaxis"],
-                    y_key: {
-                        **layout["yaxis"],
-                        **{"title": self._subplot_y_titles[i]},
-                    },
-                }
-            )
+            if self._subplot_x_titles:
+                self.fig.update_layout(
+                    **{
+                        y_key: layout["yaxis"],
+                        x_key: {
+                            **layout["xaxis"],
+                            **{"title": self._subplot_x_titles[i]},
+                        },
+                    }
+                )
+            if self._subplot_y_titles:
+                self.fig.update_layout(
+                    **{
+                        x_key: layout["xaxis"],
+                        y_key: {
+                            **layout["yaxis"],
+                            **{"title": self._subplot_y_titles[i]},
+                        },
+                    }
+                )
         return self.fig.show(*args, **kwargs)
