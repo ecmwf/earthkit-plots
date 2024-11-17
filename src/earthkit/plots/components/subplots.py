@@ -374,19 +374,6 @@ class Subplot:
             x_values = source.x_values
             y_values = source.y_values
 
-            if method_name in (
-                "contour",
-                "contourf",
-                "pcolormesh",
-            ) and not grids.is_structured(x_values, y_values):
-                x_values, y_values, z_values = grids.interpolate_unstructured(
-                    x_values,
-                    y_values,
-                    z_values,
-                    method=kwargs.pop("interpolation_method", "linear"),
-                )
-                extract_domain = False
-
             if every is not None:
                 x_values = x_values[::every]
                 y_values = y_values[::every]
@@ -405,9 +392,23 @@ class Subplot:
                 warnings.warn(
                     "The 'interpolation_method' argument is only valid for unstructured data."
                 )
-            mappable = getattr(style, method_name)(
-                self.ax, x_values, y_values, z_values, **kwargs
-            )
+            try:
+                mappable = getattr(style, method_name)(
+                    self.ax, x_values, y_values, z_values, **kwargs
+                )
+            except TypeError as err:
+                if not grids.is_structured(x_values, y_values):
+                    x_values, y_values, z_values = grids.interpolate_unstructured(
+                        x_values,
+                        y_values,
+                        z_values,
+                        method=kwargs.pop("interpolation_method", "linear"),
+                    )
+                    mappable = getattr(style, method_name)(
+                        self.ax, x_values, y_values, z_values, **kwargs
+                    )
+                else:
+                    raise err
         self.layers.append(Layer(source, mappable, self, style))
         return mappable
 
@@ -946,6 +947,10 @@ class Subplot:
     def show(self):
         """Display the plot."""
         return self.figure.show()
+
+    def save(self, *args, **kwargs):
+        """Save the plot to a file."""
+        return self.figure.save(*args, **kwargs)
 
 
 def thin_array(array, every=2):

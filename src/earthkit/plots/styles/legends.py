@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-DEFAULT_LEGEND_LABEL = ""  # {variable_name} ({units})"
+DEFAULT_LEGEND_LABEL = "{variable_name} ({units})"
 
 _DISJOINT_LEGEND_LOCATIONS = {
     "bottom": {
@@ -55,7 +55,10 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
         Any keyword arguments accepted by `matplotlib.figures.Figure.colorbar`.
     """
     label = kwargs.pop("label", DEFAULT_LEGEND_LABEL)
-    label = layer.format_string(label)
+    try:
+        label = layer.format_string(label)
+    except (AttributeError, ValueError, KeyError):
+        label = ""
 
     kwargs = {**layer.style._legend_kwargs, **kwargs}
     kwargs.setdefault("format", lambda x, _: f"{x:g}")

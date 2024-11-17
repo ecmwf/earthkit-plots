@@ -116,7 +116,10 @@ def format_units(units, exponential_notation=False):
     >>> format_units("kg m-2")
     "$kg m^{-2}$"
     """
-    latex_str = f"{_pintify(units):~L}"
+    units = _pintify(units)
+    if units.dimensionless:
+        return "dimensionless"
+    latex_str = f"{units:~L}"
     if exponential_notation:
         raise NotImplementedError("Exponential notation is not yet supported.")
     return f"${latex_str}$"
