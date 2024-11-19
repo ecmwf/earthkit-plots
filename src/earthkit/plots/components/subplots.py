@@ -29,7 +29,8 @@ from earthkit.plots.metadata.formatters import (
     SubplotFormatter,
 )
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source, single
+from earthkit.plots.sources import get_source
+from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _OVERRIDE_KWARGS, _STYLE_KWARGS, Contour, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
 
@@ -216,7 +217,7 @@ class Subplot:
         def decorator(method):
             def wrapper(
                 self,
-                data=None,
+                *args,
                 x=None,
                 y=None,
                 z=None,
@@ -226,8 +227,7 @@ class Subplot:
             ):
                 return self._extract_plottables(
                     method_name or method.__name__,
-                    args=tuple(),
-                    data=data,
+                    args=args,
                     x=x,
                     y=y,
                     z=z,
@@ -303,7 +303,6 @@ class Subplot:
         self,
         method_name,
         args,
-        data=None,
         x=None,
         y=None,
         z=None,
@@ -312,107 +311,137 @@ class Subplot:
         every=None,
         source_units=None,
         extract_domain=False,
+        metadata=None,
         **kwargs,
     ):
-        if source_units is not None:
-            source = get_source(*args, data=data, x=x, y=y, z=z, units=source_units)
-        else:
-            source = get_source(*args, data=data, x=x, y=y, z=z)
-        kwargs = {**self._plot_kwargs(source), **kwargs}
+        # Step 1: Initialize the source
+        source = get_source(*args, x=x, y=y, z=z, units=source_units, metadata=metadata)
+        kwargs.update(self._plot_kwargs(source))
+
+        print(source.regrid)
+
         if method_name == "contourf":
             source.regrid = True
-        if style is None:
-            style_kwargs = {
-                key: kwargs.pop(key) for key in _STYLE_KWARGS if key in kwargs
-            }
-            # These are kwargs which can be overridden without forcing a new Style
-            override_kwargs = {
-                key: style_kwargs.pop(key)
-                for key in _OVERRIDE_KWARGS
-                if key in style_kwargs
-            }
-            if style_kwargs:
-                style_class = (
-                    Style if not method_name.startswith("contour") else Contour
-                )
-                style = style_class(**{**style_kwargs, **{"units": units}})
-            else:
-                style = auto.guess_style(
-                    source, units=units or source.units, **override_kwargs
-                )
 
-        if data is None and z is None:
-            z_values = None
-        else:
-            z_values = style.convert_units(source.z_values, source.units)
-            z_values = style.apply_scale_factor(z_values)
+        # Step 2: Configure the style
+        style = self._configure_style(method_name, style, source, units, kwargs)
 
-        if (
-            source.metadata("gridType", default=None) == "healpix"
-            and method_name == "pcolormesh"
-        ):
-            from earthkit.plots.geo import healpix
+        # Step 3: Process z values
+        z_values = self._process_z_values(style, source, z)
 
-            nest = source.metadata("orderingConvention", default=None) == "nested"
-            kwargs["transform"] = self.crs
-            mappable = healpix.nnshow(
-                z_values, ax=self.ax, nest=nest, style=style, **kwargs
+        # Step 4: Handle specific grid types
+        grid_type = source.metadata("gridType", default=None)
+        if grid_type == "healpix" and method_name == "pcolormesh":
+            return self._plot_healpix(source, z_values, style, kwargs)
+
+        # if grid_type == "reduced_gg" and method_name == "pcolormesh":
+        #     return self._plot_reduced_gg(source, z_values, style, kwargs)
+
+        # Step 5: Process x, y values, apply sampling if specified
+        x_values, y_values = source.x_values, source.y_values
+        x_values, y_values, z_values = self._apply_sampling(
+            x_values, y_values, z_values, every
+        )
+
+        # Step 6: Domain extraction
+        if self.domain and extract_domain:
+            x_values, y_values, z_values = self.domain.extract(
+                x_values, y_values, z_values, source_crs=source.crs
             )
-        elif (
-            source.metadata("gridType", default=None) == "reduced_gg"
-            and method_name == "pcolormesh"
-        ):
-            from earthkit.plots.geo import reduced_gg
 
-            x_values = source.x_values
-            y_values = source.y_values
-            kwargs["transform"] = self.crs
-            mappable = reduced_gg.nnshow(
-                z_values, x_values, y_values, ax=self.ax, style=style, **kwargs
-            )
-        else:
-            x_values = source.x_values
-            y_values = source.y_values
+        # Step 7: Plot with or without interpolation
+        mappable = self._plot_with_interpolation(
+            style, method_name, x_values, y_values, z_values, kwargs
+        )
 
-            if every is not None:
-                x_values = x_values[::every]
-                y_values = y_values[::every]
-                if z_values is not None:
-                    z_values = z_values[::every, ::every]
-
-            if self.domain is not None and extract_domain:
-                x_values, y_values, z_values = self.domain.extract(
-                    x_values,
-                    y_values,
-                    z_values,
-                    source_crs=source.crs,
-                )
-            if "interpolation_method" in kwargs:
-                kwargs.pop("interpolation_method")
-                warnings.warn(
-                    "The 'interpolation_method' argument is only valid for unstructured data."
-                )
-            try:
-                mappable = getattr(style, method_name)(
-                    self.ax, x_values, y_values, z_values, **kwargs
-                )
-            except TypeError as err:
-                if not grids.is_structured(x_values, y_values):
-                    x_values, y_values, z_values = grids.interpolate_unstructured(
-                        x_values,
-                        y_values,
-                        z_values,
-                        method=kwargs.pop("interpolation_method", "linear"),
-                    )
-                    mappable = getattr(style, method_name)(
-                        self.ax, x_values, y_values, z_values, **kwargs
-                    )
-                else:
-                    raise err
+        # Step 8: Store layer and return
         self.layers.append(Layer(source, mappable, self, style))
         return mappable
 
-    def _extract_plottables_2(
+    def _configure_style(self, method_name, style, source, units, kwargs):
+        """Configures style based on method name, style, source, and units."""
+        if style:
+            return style
+
+        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+        override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
+        style_class = Contour if method_name.startswith("contour") else Style
+
+        return (
+            style_class(**{**style_kwargs, "units": units})
+            if style_kwargs
+            else auto.guess_style(
+                source, units=units or source.units, **override_kwargs
+            )
+        )
+
+    def _process_z_values(self, style, source, z):
+        """Processes z values by converting units and applying a scale factor."""
+        if source._data is None and z is None:
+            return None
+
+        z_values = style.convert_units(source.z_values, source.units)
+        return style.apply_scale_factor(z_values)
+
+    def _apply_sampling(self, x_values, y_values, z_values, every):
+        """Applies sampling to x, y, and z values if 'every' is specified."""
+        if every:
+            x_values = x_values[::every]
+            y_values = y_values[::every]
+            if z_values is not None:
+                z_values = z_values[::every, ::every]
+        return x_values, y_values, z_values
+
+    def _plot_healpix(self, source, z_values, style, kwargs):
+        """Handles plotting for 'healpix' grid type."""
+        from earthkit.plots.geo import healpix
+
+        nest = source.metadata("orderingConvention", default=None) == "nested"
+        kwargs["transform"] = self.crs
+        return healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
+
+    def _plot_reduced_gg(self, source, z_values, style, kwargs):
+        """Handles plotting for 'reduced_gg' grid type."""
+        from earthkit.plots.geo import reduced_gg
+
+        kwargs["transform"] = self.crs
+        return reduced_gg.nnshow(
+            z_values,
+            source.x_values,
+            source.y_values,
+            ax=self.ax,
+            style=style,
+            **kwargs,
+        )
+
+    def _plot_with_interpolation(
+        self, style, method_name, x_values, y_values, z_values, kwargs
+    ):
+        """Attempts to plot with or without interpolation as needed."""
+        if "interpolation_method" in kwargs:
+            kwargs.pop("interpolation_method")
+            warnings.warn(
+                "The 'interpolation_method' argument is only valid for unstructured data."
+            )
+
+        try:
+            return getattr(style, method_name)(
+                self.ax, x_values, y_values, z_values, **kwargs
+            )
+        except TypeError as err:
+            if not grids.is_structured(x_values, y_values):
+                x_values, y_values, z_values = grids.interpolate_unstructured(
+                    x_values,
+                    y_values,
+                    z_values,
+                    method=kwargs.pop("interpolation_method", "linear"),
+                )
+                return getattr(style, method_name)(
+                    self.ax, x_values, y_values, z_values, **kwargs
+                )
+            raise err
+
+    def _extract_plottables_envelope(
         self,
         data=None,
         x=None,
@@ -536,8 +565,8 @@ class Subplot:
 
     @schema.envelope.apply()
     def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
-        x1, y1, _ = self._extract_plottables_2(y=data_1, **kwargs)
-        x2, y2, _ = self._extract_plottables_2(y=data_2, **kwargs)
+        x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
+        x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
         kwargs.pop("x")
         mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
         self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
@@ -557,10 +586,10 @@ class Subplot:
         for q in iter_utils.symmetrical_iter(quantiles):
             lines = data.quantile(q, dim=dim)
             if isinstance(q, tuple):
-                x, y1, _ = self._extract_plottables_2(
+                x, y1, _ = self._extract_plottables_envelope(
                     y=lines.sel(quantile=q[0]), **kwargs
                 )
-                _, y2, _ = self._extract_plottables_2(
+                _, y2, _ = self._extract_plottables_envelope(
                     y=lines.sel(quantile=q[1]), **kwargs
                 )
                 mappable = self.ax.fill_between(
@@ -572,7 +601,7 @@ class Subplot:
                     **{k: v for k, v in kwargs.items() if k != "x"},
                 )
             else:
-                x, y, _ = self._extract_plottables_2(y=lines, **kwargs)
+                x, y, _ = self._extract_plottables_envelope(y=lines, **kwargs)
                 kwargs.pop("label", None)
                 mappable = self.ax.plot(
                     x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
@@ -878,7 +907,7 @@ class Subplot:
         if style is not None:
             dummy = [[1, 2], [3, 4]]
             mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
-            layer = Layer(single.SingleSource(), mappable, self, style)
+            layer = Layer(NumpySource(), mappable, self, style)
             legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
             legends.append(legend)
         else:
