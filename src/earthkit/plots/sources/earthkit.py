@@ -132,6 +132,8 @@ class EarthkitSource(SingleSource):
                     f"'{self.gridspec['grid']}' grid"
                 )
             points = get_points(1)
+            x = points["x"]
+            y = points["y"]
         else:
             try:
                 points = self.data.to_points(flatten=False)
