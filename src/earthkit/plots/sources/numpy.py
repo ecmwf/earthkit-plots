@@ -48,6 +48,17 @@ class NumpySource(SingleSource):
                 xyz = np.arange(len(self.data)), self.data, None
             elif len(self.data.shape) == 2:
                 xyz = np.arange(len(self.data[0])), np.arange(len(self.data)), self.data
+        elif self._z is None:
+            if self.data is not None and len(self.data.shape) == 1:
+                data = None
+            else:
+                data = self.data
+            if self._x is None:
+                xyz = np.arange(len(self._y)), self._y, data
+            elif self._y is None:
+                xyz = self._x, np.arange(len(self._x)), data
+            else:
+                xyz = self._x, self._y, data
         return xyz
 
     def extract_x(self):
