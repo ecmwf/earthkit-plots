@@ -51,6 +51,13 @@ def test_NumpySource_xy():
     assert source.z_values is None
 
 
+def test_NumpySource_xyz():
+    source = NumpySource([[1, 2], [4, 5]], x=[1, 2], y=[3, 4])
+    assert np.array_equal(source.x_values, [1, 2])
+    assert np.array_equal(source.y_values, [3, 4])
+    assert np.array_equal(source.z_values, [[1, 2], [4, 5]])
+
+
 def test_NumpySource_3_args():
     source = NumpySource([1, 2, 3], [3, 6, 4], [[1, 2, 3], [4, 5, 6]])
     assert np.array_equal(source.x_values, [1, 2, 3])
