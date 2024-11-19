@@ -56,4 +56,4 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
             cls = XarraySource
         elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
-    return cls(*args, data=data, x=x, y=y, z=z, u=u, v=v, **kwargs)
+    return cls(*args, x=x, y=y, z=z, u=u, v=v, metadata=kwargs)

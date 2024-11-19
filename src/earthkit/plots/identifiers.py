@@ -32,6 +32,24 @@ Y = [
     "lat",
 ]
 
+U = [
+    "u",
+    "U",
+    "u_component_of_wind",
+    "10m_u_component_of_wind",
+    "10u",
+    "10 metre U wind component",
+]
+
+V = [
+    "v",
+    "V",
+    "v_component_of_wind",
+    "10m_v_component_of_wind",
+    "10v",
+    "10 metre V wind component",
+]
+
 LATITUDE = [
     "latitude",
     "lat",

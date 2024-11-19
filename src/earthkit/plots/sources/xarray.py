@@ -1,62 +1,122 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-from functools import cached_property
-
+import earthkit.data
 import numpy as np
 import pandas as pd
+import xarray as xr
 
-from earthkit.plots import identifiers
-from earthkit.plots.sources.single import SingleSource
+from earthkit.plots.identifiers import find_x, find_y
+from earthkit.plots.sources.source import (
+    Source,  # Assuming Source is the new base class
+)
 
 
-class XarraySource(SingleSource):
+class XarraySource(Source):
     """
-    Source class for xarray data.
+    A data source for xarray-like inputs, extending Source with additional support
+    for identifying x, y, and z dimensions within an xarray Dataset or DataArray.
 
     Parameters
     ----------
-    data : xarray.Dataset
-        The data to be plotted.
-    x : str, optional
-        The x-coordinate variable in data.
-    y : str, optional
-        The y-coordinate variable in data.
-    z : str, optional
-        The z-coordinate variable in data.
-    u : str, optional
-        The u-component variable in data.
-    v : str, optional
-        The v-component variable in data.
+    dataarray : xarray.Dataset or xarray.DataArray
+        The xarray data to use as the source.
+    x : str or array-like, optional
+        The x-coordinate name or values of the data.
+    y : str or array-like, optional
+        The y-coordinate name or values of the data.
+    z : str or array-like, optional
+        The z-coordinate name or values of the data.
+    u : array-like, optional
+        The u-component of the data.
+    v : array-like, optional
+        The v-component of the data.
     crs : cartopy.crs.CRS, optional
         The CRS of the data.
+    style : str, optional
+        The style to use when plotting the data.
+    metadata : dict, optional
+        Metadata to attach to this Source.
     **kwargs
-        Metadata keys and values to attach to this Source.
+        Additional metadata keys and values to attach to this Source.
     """
 
-    @cached_property
-    def data(self):
-        """The underlying xarray data."""
-        return self._data.squeeze()
+    def __init__(self, dataarray, x=None, y=None, z=None, **kwargs):
+        self._xarray_source = dataarray
+        if isinstance(dataarray, xr.Dataset):
+            if z is not None:
+                dataarray = dataarray[z]
+            elif len(dataarray.data_vars) == 1:
+                dataarray = dataarray[list(dataarray.data_vars)[0]]
+            else:
+                raise ValueError(
+                    "Multiple variables found in the xarray Dataset. Please specify a variable name with the 'z' parameter."
+                )
+        super().__init__(dataarray, x=x, y=y, z=z, **kwargs)
+        self._data = dataarray
+
+        self._x_values, self._y_values, self._z_values = self._infer_xyz()
+
+    def _infer_xyz(self):
+        """Infers x, y, and z values based on xarray input dimensions and provided names."""
+        if isinstance(self._data, (xr.DataArray, xr.Dataset)):
+            # If `x` and `y` are strings, interpret them as dimension names in the xarray object
+            if isinstance(self._x, str):
+                x_values = self._data[self._x].values
+            else:
+                x_dim = find_x(self._data.dims)
+                x_values = (
+                    self._data[x_dim].values
+                    if x_dim
+                    else np.arange(self._data.shape[-1])
+                )
+
+            if isinstance(self._y, str):
+                y_values = self._data[self._y].values
+            else:
+                y_dim = find_y(self._data.dims)
+                y_values = (
+                    self._data[y_dim].values
+                    if y_dim
+                    else np.arange(self._data.shape[0])
+                )
+
+            # Handle z as a specified variable name within the xarray dataset or default to main data values
+            if (
+                isinstance(self._data, xr.Dataset)
+                and isinstance(self._z, str)
+                and self._z in list(self._data.variables)
+            ):
+                z_values = self._data[self._z].values
+            elif isinstance(self._data, xr.DataArray):
+                z_values = self._data.values
+            else:
+                raise ValueError(
+                    f"Variable '{self._z}' not found in the xarray dataset."
+                )
+
+        else:
+            # Fall back to base Source handling if not xarray input
+            return super()._infer_xyz()
+
+        return x_values, y_values, z_values
 
     @property
-    def coordinate_axis(self):
-        """The coordinate axis of the data. One of 'x' or 'y'."""
-        if self._x in self.data.dims:
-            return "x"
-        else:
-            return "y"
+    def data(self):
+        """Return the original xarray data, if provided."""
+        return self._data
+
+    @property
+    def x_values(self):
+        """Returns the inferred or provided x values."""
+        return self._x_values
+
+    @property
+    def y_values(self):
+        """Returns the inferred or provided y values."""
+        return self._y_values
+
+    @property
+    def z_values(self):
+        """Returns the inferred or provided z values (or color values)."""
+        return self._z_values
 
     def metadata(self, key, default=None):
         """
@@ -75,89 +135,11 @@ class XarraySource(SingleSource):
                 value = self.data.attrs[key]
             elif hasattr(self.data, key):
                 value = getattr(self.data, key)
-            elif self._z and hasattr(self.data[self._z], key):
-                value = getattr(self.data[self._z], key)
+            elif hasattr(self._xarray_source, key):
+                value = getattr(self._xarray_source, key)
             if hasattr(value, "values"):
                 value = value.values
         return value
-
-    def datetime(self):
-        """Get the datetime of the data."""
-        datetimes = [
-            pd.to_datetime(dt).to_pydatetime()
-            for dt in np.atleast_1d(self.data.time.values)
-        ]
-        return {
-            "base_time": datetimes,
-            "valid_time": datetimes,
-        }
-
-    def extract_xyz(self):
-        """Extract the x, y and z values from the data."""
-        x, y, z = self._x, self._y, self._z
-        if self._x is None and self._y is None and self._z is None:
-            x, y = self.extract_xy()
-            z = None
-            if hasattr(self.data, "data_vars"):
-                for z in list(self.data.data_vars):
-                    if set(self.data[z].dims) == set(self.dims):
-                        break
-                else:
-                    z = None
-        return x, y, z
-
-    @cached_property
-    def dims(self):
-        """The dimensions of the data."""
-        return list(self.data.dims)
-
-    def extract_xy(self):
-        """Extract the x and y values from the data."""
-        x = self._x or identifiers.find_x(self.dims)
-        y = self._y or identifiers.find_y(self.dims)
-
-        if (x is not None and x == y) or (x is None and y is not None):
-            if self._x is not None:
-                x = self._x
-                y = None
-            else:
-                x = [dim for dim in self.dims if dim != y][0]
-
-        if x is None:
-            if len(self.dims) == 2:
-                y, x = self.dims
-            else:
-                x = self.dims[0]
-
-        if y is None:
-            y = [dim for dim in self.dims if dim != x][0]
-
-        return x, y
-
-    def extract_x(self):
-        """Extract the x values of the data."""
-        return self.extract_xy()[0]
-
-    def extract_y(self):
-        """Extract the y values of the data."""
-        return self.extract_xy()[1]
-
-    def extract_z(self):
-        """Extract the z values of the data."""
-        z = super().extract_z()
-        return z
-
-    def extract_u(self):
-        """Extract the u values of the data."""
-        if self._u is None:
-            self._u = "u10"
-        return self._u
-
-    def extract_v(self):
-        """Extract the v values of the data."""
-        if self._v is None:
-            self._v = "v10"
-        return self._v
 
     @property
     def crs(self):
@@ -175,49 +157,19 @@ class XarraySource(SingleSource):
                 self._crs = None
         return self._crs
 
-    @property
-    def x_values(self):
-        """The x values of the data."""
-        super().x_values
-        return self.data[self._x].values
+    def to_earthkit(self):
+        """Convert the data to an earthkit.data.core.Base object."""
+        if self._earthkit_data is None:
+            self._earthkit_data = earthkit.data.from_object(self._xarray_source)
+        return self._earthkit_data
 
-    @cached_property
-    def y_values(self):
-        """The y values of the data."""
-        super().y_values
-        return self.data[self._y].values
-
-    @cached_property
-    def z_values(self):
-        """The z values of the data."""
-        values = None
-        if self._z is None:
-            if not hasattr(self.data, "data_vars"):
-                data = self.data
-            else:
-                data = self.data[list(self.data.data_vars)[0]]
-        else:
-            data = self.data[self._z]
-        values = data.values
-        # x, y = self.extract_xy()
-        # if [y, x] != [c for c in data.dims if c in [y, x]]:
-        #     values = values.T
-
-        return values
-
-    @cached_property
-    def u_values(self):
-        """The u values of the data."""
-        self.extract_u()
-        return self.data[self._u].values.squeeze()
-
-    @cached_property
-    def v_values(self):
-        """The v values of the data."""
-        self.extract_v()
-        return self.data[self._v].values.squeeze()
-
-    @cached_property
-    def magnitude_values(self):
-        """The magnitude values of the data."""
-        return (self.u_values**2 + self.v_values**2) ** 0.5
+    def datetime(self):
+        """Get the datetime of the data."""
+        datetimes = [
+            pd.to_datetime(dt).to_pydatetime()
+            for dt in np.atleast_1d(self.data.time.values)
+        ]
+        return {
+            "base_time": datetimes,
+            "valid_time": datetimes,
+        }

@@ -19,57 +19,54 @@ from earthkit.plots.schemas import schema
 
 def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels):
     """
-    Attempt to generate a suitable range of levels for arbitrary input data.
-
-    NOTE: **Experimental!**
+    Generate a suitable range of levels for arbitrary input data.
 
     Parameters
     ----------
     data : numpy.ndarray or xarray.DataArray or earthkit.data.core.Base
         The data for which to generate a list of levels.
     divergence_point : float, optional
-        If provided, force the levels to be centred on this point. This is
-        mostly useful for parameters which use diverging colors in their style,
-        such as anomalies.
+        If provided, force the levels to be centered on this point. Useful for
+        parameters that use diverging colors in their style, such as anomalies.
     n_levels : int, optional
-        The number of levels to generate.
+        The number of levels to generate (default is 10).
 
     Returns
     -------
     list
+        A list of levels evenly spaced across the data range.
     """
-    try:
+    # Convert data to numpy array if it has the `to_numpy` method
+    if hasattr(data, "to_numpy"):
         data = data.to_numpy()
-    except AttributeError:
-        pass
 
+    # Compute min and max values, ignoring NaNs
     min_value = np.nanmin(data)
     max_value = np.nanmax(data)
 
+    # Handle divergence point to center the range
     if divergence_point is not None:
-        max_diff = max(max_value - divergence_point, divergence_point - min_value)
-        max_value = max_diff
-        min_value = -max_diff
+        max_diff = max(
+            abs(max_value - divergence_point), abs(divergence_point - min_value)
+        )
+        min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
+    # Calculate the range and initial bin width
     data_range = max_value - min_value
-
     initial_bin = data_range / n_levels
 
-    magnitude = 10 ** (np.floor(np.log10(initial_bin)))
-    bin_width = initial_bin - (initial_bin % -magnitude)
+    # Determine the appropriate bin width based on data magnitude
+    magnitude = 10 ** np.floor(np.log10(initial_bin))
+    bin_width = round(initial_bin / magnitude) * magnitude
 
-    min_value -= min_value % bin_width
-    max_value -= max_value % -bin_width
+    # Adjust min and max values to fit into the calculated bin width
+    min_value = np.floor(min_value / bin_width) * bin_width
+    max_value = np.ceil(max_value / bin_width) * bin_width
 
-    if divergence_point is not None:
-        min_value += divergence_point
-        max_value += divergence_point
+    # Create the levels
+    levels = np.linspace(min_value, max_value, n_levels + 1)
 
-    return np.linspace(
-        min_value,
-        max_value,
-        n_levels + 1,
-    ).tolist()
+    return levels.tolist()
 
 
 def step_range(data, step, reference=None):
