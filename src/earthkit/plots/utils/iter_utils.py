@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from itertools import groupby
+
 
 def symmetrical_iter(lst):
     """
@@ -28,3 +30,21 @@ def symmetrical_iter(lst):
             yield x
         else:
             yield (x, y)
+
+
+def all_equal(iterable):
+    """
+    Check if all elements in an iterable are equal.
+
+    Parameters
+    ----------
+    iterable : iterable
+        The iterable to check.
+
+    Returns
+    -------
+    bool
+        True if all elements are equal, False otherwise.
+    """
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)

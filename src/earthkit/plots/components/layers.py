@@ -48,8 +48,10 @@ class Layer:
         The style to be applied to this layer.
     """
 
-    def __init__(self, source, mappable, subplot, style=None):
-        self.source = source
+    def __init__(self, sources, mappable, subplot, style=None):
+        if not isinstance(sources, (list, tuple)):
+            sources = [sources]
+        self.sources = sources
         self.mappable = mappable
         self.subplot = subplot
         self.style = style
@@ -81,7 +83,7 @@ class Layer:
 
     @property
     def _default_title_template(self):
-        if self.source.metadata("type", default="an") == "an":
+        if all(source.metadata("type", default="an") == "an" for source in self.sources):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

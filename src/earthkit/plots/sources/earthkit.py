@@ -3,9 +3,7 @@ from functools import cached_property
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.sources.source import (
-    Source,  # Assuming Source is the new base class
-)
+from earthkit.plots.sources.single import SingleSource
 
 _NO_EARTHKIT_REGRID = False
 try:
@@ -22,7 +20,7 @@ def get_points(dx):
     return lon, lat
 
 
-class EarthkitSource(Source):
+class EarthkitSource(SingleSource):
     """
     Source class for earthkit data, allowing flexible x, y, z extraction using
     dimension names or values and supporting regridding if needed.

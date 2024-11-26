@@ -35,20 +35,34 @@ Y = [
 U = [
     "u",
     "U",
-    "u_component_of_wind",
-    "10m_u_component_of_wind",
     "10u",
+    "u10",
+    "100u",
+    "u100",
+    "eastward_wind",
+    "10m_u_component_of_wind",
+    "100m_u_component_of_wind",
     "10 metre U wind component",
+    "100 metre U wind component",
+    "u_component_of_wind",    
 ]
 
 V = [
     "v",
     "V",
-    "v_component_of_wind",
-    "10m_v_component_of_wind",
     "10v",
+    "v10",
+    "100v",
+    "v100",
+    "northward_wind",
+    "10m_v_component_of_wind",
+    "100m_v_component_of_wind",
     "10 metre V wind component",
+    "100 metre V wind component",
+    "v_component_of_wind",
 ]
+
+UV_PAIRS = list(zip(U, V))
 
 LATITUDE = [
     "latitude",
@@ -91,6 +105,20 @@ def find_x(array):
 
 def find_y(array):
     return find(array, Y)
+
+
+def find_u(array):
+    return find(array, U)
+
+
+def find_v(array):
+    return find(array, V)
+
+
+def find_uv_pair(array):
+    for u, v in UV_PAIRS:
+        if u in array and v in array:
+            return u, v
 
 
 def find_latitude(array):

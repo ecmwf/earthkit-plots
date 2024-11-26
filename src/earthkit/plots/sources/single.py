@@ -10,7 +10,7 @@ except ImportError:
     _NO_EARTHKIT_REGRID = True
 
 
-class Source:
+class SingleSource:
     """
     A basic source class for plotting, providing a structure for defining x, y, z coordinates,
     optional metadata, and optional coordinate reference system (CRS).
@@ -46,7 +46,7 @@ class Source:
         u=None,
         v=None,
         crs=None,
-        regrid=False,
+        regrid=True,
         metadata=None,
         **kwargs,
     ):
