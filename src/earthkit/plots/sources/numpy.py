@@ -2,10 +2,10 @@ from functools import cached_property
 
 import numpy as np
 
-from earthkit.plots.sources.source import Source
+from earthkit.plots.sources.single import SingleSource
 
 
-class NumpySource(Source):
+class NumpySource(SingleSource):
     """
     A single source of data for a plot, capable of interpreting input as x, y, and z (or color) values.
     """

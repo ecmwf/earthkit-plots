@@ -279,6 +279,9 @@ class Style:
         """
         kwargs = self.to_matplotlib_kwargs(data)
         kwargs.pop("linewidths", None)
+        kwargs.pop("hatches", None)
+        kwargs.pop("line_colors", None)
+        kwargs.pop("labels", None)
         return kwargs
 
     def to_contour_kwargs(self, data):
@@ -305,6 +308,9 @@ class Style:
         kwargs.pop("levels", None)
         kwargs.pop("transform_first", None)
         kwargs.pop("extend", None)
+        kwargs.pop("labels", None)
+        kwargs.pop("line_colors", None)
+        kwargs.pop("hatches", None)
         return kwargs
 
     def to_scatter_kwargs(self, data):

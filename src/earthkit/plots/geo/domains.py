@@ -276,6 +276,11 @@ class Domain:
         else:
             return self._name
 
+    def __eq__(self, value):
+        if not isinstance(value, Domain):
+            return False
+        return list(self.bbox) == list(value.bbox) and self.crs == value.crs
+
     def __add__(self, second_domain):
         if isinstance(self._name, list):
             if isinstance(second_domain._name, list):

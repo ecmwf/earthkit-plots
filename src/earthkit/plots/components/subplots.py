@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from earthkit.plots import identifiers
-from earthkit.plots.components.layers import Layer
+from earthkit.plots.components.layers import Layer, LayerGroup
 from earthkit.plots.geo import grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
@@ -36,6 +36,8 @@ from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
+
+TARGET_DENSITY = 40
 
 
 class Subplot:
@@ -248,51 +250,53 @@ class Subplot:
                 data=None,
                 x=None,
                 y=None,
-                z=None,
                 u=None,
                 v=None,
                 colors=False,
                 every=None,
                 **kwargs,
             ):
-                source = get_source(data=data, x=x, y=y, z=z, u=u, v=v)
-                kwargs = {**self._plot_kwargs(source), **kwargs}
+                u_source = get_source(u, x=x, y=y)
+                v_source = get_source(v, x=x, y=y)                 
+                kwargs = {**self._plot_kwargs(u_source), **kwargs}
                 m = getattr(self.ax, method_name or method.__name__)
 
-                x_values = source.x_values
-                y_values = source.y_values
-                u_values = source.u_values
-                v_values = source.v_values
+                x_values = u_source.x_values
+                y_values = u_source.y_values
+                u_values = u_source.z_values
+                v_values = v_source.z_values
 
                 if self.domain is not None:
                     x_values, y_values, _, [u_values, v_values] = self.domain.extract(
                         x_values,
                         y_values,
                         extra_values=[u_values, v_values],
-                        source_crs=source.crs,
+                        source_crs=u_source.crs,
                     )
 
-                if every is None:
-                    args = [x_values, y_values, u_values, v_values]
-                else:
-                    args = [
-                        thin_array(x_values, every=every),
-                        thin_array(y_values, every=every),
-                        thin_array(u_values, every=every),
-                        thin_array(v_values, every=every),
-                    ]
-                if colors:
-                    if every is None:
-                        args.append(source.magnitude_values)
+                if every is not None:
+                    kwargs.pop("regrid_shape", None)
+                    if every==1:
+                        args = [x_values, y_values, u_values, v_values]
                     else:
-                        args.append(source.magnitude_values[::every, ::every])
+                        args = [
+                            thin_array(x_values, every=every),
+                            thin_array(y_values, every=every),
+                            thin_array(u_values, every=every),
+                            thin_array(v_values, every=every),
+                        ]
+                else:
+                    args = [x_values, y_values, u_values, v_values]
+                        
+                if colors:
+                    args.append((args[2]**2 + args[3]**2) ** 0.5)
 
                 mappable = m(*args, **kwargs)
-                self.layers.append(Layer(source, mappable, self))
-                if isinstance(source._x, str):
-                    self.ax.set_xlabel(source._x)
-                if isinstance(source._y, str):
-                    self.ax.set_ylabel(source._y)
+                self.layers.append(Layer([u_source, v_source], mappable, self))
+                if isinstance(u_source._x, str):
+                    self.ax.set_xlabel(u_source._x)
+                if isinstance(u_source._y, str):
+                    self.ax.set_ylabel(u_source._y)
                 return mappable
 
             return wrapper
@@ -317,8 +321,6 @@ class Subplot:
         # Step 1: Initialize the source
         source = get_source(*args, x=x, y=y, z=z, units=source_units, metadata=metadata)
         kwargs.update(self._plot_kwargs(source))
-
-        print(source.regrid)
 
         if method_name == "contourf":
             source.regrid = True
@@ -428,7 +430,7 @@ class Subplot:
             return getattr(style, method_name)(
                 self.ax, x_values, y_values, z_values, **kwargs
             )
-        except TypeError as err:
+        except (ValueError, TypeError) as err:
             if not grids.is_structured(x_values, y_values):
                 x_values, y_values, z_values = grids.interpolate_unstructured(
                     x_values,
@@ -533,7 +535,7 @@ class Subplot:
         return unique_layers
 
     def _plot_kwargs(self, *args, **kwargs):
-        return dict()
+        return kwargs
 
     def coastlines(self, *args, **kwargs):
         raise NotImplementedError

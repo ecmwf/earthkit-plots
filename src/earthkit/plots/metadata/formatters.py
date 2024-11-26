@@ -22,7 +22,7 @@ import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.schemas import schema
-from earthkit.plots.utils import string_utils
+from earthkit.plots.utils import string_utils, iter_utils
 
 logger = logging.getLogger(__name__)
 
@@ -138,11 +138,22 @@ class LayerFormatter(BaseFormatter):
         elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
             value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
             if value is None:
-                value = metadata.labels.extract(self.layer.source, key)
+                value = [
+                    metadata.labels.extract(source, key)
+                    for source in self.layer.sources
+                ]
                 if key == "units":
-                    value = metadata.units.format_units(value)
+                    value = [metadata.units.format_units(v) for v in value]
         else:
-            value = metadata.labels.extract(self.layer.source, key)
+            value = [
+                metadata.labels.extract(source, key)
+                for source in self.layer.sources
+            ]
+        if isinstance(value, list):
+            if len(value) == 1 or iter_utils.all_equal(value):
+                value = value[0]
+            else:
+                value = string_utils.list_to_human(value)
         return value
 
 

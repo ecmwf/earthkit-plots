@@ -18,12 +18,10 @@ import matplotlib.pyplot as plt
 
 from earthkit.plots.components.layers import LayerGroup
 from earthkit.plots.components.maps import Map
-from earthkit.plots.components.layouts import rows_cols
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
-
 
 
 class Figure:
@@ -51,60 +49,24 @@ class Figure:
         Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
     """
 
-    def __init__(self, rows=None, columns=None, size=None, domain=None, **kwargs):
+    def __init__(self, rows=1, columns=1, size=None, domain=None, **kwargs):
         self.rows = rows
         self.columns = columns
-    
-        self.fig = None
-        self.gridspec = None
 
         self._row = 0
         self._col = 0
 
-        self._figsize = self._parse_size(size)
-        self._gridspec_kwargs = kwargs
+        figsize = self._parse_size(size)
+
+        self.fig = plt.figure(figsize=figsize, constrained_layout=True)
+        self.gridspec = self.fig.add_gridspec(rows, columns, **kwargs)
 
         self._domain = domain
 
         self.subplots = []
         self._last_subplot_location = None
         self._isubplot = 0
-        
-        self._queue = []
-        self._subplot_queue = []
-        
-        if None not in (self.rows, self.columns):
-            self._setup()
 
-    def setup(method):
-        """Decorator to set up the figure before calling a method."""
-        def wrapper(self, *args, **kwargs):
-            self._setup()
-            result = method(self, *args, **kwargs)
-            return result
-
-        return wrapper
-    
-    def _setup(self):
-        self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
-        self.gridspec = self.fig.add_gridspec(self.rows, self.columns, **self._gridspec_kwargs)
-
-    def defer_until_setup(method):
-        def wrapper(self, *args, **kwargs):
-            if not self.subplots:
-                self._queue.append((method, args, kwargs))
-            else:
-                return method(self, *args, **kwargs)
-        return wrapper
-    
-    def defer_subplot(method):
-        def wrapper(self, *args, **kwargs):
-            if self.rows is None or self.columns is None:
-                self._subplot_queue.append((method, args, kwargs))
-            else:
-                return method(self, *args, **kwargs)
-        return wrapper
-        
     def __len__(self):
         return len(self.subplots)
 
@@ -137,29 +99,22 @@ class Figure:
         def wrapper(self, *args, **kwargs):
             success = False
             for subplot in self.subplots:
-                # try:
+                try:
                     getattr(subplot, method.__name__)(*args, **kwargs)
                     success = True
-                # except (NotImplementedError, AttributeError):
-                #     continue
-            if not success:                
+                except (NotImplementedError, AttributeError):
+                    continue
+            if not success:
                 raise NotImplementedError(
                     f"No subplots have method '{method.__name__}'"
                 )
 
         return wrapper
 
-    def iterate_subplots(method):
+    def multi_plot(method):
         """Decorator to iterate simultaneously over data and subplots."""
 
         def wrapper(self, data, *args, **kwargs):
-            if not hasattr(data, "__len__"):
-                data = [data]
-            if not self.subplots:
-                self.rows, self.columns = rows_cols(len(data), rows=self.rows, columns=self.columns)
-                self._setup()
-                for _ in range(len(data)):
-                    self.add_map()
             for datum, subplot in zip(data, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
 
@@ -201,7 +156,6 @@ class Figure:
         self.subplots.append(subplot)
         return subplot
 
-    @defer_subplot
     def add_map(self, row=None, column=None, domain=None, **kwargs):
         """
         Add a map to the figure.
@@ -277,7 +231,6 @@ class Figure:
 
         return groups
 
-    @defer_until_setup
     @schema.legend.apply()
     def legend(self, *args, subplots=None, location=None, **kwargs):
         """
@@ -322,7 +275,6 @@ class Figure:
 
         return legends
 
-    @defer_until_setup
     @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
@@ -333,7 +285,6 @@ class Figure:
         Accepts the same arguments as `Map.coastlines`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def countries(self, *args, **kwargs):
         """
@@ -344,7 +295,6 @@ class Figure:
         Accepts the same arguments as `Map.countries`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def urban_areas(self, *args, **kwargs):
         """
@@ -355,7 +305,6 @@ class Figure:
         Accepts the same arguments as `Map.urban_areas`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def land(self, *args, **kwargs):
         """
@@ -366,7 +315,6 @@ class Figure:
         Accepts the same arguments as `Map.land`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def borders(self, *args, **kwargs):
         """
@@ -377,7 +325,6 @@ class Figure:
         Accepts the same arguments as `Map.borders`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def standard_layers(self, *args, **kwargs):
         """
@@ -388,7 +335,6 @@ class Figure:
         Accepts the same arguments as `Map.quick_layers`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def administrative_areas(self, *args, **kwargs):
         """
@@ -399,7 +345,6 @@ class Figure:
         Accepts the same arguments as `Map.administrative_areas`.
         """
 
-    @defer_until_setup
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
         """
@@ -410,20 +355,19 @@ class Figure:
         Accepts the same arguments as `Map.stock_img`.
         """
 
-    @iterate_subplots
+    @multi_plot
     def block(self, *args, **kwargs):
         """"""
 
-    @iterate_subplots
+    @multi_plot
     def contourf(self, *args, **kwargs):
         """"""
 
-    @iterate_subplots
+    @multi_plot
     def contour(self, *args, **kwargs):
         """"""
 
-    @defer_until_setup
-    def gridlines(self, *args, sharex=True, sharey=True, **kwargs):
+    def gridlines(self, *args, sharex=False, sharey=False, **kwargs):
         """
         Add gridlines to every `Map` subplot in the figure.
 
@@ -443,7 +387,7 @@ class Figure:
         for subplot in self.subplots:
             if draw_labels:
                 subplot_draw_labels = [item for item in draw_labels]
-                if sharex and all(sp.domain == subplot.domain for sp in [s for s in self.subplots if s.column == subplot.column]):
+                if sharex:
                     if "top" in draw_labels and subplot.row != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "top"
@@ -454,7 +398,7 @@ class Figure:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "bottom"
                         ]
-                if sharey and all(sp.domain == subplot.domain for sp in [s for s in self.subplots if s.row == subplot.row]):
+                if sharey:
                     if "left" in draw_labels and subplot.column != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "left"
@@ -523,21 +467,9 @@ class Figure:
     @property
     def _default_title_template(self):
         return self.subplots[0]._default_title_template
-    
-    def _release_queue(self):
-        if self._subplot_queue:
-            self.rows, self.columns = rows_cols(len(self._subplot_queue), rows=self.rows, columns=self.columns)
-            self._setup()
-        for item in self._subplot_queue:
-            method, args, kwargs = item
-            method(self, *args, **kwargs)
-        for queued_method, queued_args, queued_kwargs in self._queue:
-            queued_method(self, *queued_args, **queued_kwargs)
-        return self
 
     def show(self, *args, **kwargs):
         """Display the figure."""
-        self._release_queue()
         return plt.show(*args, **kwargs)
 
     def save(self, *args, bbox_inches="tight", **kwargs):
@@ -553,7 +485,6 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.savefig.
         """
-        self._release_queue()
         return plt.savefig(
             *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
         )

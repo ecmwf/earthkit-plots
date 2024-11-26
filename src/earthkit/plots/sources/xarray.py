@@ -4,12 +4,10 @@ import pandas as pd
 import xarray as xr
 
 from earthkit.plots.identifiers import find_x, find_y
-from earthkit.plots.sources.source import (
-    Source,  # Assuming Source is the new base class
-)
+from earthkit.plots.sources.single import SingleSource
 
 
-class XarraySource(Source):
+class XarraySource(SingleSource):
     """
     A data source for xarray-like inputs, extending Source with additional support
     for identifying x, y, and z dimensions within an xarray Dataset or DataArray.
