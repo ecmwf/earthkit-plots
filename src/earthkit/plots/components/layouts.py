@@ -41,7 +41,7 @@ def rows_cols(num_subplots, rows=None, columns=None, max_columns=8):
     """
     Calculate the number of rows and columns for a figure with the given number
     of subplots.
-    
+
     Parameters
     ----------
     num_subplots : int
@@ -53,7 +53,7 @@ def rows_cols(num_subplots, rows=None, columns=None, max_columns=8):
         The number of columns in the figure. If not provided, it will be calculated
         based on the number of rows and the number of subplots.
     max_columns : int, optional
-        The maximum number of columns in the figure. Default is 8.    
+        The maximum number of columns in the figure. Default is 8.
     """
 
     if rows is None and columns is None:

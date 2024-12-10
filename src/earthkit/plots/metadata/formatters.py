@@ -22,7 +22,7 @@ import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.schemas import schema
-from earthkit.plots.utils import string_utils, iter_utils
+from earthkit.plots.utils import iter_utils, string_utils
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +146,7 @@ class LayerFormatter(BaseFormatter):
                     value = [metadata.units.format_units(v) for v in value]
         else:
             value = [
-                metadata.labels.extract(source, key)
-                for source in self.layer.sources
+                metadata.labels.extract(source, key) for source in self.layer.sources
             ]
         if isinstance(value, list):
             if len(value) == 1 or iter_utils.all_equal(value):
