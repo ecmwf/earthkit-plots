@@ -4,12 +4,22 @@ import cartopy.crs as ccrs
 import numpy as np
 
 from earthkit.plots.sources.single import SingleSource
+from earthkit.plots.identifiers import U, V
 
 _NO_EARTHKIT_REGRID = False
 try:
     import earthkit.regrid
 except ImportError:
     _NO_EARTHKIT_REGRID = True
+    
+
+
+VARIABLE_KEYS = [
+    "short_name",
+    "standard_name",
+    "long_name",
+    "name",
+]
 
 
 def get_points(dx):
@@ -122,7 +132,7 @@ class EarthkitSource(SingleSource):
     @cached_property
     def z_values(self):
         """The z values of the data."""
-        return self._z_values
+        return self._z_values    
 
     @property
     def crs(self):
@@ -152,3 +162,39 @@ class EarthkitSource(SingleSource):
             except NotImplementedError:
                 pass
         return value
+
+    def extract_u(data, u=None):
+        u_data = None
+        if u is not None:
+            for key in VARIABLE_KEYS:
+                u_data = data.sel(**{key: u})
+                if u_data:
+                    break
+        else:
+            for key in VARIABLE_KEYS:
+                for u_name in U:
+                    u_data = data.sel(**{key: u_name})
+                    if u_data:
+                        break
+                else:
+                    continue
+                break
+        return u_data
+
+    def extract_v(data, v=None):
+        v_data = None
+        if v is not None:
+            for key in VARIABLE_KEYS:
+                v_data = data.sel(**{key: v})
+                if v_data:
+                    break
+        else:
+            for key in VARIABLE_KEYS:
+                for v_name in V:
+                    v_data = data.sel(**{key: v_name})
+                    if v_data:
+                        break
+                else:
+                    continue
+                break
+        return v_data

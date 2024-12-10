@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from earthkit.plots import identifiers
-from earthkit.plots.components.layers import Layer, LayerGroup
+from earthkit.plots.components.layers import Layer
 from earthkit.plots.geo import grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SubplotFormatter,
 )
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source
+from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _OVERRIDE_KWARGS, _STYLE_KWARGS, Contour, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
@@ -247,7 +247,7 @@ class Subplot:
         def decorator(method):
             def wrapper(
                 self,
-                data=None,
+                *args,
                 x=None,
                 y=None,
                 u=None,
@@ -256,8 +256,15 @@ class Subplot:
                 every=None,
                 **kwargs,
             ):
-                u_source = get_source(u, x=x, y=y)
-                v_source = get_source(v, x=x, y=y)                 
+                if not args:
+                    u_source = get_source(u, x=x, y=y)
+                    v_source = get_source(v, x=x, y=y)
+                elif len(args) == 1:
+                    u_source, v_source = get_vector_sources(args[0], x=x, y=y, u=u, v=v)
+                elif len(args) == 2:
+                    u_source = get_source(args[0], x=x, y=y)
+                    v_source = get_source(args[1], x=x, y=y)
+                
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
                 m = getattr(self.ax, method_name or method.__name__)
 
@@ -276,7 +283,7 @@ class Subplot:
 
                 if every is not None:
                     kwargs.pop("regrid_shape", None)
-                    if every==1:
+                    if every == 1:
                         args = [x_values, y_values, u_values, v_values]
                     else:
                         args = [
@@ -287,9 +294,9 @@ class Subplot:
                         ]
                 else:
                     args = [x_values, y_values, u_values, v_values]
-                        
+
                 if colors:
-                    args.append((args[2]**2 + args[3]**2) ** 0.5)
+                    args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
 
                 mappable = m(*args, **kwargs)
                 self.layers.append(Layer([u_source, v_source], mappable, self))

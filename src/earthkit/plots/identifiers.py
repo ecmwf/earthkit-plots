@@ -40,11 +40,12 @@ U = [
     "100u",
     "u100",
     "eastward_wind",
+    "U component of wind",
     "10m_u_component_of_wind",
     "100m_u_component_of_wind",
     "10 metre U wind component",
     "100 metre U wind component",
-    "u_component_of_wind",    
+    "u_component_of_wind",
 ]
 
 V = [
@@ -55,6 +56,7 @@ V = [
     "100v",
     "v100",
     "northward_wind",
+    "V component of wind",
     "10m_v_component_of_wind",
     "100m_v_component_of_wind",
     "10 metre V wind component",

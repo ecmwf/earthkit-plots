@@ -17,13 +17,12 @@ import re
 import matplotlib.pyplot as plt
 
 from earthkit.plots.components.layers import LayerGroup
-from earthkit.plots.components.maps import Map
 from earthkit.plots.components.layouts import rows_cols
+from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
-
 
 
 class Figure:
@@ -54,7 +53,7 @@ class Figure:
     def __init__(self, rows=None, columns=None, size=None, domain=None, **kwargs):
         self.rows = rows
         self.columns = columns
-    
+
         self.fig = None
         self.gridspec = None
 
@@ -69,25 +68,28 @@ class Figure:
         self.subplots = []
         self._last_subplot_location = None
         self._isubplot = 0
-        
+
         self._queue = []
         self._subplot_queue = []
-        
+
         if None not in (self.rows, self.columns):
             self._setup()
 
     def setup(method):
         """Decorator to set up the figure before calling a method."""
+
         def wrapper(self, *args, **kwargs):
             self._setup()
             result = method(self, *args, **kwargs)
             return result
 
         return wrapper
-    
+
     def _setup(self):
         self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
-        self.gridspec = self.fig.add_gridspec(self.rows, self.columns, **self._gridspec_kwargs)
+        self.gridspec = self.fig.add_gridspec(
+            self.rows, self.columns, **self._gridspec_kwargs
+        )
 
     def defer_until_setup(method):
         def wrapper(self, *args, **kwargs):
@@ -95,16 +97,18 @@ class Figure:
                 self._queue.append((method, args, kwargs))
             else:
                 return method(self, *args, **kwargs)
+
         return wrapper
-    
+
     def defer_subplot(method):
         def wrapper(self, *args, **kwargs):
             if self.rows is None or self.columns is None:
                 self._subplot_queue.append((method, args, kwargs))
             else:
                 return method(self, *args, **kwargs)
+
         return wrapper
-        
+
     def __len__(self):
         return len(self.subplots)
 
@@ -138,11 +142,11 @@ class Figure:
             success = False
             for subplot in self.subplots:
                 # try:
-                    getattr(subplot, method.__name__)(*args, **kwargs)
-                    success = True
-                # except (NotImplementedError, AttributeError):
-                #     continue
-            if not success:                
+                getattr(subplot, method.__name__)(*args, **kwargs)
+                success = True
+            # except (NotImplementedError, AttributeError):
+            #     continue
+            if not success:
                 raise NotImplementedError(
                     f"No subplots have method '{method.__name__}'"
                 )
@@ -156,7 +160,9 @@ class Figure:
             if not hasattr(data, "__len__"):
                 data = [data]
             if not self.subplots:
-                self.rows, self.columns = rows_cols(len(data), rows=self.rows, columns=self.columns)
+                self.rows, self.columns = rows_cols(
+                    len(data), rows=self.rows, columns=self.columns
+                )
                 self._setup()
                 for _ in range(len(data)):
                     self.add_map()
@@ -443,7 +449,10 @@ class Figure:
         for subplot in self.subplots:
             if draw_labels:
                 subplot_draw_labels = [item for item in draw_labels]
-                if sharex and all(sp.domain == subplot.domain for sp in [s for s in self.subplots if s.column == subplot.column]):
+                if sharex and all(
+                    sp.domain == subplot.domain
+                    for sp in [s for s in self.subplots if s.column == subplot.column]
+                ):
                     if "top" in draw_labels and subplot.row != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "top"
@@ -454,7 +463,10 @@ class Figure:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "bottom"
                         ]
-                if sharey and all(sp.domain == subplot.domain for sp in [s for s in self.subplots if s.row == subplot.row]):
+                if sharey and all(
+                    sp.domain == subplot.domain
+                    for sp in [s for s in self.subplots if s.row == subplot.row]
+                ):
                     if "left" in draw_labels and subplot.column != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "left"
@@ -523,10 +535,12 @@ class Figure:
     @property
     def _default_title_template(self):
         return self.subplots[0]._default_title_template
-    
+
     def _release_queue(self):
         if self._subplot_queue:
-            self.rows, self.columns = rows_cols(len(self._subplot_queue), rows=self.rows, columns=self.columns)
+            self.rows, self.columns = rows_cols(
+                len(self._subplot_queue), rows=self.rows, columns=self.columns
+            )
             self._setup()
         for item in self._subplot_queue:
             method, args, kwargs = item

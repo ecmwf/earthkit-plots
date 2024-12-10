@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from earthkit.plots.identifiers import find_x, find_y
+from earthkit.plots.identifiers import find_x, find_y, find_u, find_v
 from earthkit.plots.sources.single import SingleSource
 
 
@@ -101,15 +101,29 @@ class XarraySource(SingleSource):
         """Return the original xarray data, if provided."""
         return self._data
 
-    @property
-    def x_values(self):
-        """Returns the inferred or provided x values."""
-        return self._x_values
+    @staticmethod
+    def extract_u(data, u=None):
+        """Return the u-component values of the data, if found."""
+        u_data = None
+        if u is not None:
+            u_data = data[u]
+        else:
+            u_var = find_u(data.data_vars)
+            if u_var:
+                u_data = data[u_var]
+        return u_data
 
-    @property
-    def y_values(self):
-        """Returns the inferred or provided y values."""
-        return self._y_values
+    @staticmethod
+    def extract_v(data, v=None):
+        """Return the v-component values of the data, if found."""
+        v_data = None
+        if v is not None:
+            v_data = data[v]
+        else:
+            v_var = find_v(data.data_vars)
+            if v_var:
+                v_data = data[v_var]
+        return v_data
 
     @property
     def z_values(self):

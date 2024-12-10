@@ -83,7 +83,9 @@ class Layer:
 
     @property
     def _default_title_template(self):
-        if all(source.metadata("type", default="an") == "an" for source in self.sources):
+        if all(
+            source.metadata("type", default="an") == "an" for source in self.sources
+        ):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

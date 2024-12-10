@@ -47,6 +47,11 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
     **kwargs
         Additional keyword arguments to pass to the Source constructor.
     """
+    cls = _get_source_class(*args, data=data)
+    return cls(*args, x=x, y=y, z=z, u=u, v=v, metadata=kwargs)
+
+
+def _get_source_class(*args, data):
     cls = NumpySource
     core_data = data
     if len(args) == 1 and core_data is None:
@@ -56,4 +61,12 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
             cls = XarraySource
         elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
-    return cls(*args, x=x, y=y, z=z, u=u, v=v, metadata=kwargs)
+    return cls
+
+
+def get_vector_sources(data=None, x=None, y=None, u=None, v=None, **kwargs):
+    cls = _get_source_class(data=data)
+    u = cls.extract_u(data, u=u)
+    v = cls.extract_v(data, v=v)
+    return cls(u, x=x, y=y, metadata=kwargs), cls(v, x=x, y=y, metadata=kwargs)
+    
