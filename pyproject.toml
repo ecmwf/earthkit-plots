@@ -57,18 +57,16 @@ urls.Repository = "https://github.com/ecmwf/earthkit-plots/"
 [tool.coverage.run]
 branch = "true"
 
-[tool.isort]
-profile = "black"
+[tool.ruff.lint]
+select = ["F", "E", "W"]
+ignore = ["E501"]
+unfixable = ["F401"]
 
-[tool.pydocstyle]
-add_ignore = [
-  "D1",
-  "D200",
-  "D205",
-  "D400",
-  "D401"
-]
+[tool.ruff.lint.pydocstyle]
 convention = "numpy"
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.setuptools.packages.find]
 include = [

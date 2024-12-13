@@ -174,7 +174,6 @@ class Schema(dict):
         >>> schema.set(font="verdana")
         >>> with schema.set(font="comic sans"):
         ...     print(schema.font)
-        ...
         comic sans
         >>> print(schema.font)
         verdana
