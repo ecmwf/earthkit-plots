@@ -48,7 +48,6 @@ def is_structured(x, y, tol=1e-5):
         True if the data represents a structured grid, i.e., the spacing between
         consecutive points in both x and y is consistent. False otherwise.
     """
-
     x = np.asarray(x)
     y = np.asarray(y)
 

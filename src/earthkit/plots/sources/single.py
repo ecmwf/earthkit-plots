@@ -16,7 +16,6 @@ from collections.abc import Iterable
 from functools import cached_property
 
 import earthkit.data
-
 from earthkit.plots.sources import gridspec
 
 _NO_EARTHKIT_REGRID = False

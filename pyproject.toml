@@ -58,8 +58,20 @@ urls.Repository = "https://github.com/ecmwf/earthkit-plots/"
 branch = "true"
 
 [tool.ruff.lint]
-select = ["F", "E", "W"]
-ignore = ["E501"]
+select = ["F", # Pyflakes
+  "I",  # Isort
+  "D",  # Pydocstyle
+  "E",
+  "W",
+]
+ignore = ["E501",
+  "D1",
+  "D200",
+  "D205",
+  "D400",
+  "D401",
+  "D419"
+]
 unfixable = ["F401"]
 
 [tool.ruff.lint.pydocstyle]

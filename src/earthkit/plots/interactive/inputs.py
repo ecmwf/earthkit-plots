@@ -14,9 +14,9 @@
 
 import warnings
 
-import earthkit.data
 import numpy as np
 
+import earthkit.data
 from earthkit.plots.interactive import times
 
 # from earthkit.plots.schemas import schema

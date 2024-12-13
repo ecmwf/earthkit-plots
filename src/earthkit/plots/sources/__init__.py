@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import earthkit.data as ek_data
-
 from earthkit.plots.sources.earthkit import EarthkitSource
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
