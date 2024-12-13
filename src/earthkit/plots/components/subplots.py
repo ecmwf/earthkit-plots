@@ -15,11 +15,11 @@
 import warnings
 from itertools import cycle
 
-import earthkit.data
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
+import earthkit.data
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
 from earthkit.plots.geo import grids

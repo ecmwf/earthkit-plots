@@ -1,7 +1,6 @@
 import json
 
 import earthkit.data
-
 import earthkit.plots
 
 
