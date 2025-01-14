@@ -1,10 +1,10 @@
 import earthkit.data
 import numpy as np
-import pandas as pd
 import xarray as xr
 
-from earthkit.plots.identifiers import find_x, find_y, find_u, find_v
+from earthkit.plots.identifiers import find_time, find_u, find_v, find_x, find_y
 from earthkit.plots.sources.single import SingleSource
+from earthkit.plots.utils import time_utils
 
 
 class XarraySource(SingleSource):
@@ -37,6 +37,7 @@ class XarraySource(SingleSource):
     """
 
     def __init__(self, dataarray, x=None, y=None, z=None, **kwargs):
+        dataarray = dataarray.squeeze()
         self._xarray_source = dataarray
         if isinstance(dataarray, xr.Dataset):
             if z is not None:
@@ -177,10 +178,19 @@ class XarraySource(SingleSource):
 
     def datetime(self):
         """Get the datetime of the data."""
-        datetimes = [
-            pd.to_datetime(dt).to_pydatetime()
-            for dt in np.atleast_1d(self.data.time.values)
-        ]
+        from datetime import datetime
+        datetimes = None
+        time_coord = find_time(self.data)
+        if time_coord is not None:
+            datetimes = [
+                time_utils.to_pydatetime(dt)
+                for dt in np.atleast_1d(self.data[time_coord])
+            ]
+        else:
+            if all(key in self._xarray_source.attrs for key in ("date", "time")):
+                date = self._xarray_source.attrs["date"]
+                time = self._xarray_source.attrs["time"]
+                datetimes = [datetime.strptime(f"{date}{time:04d}", "%Y%m%d%H%M")]
         return {
             "base_time": datetimes,
             "valid_time": datetimes,

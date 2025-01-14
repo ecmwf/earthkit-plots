@@ -113,6 +113,7 @@ class Style:
         categories=None,
         ticks=None,
         preferred_method="block",
+        resample=None,
         **kwargs,
     ):
         if categories is not None and levels is None:
@@ -125,6 +126,7 @@ class Style:
         )
         self.normalize = normalize
         self.gradients = gradients
+        self.resample = resample
 
         self._units = units
         self._units_label = units_label
@@ -155,9 +157,7 @@ class Style:
 
     def __eq__(self, other):
         keys = ["_levels", "_colors"]
-        return all(
-            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
-        )
+        return compare_attributes(self, other, keys)
 
     def levels(self, data=None):
         """
@@ -326,6 +326,19 @@ class Style:
         kwargs.pop("levels", None)
         return kwargs
 
+    def to_quiver_kwargs(self, data):
+        """
+        Generate `quiver` arguments required for plotting data in this `Style`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to be plotted using this `Style`.
+        """
+        kwargs = self.to_matplotlib_kwargs(data)
+        kwargs.pop("levels", None)
+        return kwargs
+
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""
         return self.pcolormesh(*args, **kwargs)
@@ -349,6 +362,44 @@ class Style:
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         return ax.contourf(x, y, values, *args, **kwargs)
+    
+    def quiver(self, ax, x, y, u, v, *args, **kwargs):
+        """
+        Plot quiver arrows using this `Style`.
+        
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        u : numpy.ndarray
+            The u-component of the data to be plotted.
+        v : numpy.ndarray
+            The v-component of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.quiver`.
+        """
+        cmap = None
+        norm = None
+        kwargs = {**self._kwargs, **kwargs}
+        if self._colors:
+            magnitude = np.sqrt(u ** 2 + v ** 2)
+            kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
+            cmap = kwargs.pop("cmap", None)
+            norm = kwargs.pop("norm", None)
+            if cmap and norm:
+                kwargs["color"] = cmap(norm(magnitude))[0]
+        mappable = ax.quiver(x, y, u, v, *args, **kwargs)
+        mappable.cmap = cmap
+        mappable.norm = norm
+        if cmap is None:
+            mappable._colorbar = False
+        else:
+            mappable._colorbar = True
+        return mappable
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
@@ -666,6 +717,10 @@ class Style:
         """Create a disjoint legend for this `Style`."""
         return styles.legends.disjoint(*args, **kwargs)
 
+    def vector(self, *args, **kwargs):
+        """Create a vector legend for this `Style`."""
+        return styles.legends.vector(*args, **kwargs)
+
     def save_legend_graphic(
         self, filename="legend.png", data=None, transparent=True, **kwargs
     ):
@@ -754,6 +809,14 @@ class Categorical(Style):
         super().__init__(*args, **kwargs)
 
 
+class Quiver(Style):
+    """A style for plotting vector data."""
+    
+    def __init__(self, *args, colors=None, **kwargs):
+        kwargs["legend_style"] = "vector"
+        super().__init__(*args, colors=colors, **kwargs)
+
+
 class Contour(Style):
     """
     A style for plotting contour data.
@@ -796,7 +859,6 @@ class Contour(Style):
         preferred_method="contour",
         **kwargs,
     ):
-
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
         self._line_colors = line_colors
         self.labels = labels
@@ -855,8 +917,8 @@ class Contour(Style):
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         mappable = super().contourf(ax, x, y, values, *args, **kwargs)
-        if self._line_colors is not None:
-            self.contour(ax, x, y, values, *args, **kwargs)
+        # if self._line_colors is not None:
+        #     self.contour(ax, x, y, values, *args, **kwargs)
         return mappable
 
     def contour(self, *args, **kwargs):
@@ -1016,8 +1078,29 @@ class Hatched(Contour):
 
 DEFAULT_STYLE = Style()
 
+DEFAULT_QUIVER_STYLE = Quiver()
+
 _STYLE_KWARGS = list(
     set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
 )
 
-_OVERRIDE_KWARGS = ["labels", "line_colors", "hatches"]
+_OVERRIDE_KWARGS = ["labels"]
+
+
+def compare_attributes(self, other, keys):
+    def is_equal(x, y):
+        # Check if both are numpy arrays
+        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+            return np.array_equal(x, y)
+        # If one is an array and the other isn't, they are not equal
+        elif isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
+            return False
+        # Default to standard equality check for non-array types
+        else:
+            return x == y
+
+    # Use the is_equal function for each key in your check
+    try:
+        return all(is_equal(getattr(self, key, None), getattr(other, key, None)) for key in keys)
+    except ValueError:
+        return False

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from itertools import groupby
-
 
 def symmetrical_iter(lst):
     """
@@ -46,5 +44,7 @@ def all_equal(iterable):
     bool
         True if all elements are equal, False otherwise.
     """
+    from itertools import groupby
+
     g = groupby(iterable)
     return next(g, True) and not next(g, False)

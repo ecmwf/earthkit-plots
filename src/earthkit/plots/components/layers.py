@@ -26,6 +26,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.metadata.formatters import LayerFormatter
@@ -55,6 +56,17 @@ class Layer:
         self.mappable = mappable
         self.subplot = subplot
         self.style = style
+        self._magnitude = None
+    
+    @property
+    def magnitude(self):
+        if self._magnitude is None:
+            if len(self.sources) != 2:
+                raise ValueError("Magnitude can only be calculated for vector data.")
+            self._magnitude = np.sqrt(
+                self.sources[0].values ** 2 + self.sources[1].values ** 2
+            )
+        return self._magnitude
 
     @property
     def fig(self):

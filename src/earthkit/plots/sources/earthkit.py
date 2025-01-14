@@ -3,15 +3,16 @@ from functools import cached_property
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.sources.single import SingleSource
 from earthkit.plots.identifiers import U, V
+from earthkit.plots.sources.single import SingleSource
+from earthkit.plots.schemas import schema
+from datetime import datetime
 
 _NO_EARTHKIT_REGRID = False
 try:
     import earthkit.regrid
 except ImportError:
     _NO_EARTHKIT_REGRID = True
-    
 
 
 VARIABLE_KEYS = [
@@ -61,19 +62,22 @@ class EarthkitSource(SingleSource):
         else:
             # Default to the main data values for z
             z_values = self.data.to_numpy(flatten=False)
-
         if self.gridspec is not None and self.regrid:
             if _NO_EARTHKIT_REGRID:
                 raise ImportError(
                     f"earthkit-regrid is required for plotting data on a"
                     f"'{self.gridspec['grid']}' grid"
                 )
-            x_values, y_values = get_points(1)
+            x_values, y_values = get_points(schema.interpolate_target_resolution)
+            
+            start = datetime.now()
             z_values = earthkit.regrid.interpolate(
                 z_values,
                 self.gridspec.to_dict(),
-                {"grid": [1, 1]},
+                {"grid": [schema.interpolate_target_resolution]*2},
             )
+            print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
+            
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")
@@ -100,16 +104,6 @@ class EarthkitSource(SingleSource):
                 else np.arange(self.data.shape[axis == "x"])
             )
 
-    def _apply_regridding(self, z_values):
-        """Applies regridding to z_values if required and regrid is enabled."""
-        if _NO_EARTHKIT_REGRID:
-            raise ImportError(
-                "earthkit-regrid is required for regridding on this grid."
-            )
-        return earthkit.regrid.interpolate(
-            z_values, self.gridspec.to_dict(), {"grid": [1, 1]}
-        )
-
     @cached_property
     def data(self):
         """Return the original earthkit data."""
@@ -132,7 +126,7 @@ class EarthkitSource(SingleSource):
     @cached_property
     def z_values(self):
         """The z values of the data."""
-        return self._z_values    
+        return self._z_values
 
     @property
     def crs(self):

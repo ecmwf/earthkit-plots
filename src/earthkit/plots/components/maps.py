@@ -136,6 +136,11 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
         """
+        popped_kwargs = []
+        for key in ["style", "levels", "units", "colors"]:
+            if key in kwargs:
+                popped_kwargs.append(key)
+                kwargs.pop(key)
         return self.scatter(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
@@ -232,6 +237,7 @@ class Map(Subplot):
                 include=None,
                 exclude=None,
                 labels=False,
+                special_styles=None,
                 adjust_labels=False,
                 **kwargs,
             ):
@@ -263,8 +269,17 @@ class Map(Subplot):
                 records = reader.records()
 
                 filtered_records = []
+                special_records = []
                 if include is None and exclude is None:
-                    filtered_records = list(reader.records())
+                    if special_styles is not None:
+                        for record in records:
+                            for style in special_styles:
+                                if record.attributes.get(style["key"], None) in style["values"]:
+                                    special_records.append([record, style["kwargs"]])
+                                else:
+                                    filtered_records.append(record)
+                    else:
+                        filtered_records = list(reader.records())
                 else:
                     exclude = (
                         [exclude]
@@ -281,7 +296,12 @@ class Map(Subplot):
                         if (include is None or value in include) and (
                             exclude is None or value not in exclude
                         ):
-                            filtered_records.append(record)
+                            if special_styles is not None:
+                                for style in special_styles:
+                                    if record.attributes.get(style["key"], None) in style["values"]:
+                                        special_records.append([record, style["kwargs"]])
+                            else:
+                                filtered_records.append(record)
                     if exclude is not None:
                         for record in records:
                             if record.attributes.get(default_attribute) in include:
@@ -302,7 +322,17 @@ class Map(Subplot):
                     [record.geometry for record in filtered_records], ccrs.PlateCarree()
                 )
 
-                return self.ax.add_feature(feature, *args, **kwargs)
+                result = self.ax.add_feature(feature, *args, **kwargs)
+                
+                if special_styles is not None:
+                    for _ in special_styles:
+                        for record, style in special_records:
+                            feature = cfeature.ShapelyFeature(
+                                [record.geometry], ccrs.PlateCarree()
+                            )
+                            self.ax.add_feature(feature, *args, **{**kwargs, **style})
+                
+                return result
 
             return wrapper
 

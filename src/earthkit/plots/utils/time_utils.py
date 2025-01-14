@@ -13,22 +13,28 @@
 # limitations under the License.
 
 
-def recursive_dict_update(original_dict, update_dict):
+def to_pydatetime(dt):
     """
-    Recursively update a dictionary with keys and values from another dictionary.
-
+    Convert an arbitrary datetime representation to a Python datetime object.
+    
     Parameters
     ----------
-    original_dict : dict
-        The original dictionary to be updated (in place).
-    update_dict : dict
-        The dictionary containing keys to be updated in the original dictionary.
+    dt : datetime.datetime, numpy.datetime64, or pandas.Timestamp
+        The datetime object to convert.
+    
+    Returns
+    -------
+    datetime.datetime
+        The Python datetime object.
     """
-    import collections
-
-    for k, v in update_dict.items():
-        if isinstance(v, collections.abc.Mapping):
-            original_dict[k] = recursive_dict_update(original_dict.get(k, {}), v)
-        else:
-            original_dict[k] = v
-    return original_dict
+    import pandas as pd
+    from datetime import datetime
+    
+    if hasattr(dt, "isoformat"):
+        # Handle non-numpy datetimes
+        pydatetime = datetime.strptime(dt.isoformat(), "%Y-%m-%dT%H:%M:%S")
+    else:
+        # Handle numpy datetimes
+        pydatetime = pd.to_datetime(dt).to_pydatetime()
+    
+    return pydatetime

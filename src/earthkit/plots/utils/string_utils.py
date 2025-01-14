@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
-
 
 def list_to_human(iterable, conjunction="and", oxford_comma=False):
     """
@@ -67,6 +65,8 @@ def split_camel_case(string):
     >>> split_camel_case("ACamelCaseString")
     ['A', 'Camel', 'Case', 'String']
     """
+    import re
+
     matches = re.finditer(
         ".+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)",
         string,
