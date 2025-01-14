@@ -19,7 +19,7 @@ from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
 
 
-def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwargs):
+def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, **kwargs):
     """
     Get a Source object from the given data.
 
@@ -48,7 +48,7 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
         Additional keyword arguments to pass to the Source constructor.
     """
     cls = _get_source_class(*args, data=data)
-    return cls(*args, x=x, y=y, z=z, u=u, v=v, metadata=kwargs)
+    return cls(*args, x=x, y=y, z=z, u=u, v=v, regrid=regrid, metadata=kwargs)
 
 
 def _get_source_class(*args, data):
@@ -69,4 +69,3 @@ def get_vector_sources(data=None, x=None, y=None, u=None, v=None, **kwargs):
     u = cls.extract_u(data, u=u)
     v = cls.extract_v(data, v=v)
     return cls(u, x=x, y=y, metadata=kwargs), cls(v, x=x, y=y, metadata=kwargs)
-    

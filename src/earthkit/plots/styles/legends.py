@@ -127,3 +127,11 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
     layer.fig.canvas.draw()
 
     return legend
+
+
+def vector(layer, *args, vector_reference=1, **kwargs):
+    qkey = layer.axes[-1].quiverkey(layer.mappable, 1, 1.02, vector_reference, label=f"{vector_reference} {layer.style.units or ''}")
+    uses_cbar = getattr(layer.mappable, "_colorbar", True)
+    cbar = None
+    if uses_cbar:
+        cbar = colorbar(layer, *args, **kwargs)

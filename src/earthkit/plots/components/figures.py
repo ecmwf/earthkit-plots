@@ -421,6 +421,18 @@ class Figure:
         """"""
 
     @iterate_subplots
+    def gridpoints(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
+    def plot(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
+    def pcolormesh(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
     def contourf(self, *args, **kwargs):
         """"""
 
@@ -515,9 +527,55 @@ class Figure:
         if label is None:
             label = self._default_title_template
         label = self.format_string(label, unique, grouped)
+        
+        if y is None:
+            y = self._get_suptitle_y()
+            kwargs = {
+                **{
+                    "verticalalignment": "bottom",
+                    "transform": self.fig.transFigure,
+                },
+                **kwargs,
+            }
 
+        result = self.fig.suptitle(label, y=y, **kwargs)
         self.fig.canvas.draw()
-        return self.fig.suptitle(label, y=y, **kwargs)
+        return result
+
+    def _get_suptitle_y(self):
+        self.fig.canvas.draw()
+        max_title_top = 0
+        renderer = self.fig.canvas.get_renderer()
+        inv_transform = self.fig.transFigure.inverted()
+        for ax in self.fig.axes:
+            title = ax.get_title()
+            if not title:
+                if ax.xaxis.label.get_text():
+                    title = ax.xaxis.label
+                elif ax.yaxis.label.get_text():
+                    title = ax.yaxis.label
+                else:
+                    labels = ax.get_xticklabels()
+                    if labels:
+                        ticklabel_bbox = labels[0].get_window_extent(renderer)
+                        ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
+                        max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
+            if title:
+                # Get the bounding box of the title in display coords
+                title_bbox = title.get_window_extent(renderer)
+
+                # Convert from display coords to figure relative coords
+                bbox_fig = inv_transform.transform(title_bbox)
+                # Update the maximum y position found
+                max_title_top = max(max_title_top, bbox_fig[1][1])
+            else:
+                max_title_top = max(max_title_top, ax.get_position().ymax)
+                
+
+        # Set the suptitle just above the highest title
+        # Adjust the offset as needed
+        return max_title_top + 0.04
+        
 
     def format_string(self, string, unique=True, grouped=True):
         if not grouped:
@@ -571,3 +629,43 @@ class Figure:
         return plt.savefig(
             *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
         )
+    
+    def resize(self):
+        self._release_queue()
+        return resize_figure_to_fit_axes(self.fig)
+
+def resize_figure_to_fit_axes(fig):
+    """
+    Adjust the size of a Matplotlib figure so that it fits its axes perfectly.
+
+    Parameters:
+    - fig: A Matplotlib Figure object.
+    """
+    # Get the current size of the figure and its DPI
+    current_size = fig.get_size_inches()
+    dpi = fig.dpi
+
+    # Initialize variables to find the min/max extents of all axes
+    min_left = 1.0
+    max_right = 0.0
+    min_bottom = 1.0
+    max_top = 0.0
+
+    # Loop through all axes to find the outer bounds
+    for ax in fig.axes:
+        bbox = ax.get_position()
+        min_left = min(min_left, bbox.x0)
+        max_right = max(max_right, bbox.x1)
+        min_bottom = min(min_bottom, bbox.y0)
+        max_top = max(max_top, bbox.y1)
+
+    # Calculate new figure size
+    new_width = (max_right - min_left) * current_size[0]
+    new_height = (max_top - min_bottom) * current_size[1]
+
+    # Resize figure
+    fig.set_size_inches(new_width, new_height)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+    
+
+    return fig

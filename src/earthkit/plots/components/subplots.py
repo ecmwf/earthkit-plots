@@ -19,6 +19,7 @@ import earthkit.data
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
+from cartopy.util import add_cyclic_point
 
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
@@ -28,10 +29,11 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
+from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
-from earthkit.plots.styles import _OVERRIDE_KWARGS, _STYLE_KWARGS, Contour, Style, auto
+from earthkit.plots.styles import DEFAULT_QUIVER_STYLE, _STYLE_KWARGS, Contour, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -155,28 +157,30 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None):
+    def plot_2D(method_name=None, extract_domain=False):
         def decorator(method):
             def wrapper(
                 self,
-                data=None,
+                *args,
                 x=None,
                 y=None,
                 z=None,
                 style=None,
+                every=None,
                 **kwargs,
             ):
+                kwargs.pop("color", None)
                 return self._extract_plottables(
                     method_name or method.__name__,
-                    args=tuple(),
-                    data=data,
+                    args=args,
                     x=x,
                     y=y,
                     z=z,
                     style=style,
+                    every=every,
+                    extract_domain=extract_domain,
                     **kwargs,
                 )
-
             return wrapper
 
         return decorator
@@ -253,7 +257,10 @@ class Subplot:
                 u=None,
                 v=None,
                 colors=False,
-                every=None,
+                style=None,
+                units=None,
+                source_units=None,
+                resample=Regrid(40),
                 **kwargs,
             ):
                 if not args:
@@ -264,14 +271,18 @@ class Subplot:
                 elif len(args) == 2:
                     u_source = get_source(args[0], x=x, y=y)
                     v_source = get_source(args[1], x=x, y=y)
-                
+
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
-                m = getattr(self.ax, method_name or method.__name__)
+                if style is None:
+                    style = DEFAULT_QUIVER_STYLE
+                m = getattr(style, method_name or method.__name__)
 
                 x_values = u_source.x_values
                 y_values = u_source.y_values
                 u_values = u_source.z_values
                 v_values = v_source.z_values
+                
+                resample = style.resample or resample
 
                 if self.domain is not None:
                     x_values, y_values, _, [u_values, v_values] = self.domain.extract(
@@ -281,25 +292,19 @@ class Subplot:
                         source_crs=u_source.crs,
                     )
 
-                if every is not None:
+                if resample is not None:
                     kwargs.pop("regrid_shape", None)
-                    if every == 1:
-                        args = [x_values, y_values, u_values, v_values]
-                    else:
-                        args = [
-                            thin_array(x_values, every=every),
-                            thin_array(y_values, every=every),
-                            thin_array(u_values, every=every),
-                            thin_array(v_values, every=every),
-                        ]
+                    if resample.__class__.__name__ == "Regrid":
+                        kwargs.pop("transform")
+                    args = resample.apply(x_values, y_values, u_values, v_values, source_crs=u_source.crs, target_crs=self.crs, extents=self.ax.get_extent())
                 else:
                     args = [x_values, y_values, u_values, v_values]
 
                 if colors:
                     args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
 
-                mappable = m(*args, **kwargs)
-                self.layers.append(Layer([u_source, v_source], mappable, self))
+                mappable = m(self.ax, *args, **kwargs)
+                self.layers.append(Layer([u_source, v_source], mappable, self, style))
                 if isinstance(u_source._x, str):
                     self.ax.set_xlabel(u_source._x)
                 if isinstance(u_source._y, str):
@@ -322,15 +327,15 @@ class Subplot:
         every=None,
         source_units=None,
         extract_domain=False,
+        regrid=False,
         metadata=None,
         **kwargs,
     ):
+        if method_name.startswith("contour"):
+            regrid = True
         # Step 1: Initialize the source
-        source = get_source(*args, x=x, y=y, z=z, units=source_units, metadata=metadata)
+        source = get_source(*args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid)
         kwargs.update(self._plot_kwargs(source))
-
-        if method_name == "contourf":
-            source.regrid = True
 
         # Step 2: Configure the style
         style = self._configure_style(method_name, style, source, units, kwargs)
@@ -341,27 +346,36 @@ class Subplot:
         # Step 4: Handle specific grid types
         grid_type = source.metadata("gridType", default=None)
         if grid_type == "healpix" and method_name == "pcolormesh":
-            return self._plot_healpix(source, z_values, style, kwargs)
+            mappable =  self._plot_healpix(source, z_values, style, kwargs)
+        elif grid_type == "reduced_gg" and method_name == "pcolormesh":
+            mappable = self._plot_octahedral(source, z_values, style, kwargs)
+        else:
 
-        # if grid_type == "reduced_gg" and method_name == "pcolormesh":
-        #     return self._plot_reduced_gg(source, z_values, style, kwargs)
-
-        # Step 5: Process x, y values, apply sampling if specified
-        x_values, y_values = source.x_values, source.y_values
-        x_values, y_values, z_values = self._apply_sampling(
-            x_values, y_values, z_values, every
-        )
-
-        # Step 6: Domain extraction
-        if self.domain and extract_domain:
-            x_values, y_values, z_values = self.domain.extract(
-                x_values, y_values, z_values, source_crs=source.crs
+            # Step 5: Process x, y values, apply sampling if specified
+            x_values, y_values = source.x_values, source.y_values
+            x_values, y_values, z_values = self._apply_sampling(
+                x_values, y_values, z_values, every
             )
 
-        # Step 7: Plot with or without interpolation
-        mappable = self._plot_with_interpolation(
-            style, method_name, x_values, y_values, z_values, kwargs
-        )
+            # Step 6: Domain extraction
+            if self.domain and extract_domain:
+                x_values, y_values, z_values = self.domain.extract(
+                    x_values, y_values, z_values, source_crs=source.crs
+                )
+
+            if method_name.startswith("contour") and grids.needs_cyclic_point(x_values):
+                n_x = None
+                if len(x_values.shape) != 1:
+                    n_x = x_values.shape[0]
+                    x_values = x_values[0]
+                z_values, x_values = add_cyclic_point(z_values, coord=x_values)
+                if n_x:
+                    x_values = np.tile(x_values, (n_x, 1))
+                    y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
+            # Step 7: Plot with or without interpolation
+            mappable = self._plot_with_interpolation(
+                style, method_name, x_values, y_values, z_values, kwargs
+            )
 
         # Step 8: Store layer and return
         self.layers.append(Layer(source, mappable, self, style))
@@ -371,16 +385,15 @@ class Subplot:
         """Configures style based on method name, style, source, and units."""
         if style:
             return style
-
         style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-        override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
+        # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
         style_class = Contour if method_name.startswith("contour") else Style
 
         return (
             style_class(**{**style_kwargs, "units": units})
             if style_kwargs
             else auto.guess_style(
-                source, units=units or source.units, **override_kwargs
+                source, units=units or source.units
             )
         )
 
@@ -409,19 +422,32 @@ class Subplot:
         kwargs["transform"] = self.crs
         return healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
 
-    def _plot_reduced_gg(self, source, z_values, style, kwargs):
-        """Handles plotting for 'reduced_gg' grid type."""
-        from earthkit.plots.geo import reduced_gg
-
-        kwargs["transform"] = self.crs
-        return reduced_gg.nnshow(
-            z_values,
+    def _plot_octahedral(self, source, z_values, style, kwargs):
+        """Handles plotting for 'healpix' grid type."""
+        from earthkit.plots.geo import octahedral
+        return octahedral.plot_octahedral_grid(
             source.x_values,
             source.y_values,
-            ax=self.ax,
+            z_values,
+            self.ax,
             style=style,
             **kwargs,
         )
+        
+
+    # def _plot_reduced_gg(self, source, z_values, style, kwargs):
+    #     """Handles plotting for 'reduced_gg' grid type."""
+    #     from earthkit.plots.geo import octahedral
+
+    #     kwargs["transform"] = self.crs
+    #     return octahedral.nnshow(
+    #         z_values,
+    #         source.x_values,
+    #         source.y_values,
+    #         ax=self.ax,
+    #         style=style,
+    #         **kwargs,
+    #     )
 
     def _plot_with_interpolation(
         self, style, method_name, x_values, y_values, z_values, kwargs
@@ -508,8 +534,9 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
+            subspec = self.figure.gridspec.subgridspec(self.row+self.column)
             self._ax = self.figure.fig.add_subplot(
-                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
+                subspec, **self._ax_kwargs
             )
         return self._ax
 
@@ -679,11 +706,6 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
         """
 
-    # @schema.boxplot.apply()
-    # @plot_box()
-    # def boxplot(self, *args, **kwargs):
-    #     """"""
-
     @plot_3D(extract_domain=True)
     def pcolormesh(self, *args, **kwargs):
         """
@@ -735,6 +757,7 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
         """
 
+    @schema.contourf.apply()
     @plot_3D(extract_domain=True)
     def contourf(self, *args, **kwargs):
         """

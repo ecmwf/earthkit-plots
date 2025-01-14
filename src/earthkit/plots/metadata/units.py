@@ -21,6 +21,9 @@ Q_ = ureg.Quantity
 
 
 def _pintify(unit_str):
+    if unit_str is None:
+        unit_str = "dimensionless"
+    
     # Replace spaces with dots
     unit_str = unit_str.replace(" ", ".")
 

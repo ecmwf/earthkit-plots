@@ -78,9 +78,9 @@ LONGITUDE = [
 ]
 
 TIME = [
-    "t",
     "time",
     "valid_time",
+    "t",
     "date",
     "dayofyear",
     "month",
@@ -96,6 +96,8 @@ VARIABLE_NAME_PREFERENCE = [
 
 
 def find(array, identity):
+    if array.__class__.__name__ == "DataArray":
+        array = list(array.coords)
     for candidate in identity:
         if candidate in array:
             return candidate

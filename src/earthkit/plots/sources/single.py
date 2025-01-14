@@ -183,10 +183,10 @@ class SingleSource:
     def v_values(self):
         """Returns the v values."""
         return self._v
-    
+
     @property
     def magnitude(self):
-        return (self.u_values ** 2 + self.v_values ** 2) ** 0.5
+        return (self.u_values**2 + self.v_values**2) ** 0.5
 
     @property
     def crs(self):
