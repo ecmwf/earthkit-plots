@@ -43,7 +43,7 @@ _DISJOINT_LEGEND_LOCATIONS = {
 }
 
 
-def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
+def colorbar(layer, *args, ax=None, **kwargs):
     """
     Produce a colorbar for a given layer.
 
@@ -59,6 +59,8 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
         label = layer.format_string(label)
     except (AttributeError, ValueError, KeyError):
         label = ""
+    shrink: float = kwargs.pop("shrink", 0.8)
+    aspect: int = kwargs.pop("aspect", 35)
 
     kwargs = {**layer.style._legend_kwargs, **kwargs}
     kwargs.setdefault("format", lambda x, _: f"{x:g}")
