@@ -1,7 +1,22 @@
-# earthkit-plots
+<p align="center">
+  <picture>
+    <source srcset="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-dark.svg" media="(prefers-color-scheme: dark)">
+    <img src="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-light.svg" height="80">
+  </picture>
+</p>
 
-[![PyPI version fury.io](https://badge.fury.io/py/earthkit-plots.svg)](https://pypi.python.org/pypi/earthkit-plots/)
-[![PyPI pyversions](https://img.shields.io/pypi/pyversions/earthkit-plots.svg)](https://pypi.python.org/pypi/earthkit-plots/)
+<p align="center">
+  <a href="https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity">
+    <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity/incubating_badge.svg" alt="Maturity: Incubating">
+  </a>
+<a href="https://pypi.python.org/pypi/earthkit-plots/">
+    <img src="https://badge.fury.io/py/earthkit-plots.svg" alt="PyPI version fury.io">
+</a>
+<a href="https://pypi.python.org/pypi/earthkit-plots/">
+    <img src="https://img.shields.io/pypi/pyversions/earthkit-plots.svg" alt="PyPI pyversions">
+</a>
+</p>
+
 
 **DISCLAIMER**
 
