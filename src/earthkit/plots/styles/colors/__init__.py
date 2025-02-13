@@ -17,6 +17,24 @@ import numpy as np
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
 
 
+def magics_colors_to_rgb(colors):
+    """
+    Convert a list of Magics colours to RGB.
+
+    Parameters
+    ----------
+    colors : list
+        A list of Magics colours.
+
+    Returns
+    -------
+    list
+        A list of RGB colours.
+    """
+    from earthkit.plots.styles.colors.magics import NAMED_COLORS
+    return [NAMED_COLORS.get(color, color) for color in colors]
+
+
 def expand(colors, levels, extend_colors=0):
     """
     Generate a list of colours from a matplotlib colormap name and some levels.
@@ -112,17 +130,24 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         cmap = colormap(name="", colors=colors, N=N)
     else:
         cmap_colors = colors
+        over_color = (0, 0, 0, 0)
+        under_color = (0, 0, 0, 0)
         if extend == "both":
             cmap_colors = colors[1:-1]
+            over_color = colors[-1]
+            under_color = colors[0]
         elif extend == "min":
             cmap_colors = colors[1:]
+            under_color = colors[0]
         elif extend == "max":
             cmap_colors = colors[:-1]
-        cmap = colormap(name="", colors=cmap_colors, N=len(cmap_colors) - 1)
-        cmap.set_over(colors[-1])
-        cmap.set_under(colors[0])
+            over_color = colors[-1]
+        cmap = colormap(name="", colors=cmap_colors, N=len(color_levels) - 1)
+        cmap.set_over(over_color)
+        cmap.set_under(under_color)
 
     norm = None
+    
     if normalize:
         norm = BoundaryNorm(levels, cmap.N)
 
