@@ -47,7 +47,7 @@ _DISJOINT_LEGEND_LOCATIONS = {
 }
 
 
-def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
+def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, color="black", **kwargs):
     """
     Produce a colorbar for a given layer.
 
@@ -78,7 +78,8 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
         **kwargs,
     )
     cbar.ax.minorticks_off()
-    cbar.ax.tick_params(size=0)
+    cbar.ax.tick_params(size=0, color=color)
+    
 
     if cbar.solids is not None:
         cbar.solids.set(alpha=1)
