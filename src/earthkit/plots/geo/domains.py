@@ -349,6 +349,10 @@ class Domain:
         x = np.array(x)
         y = np.array(y)
         values = np.array(values) if values is not None else None
+        if values is not None and values.ndim == 3:
+            additional_dim = values.shape[-1]
+        else:
+            additional_dim = None
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
             roll_by = None
@@ -409,7 +413,10 @@ class Domain:
                     x = x[bbox].reshape(shape)
                     y = y[bbox].reshape(shape)
                     if values is not None:
-                        values = values[bbox].reshape(shape)
+                        if additional_dim is not None:
+                            values = values[bbox].reshape(shape + (additional_dim,))
+                        else:
+                            values = values[bbox].reshape(shape)
                     if extra_values is not None:
                         extra_values = [v[bbox].reshape(shape) for v in extra_values]
 
