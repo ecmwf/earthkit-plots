@@ -23,6 +23,7 @@ from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.schemas import schema
+from earthkit.plots.quickplot import quickplot
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -39,6 +40,7 @@ __all__ = [
     "Map",
     "schema",
     "styles",
+    "quickplot",
 ]
 
 
