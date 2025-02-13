@@ -4,6 +4,9 @@
 # delimitation of its frontiers or boundaries.
 domains:
   # Domain bounds given as East, West, North, South
+
+  Global: [-180, 180, -90, 90]
+
   Europe:
     bounds: [2502500, 7497500, 752500, 5497500]
     crs:
