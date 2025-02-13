@@ -114,7 +114,7 @@ class Style:
         legend_kwargs=None,
         categories=None,
         ticks=None,
-        preferred_method="grid_cells",
+        preferred_method="contourf",
         resample=None,
         **kwargs,
     ):
