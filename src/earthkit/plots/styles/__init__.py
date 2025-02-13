@@ -123,6 +123,9 @@ class Style:
         self._colors = colors
         if isinstance(self._colors, (list, tuple)) and schema.color_mode == "magics":
             self._colors = magics_colors_to_rgb(self._colors)
+        
+        if isinstance(levels, dict):
+            levels = styles.levels.Levels(**levels) 
         self._levels = (
             levels if isinstance(levels, styles.levels.Levels)
             else styles.levels.Levels(levels, categorical=categories is not None or self.__class__.__name__ == "Categorical")
@@ -859,7 +862,7 @@ class Contour(Style):
     def __init__(
         self,
         colors=None,
-        line_colors="#555",
+        line_colors="viridis_r",
         labels=False,
         label_kwargs=None,
         interpolate=True,
@@ -871,7 +874,7 @@ class Contour(Style):
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
-        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.5)
+        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.75)
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""

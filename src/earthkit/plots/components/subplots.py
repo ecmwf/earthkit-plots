@@ -33,7 +33,7 @@ from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
-from earthkit.plots.styles import DEFAULT_QUIVER_STYLE, _STYLE_KWARGS, Contour, Style, auto
+from earthkit.plots.styles import DEFAULT_QUIVER_STYLE, _STYLE_KWARGS, Contour, Quiver, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -229,6 +229,7 @@ class Subplot:
                 z=None,
                 style=None,
                 every=None,
+                auto_style=False,
                 **kwargs,
             ):
                 return self._extract_plottables(
@@ -239,6 +240,7 @@ class Subplot:
                     z=z,
                     style=style,
                     every=every,
+                    auto_style=auto_style,
                     extract_domain=extract_domain,
                     **kwargs,
                 )
@@ -264,23 +266,23 @@ class Subplot:
                 **kwargs,
             ):
                 if not args:
-                    u_source = get_source(u, x=x, y=y)
-                    v_source = get_source(v, x=x, y=y)
+                    u_source = get_source(u, x=x, y=y, units=source_units)
+                    v_source = get_source(v, x=x, y=y, units=source_units)
                 elif len(args) == 1:
-                    u_source, v_source = get_vector_sources(args[0], x=x, y=y, u=u, v=v)
+                    u_source, v_source = get_vector_sources(args[0], x=x, y=y, u=u, v=v, units=source_units)
                 elif len(args) == 2:
-                    u_source = get_source(args[0], x=x, y=y)
-                    v_source = get_source(args[1], x=x, y=y)
+                    u_source = get_source(args[0], x=x, y=y, units=source_units)
+                    v_source = get_source(args[1], x=x, y=y, units=source_units)
 
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
-                if style is None:
-                    style = DEFAULT_QUIVER_STYLE
+                
+                style = self._configure_style(method_name or method.__name__, style, u_source, units, False, kwargs)
                 m = getattr(style, method_name or method.__name__)
 
                 x_values = u_source.x_values
                 y_values = u_source.y_values
-                u_values = u_source.z_values
-                v_values = v_source.z_values
+                u_values = style.convert_units(u_source.z_values, u_source.units)
+                v_values = style.convert_units(v_source.z_values, v_source.units)
                 
                 resample = style.resample or resample
 
@@ -328,6 +330,7 @@ class Subplot:
         every=None,
         source_units=None,
         extract_domain=False,
+        auto_style=False,
         regrid=False,
         metadata=None,
         **kwargs,
@@ -339,7 +342,7 @@ class Subplot:
         kwargs.update(self._plot_kwargs(source))
 
         # Step 2: Configure the style
-        style = self._configure_style(method_name, style, source, units, kwargs)
+        style = self._configure_style(method_name, style, source, units, auto_style, kwargs)
 
         # Step 3: Process z values
         z_values = self._process_z_values(style, source, z)
@@ -391,21 +394,19 @@ class Subplot:
         self.layers.append(Layer(source, mappable, self, style))
         return mappable
 
-    def _configure_style(self, method_name, style, source, units, kwargs):
+    def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
         """Configures style based on method name, style, source, and units."""
         if style:
             return style
         style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
         # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
-        style_class = Contour if method_name.startswith("contour") else Style
-
-        return (
+        style_class = Contour if method_name.startswith("contour") else (Quiver if method_name in ["quiver", "barbs"] else Style)
+        style = (
             style_class(**{**style_kwargs, "units": units})
-            if style_kwargs
-            else auto.guess_style(
-                source, units=units or source.units
-            )
+            if not auto_style
+            else auto.guess_style(source, units=units or source.units)
         )
+        return style
 
     def _process_z_values(self, style, source, z):
         """Processes z values by converting units and applying a scale factor."""
@@ -665,6 +666,8 @@ class Subplot:
             self.ax.annotate(label, (x, y), **kwargs)
 
     def plot(self, data, style=None, units=None, **kwargs):
+        if not kwargs.pop("auto_style", True):
+            warnings.warn("`auto_style` cannot be switched off for `plot`.")
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)
@@ -674,7 +677,7 @@ class Subplot:
                 method = self.grid_cells
         else:
             method = getattr(self, style._preferred_method)
-        return method(data, style=style, units=units, **kwargs)
+        return method(data, style=style, units=units, auto_style=True, **kwargs)
     
     def hsv_composite(self, *args):
         from matplotlib import colors
@@ -786,7 +789,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D()
+    @plot_2D(extract_domain=True)
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.

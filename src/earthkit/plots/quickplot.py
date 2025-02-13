@@ -14,6 +14,7 @@ def quickplot(
     rows=None,
     columns=None,
     domain=None,
+    crs=None,
     methods="plot",
     mode="subplots",
     groupby=None,
@@ -81,7 +82,7 @@ def quickplot(
         units = [units] * len(args)
     
     for i, (group_val, group_args) in enumerate(grouped_data.items()):
-        subplot = figure.add_map(domain=domain)
+        subplot = figure.add_map(domain=domain, crs=crs)
         
         if isinstance(group_args, FieldList):
             for j, (arg, method) in enumerate(zip(group_args, methods)):
