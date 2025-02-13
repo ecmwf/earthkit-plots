@@ -48,3 +48,26 @@ def all_equal(iterable):
 
     g = groupby(iterable)
     return next(g, True) and not next(g, False)
+
+
+def flatten(lst):
+    """
+    Flatten a nested list.
+    
+    Parameters
+    ----------
+    lst : list
+        The list to flatten.
+    
+    Returns
+    -------
+    list
+        The flattened list.
+    """
+    flat_list = []
+    for item in lst:
+        if isinstance(item, list):
+            flat_list.extend(flatten(item))
+        else:
+            flat_list.append(item)
+    return flat_list
