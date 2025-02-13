@@ -23,7 +23,7 @@ from cartopy.util import add_cyclic_point
 
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
-from earthkit.plots.geo import grids
+from earthkit.plots.geo import grids, coordinate_reference_systems
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
     SourceFormatter,
@@ -323,6 +323,7 @@ class Subplot:
         y=None,
         z=None,
         style=None,
+        no_style=False,
         units=None,
         every=None,
         source_units=None,
@@ -356,9 +357,12 @@ class Subplot:
             x_values, y_values, z_values = self._apply_sampling(
                 x_values, y_values, z_values, every
             )
+            
+            if no_style and z_values is None:
+                z_values = kwargs.pop("c", None)
 
             # Step 6: Domain extraction
-            if self.domain and extract_domain:
+            if self.domain and extract_domain and not no_style:
                 x_values, y_values, z_values = self.domain.extract(
                     x_values, y_values, z_values, source_crs=source.crs
                 )
@@ -373,9 +377,15 @@ class Subplot:
                     x_values = np.tile(x_values, (n_x, 1))
                     y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
             # Step 7: Plot with or without interpolation
-            mappable = self._plot_with_interpolation(
-                style, method_name, x_values, y_values, z_values, kwargs
-            )
+            if "transform_first" in kwargs:
+                if self.crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
+                    kwargs["transform_first"] = False
+            if not no_style:
+                mappable = self._plot_with_interpolation(
+                    style, method_name, x_values, y_values, z_values, kwargs
+                )
+            else:
+                mappable = getattr(self.ax, method_name)(x_values, y_values, z_values, **kwargs)
 
         # Step 8: Store layer and return
         self.layers.append(Layer(source, mappable, self, style))
@@ -654,12 +664,104 @@ class Subplot:
         for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), **kwargs)
 
-    def plot(self, *args, style=None, **kwargs):
-        if style is not None:
-            method = getattr(self, style._preferred_method)
+    def plot(self, data, style=None, units=None, **kwargs):
+        source = get_source(data)
+        if style is None:
+            auto_style = auto.guess_style(source, units=units, **kwargs)
+            if auto_style is not None:
+                method = getattr(self, auto_style._preferred_method)
+            else:
+                method = self.grid_cells
         else:
-            method = self.block
-        return method(*args, style=style, **kwargs)
+            method = getattr(self, style._preferred_method)
+        return method(data, style=style, units=units, **kwargs)
+    
+    def hsv_composite(self, *args):
+        from matplotlib import colors
+        import xarray as xr
+        if len(args) == 1:
+            red, green, blue = args[0]
+        else:
+            red, green, blue = args
+            
+        red_source = get_source(red)
+        green_source = get_source(green)
+        blue_source = get_source(blue)
+        
+        x_values = red_source.x_values
+        y_values = red_source.y_values
+        
+        red = (red_source.z_values - red_source.z_values.min()) / (red_source.z_values.max() - red_source.z_values.min())
+        green=  (green_source.z_values - green_source.z_values.min()) / (green_source.z_values.max() - green_source.z_values.min())
+        blue = (blue_source.z_values - blue_source.z_values.min()) / (blue_source.z_values.max() - blue_source.z_values.min())
+        
+        rgb = np.stack((red, green, blue), axis=-1)
+        
+        if x_values.ndim == 2:
+            x_values = x_values[0, :]  # Extract unique x-coordinates
+        if y_values.ndim == 2:
+            y_values = y_values[:, 0]  # Extract unique y-coordinates
+        
+        # Turn RGB into an xarray
+        rgb = xr.DataArray(
+            rgb,
+            coords={
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
+                "rgb": ["red", "green", "blue"]
+            },
+            dims=["y", "x", "rgb"]
+        )        
+        
+        result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
+        
+        self.layers[-1].sources = [red_source, green_source, blue_source]
+        
+        return result
+    
+    def rgb_composite(self, *args):
+        import xarray as xr
+        if len(args) == 1:
+            red, green, blue = args[0]
+        else:
+            red, green, blue = args
+            
+        red_source = get_source(red)
+        green_source = get_source(green)
+        blue_source = get_source(blue)
+        
+        x_values = red_source.x_values
+        y_values = red_source.y_values
+        
+        red = (red_source.z_values - red_source.z_values.min()) / (red_source.z_values.max() - red_source.z_values.min())
+        green=  (green_source.z_values - green_source.z_values.min()) / (green_source.z_values.max() - green_source.z_values.min())
+        blue = (blue_source.z_values - blue_source.z_values.min()) / (blue_source.z_values.max() - blue_source.z_values.min())
+        
+        rgb = np.stack((red, green, blue), axis=-1)
+        
+        if x_values.ndim == 2:
+            x_values = x_values[0, :]  # Extract unique x-coordinates
+        if y_values.ndim == 2:
+            y_values = y_values[:, 0]  # Extract unique y-coordinates
+        
+        # Turn RGB into an xarray
+        rgb = xr.DataArray(
+            rgb,
+            coords={
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
+                "rgb": ["red", "green", "blue"]
+            },
+            dims=["y", "x", "rgb"]
+        )        
+        
+        result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
+        
+        self.layers[-1].sources = [red_source, green_source, blue_source]
+        
+        return result
+        
+        
 
     @plot_2D()
     def bar(self, *args, **kwargs):
@@ -756,6 +858,10 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
         """
+    
+    @schema.isolines.apply()
+    def isolines(self, *args, **kwargs):
+        return self.contour(*args, **kwargs)
 
     @schema.contourf.apply()
     @plot_3D(extract_domain=True)
@@ -916,7 +1022,15 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.barbs`.
         """
 
-    block = pcolormesh
+    def block(self, *args, **kwargs):
+        import warnings
+        warnings.warn(
+            "block is deprecated and will be removed in a future release. "
+            "Please use grid_cells instead."
+        )
+        return self.pcolormesh(*args, **kwargs)
+    
+    grid_cells = pcolormesh
 
     @schema.legend.apply()
     def legend(self, style=None, location=None, **kwargs):
@@ -976,10 +1090,17 @@ class Subplot:
         if label is None:
             label = self._default_title_template
         label = self.format_string(label, unique)
-        plt.sca(self.ax)
+        if "fontsize" not in kwargs:
+            if self.figure.rows * self.figure.columns >= 10:
+                scale_factor = 0.8
+            elif self.figure.rows * self.figure.columns >= 4:
+                scale_factor = 0.9
+            else:
+                scale_factor = 1.0
+            kwargs["fontsize"] = schema.reference_fontsize * scale_factor
         if capitalize:
             label = label[0].upper() + label[1:]
-        return plt.title(label, wrap=wrap, **kwargs)
+        return self.ax.set_title(label, wrap=wrap, **kwargs)
 
     def format_string(self, string, unique=True, grouped=True):
         """
