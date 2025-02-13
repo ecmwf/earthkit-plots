@@ -50,7 +50,7 @@ class Figure:
         Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
     """
 
-    def __init__(self, rows=None, columns=None, size=None, domain=None, **kwargs):
+    def __init__(self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs):
         self.rows = rows
         self.columns = columns
 
@@ -64,6 +64,7 @@ class Figure:
         self._gridspec_kwargs = kwargs
 
         self._domain = domain
+        self._crs = crs
 
         self.subplots = []
         self._last_subplot_location = None
@@ -208,7 +209,7 @@ class Figure:
         return subplot
 
     @defer_subplot
-    def add_map(self, row=None, column=None, domain=None, **kwargs):
+    def add_map(self, row=None, column=None, domain=None, crs=None, **kwargs):
         """
         Add a map to the figure.
 
@@ -226,8 +227,10 @@ class Figure:
         """
         if domain is None:
             domain = self._domain
+        if crs is None:
+            crs = self._crs
         row, column = self._determine_row_column(row, column)
-        subplot = Map(row=row, column=column, domain=domain, figure=self, **kwargs)
+        subplot = Map(row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -493,7 +496,7 @@ class Figure:
                 subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
 
-    @schema.title.apply()
+    @schema.suptitle.apply()
     def title(self, label=None, unique=True, grouped=True, y=None, **kwargs):
         """
         Add a top-level title to the chart.
@@ -530,13 +533,6 @@ class Figure:
         
         if y is None:
             y = self._get_suptitle_y()
-            kwargs = {
-                **{
-                    "verticalalignment": "bottom",
-                    "transform": self.fig.transFigure,
-                },
-                **kwargs,
-            }
 
         result = self.fig.suptitle(label, y=y, **kwargs)
         self.fig.canvas.draw()
@@ -547,34 +543,45 @@ class Figure:
         max_title_top = 0
         renderer = self.fig.canvas.get_renderer()
         inv_transform = self.fig.transFigure.inverted()
+        
         for ax in self.fig.axes:
+            # Check if the subplot has a title
             title = ax.get_title()
-            if not title:
+            
+            if title:  # If there is a title, we need to handle the title object itself
+                title_obj = ax.title
+                title_bbox = title_obj.get_window_extent(renderer)
+                # Convert from display coords to figure-relative coords
+                bbox_fig = inv_transform.transform(title_bbox)
+                max_title_top = max(max_title_top, bbox_fig[1][1])
+            else:  # No title, check for other elements
                 if ax.xaxis.label.get_text():
-                    title = ax.xaxis.label
+                    title_obj = ax.xaxis.label
                 elif ax.yaxis.label.get_text():
-                    title = ax.yaxis.label
+                    title_obj = ax.yaxis.label
                 else:
                     labels = ax.get_xticklabels()
                     if labels:
                         ticklabel_bbox = labels[0].get_window_extent(renderer)
                         ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
                         max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
-            if title:
-                # Get the bounding box of the title in display coords
-                title_bbox = title.get_window_extent(renderer)
-
-                # Convert from display coords to figure relative coords
-                bbox_fig = inv_transform.transform(title_bbox)
-                # Update the maximum y position found
-                max_title_top = max(max_title_top, bbox_fig[1][1])
-            else:
-                max_title_top = max(max_title_top, ax.get_position().ymax)
                 
+                # If we found a title-like object, handle its bbox
+                if 'title_obj' in locals():
+                    title_bbox = title_obj.get_window_extent(renderer)
+                    bbox_fig = inv_transform.transform(title_bbox)
+                    max_title_top = max(max_title_top, bbox_fig[1][1])
+                else:
+                    # Fallback to checking the axis position
+                    max_title_top = max(max_title_top, ax.get_position().ymax)
+                    
+                # Clean up any previous title_obj variable that was used
+                del title_obj
 
         # Set the suptitle just above the highest title
         # Adjust the offset as needed
-        return max_title_top + 0.04
+        return max_title_top + 0.05
+
         
 
     def format_string(self, string, unique=True, grouped=True):
