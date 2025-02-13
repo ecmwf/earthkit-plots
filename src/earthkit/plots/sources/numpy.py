@@ -45,16 +45,6 @@ class NumpySource(SingleSource):
         # Infer x, y, z values from inputs
         self._x_values, self._y_values, self._z_values = self._infer_xyz()
 
-        # Validate dimensions if z is provided
-        # if self._z_values is not None:
-        #     if self._z_values.ndim != 2:
-        #         raise ValueError("z must be a 2D array.")
-        #     if (
-        #         len(self._x_values) != self._z_values.shape[1]
-        #         or len(self._y_values) != self._z_values.shape[0]
-        #     ):
-        #         raise ValueError("Dimensions of z must match the lengths of x and y.")
-
     @cached_property
     def data(self):
         """Returns the data as a NumPy array."""
@@ -114,6 +104,10 @@ class NumpySource(SingleSource):
                 z_values = None
             else:
                 raise ValueError("Insufficient arguments to infer x and y.")
+        
+        # Ensure x and y values are 2D arrays
+        if x_values.ndim == 1:
+            x_values, y_values = np.meshgrid(x_values, y_values)
 
         return x_values, y_values, z_values
 
