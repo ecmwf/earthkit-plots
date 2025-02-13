@@ -21,7 +21,9 @@ from scipy.interpolate import interp1d, make_interp_spline
 
 from earthkit.plots import metadata, styles
 from earthkit.plots.schemas import schema
-from earthkit.plots.styles import auto, colors, legends, levels
+from earthkit.plots.styles import auto, legends, levels
+from earthkit.plots.styles import colors
+from earthkit.plots.styles.colors import magics_colors_to_rgb
 
 __all__ = [
     "colors",
@@ -112,17 +114,18 @@ class Style:
         legend_kwargs=None,
         categories=None,
         ticks=None,
-        preferred_method="block",
+        preferred_method="grid_cells",
         resample=None,
         **kwargs,
     ):
         if categories is not None and levels is None:
             levels = range(len(categories) + 1)
         self._colors = colors
+        if isinstance(self._colors, (list, tuple)) and schema.color_mode == "magics":
+            self._colors = magics_colors_to_rgb(self._colors)
         self._levels = (
-            levels
-            if isinstance(levels, styles.levels.Levels)
-            else styles.levels.Levels(levels)
+            levels if isinstance(levels, styles.levels.Levels)
+            else styles.levels.Levels(levels, categorical=categories is not None or self.__class__.__name__ == "Categorical")
         )
         self.normalize = normalize
         self.gradients = gradients
@@ -806,6 +809,10 @@ class Categorical(Style):
 
     def __init__(self, *args, **kwargs):
         kwargs["legend_style"] = "disjoint"
+        if isinstance(kwargs.get("levels"), dict):
+            kwargs["levels"], kwargs["categories"] = zip(*kwargs["levels"].items())
+        if "categories" not in kwargs:
+            kwargs["categories"] = kwargs.get("levels")
         super().__init__(*args, **kwargs)
 
 

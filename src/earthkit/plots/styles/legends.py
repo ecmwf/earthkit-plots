@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import numpy as np
+import matplotlib.colors as mcolors
+from matplotlib.patches import Rectangle, Patch
+
 
 DEFAULT_LEGEND_LABEL = "{variable_name} ({units})"
 
@@ -55,10 +59,7 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, **kwargs):
         Any keyword arguments accepted by `matplotlib.figures.Figure.colorbar`.
     """
     label = kwargs.pop("label", DEFAULT_LEGEND_LABEL)
-    try:
-        label = layer.format_string(label)
-    except (AttributeError, ValueError, KeyError):
-        label = ""
+    label = layer.format_string(label)
 
     kwargs = {**layer.style._legend_kwargs, **kwargs}
     kwargs.setdefault("format", lambda x, _: f"{x:g}")
@@ -96,19 +97,39 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
     **kwargs
         Any keyword arguments accepted by `matplotlib.figures.Figure.legend`.
     """
-    kwargs.pop("format")  # remove higher-level kwargs which are invalid
+    kwargs.pop("format", None)  # remove higher-level kwargs which are invalid
 
-    label = kwargs.pop("label", DEFAULT_LEGEND_LABEL)
+    label = kwargs.pop("label", "Legend")
     label = layer.format_string(label)
 
     source = layer.axes[0] if len(layer.axes) == 1 else layer.fig
-    location_kwargs = _DISJOINT_LEGEND_LOCATIONS[location]
+    location_kwargs = _DISJOINT_LEGEND_LOCATIONS.get(location, {})
 
-    artists, labels = layer.mappable.legend_elements()
+    # Check if the mappable is from contourf (which has legend_elements)
+    if hasattr(layer.mappable, "legend_elements"):
+        artists, labels = layer.mappable.legend_elements()
+        for artist in artists:
+            if isinstance(artist, Patch):
+                artist.set(linewidth=0.5, edgecolor="#555")
+    else:
+        cmap = layer.mappable.get_cmap()
+        norm = layer.mappable.norm
 
-    kwargs["ncols"] = kwargs.get("ncols", min(6, len(artists)))
+        # Try to extract boundaries directly
+        if isinstance(norm, mcolors.BoundaryNorm):
+            levels = norm.boundaries  # Correct method for unevenly spaced levels
+        elif hasattr(layer.mappable, "colorbar") and hasattr(layer.mappable.colorbar, "boundaries"):
+            levels = layer.mappable.colorbar.boundaries  # Backup if available
+        else:
+            levels = np.linspace(norm.vmin, norm.vmax, cmap.N)  # Fallback, but not ideal
+
+        # Generate color patches manually
+        artists = [Patch(facecolor=cmap(norm(level)), edgecolor="#555", linewidth=0.5) for level in levels]
 
     labels = kwargs.pop("labels", layer.style._bin_labels) or labels
+
+    kwargs["ncols"] = kwargs.get("ncols", estimate_legend_cols(layer.axes, labels, position=location))
+
     legend = source.legend(
         artists,
         labels,
@@ -118,8 +139,7 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
         **{**location_kwargs, **kwargs},
     )
 
-    # Matplotlib removes legends when a new legend is plotted, so we have
-    # to manually re-add them...
+    # Matplotlib removes previous legends, so manually re-add them
     if hasattr(layer.fig, "_previous_legend"):
         layer.fig.add_artist(layer.fig._previous_legend)
     layer.fig._previous_legend = legend
@@ -129,9 +149,49 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
     return legend
 
 
-def vector(layer, *args, vector_reference=1, **kwargs):
-    qkey = layer.axes[-1].quiverkey(layer.mappable, 1, 1.02, vector_reference, label=f"{vector_reference} {layer.style.units or ''}")
+def vector(layer, *args, vector_reference=16, **kwargs):
+    qkey = layer.axes[-1].quiverkey(layer.mappable, 1, 1.02, vector_reference, label=f"{vector_reference} {layer.style.units or '$m s^{-1}$'}")
     uses_cbar = getattr(layer.mappable, "_colorbar", True)
     cbar = None
     if uses_cbar:
         cbar = colorbar(layer, *args, **kwargs)
+
+
+def estimate_legend_cols(axes, labels, position='top'):
+    """
+    Estimates the number of columns for a legend based on the total width or height of a list of axes,
+    the position of the legend, and the lengths of the labels.
+
+    Args:
+    axes (list of matplotlib.axes.Axes): The list of axes objects to which the legend will be aligned.
+    labels (list of str): The labels for the legend.
+    position (str): Position of the legend, choices are 'top', 'bottom', 'left', 'right'.
+
+    Returns:
+    int: Estimated number of columns for the legend.
+    """
+    # Constants for character width in pixels and padding
+    char_width = 6  # rough estimate of character width in pixels
+    padding = 40  # additional padding around labels in pixels
+
+    # Calculate total width of each label
+    label_widths = [len(label) * char_width + padding for label in labels]
+
+    if position in ['top', 'bottom']:
+        # Calculate the total width of all axes
+        total_width = sum(ax.get_position().width for ax in axes)
+        available_width = total_width * axes[0].figure.get_figwidth() * axes[0].figure.dpi
+    else:  # 'left', 'right'
+        # Calculate the total height of all axes
+        total_height = sum(ax.get_position().height for ax in axes)
+        available_width = total_height * axes[0].figure.get_figheight() * axes[0].figure.dpi
+
+    # Sum of label widths
+    total_label_width = np.sum(label_widths)
+
+    # Calculate the number of columns that would fit
+    num_columns = max(1, int(available_width / total_label_width * len(labels)))
+    
+    
+
+    return num_columns

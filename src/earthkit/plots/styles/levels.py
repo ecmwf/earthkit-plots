@@ -16,7 +16,6 @@ import numpy as np
 
 from earthkit.plots.schemas import schema
 
-
 def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels):
     """
     Generate a suitable range of levels for arbitrary input data.
@@ -44,28 +43,27 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
     min_value = np.nanmin(data)
     max_value = np.nanmax(data)
 
+    # Handle edge case where all values are NaN or identical
+    if np.isnan(min_value) or min_value == max_value:
+        return [0] * (n_levels + 1)
+
     # Handle divergence point to center the range
     if divergence_point is not None:
-        max_diff = max(
-            abs(max_value - divergence_point), abs(divergence_point - min_value)
-        )
+        max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
         min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
-    # Calculate the range and initial bin width
+    # Compute a reasonable bin width
     data_range = max_value - min_value
-    initial_bin = data_range / n_levels
+    magnitude = 10 ** np.floor(np.log10(data_range / n_levels))
+    bin_width = round(data_range / n_levels / magnitude) * magnitude
 
-    # Determine the appropriate bin width based on data magnitude
-    magnitude = 10 ** np.floor(np.log10(initial_bin))
-    bin_width = round(initial_bin / magnitude) * magnitude
-
-    # Adjust min and max values to fit into the calculated bin width
+    # Adjust min and max values to align with bin width
     min_value = np.floor(min_value / bin_width) * bin_width
     max_value = np.ceil(max_value / bin_width) * bin_width
 
-    # Create the levels
-    levels = np.linspace(min_value, max_value, n_levels + 1)
-
+    # Ensure levels are evenly spaced and properly aligned
+    levels = np.arange(min_value, max_value + bin_width, bin_width)
+    
     return levels.tolist()
 
 
@@ -110,6 +108,44 @@ def step_range(data, step, reference=None):
         levels = levels[1:]
 
     return levels
+
+
+def categorical_range(values):
+    """
+    Generate a range of levels for categorical data.
+    
+    This can be necessary to make sure that categorical data falls inside the
+    correct bins, as values at the edge of a bin may not be included in the
+    bin.
+
+    Parameters
+    ----------
+    values : numpy.ndarray or xarray.DataArray or earthkit.data.core.Base
+        The data for which to generate a list of levels.
+
+    Returns
+    -------
+    list
+    """
+    # Ensure the values are sorted and unique
+    values = sorted(set(values))
+    
+    # Calculate bin edges
+    if len(values) == 1:
+        # Special case for a single value, create a small bin around it
+        return [values[0] - 0.1, values[0] + 0.1]
+
+    bins = [values[0] - (values[1] - values[0]) / 2]  # First bin edge
+    
+    # Middle bin edges based on midpoints between consecutive values
+    for i in range(1, len(values)):
+        mid_point = (values[i] + values[i - 1]) / 2
+        bins.append(mid_point)
+
+    # Last bin edge
+    bins.append(values[-1] + (values[-1] - values[-2]) / 2)
+    
+    return bins
 
 
 class Levels:
@@ -160,11 +196,16 @@ class Levels:
         step=None,
         reference=None,
         divergence_point=None,
+        categorical=False,
     ):
-        self._levels = levels
+        if categorical and levels is not None:
+            self._levels = categorical_range(levels)
+        else:
+            self._levels = levels
         self._step = step
         self._reference = reference
         self._divergence_point = divergence_point
+        self._categorical = categorical
 
     def apply(self, data):
         """
@@ -180,6 +221,8 @@ class Levels:
         list
         """
         if self._levels is None:
+            if self._categorical:
+                return categorical_range(np.unique(data))
             if self._step is None:
                 return auto_range(data, self._divergence_point)
             else:
