@@ -22,24 +22,31 @@ metadata standards.
 **earthkit-plots** also provides deep levels of customisation to tailor
 visualisations to suit your needs.
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Documentation
-
-   _api/index
 
 .. toctree::
    :maxdepth: 1
    :caption: Examples
-   :titlesonly:
+
+   examples/examples/examples.ipynb
+   examples/gallery/gallery.ipynb
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Documentation
 
    user-guide
-   examples/gallery/gallery.ipynb
+   _api/index
+   development
 
 .. toctree::
    :maxdepth: 1
    :caption: Installation
 
    install
-   development
    licence
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Projects
+
+   earthkit <https://earthkit.readthedocs.io/en/latest>
