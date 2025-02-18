@@ -28,43 +28,48 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
         If provided, force the levels to be centered on this point. Useful for
         parameters that use diverging colors in their style, such as anomalies.
     n_levels : int, optional
-        The number of levels to generate (default is 10).
+        The target number of levels to generate (default is 10).
 
     Returns
     -------
     list
-        A list of levels evenly spaced across the data range.
+        A list of levels spaced across the data range with easy-to-interpret intervals.
     """
-    # Convert data to numpy array if it has the `to_numpy` method
     if hasattr(data, "to_numpy"):
         data = data.to_numpy()
 
-    # Compute min and max values, ignoring NaNs
     min_value = np.nanmin(data)
     max_value = np.nanmax(data)
 
-    # Handle edge case where all values are NaN or identical
     if np.isnan(min_value) or min_value == max_value:
         return [0] * (n_levels + 1)
 
-    # Handle divergence point to center the range
     if divergence_point is not None:
         max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
         min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
-    # Compute a reasonable bin width
     data_range = max_value - min_value
+    step_candidates = [1, 2, 5, 10]
     magnitude = 10 ** np.floor(np.log10(data_range / n_levels))
-    bin_width = round(data_range / n_levels / magnitude) * magnitude
-
-    # Adjust min and max values to align with bin width
-    min_value = np.floor(min_value / bin_width) * bin_width
-    max_value = np.ceil(max_value / bin_width) * bin_width
-
-    # Ensure levels are evenly spaced and properly aligned
-    levels = np.arange(min_value, max_value + bin_width, bin_width)
     
-    return levels.tolist()
+    best_step = None
+    best_levels = None
+    min_diff = float('inf')
+
+    for step_factor in step_candidates:
+        step = step_factor * magnitude
+        levels = np.arange(
+            np.floor(min_value / step) * step,
+            np.ceil(max_value / step) * step + step,
+            step
+        )
+        diff = abs(len(levels) - n_levels)
+        if diff < min_diff:
+            best_step = step
+            best_levels = levels
+            min_diff = diff
+
+    return best_levels.tolist()
 
 
 def step_range(data, step, reference=None):
