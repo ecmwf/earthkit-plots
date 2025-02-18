@@ -69,13 +69,13 @@ class EarthkitSource(SingleSource):
                     f"'{self.gridspec['grid']}' grid"
                 )
             x_values, y_values = get_points(schema.interpolate_target_resolution)
-            start = datetime.now()
+            # start = datetime.now()
             z_values = earthkit.regrid.interpolate(
                 z_values,
                 self.gridspec.to_dict(),
                 {"grid": [schema.interpolate_target_resolution]*2},
             )
-            print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
+            # print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
             
         else:
             x_values = self._extract_coord_values(self._x, axis="x")

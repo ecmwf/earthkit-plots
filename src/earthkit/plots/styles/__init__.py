@@ -286,7 +286,7 @@ class Style:
         kwargs = self.to_matplotlib_kwargs(data)
         kwargs.pop("linewidths", None)
         kwargs.pop("hatches", None)
-        kwargs.pop("line_colors", None)
+        kwargs.pop("linecolors", None)
         kwargs.pop("labels", None)
         return kwargs
 
@@ -315,7 +315,7 @@ class Style:
         kwargs.pop("transform_first", None)
         kwargs.pop("extend", None)
         kwargs.pop("labels", None)
-        kwargs.pop("line_colors", None)
+        kwargs.pop("linecolors", None)
         kwargs.pop("hatches", None)
         return kwargs
 
@@ -468,6 +468,7 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
+        kwargs.pop("labels", None)
         return ax.contour(x, y, values, *args, **kwargs)
 
     def pcolormesh(self, ax, x, y, values, *args, **kwargs):
@@ -560,6 +561,9 @@ class Style:
                 )
         if values is not None:
             kwargs["c"] = kwargs.pop("c", values)
+        if isinstance(kwargs.get("c"), str):
+            kwargs.pop("cmap", None)
+            kwargs.pop("norm", None)
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
@@ -839,7 +843,7 @@ class Contour(Style):
         three (four)-element lists of RGB(A) values), or a pre-defined
         matplotlib colormap object. If not provided, the default colormap of the
         active `schema` will be used.
-    line_colors : str or list or matplotlib.colors.Colormap, optional
+    linecolors : str or list or matplotlib.colors.Colormap, optional
         The colors to be used for contour lines. This can be a named matplotlib
         colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
         three (four)-element lists of RGB(A) values), or a pre-defined
@@ -862,7 +866,7 @@ class Contour(Style):
     def __init__(
         self,
         colors=None,
-        line_colors="viridis_r",
+        linecolors="viridis_r",
         labels=False,
         label_kwargs=None,
         interpolate=True,
@@ -870,7 +874,7 @@ class Contour(Style):
         **kwargs,
     ):
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
-        self._line_colors = line_colors
+        self._linecolors = linecolors
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
@@ -898,7 +902,7 @@ class Contour(Style):
         levels = self.levels(data)
 
         cmap, norm = styles.colors.cmap_and_norm(
-            self._line_colors,
+            self._linecolors,
             levels,
             self.normalize,
             self.extend,
@@ -927,7 +931,7 @@ class Contour(Style):
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         mappable = super().contourf(ax, x, y, values, *args, **kwargs)
-        # if self._line_colors is not None:
+        # if self._linecolors is not None:
         #     self.contour(ax, x, y, values, *args, **kwargs)
         return mappable
 
@@ -1033,10 +1037,10 @@ class Hatched(Contour):
         """
         mappable = super().contourf(*args, hatches=self.hatches, **kwargs)
 
-        line_colors = colors.expand(self._foreground_colors, mappable.levels)
+        linecolors = colors.expand(self._foreground_colors, mappable.levels)
 
         for i, collection in enumerate(mappable.collections):
-            collection.set_edgecolor(line_colors[i])
+            collection.set_edgecolor(linecolors[i])
             collection.set_linewidth(0)
 
         return mappable
@@ -1056,9 +1060,9 @@ class Hatched(Contour):
 
         levels = colorbar.mappable.levels
 
-        line_colors = colors.expand(self._foreground_colors, levels)
+        linecolors = colors.expand(self._foreground_colors, levels)
         for i, artist in enumerate(colorbar.solids_patches):
-            artist.set_edgecolor(line_colors[i])
+            artist.set_edgecolor(linecolors[i])
 
         return colorbar
 
@@ -1077,9 +1081,9 @@ class Hatched(Contour):
         """
         legend = super().disjoint(layer, *args, **kwargs)
 
-        line_colors = colors.expand(self._foreground_colors, layer.mappable.levels)
+        linecolors = colors.expand(self._foreground_colors, layer.mappable.levels)
 
-        for color, artist in zip(line_colors, legend.get_patches()):
+        for color, artist in zip(linecolors, legend.get_patches()):
             artist.set_edgecolor(color)
             artist.set_linewidth(0.0)
 
