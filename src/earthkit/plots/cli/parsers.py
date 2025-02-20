@@ -14,27 +14,34 @@
 
 import yaml
 import earthkit.plots
+from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 
 
 def parse_yaml(file):
     with open(file) as f:
         config = yaml.safe_load(f)
     
+    chart = None
     if "tile" in config:
-        chart = earthkit.plots.components.tiles.Tile(**config["tile"])
+        if "crs" in config["tile"]:
+            config["tile"]["crs"] = parse_crs(config["tile"]["crs"])
+        chart = earthkit.plots.Tile(**config["tile"])
         figure = chart.figure
     else:
         figure = earthkit.plots.Figure(**config.get("figure", {}))
     
     for item in config.get("workflow", []):
         if "subplot" in item:
-            subplot_type = item["subplot"].pop("type", "map")
-            subplot = getattr(figure, f"add_{subplot_type}")(
-                **{
-                    key: value for key, value in item["subplot"].items()
-                    if key != "layers"
-                }
-            )
+            if chart is None:
+                subplot_type = item["subplot"].pop("type", "map")
+                subplot = getattr(figure, f"add_{subplot_type}")(
+                    **{
+                        key: value for key, value in item["subplot"].items()
+                        if key != "layers"
+                    }
+                )
+            else:
+                subplot = chart
             for layer in item["subplot"].get("layers", []):
                 if isinstance(layer, dict):
                     method = list(layer.keys())[0]

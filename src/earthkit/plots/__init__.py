@@ -20,6 +20,7 @@ from matplotlib import font_manager
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
+from earthkit.plots.components.tiles import Tile
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.schemas import schema
