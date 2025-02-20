@@ -45,9 +45,10 @@ class Map(Subplot):
 
     def __init__(self, *args, domain=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if isinstance(crs, str):
+            crs = coordinate_reference_systems.parse_crs(crs)
         if domain is None:
             self.domain = domain
-            self._crs = coordinate_reference_systems.parse_crs(crs)
         else:
             if isinstance(domain, (list, tuple)):
                 if isinstance(domain[0], str):
