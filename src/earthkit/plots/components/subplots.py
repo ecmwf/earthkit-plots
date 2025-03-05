@@ -666,8 +666,23 @@ class Subplot:
             self.ax.annotate(label, (x, y), **kwargs)
 
     def plot(self, data, style=None, units=None, **kwargs):
+        warnings.warn("`plot` is deprecated. Use `quickplot` instead.")
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `plot`.")
+        source = get_source(data)
+        if style is None:
+            auto_style = auto.guess_style(source, units=units, **kwargs)
+            if auto_style is not None:
+                method = getattr(self, auto_style._preferred_method)
+            else:
+                method = self.grid_cells
+        else:
+            method = getattr(self, style._preferred_method)
+        return method(data, style=style, units=units, auto_style=True, **kwargs)
+
+    def quickplot(self, data, style=None, units=None, **kwargs):
+        if not kwargs.pop("auto_style", True):
+            warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)

@@ -49,6 +49,7 @@ class Map(Subplot):
             crs = coordinate_reference_systems.parse_crs(crs)
         if domain is None:
             self.domain = domain
+            self._crs = crs
         else:
             if isinstance(domain, (list, tuple)):
                 if isinstance(domain[0], str):

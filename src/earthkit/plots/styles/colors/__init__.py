@@ -15,6 +15,7 @@
 import matplotlib as mpl
 import numpy as np
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+from earthkit.plots.schemas import schema
 
 
 def magics_colors_to_rgb(colors):
@@ -50,6 +51,9 @@ def expand(colors, levels, extend_colors=0):
         colormap to include under and over colours.
     """
     length = len(levels) + extend_colors
+
+    if colors is None:
+        colors = schema.default_cmap
 
     if isinstance(colors, (list, tuple)) and len(colors) == 1:
         colors *= length - 1
@@ -123,7 +127,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
     N = len(color_levels) + extend_colors - 1
 
     colormap = LinearSegmentedColormap.from_list
-    if len(colors) == N:
+    if colors is not None and len(colors) == N:
         colormap = ListedColormap
 
     if extend_levels:
