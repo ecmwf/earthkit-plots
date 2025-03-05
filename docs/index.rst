@@ -37,6 +37,7 @@ Visualise grids like HEALPix and reduced gaussian without any extra legwork.
 
     This software is **Incubating** and subject to ECMWF's guidelines on `Software Maturity <https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity>`_.
 
+**Quick start**
 
 .. code-block:: python
 
@@ -44,9 +45,6 @@ Visualise grids like HEALPix and reduced gaussian without any extra legwork.
 
 .. image:: images/quickplot-era5-t2m-19931201.png
    :width: 600
-
-**earthkit-plots** also provides deep levels of customisation to tailor
-visualisations to suit your needs.
 
 
 .. toctree::
