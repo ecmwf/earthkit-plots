@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Regrid
+from earthkit.plots.resample import Regrid, resample_factory
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
@@ -285,6 +285,8 @@ class Subplot:
                 v_values = style.convert_units(v_source.z_values, v_source.units)
                 
                 resample = style.resample or resample
+                if isinstance(resample, dict):
+                    resample = resample_factory(**resample)
 
                 if self.domain is not None:
                     x_values, y_values, _, [u_values, v_values] = self.domain.extract(

@@ -17,6 +17,19 @@ import numpy as np
 from scipy.interpolate import griddata
 
 
+def resample_factory(**kargs):
+    """
+    Factory function to create a resampling object based on the provided keyword arguments.
+    """
+    resample_type = kargs.pop("resample_type")
+    if resample_type == "subsample":
+        return Subsample(**kargs)
+    elif resample_type == "regrid":
+        return Regrid(**kargs)
+    else:
+        raise ValueError(f"Unknown resampling type: {resample_type}")
+
+
 class Resample:
     def apply(self, data):
         """
@@ -52,7 +65,7 @@ class Resample:
 
 
 class Subsample(Resample):
-    def __init__(self, *args, nx=None, ny=None, mode="fixed"):
+    def __init__(self, *args, n=None, nx=None, ny=None, mode="fixed"):
         if args:
             if any((nx, ny)):
                 raise ValueError(
@@ -69,6 +82,13 @@ class Subsample(Resample):
                     f"arguments; received {len(args)}"
                 )
         else:
+            if n is not None:
+                if nx is not None or ny is not None:
+                    raise ValueError(
+                        f"{self.__class__.__name__} can take either 'n' or 'nx' and 'ny' "
+                        "keyword arguments, but not a combination of both."
+                    )
+                nx = ny = n
             self.nx = nx
             self.ny = ny
 
