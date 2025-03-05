@@ -350,7 +350,7 @@ class Domain:
         return can_bbox
 
     def extract(
-        self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()
+        self, x, y, values=None, extra_values=None, source_crs=None
     ):
         """
         Slice data to fit the domain. Works for both gridded and unstructured data.
@@ -368,6 +368,9 @@ class Domain:
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the input data.
         """
+        # If source_crs is None, assume PlateCarree
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
         values = np.array(values) if values is not None else None
