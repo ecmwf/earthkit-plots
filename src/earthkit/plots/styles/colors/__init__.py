@@ -15,6 +15,7 @@
 import matplotlib as mpl
 import numpy as np
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+
 from earthkit.plots.schemas import schema
 
 
@@ -33,6 +34,7 @@ def magics_colors_to_rgb(colors):
         A list of RGB colours.
     """
     from earthkit.plots.styles.colors.magics import NAMED_COLORS
+
     return [NAMED_COLORS.get(color, color) for color in colors]
 
 
@@ -151,7 +153,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         cmap.set_under(under_color)
 
     norm = None
-    
+
     if normalize:
         norm = BoundaryNorm(levels, cmap.N)
 

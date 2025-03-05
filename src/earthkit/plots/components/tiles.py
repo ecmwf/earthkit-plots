@@ -16,7 +16,6 @@ from earthkit.plots.components.maps import Map
 
 
 class Tile(Map):
-    
     def save(self, *args, **kwargs):
-        self.ax.axis('off')
+        self.ax.axis("off")
         super().save(*args, pad_inches=0, **kwargs)

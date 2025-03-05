@@ -19,7 +19,9 @@ from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
 
 
-def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, **kwargs):
+def get_source(
+    *args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, **kwargs
+):
     """
     Get a Source object from the given data.
 

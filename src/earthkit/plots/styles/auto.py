@@ -44,7 +44,7 @@ def guess_style(data, units=None, **kwargs):
     """
     if units is None:
         units = data.units
-    
+
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
@@ -98,5 +98,5 @@ def guess_style(data, units=None, **kwargs):
         else:
             # No style matching units found; return default
             return styles.DEFAULT_STYLE
-    
+
     return styles.Style.from_dict({**style, **kwargs})

@@ -154,10 +154,12 @@ class LayerFormatter(BaseFormatter):
             else:
                 value = string_utils.list_to_human(value)
         return value
-    
+
     def format_field(self, value, format_spec):
         if value.startswith("__units__"):
-            return metadata.units.format_units(value.replace("__units__", ""), format_spec)
+            return metadata.units.format_units(
+                value.replace("__units__", ""), format_spec
+            )
         else:
             return super().format_field(value, format_spec)
 

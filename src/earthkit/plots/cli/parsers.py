@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import yaml
+
 import earthkit.plots
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 
@@ -20,7 +21,7 @@ from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 def parse_yaml(file):
     with open(file) as f:
         config = yaml.safe_load(f)
-    
+
     chart = None
     if "tile" in config:
         if "crs" in config["tile"]:
@@ -29,14 +30,15 @@ def parse_yaml(file):
         figure = chart.figure
     else:
         figure = earthkit.plots.Figure(**config.get("figure", {}))
-    
+
     for item in config.get("workflow", []):
         if "subplot" in item:
             if chart is None:
                 subplot_type = item["subplot"].pop("type", "map")
                 subplot = getattr(figure, f"add_{subplot_type}")(
                     **{
-                        key: value for key, value in item["subplot"].items()
+                        key: value
+                        for key, value in item["subplot"].items()
                         if key != "layers"
                     }
                 )
@@ -56,6 +58,6 @@ def parse_yaml(file):
                     method = layer
                     kwargs = {}
                 getattr(subplot, method)(**kwargs)
-    
+
     if "save" in config:
         figure.save(**config["save"])

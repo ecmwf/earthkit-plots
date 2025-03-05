@@ -16,6 +16,7 @@ import numpy as np
 
 from earthkit.plots.schemas import schema
 
+
 def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels):
     """
     Generate a suitable range of levels for arbitrary input data.
@@ -45,27 +46,27 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
         return [0] * (n_levels + 1)
 
     if divergence_point is not None:
-        max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
+        max_diff = max(
+            abs(max_value - divergence_point), abs(divergence_point - min_value)
+        )
         min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
     data_range = max_value - min_value
     step_candidates = [1, 2, 5, 10]
     magnitude = 10 ** np.floor(np.log10(data_range / n_levels))
-    
-    best_step = None
+
     best_levels = None
-    min_diff = float('inf')
+    min_diff = float("inf")
 
     for step_factor in step_candidates:
         step = step_factor * magnitude
         levels = np.arange(
             np.floor(min_value / step) * step,
             np.ceil(max_value / step) * step + step,
-            step
+            step,
         )
         diff = abs(len(levels) - n_levels)
         if diff < min_diff:
-            best_step = step
             best_levels = levels
             min_diff = diff
 
@@ -118,7 +119,7 @@ def step_range(data, step, reference=None):
 def categorical_range(values):
     """
     Generate a range of levels for categorical data.
-    
+
     This can be necessary to make sure that categorical data falls inside the
     correct bins, as values at the edge of a bin may not be included in the
     bin.
@@ -134,14 +135,14 @@ def categorical_range(values):
     """
     # Ensure the values are sorted and unique
     values = sorted(set(values))
-    
+
     # Calculate bin edges
     if len(values) == 1:
         # Special case for a single value, create a small bin around it
         return [values[0] - 0.1, values[0] + 0.1]
 
     bins = [values[0] - (values[1] - values[0]) / 2]  # First bin edge
-    
+
     # Middle bin edges based on midpoints between consecutive values
     for i in range(1, len(values)):
         mid_point = (values[i] + values[i - 1]) / 2
@@ -149,7 +150,7 @@ def categorical_range(values):
 
     # Last bin edge
     bins.append(values[-1] + (values[-1] - values[-2]) / 2)
-    
+
     return bins
 
 

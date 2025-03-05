@@ -16,25 +16,26 @@
 def to_pydatetime(dt):
     """
     Convert an arbitrary datetime representation to a Python datetime object.
-    
+
     Parameters
     ----------
     dt : datetime.datetime, numpy.datetime64, or pandas.Timestamp
         The datetime object to convert.
-    
+
     Returns
     -------
     datetime.datetime
         The Python datetime object.
     """
-    import pandas as pd
     from datetime import datetime
-    
+
+    import pandas as pd
+
     if hasattr(dt, "isoformat"):
         # Handle non-numpy datetimes
         pydatetime = datetime.strptime(dt.isoformat(), "%Y-%m-%dT%H:%M:%S")
     else:
         # Handle numpy datetimes
         pydatetime = pd.to_datetime(dt).to_pydatetime()
-    
+
     return pydatetime
