@@ -23,7 +23,7 @@
 <p align="center">
   <a href="#quick-start">Quick Start</a> •
   <a href="#installation">Installation</a> •
-  <a href="https://earthkit-data.readthedocs.io/en/latest/">Documentation</a>
+  <a href="https://earthkit-plots.readthedocs.io/en/latest/">Documentation</a>
 </p>
 
 > \[!IMPORTANT\]
