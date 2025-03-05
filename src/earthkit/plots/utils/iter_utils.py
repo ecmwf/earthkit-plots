@@ -53,12 +53,12 @@ def all_equal(iterable):
 def flatten(lst):
     """
     Flatten a nested list.
-    
+
     Parameters
     ----------
     lst : list
         The list to flatten.
-    
+
     Returns
     -------
     list

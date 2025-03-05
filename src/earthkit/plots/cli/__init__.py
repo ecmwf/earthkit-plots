@@ -15,15 +15,17 @@
 import argparse
 
 import earthkit.data
+
 import earthkit.plots.quickmap as qmap
 from earthkit.plots.cli.parsers import parse_yaml
 
-parser = argparse.ArgumentParser(description='Process some integers.')
-parser.add_argument('file', type=str, help='File to plot')
+parser = argparse.ArgumentParser(description="Process some integers.")
+parser.add_argument("file", type=str, help="File to plot")
+
 
 def cli():
     args = parser.parse_args()
-    
+
     if any(args.file.endswith(ext) for ext in [".yml", ".yaml"]):
         return parse_yaml(args.file)
     data = earthkit.data.from_source("file", args.file)

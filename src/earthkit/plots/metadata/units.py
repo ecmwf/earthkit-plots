@@ -22,6 +22,7 @@ from earthkit.plots.schemas import schema
 ureg = UnitRegistry()
 Q_ = ureg.Quantity
 
+
 def _convert_whole_numbers(strings):
     """
     Converts strings that are whole numbers with decimals into strings of integers.
@@ -55,18 +56,18 @@ def format_unit_simple(unit, registry, **options):
     # Generating unit string with powers
     unit_str = " * ".join(f"{u} ** {p}" for u, p in unit.items())
     # Split the unit string correctly handling spaces and asterisks
-    units = unit_str.replace(' ', '').split('*')
+    units = unit_str.replace(" ", "").split("*")
     units = _convert_whole_numbers(units)
     formatted_units = []
 
     # Iterate through the split units to format correctly
     i = 0
     while i < len(units):
-        if i + 1 < len(units) and units[i+1] == '':
+        if i + 1 < len(units) and units[i + 1] == "":
             base = units[i]
-            exponent = units[i+2]
-            if exponent != '1':
-                formatted_units.append(f'{base}^{{{exponent}}}')
+            exponent = units[i + 2]
+            if exponent != "1":
+                formatted_units.append(f"{base}^{{{exponent}}}")
             else:
                 formatted_units.append(base)
             i += 3  # move past the base, '**', and exponent
@@ -75,14 +76,14 @@ def format_unit_simple(unit, registry, **options):
             i += 1
 
     # Join all formatted units with LaTeX multiplication, avoiding empty elements
-    latex_string = ' \\cdot '.join(filter(None, formatted_units))
+    latex_string = " \\cdot ".join(filter(None, formatted_units))
     return latex_string
 
 
 def _pintify(unit_str):
     if unit_str is None:
         unit_str = "dimensionless"
-    
+
     # Replace spaces with dots
     unit_str = unit_str.replace(" ", ".")
 

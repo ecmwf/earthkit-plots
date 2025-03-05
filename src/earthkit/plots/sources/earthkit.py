@@ -18,9 +18,8 @@ import cartopy.crs as ccrs
 import numpy as np
 
 from earthkit.plots.identifiers import U, V
-from earthkit.plots.sources.single import SingleSource
 from earthkit.plots.schemas import schema
-from datetime import datetime
+from earthkit.plots.sources.single import SingleSource
 
 _NO_EARTHKIT_REGRID = False
 try:
@@ -87,10 +86,10 @@ class EarthkitSource(SingleSource):
             z_values = earthkit.regrid.interpolate(
                 z_values,
                 self.gridspec.to_dict(),
-                {"grid": [schema.interpolate_target_resolution]*2},
+                {"grid": [schema.interpolate_target_resolution] * 2},
             )
             # print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
-            
+
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")

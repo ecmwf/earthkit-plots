@@ -13,27 +13,25 @@
 # limitations under the License.
 
 import matplotlib.animation as animation
-import matplotlib.pyplot as plt
 
 from earthkit.plots.components.figures import Figure
 
 
 class Animation(Figure):
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._frame_data = []
         self._subplot_titles = None
-    
+
     def contourf(self, data, *args, **kwargs):
         super().contourf(data[0], *args, **kwargs)
         for d in data:
             self._frame_data.append(d)
-    
+
     def subplot_titles(self, label, *args, **kwargs):
         super().subplot_titles(label, *args, **kwargs)
         self._subplot_titles = label
-    
+
     def update(self, frame):
         if self._frame_data:
             data = self._frame_data[frame]
@@ -42,14 +40,14 @@ class Animation(Figure):
             self.subplots[0].contourf(data)
             if self._subplot_titles:
                 self.subplot_titles(self._subplot_titles)
-    
+
     def show(self, interval=100):
         # self._release_queue()
-        from IPython.display import HTML
+
         ani = animation.FuncAnimation(
-                fig=self.fig,
-                func=self.update,
-                frames=len(self._frame_data),
-                interval=interval
-            )
+            fig=self.fig,
+            func=self.update,
+            frames=len(self._frame_data),
+            interval=interval,
+        )
         return ani.to_html5_video()

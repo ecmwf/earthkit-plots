@@ -50,7 +50,9 @@ class Figure:
         Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
     """
 
-    def __init__(self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs):
+    def __init__(
+        self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs
+    ):
         self.rows = rows
         self.columns = columns
 
@@ -230,7 +232,9 @@ class Figure:
         if crs is None:
             crs = self._crs
         row, column = self._determine_row_column(row, column)
-        subplot = Map(row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs)
+        subplot = Map(
+            row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 
@@ -534,7 +538,7 @@ class Figure:
         if label is None:
             label = self._default_title_template
         label = self.format_string(label, unique, grouped)
-        
+
         if y is None:
             y = self._get_suptitle_y()
 
@@ -547,11 +551,11 @@ class Figure:
         max_title_top = 0
         renderer = self.fig.canvas.get_renderer()
         inv_transform = self.fig.transFigure.inverted()
-        
+
         for ax in self.fig.axes:
             # Check if the subplot has a title
             title = ax.get_title()
-            
+
             if title:  # If there is a title, we need to handle the title object itself
                 title_obj = ax.title
                 title_bbox = title_obj.get_window_extent(renderer)
@@ -569,24 +573,22 @@ class Figure:
                         ticklabel_bbox = labels[0].get_window_extent(renderer)
                         ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
                         max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
-                
+
                 # If we found a title-like object, handle its bbox
-                if 'title_obj' in locals():
+                if "title_obj" in locals():
                     title_bbox = title_obj.get_window_extent(renderer)
                     bbox_fig = inv_transform.transform(title_bbox)
                     max_title_top = max(max_title_top, bbox_fig[1][1])
                 else:
                     # Fallback to checking the axis position
                     max_title_top = max(max_title_top, ax.get_position().ymax)
-                    
+
                 # Clean up any previous title_obj variable that was used
                 del title_obj
 
         # Set the suptitle just above the highest title
         # Adjust the offset as needed
         return max_title_top + 0.05
-
-        
 
     def format_string(self, string, unique=True, grouped=True):
         if not grouped:
@@ -640,10 +642,11 @@ class Figure:
         return plt.savefig(
             *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
         )
-    
+
     def resize(self):
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
+
 
 def resize_figure_to_fit_axes(fig):
     """
@@ -654,7 +657,6 @@ def resize_figure_to_fit_axes(fig):
     """
     # Get the current size of the figure and its DPI
     current_size = fig.get_size_inches()
-    dpi = fig.dpi
 
     # Initialize variables to find the min/max extents of all axes
     min_left = 1.0
@@ -677,6 +679,5 @@ def resize_figure_to_fit_axes(fig):
     # Resize figure
     fig.set_size_inches(new_width, new_height)
     fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
-    
 
     return fig

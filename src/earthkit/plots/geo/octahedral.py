@@ -26,6 +26,7 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         data (1D array): 1D data array.
     """
     import matplotlib.collections as mcoll
+
     # Convert longitudes from [0, 360] to [-180, 180]
     lons = np.where(lons > 180, lons - 360, lons)
 
@@ -44,33 +45,43 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         d_lat = d_lats[i_lat]
         if i > 0 and lats[i] != current_lat:
             # We are in a new row, recalculate d_lon
-            d_lon = lons[i+1] - lons[i]  # Assuming that the next point is in the new row
+            d_lon = (
+                lons[i + 1] - lons[i]
+            )  # Assuming that the next point is in the new row
             current_lat = lats[i]
             i_lat += 1
         elif i == 0:
-            d_lon = lons[i+1] - lons[i]
+            d_lon = lons[i + 1] - lons[i]
 
         lon = lons[i]
         lat = lats[i]
         # Define the four corners of each cell, ensuring 5% overlap by reducing edge effect
         lat_pad = d_lat / 20
         lon_pad = d_lon / 20
-        polygons.append([
-            [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
-            [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
-            [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
-            [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad]
-        ])
+        polygons.append(
+            [
+                [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
+                [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
+                [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
+                [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad],
+            ]
+        )
         color_data.append(data[i])
-    
+
     if style is not None:
-        kwargs = {**kwargs, **style.to_pcolormesh_kwargs(data), **{"transform": ccrs.PlateCarree()}}
+        kwargs = {
+            **kwargs,
+            **style.to_pcolormesh_kwargs(data),
+            **{"transform": ccrs.PlateCarree()},
+        }
 
     # Create a PolyCollection with slight overlap to prevent gaps
-    poly_collection = mcoll.PolyCollection(polygons, array=np.array(color_data), edgecolors='none', **kwargs)
-    
+    poly_collection = mcoll.PolyCollection(
+        polygons, array=np.array(color_data), edgecolors="none", **kwargs
+    )
+
     ax.add_collection(poly_collection)
-    
+
     return poly_collection
 
 

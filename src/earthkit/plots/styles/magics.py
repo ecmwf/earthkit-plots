@@ -38,6 +38,4 @@ COASTLINES = {
 }
 
 
-CONTOURING = {
-    
-}
+CONTOURING = {}

@@ -157,7 +157,6 @@ def needs_cyclic_point(lons):
     delta = np.median(np.diff(lons_sorted))  # Robust estimate of the longitude step
 
     actual_min, actual_max = np.min(lons), np.max(lons)
-    actual_range = [actual_min, actual_max]
 
     # Define both possible expected ranges
     expected_range_360 = [0, 360]
@@ -167,9 +166,11 @@ def needs_cyclic_point(lons):
     tolerance = delta / 2  # Adjust tolerance as a fraction of the longitude step
 
     # Check if the actual range covers the expected range within tolerance
-    check_360 = (np.isclose(actual_min, expected_range_360[0], atol=tolerance) and
-                 np.isclose(actual_max, expected_range_360[1] - delta, atol=tolerance))
-    check_180 = (np.isclose(actual_min, expected_range_180[0], atol=tolerance) and
-                 np.isclose(actual_max, expected_range_180[1] - delta, atol=tolerance))
+    check_360 = np.isclose(
+        actual_min, expected_range_360[0], atol=tolerance
+    ) and np.isclose(actual_max, expected_range_360[1] - delta, atol=tolerance)
+    check_180 = np.isclose(
+        actual_min, expected_range_180[0], atol=tolerance
+    ) and np.isclose(actual_max, expected_range_180[1] - delta, atol=tolerance)
 
     return check_360 or check_180

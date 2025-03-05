@@ -82,8 +82,16 @@ class NumpySource(SingleSource):
                 z_values = None
             elif self._data.ndim == 2:
                 # 2D data interpreted as z_values; x and y inferred or provided by keyword
-                x_values = np.arange(self._data.shape[1]) if self._x is None else np.asarray(self._x)
-                y_values = np.arange(self._data.shape[0]) if self._y is None else np.asarray(self._y)
+                x_values = (
+                    np.arange(self._data.shape[1])
+                    if self._x is None
+                    else np.asarray(self._x)
+                )
+                y_values = (
+                    np.arange(self._data.shape[0])
+                    if self._y is None
+                    else np.asarray(self._y)
+                )
                 z_values = self._data
             else:
                 raise ValueError("Positional data must be 1D or 2D.")
@@ -97,12 +105,16 @@ class NumpySource(SingleSource):
             elif self._x is not None:
                 # Only x provided; infer y as index range if not set
                 x_values = np.asarray(self._x)
-                y_values = np.arange(len(x_values)) if self._y is None else np.asarray(self._y)
+                y_values = (
+                    np.arange(len(x_values)) if self._y is None else np.asarray(self._y)
+                )
                 z_values = None
             elif self._y is not None:
                 # Only y provided; infer x as index range if not set
                 y_values = np.asarray(self._y)
-                x_values = np.arange(len(y_values)) if self._x is None else np.asarray(self._x)
+                x_values = (
+                    np.arange(len(y_values)) if self._x is None else np.asarray(self._x)
+                )
                 z_values = None
             else:
                 raise ValueError("Insufficient arguments to infer x and y.")
