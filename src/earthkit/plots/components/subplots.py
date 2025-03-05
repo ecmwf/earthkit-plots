@@ -576,8 +576,9 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
-            subspec = self.figure.gridspec.subgridspec(self.row + self.column)
-            self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
+            self._ax = self.figure.fig.add_subplot(
+                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
+            )
         return self._ax
 
     @property
