@@ -15,7 +15,7 @@ def quickplot(
     columns=None,
     domain=None,
     crs=None,
-    methods="plot",
+    methods="quickplot",
     mode="subplots",
     groupby=None,
     units=None,
@@ -42,7 +42,7 @@ def quickplot(
     groupby : string, optional
         Dimension along which to group the data.
     units : string or list, optional
-        Units of the data.
+        Units to convert the data to.
     **kwargs : dict
         Additional arguments for the plot method(s).
     """

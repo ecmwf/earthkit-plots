@@ -432,6 +432,10 @@ class Figure:
         """"""
 
     @iterate_subplots
+    def quickplot(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
     def pcolormesh(self, *args, **kwargs):
         """"""
 
