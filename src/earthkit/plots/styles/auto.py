@@ -24,6 +24,59 @@ from earthkit.plots.metadata.units import are_equal
 from earthkit.plots.schemas import schema
 
 
+def _find_identity(data, identities_path):
+    identity = None
+    for fname in glob.glob(str(identities_path / "*")):
+
+        if os.path.isfile(fname):
+            with open(fname, "r") as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+        else:
+            continue
+
+        for criteria in config["criteria"]:
+            for key, value in criteria.items():
+                if data.metadata(key, default=None) == value:
+                    identity = config["id"]
+                    break
+            else:
+                continue
+            break
+        else:
+            continue
+        break
+    return identity
+
+
+def _find_style_config(identity, styles_path):
+    style_config = None
+    for fname in glob.glob(str(styles_path / "*")):
+
+        if os.path.isfile(fname):
+            with open(fname, "r") as f:
+                style_config = yaml.load(f, Loader=yaml.SafeLoader)
+        else:
+            continue
+
+        if style_config["id"] == identity:
+            break
+
+    return style_config
+
+
+def _style_from_units(style_config, units):
+    optimal_style = style_config["styles"][style_config["optimal"]]
+    if schema.use_preferred_units:
+        style = optimal_style
+    else:
+        for _, style in style_config["styles"].items():
+            if are_equal(style.get("units"), units):
+                break
+        else:
+            style = optimal_style
+    return style
+
+
 def guess_style(data, units=None, **kwargs):
     """
     Guess the style to be applied to the data based on its metadata.
@@ -42,9 +95,7 @@ def guess_style(data, units=None, **kwargs):
         data, the data will be converted to the target units and the style
         will be adjusted accordingly.
     """
-    if units is None:
-        units = data.units
-    
+
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
@@ -56,47 +107,19 @@ def guess_style(data, units=None, **kwargs):
         identities_path = PLUGINS[schema.style_library]["identities"]
         styles_path = PLUGINS[schema.style_library]["styles"]
 
-    identity = None
-
-    for fname in glob.glob(str(identities_path / "*")):
-        if os.path.isfile(fname):
-            with open(fname, "r") as f:
-                config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
-
-        for criteria in config["criteria"]:
-            for key, value in criteria.items():
-                if data.metadata(key, default=None) == value:
-                    identity = config["id"]
-                    break
-            else:
-                continue
-            break
-        else:
-            continue
-        break
-    else:
-        return styles.DEFAULT_STYLE
-    for fname in glob.glob(str(styles_path / "*")):
-        if os.path.isfile(fname):
-            with open(fname, "r") as f:
-                style_config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
-        if style_config["id"] == identity:
-            break
-    else:
+    # first loop identity files within the identities folder in the style library
+    identity = _find_identity(data, identities_path)
+    if identity is None:
         return styles.DEFAULT_STYLE
 
-    if schema.use_preferred_units:
-        style = style_config["styles"][style_config["optimal"]]
-    else:
-        for _, style in style_config["styles"].items():
-            if are_equal(style.get("units"), units):
-                break
-        else:
-            # No style matching units found; return default
-            return styles.DEFAULT_STYLE
-    
+    # from identity, find the style configuration file
+    style_config = _find_style_config(identity, styles_path)
+    if style_config is None:
+        return styles.DEFAULT_STYLE
+
+    # choose best style from units
+    if units is None:
+        units = data.units
+    style = _style_from_units(style_config, units)
+
     return styles.Style.from_dict({**style, **kwargs})
