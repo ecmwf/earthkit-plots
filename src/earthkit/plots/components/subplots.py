@@ -903,7 +903,7 @@ class Subplot:
             If None, all points are plotted. If an integer or float, the distance is
             in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
             If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is 
+            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
             that number of cells on the plot grid.
             Default is None.
         **kwargs
