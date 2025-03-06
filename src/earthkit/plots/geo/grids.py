@@ -86,7 +86,10 @@ def is_structured(x, y, tol=1e-5):
         return False
 
 
-def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
+def interpolate_unstructured(
+    x, y, z, resolution=1000, method="linear",
+    interpolation_distance_threshold: None | int | str = None,
+):
     """
     Interpolate unstructured data to a structured grid.
 
@@ -147,6 +150,38 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         (grid_x, grid_y),
         method=method,
     )
+
+    if interpolation_distance_threshold is not None:
+        
+        if isinstance(interpolation_distance_threshold, str):
+            if isnumeric(interpolation_distance_threshold):
+                interpolation_distance_threshold = int(interpolation_distance_threshold)
+            else:
+                if interpolation_distance_threshold == 'auto':
+                    npixels = 3
+                elif interpolation_distance_threshold.endswith('px'):
+                    npixels = int(interpolation_distance_threshold[:-2])
+                else:
+                    raise ValueError(
+                        "Invalid value for 'interpolation_distance_threshold'. "
+                        "Expected an integer or a string ending with 'px' or 'auto'."
+                    )
+                # Calculate the resolution of the grid
+                res = (
+                    ((x.max() - x.min()) / resolution)**2 + 
+                    ((y.max() - y.min()) / resolution)**2
+                )**0.5
+                interpolation_distance_threshold = npixels*x_res
+        from scipy.spatial import cKDTree
+        # Use cKDTree to find nearest distances
+        tree = cKDTree(np.c_[x_filtered, y_filtered])
+        grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
+        distances, _ = tree.query(grid_points)
+
+        # Mask points where the nearest source is beyond the threshold
+        grid_z = np.where(distances.reshape(grid_x.shape) <= interpolation_distance_threshold, grid_z, np.nan)
+
+    # grid_z = np.where(grid_z_mask > 1, grid_z, np.nan)
 
     return grid_x, grid_y, grid_z
 

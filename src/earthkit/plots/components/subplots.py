@@ -512,6 +512,9 @@ class Subplot:
                     y_values,
                     z_values,
                     method=kwargs.pop("interpolation_method", "linear"),
+                    interpolation_distance_threshold=kwargs.pop(
+                        "interpolation_distance_threshold", None
+                    ),
                 )
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
