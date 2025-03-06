@@ -510,6 +510,8 @@ class Subplot:
             )
 
         try:
+            # raise ValueError
+            print(1, x_values.shape, y_values.shape, z_values.shape)
             return getattr(style, method_name)(
                 self.ax, x_values, y_values, z_values, **kwargs
             )
@@ -521,6 +523,7 @@ class Subplot:
                     z_values,
                     method=kwargs.pop("interpolation_method", "linear"),
                 )
+                print(x_values.shape, y_values.shape, z_values.shape)
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
