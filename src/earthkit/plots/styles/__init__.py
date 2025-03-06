@@ -371,6 +371,7 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
+        print(x.shape, y.shape, values.shape, kwargs)
         return ax.contourf(x, y, values, *args, **kwargs)
 
     def quiver(self, ax, x, y, u, v, *args, **kwargs):
