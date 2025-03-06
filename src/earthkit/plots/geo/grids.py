@@ -88,7 +88,7 @@ def is_structured(x, y, tol=1e-5):
 
 def interpolate_unstructured(
     x, y, z, resolution=1000, method="linear",
-    interpolation_distance_threshold: None | int | str = None,
+    interpolation_distance_threshold: None | float | int | str = None,
 ):
     """
     Interpolate unstructured data to a structured grid.
@@ -116,6 +116,14 @@ def interpolate_unstructured(
         - 'linear': Linear interpolation between points.
         - 'nearest': Nearest-neighbor interpolation.
         - 'cubic': Cubic interpolation, which may produce smoother results.
+    interpolation_distance_threshold: None | int | float | str, optional
+        A cell will only be plotted if there is at least one data point within this distance.
+        If None, all points are plotted. If an integer or float, the distance is
+        in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
+        If 'auto', the distance is automatically determined based on the plot resolution.
+        If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is 
+        that number of cells on the plot grid.
+        Default is None.
 
     Returns
     -------
@@ -154,24 +162,24 @@ def interpolate_unstructured(
     if interpolation_distance_threshold is not None:
         
         if isinstance(interpolation_distance_threshold, str):
-            if isnumeric(interpolation_distance_threshold):
-                interpolation_distance_threshold = int(interpolation_distance_threshold)
-            else:
+            try:
+                interpolation_distance_threshold = float(interpolation_distance_threshold)
+            except ValueError:
                 if interpolation_distance_threshold == 'auto':
-                    npixels = 3
-                elif interpolation_distance_threshold.endswith('px'):
-                    npixels = int(interpolation_distance_threshold[:-2])
+                    npoints = 3
+                elif interpolation_distance_threshold.endswith('cells'):
+                    npoints = int(interpolation_distance_threshold[:-5].strip(' '))
                 else:
                     raise ValueError(
                         "Invalid value for 'interpolation_distance_threshold'. "
-                        "Expected an integer or a string ending with 'px' or 'auto'."
+                        "Expected an integer or a string ending with 'cells' or 'auto'."
                     )
                 # Calculate the resolution of the grid
                 res = (
                     ((x.max() - x.min()) / resolution)**2 + 
                     ((y.max() - y.min()) / resolution)**2
                 )**0.5
-                interpolation_distance_threshold = npixels*x_res
+                interpolation_distance_threshold = npoints*res
         from scipy.spatial import cKDTree
         # Use cKDTree to find nearest distances
         tree = cKDTree(np.c_[x_filtered, y_filtered])
