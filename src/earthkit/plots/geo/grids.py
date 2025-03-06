@@ -92,7 +92,7 @@ def is_structured(x, y, tol=1e-5):
         # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
         return False
 
-def is_global(x, y, tol=15):
+def is_global(x, y, tol=5):
     """
     Determines whether the x and y points form a global grid.
 
@@ -184,6 +184,8 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
     ]
 
+    lon_delta = np.median(np.diff(np.sort(y)))
+
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
         np.column_stack((x_filtered, y_filtered)),
@@ -191,7 +193,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         (grid_x, grid_y),
         method=method,
     )
-    if np.isnan(grid_z).any() and is_global(x, y):
+    if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
         warnings.warn("Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`.")
         return interpolate_unstructured(x, y, z, resolution=resolution, method="nearest")
 
@@ -199,7 +201,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
 
 
 def needs_cyclic_point(lons):
-    return is_global(lons, np.arange(-90, 90, 2))
+    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(lons, np.arange(-90, 90, 2))
 
     lons = np.asarray(lons)
     lons_sorted = np.sort(lons)
