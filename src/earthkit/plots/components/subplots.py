@@ -23,7 +23,7 @@ from cartopy.util import add_cyclic_point
 
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
-from earthkit.plots.geo import grids, coordinate_reference_systems
+from earthkit.plots.geo import coordinate_reference_systems, grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
     SourceFormatter,
@@ -33,7 +33,7 @@ from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
-from earthkit.plots.styles import DEFAULT_QUIVER_STYLE, _STYLE_KWARGS, Contour, Quiver, Style, auto
+from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
 from earthkit.plots.utils import iter_utils, string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -181,6 +181,7 @@ class Subplot:
                     extract_domain=extract_domain,
                     **kwargs,
                 )
+
             return wrapper
 
         return decorator
@@ -269,21 +270,30 @@ class Subplot:
                     u_source = get_source(u, x=x, y=y, units=source_units)
                     v_source = get_source(v, x=x, y=y, units=source_units)
                 elif len(args) == 1:
-                    u_source, v_source = get_vector_sources(args[0], x=x, y=y, u=u, v=v, units=source_units)
+                    u_source, v_source = get_vector_sources(
+                        args[0], x=x, y=y, u=u, v=v, units=source_units
+                    )
                 elif len(args) == 2:
                     u_source = get_source(args[0], x=x, y=y, units=source_units)
                     v_source = get_source(args[1], x=x, y=y, units=source_units)
 
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
-                
-                style = self._configure_style(method_name or method.__name__, style, u_source, units, False, kwargs)
+
+                style = self._configure_style(
+                    method_name or method.__name__,
+                    style,
+                    u_source,
+                    units,
+                    False,
+                    kwargs,
+                )
                 m = getattr(style, method_name or method.__name__)
 
                 x_values = u_source.x_values
                 y_values = u_source.y_values
                 u_values = style.convert_units(u_source.z_values, u_source.units)
                 v_values = style.convert_units(v_source.z_values, v_source.units)
-                
+
                 resample = style.resample or resample
 
                 if self.domain is not None:
@@ -298,7 +308,15 @@ class Subplot:
                     kwargs.pop("regrid_shape", None)
                     if resample.__class__.__name__ == "Regrid":
                         kwargs.pop("transform")
-                    args = resample.apply(x_values, y_values, u_values, v_values, source_crs=u_source.crs, target_crs=self.crs, extents=self.ax.get_extent())
+                    args = resample.apply(
+                        x_values,
+                        y_values,
+                        u_values,
+                        v_values,
+                        source_crs=u_source.crs,
+                        target_crs=self.crs,
+                        extents=self.ax.get_extent(),
+                    )
                 else:
                     args = [x_values, y_values, u_values, v_values]
 
@@ -338,11 +356,15 @@ class Subplot:
         if method_name.startswith("contour"):
             regrid = True
         # Step 1: Initialize the source
-        source = get_source(*args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid)
+        source = get_source(
+            *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
+        )
         kwargs.update(self._plot_kwargs(source))
 
         # Step 2: Configure the style
-        style = self._configure_style(method_name, style, source, units, auto_style, kwargs)
+        style = self._configure_style(
+            method_name, style, source, units, auto_style, kwargs
+        )
 
         # Step 3: Process z values
         z_values = self._process_z_values(style, source, z)
@@ -350,7 +372,7 @@ class Subplot:
         # Step 4: Handle specific grid types
         grid_type = source.metadata("gridType", default=None)
         if grid_type == "healpix" and method_name == "pcolormesh":
-            mappable =  self._plot_healpix(source, z_values, style, kwargs)
+            mappable = self._plot_healpix(source, z_values, style, kwargs)
         elif grid_type == "reduced_gg" and method_name == "pcolormesh":
             mappable = self._plot_octahedral(source, z_values, style, kwargs)
         else:
@@ -360,7 +382,7 @@ class Subplot:
             x_values, y_values, z_values = self._apply_sampling(
                 x_values, y_values, z_values, every
             )
-            
+
             if no_style and z_values is None:
                 z_values = kwargs.pop("c", None)
 
@@ -381,14 +403,19 @@ class Subplot:
                     y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
             # Step 7: Plot with or without interpolation
             if "transform_first" in kwargs:
-                if self.crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
+                if (
+                    self.crs.__class__
+                    in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST
+                ):
                     kwargs["transform_first"] = False
             if not no_style:
                 mappable = self._plot_with_interpolation(
                     style, method_name, x_values, y_values, z_values, kwargs
                 )
             else:
-                mappable = getattr(self.ax, method_name)(x_values, y_values, z_values, **kwargs)
+                mappable = getattr(self.ax, method_name)(
+                    x_values, y_values, z_values, **kwargs
+                )
 
         # Step 8: Store layer and return
         self.layers.append(Layer(source, mappable, self, style))
@@ -400,7 +427,11 @@ class Subplot:
             return style
         style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
         # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
-        style_class = Contour if method_name.startswith("contour") else (Quiver if method_name in ["quiver", "barbs"] else Style)
+        style_class = (
+            Contour
+            if method_name.startswith("contour")
+            else (Quiver if method_name in ["quiver", "barbs"] else Style)
+        )
         style = (
             style_class(**{**style_kwargs, "units": units})
             if not auto_style
@@ -436,6 +467,7 @@ class Subplot:
     def _plot_octahedral(self, source, z_values, style, kwargs):
         """Handles plotting for 'healpix' grid type."""
         from earthkit.plots.geo import octahedral
+
         return octahedral.plot_octahedral_grid(
             source.x_values,
             source.y_values,
@@ -444,7 +476,6 @@ class Subplot:
             style=style,
             **kwargs,
         )
-        
 
     # def _plot_reduced_gg(self, source, z_values, style, kwargs):
     #     """Handles plotting for 'reduced_gg' grid type."""
@@ -545,9 +576,8 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
-            subspec = self.figure.gridspec.subgridspec(self.row+self.column)
             self._ax = self.figure.fig.add_subplot(
-                subspec, **self._ax_kwargs
+                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
             )
         return self._ax
 
@@ -693,93 +723,104 @@ class Subplot:
         else:
             method = getattr(self, style._preferred_method)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
-    
+
     def hsv_composite(self, *args):
-        from matplotlib import colors
         import xarray as xr
+
         if len(args) == 1:
             red, green, blue = args[0]
         else:
             red, green, blue = args
-            
+
         red_source = get_source(red)
         green_source = get_source(green)
         blue_source = get_source(blue)
-        
+
         x_values = red_source.x_values
         y_values = red_source.y_values
-        
-        red = (red_source.z_values - red_source.z_values.min()) / (red_source.z_values.max() - red_source.z_values.min())
-        green=  (green_source.z_values - green_source.z_values.min()) / (green_source.z_values.max() - green_source.z_values.min())
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (blue_source.z_values.max() - blue_source.z_values.min())
-        
+
+        red = (red_source.z_values - red_source.z_values.min()) / (
+            red_source.z_values.max() - red_source.z_values.min()
+        )
+        green = (green_source.z_values - green_source.z_values.min()) / (
+            green_source.z_values.max() - green_source.z_values.min()
+        )
+        blue = (blue_source.z_values - blue_source.z_values.min()) / (
+            blue_source.z_values.max() - blue_source.z_values.min()
+        )
+
         rgb = np.stack((red, green, blue), axis=-1)
-        
+
         if x_values.ndim == 2:
             x_values = x_values[0, :]  # Extract unique x-coordinates
         if y_values.ndim == 2:
             y_values = y_values[:, 0]  # Extract unique y-coordinates
-        
+
         # Turn RGB into an xarray
         rgb = xr.DataArray(
             rgb,
             coords={
                 "y": y_values,  # Ensure 1D
                 "x": x_values,  # Ensure 1D
-                "rgb": ["red", "green", "blue"]
+                "rgb": ["red", "green", "blue"],
             },
-            dims=["y", "x", "rgb"]
-        )        
-        
+            dims=["y", "x", "rgb"],
+        )
+
         result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
-        
+
         self.layers[-1].sources = [red_source, green_source, blue_source]
-        
+
         return result
-    
+
     def rgb_composite(self, *args):
         import xarray as xr
+
         if len(args) == 1:
             red, green, blue = args[0]
         else:
             red, green, blue = args
-            
+
         red_source = get_source(red)
         green_source = get_source(green)
         blue_source = get_source(blue)
-        
+
         x_values = red_source.x_values
         y_values = red_source.y_values
-        
-        red = (red_source.z_values - red_source.z_values.min()) / (red_source.z_values.max() - red_source.z_values.min())
-        green=  (green_source.z_values - green_source.z_values.min()) / (green_source.z_values.max() - green_source.z_values.min())
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (blue_source.z_values.max() - blue_source.z_values.min())
-        
+
+        red = (red_source.z_values - red_source.z_values.min()) / (
+            red_source.z_values.max() - red_source.z_values.min()
+        )
+        green = (green_source.z_values - green_source.z_values.min()) / (
+            green_source.z_values.max() - green_source.z_values.min()
+        )
+        blue = (blue_source.z_values - blue_source.z_values.min()) / (
+            blue_source.z_values.max() - blue_source.z_values.min()
+        )
+
         rgb = np.stack((red, green, blue), axis=-1)
-        
+
         if x_values.ndim == 2:
             x_values = x_values[0, :]  # Extract unique x-coordinates
         if y_values.ndim == 2:
             y_values = y_values[:, 0]  # Extract unique y-coordinates
-        
+
         # Turn RGB into an xarray
         rgb = xr.DataArray(
             rgb,
             coords={
                 "y": y_values,  # Ensure 1D
                 "x": x_values,  # Ensure 1D
-                "rgb": ["red", "green", "blue"]
+                "rgb": ["red", "green", "blue"],
             },
-            dims=["y", "x", "rgb"]
-        )        
-        
+            dims=["y", "x", "rgb"],
+        )
+
         result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
-        
+
         self.layers[-1].sources = [red_source, green_source, blue_source]
-        
+
         return result
-        
-        
 
     @plot_2D()
     def bar(self, *args, **kwargs):
@@ -876,7 +917,7 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
         """
-    
+
     @schema.isolines.apply()
     def isolines(self, *args, **kwargs):
         return self.contour(*args, **kwargs)
@@ -1042,12 +1083,13 @@ class Subplot:
 
     def block(self, *args, **kwargs):
         import warnings
+
         warnings.warn(
             "block is deprecated and will be removed in a future release. "
             "Please use grid_cells instead."
         )
         return self.pcolormesh(*args, **kwargs)
-    
+
     grid_cells = pcolormesh
 
     @schema.legend.apply()

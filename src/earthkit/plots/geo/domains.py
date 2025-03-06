@@ -14,10 +14,9 @@
 
 import warnings
 
-
-from shapely.geometry import Polygon, Point
 import cartopy.crs as ccrs
 import numpy as np
+from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
 from earthkit.plots.geo.bounds import BoundingBox
@@ -66,7 +65,7 @@ def roll_from_0_360_to_minus_180_180(x):
         The index at which the array crosses 180°.
     """
     x = np.asarray(x)
-    
+
     if x.ndim == 1:
         # Handle 1D longitude array
         idx = np.argwhere(x >= 180)
@@ -75,12 +74,11 @@ def roll_from_0_360_to_minus_180_180(x):
         idx = np.argwhere(x[0] >= 180)
     else:
         raise ValueError("Input array must be 1D or 2D.")
-    
+
     if len(idx) == 0:
         raise ValueError("No longitude values found greater than or equal to 180°.")
-    
-    return idx[0][0]
 
+    return idx[0][0]
 
 
 def roll_from_minus_180_180_to_0_360(x):
@@ -350,7 +348,12 @@ class Domain:
         return can_bbox
 
     def extract(
-        self, x, y, values=None, extra_values=None, source_crs=None,
+        self,
+        x,
+        y,
+        values=None,
+        extra_values=None,
+        source_crs=None,
     ):
         """
         Slice data to fit the domain. Works for both gridded and unstructured data.
@@ -412,7 +415,9 @@ class Domain:
                     if values is not None:
                         values = np.roll(values, roll_by, axis=1)
                     if extra_values is not None:
-                        extra_values = [np.roll(v, roll_by, axis=1) for v in extra_values]
+                        extra_values = [
+                            np.roll(v, roll_by, axis=1) for v in extra_values
+                        ]
 
             if self.can_bbox:
                 # Determine if data is gridded or unstructured
@@ -425,14 +430,18 @@ class Domain:
                         crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
                     ]
                     # Unstructured data: use point-in-polygon
-                    polygon = Polygon([
-                        (_crs_bounds[0], _crs_bounds[2]),
-                        (_crs_bounds[1], _crs_bounds[2]),
-                        (_crs_bounds[1], _crs_bounds[3]),
-                        (_crs_bounds[0], _crs_bounds[3])
-                    ])
+                    polygon = Polygon(
+                        [
+                            (_crs_bounds[0], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[3]),
+                            (_crs_bounds[0], _crs_bounds[3]),
+                        ]
+                    )
                     points = np.vstack([x, y]).T
-                    mask = np.array([polygon.contains(Point(px, py)) for px, py in points])
+                    mask = np.array(
+                        [polygon.contains(Point(px, py)) for px, py in points]
+                    )
 
                     x = x[mask]
                     y = y[mask]
@@ -481,13 +490,14 @@ class Domain:
                             else:
                                 values = values[bbox].reshape(shape)
                         if extra_values is not None:
-                            extra_values = [v[bbox].reshape(shape) for v in extra_values]
+                            extra_values = [
+                                v[bbox].reshape(shape) for v in extra_values
+                            ]
 
         if not extra_values:
             return x, y, values
         else:
             return x, y, values, extra_values
-
 
 
 class PresetDomain(Domain):
@@ -503,4 +513,3 @@ class PresetDomain(Domain):
         if name is None:
             name = self.NAME
         super().__init__(bbox=bbox, crs=crs, name=name)
-

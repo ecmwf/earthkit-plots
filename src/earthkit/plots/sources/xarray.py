@@ -193,6 +193,7 @@ class XarraySource(SingleSource):
     def datetime(self):
         """Get the datetime of the data."""
         from datetime import datetime
+
         datetimes = None
         time_coord = find_time(self.data)
         if time_coord is not None:

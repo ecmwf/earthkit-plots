@@ -43,7 +43,7 @@ class Layer:
         self.subplot = subplot
         self.style = style
         self._magnitude = None
-    
+
     @property
     def magnitude(self):
         if self._magnitude is None:
