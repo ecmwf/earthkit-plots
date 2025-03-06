@@ -900,16 +900,9 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolation_distance_threshold: None | int | float | str, optional
-            A cell will only be plotted if there is at least one data point within this distance.
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh`.
+            Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh` and/or to
+            any `earthkit.plot.geo.grids` interpolation method used.
         """
 
     @schema.contour.apply()
@@ -935,7 +928,8 @@ class Subplot:
             The Style to use for the contour plot. If None, a Style is automatically
             generated based on the data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
+            Additional keyword arguments to pass to `matplotlib.pyplot.contour` and/or to
+            any `earthkit.plot.geo.grids` interpolation method used.
         """
 
     @schema.isolines.apply()
@@ -965,7 +959,8 @@ class Subplot:
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.contourf`.
+            Additional keyword arguments to pass to `matplotlib.pyplot.contourf` and/or to
+            any `earthkit.plot.geo.grids` interpolation method used.
         """
 
     @plot_3D()
