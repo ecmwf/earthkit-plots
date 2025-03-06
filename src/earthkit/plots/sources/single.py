@@ -243,3 +243,6 @@ class SingleSource:
     def datetime(self):
         """Returns the datetime values of the data."""
         return self.metadata("time")
+
+    def mutate(self):
+        return self

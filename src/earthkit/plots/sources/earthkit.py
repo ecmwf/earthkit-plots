@@ -35,6 +35,8 @@ VARIABLE_KEYS = [
     "name",
 ]
 
+AXIS_NAMES = {"x": "lon", "y": "lat"}
+
 
 def get_points(dx):
     """Get points for a grid with a given resolution."""
@@ -68,6 +70,7 @@ class EarthkitSource(SingleSource):
 
     def _infer_xyz(self):
         """Infers x, y, and z values based on inputs."""
+
         # Determine z values
         if isinstance(self._z, str):
             # Select a specific variable for z if specified
@@ -81,6 +84,7 @@ class EarthkitSource(SingleSource):
                     f"earthkit-regrid is required for plotting data on a"
                     f"'{self.gridspec['grid']}' grid"
                 )
+
             x_values, y_values = get_points(schema.interpolate_target_resolution)
             # start = datetime.now()
             z_values = earthkit.regrid.interpolate(
@@ -102,14 +106,19 @@ class EarthkitSource(SingleSource):
             return self.data.sel(short_name=coord).to_numpy(flatten=False)
         else:
             # Automatically infer coordinate values from data dimensions or metadata
-            points = (
-                self.data.to_points(flatten=False)
-                if hasattr(self.data, "to_points")
-                else None
-            )
-            if points:
-                return points[axis]
+            try:
+                points = (
+                    self.data.to_points(flatten=False)
+                    if hasattr(self.data, "to_points")
+                    else None
+                )
+                if points:
+                    return points[axis]
+            except NotImplementedError:
+                pass
+
             latlon = self.data.to_latlon(flatten=False)
+            axis = AXIS_NAMES.get(axis, axis)
             return (
                 latlon[axis]
                 if axis in latlon
