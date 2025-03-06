@@ -4,6 +4,7 @@ docutils
 Pygments>=2.6.1
 Sphinx
 sphinx-rtd-theme
+sphinx_copybutton
 nbsphinx
 setuptools
 sphinx-autoapi

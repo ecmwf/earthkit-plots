@@ -31,6 +31,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "autoapi.extension",
+    "sphinx_copybutton",
 ]
 
 # autodoc configuration
