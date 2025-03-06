@@ -413,6 +413,7 @@ class Subplot:
                     style, method_name, x_values, y_values, z_values, kwargs
                 )
             else:
+                print("Warning: Style not set.")
                 mappable = getattr(self.ax, method_name)(
                     x_values, y_values, z_values, **kwargs
                 )
@@ -617,6 +618,10 @@ class Subplot:
 
     def gridlines(self, *args, **kwargs):
         raise NotImplementedError
+    
+    @plot_2D()
+    def quantiles(self, *args, **kwargs):
+        pass
 
     @plot_2D()
     def line(self, *args, **kwargs):
@@ -647,46 +652,6 @@ class Subplot:
         kwargs.pop("x")
         mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
         self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
-        return mappable
-
-    @schema.envelope.apply()
-    def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.15, **kwargs):
-        prop_cycle = plt.rcParams["axes.prop_cycle"]
-        facecolor = kwargs.pop(
-            "facecolor", kwargs.get("color", next(cycle(prop_cycle.by_key()["color"])))
-        )
-        color = kwargs.pop("color", next(cycle(prop_cycle.by_key()["color"])))
-        if isinstance(data, earthkit.data.core.Base):
-            data = data.to_xarray()
-        if dim is None:
-            dim = list(data.dims)[0]
-        for q in iter_utils.symmetrical_iter(quantiles):
-            lines = data.quantile(q, dim=dim)
-            if isinstance(q, tuple):
-                x, y1, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[0]), **kwargs
-                )
-                _, y2, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[1]), **kwargs
-                )
-                mappable = self.ax.fill_between(
-                    x=x,
-                    y1=y1,
-                    y2=y2,
-                    facecolor=facecolor,
-                    alpha=alpha,
-                    **{k: v for k, v in kwargs.items() if k != "x"},
-                )
-            else:
-                x, y, _ = self._extract_plottables_envelope(y=lines, **kwargs)
-                kwargs.pop("label", None)
-                mappable = self.ax.plot(
-                    x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
-                )
-
-        # kwargs.pop("x")
-        # mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        # self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
         return mappable
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):

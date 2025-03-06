@@ -569,6 +569,58 @@ class Style:
             kwargs.pop("cmap", None)
             kwargs.pop("norm", None)
         return ax.scatter(x, y, s=s, *args, **kwargs)
+    
+    def quantiles(self, ax, x, y, values, *args, type="boxplot",quantiles=[0,1], **kwargs):
+        
+        quantiles = np.sort(quantiles)
+        stats =  np.quantile(values, quantiles, axis=1)
+        if type == "boxplot":
+            mappable = self.multiboxplot(ax, x, stats, *args, **kwargs)
+        elif type=="band":
+            mappable = self.band_plot(ax, x, stats, *args, **kwargs)
+        else:
+            raise NotImplementedError(f"Plot of type {type} not yet implemented.")
+        return mappable
+    
+    def band_plot(self, ax, x, y, *args, **kwargs):
+        
+        for i in range(y.shape[0]-1):
+            ax.fill_between(x, y[i], y[i+1], *args, **kwargs)
+
+        return ax
+
+    
+    def multiboxplot(self, ax, x, y, width=5, capfrac=0.618, color="k", *args, **kwargs):
+        ny = y.shape[0]
+        ww = np.linspace(0.5*width, width, ny//2)
+        left = x[None,:] - 0.5 * ww[:,None]
+        i = 0
+
+        # Whiskers
+        if ny >= 2:
+            for xx, tt, bb in zip(x, y[i], y[-i-1]):
+                ax.add_patch(
+                    plt.Rectangle((xx, bb), 0, tt-bb, facecolor="w", edgecolor=color)
+                )
+                cap_x = [xx - 0.5 * capfrac * width, xx + 0.5 * capfrac * width]
+                ax.plot(cap_x, [tt, tt], color=color)
+                ax.plot(cap_x, [bb, bb], color=color)
+            i += 1
+
+        # Boxes
+        while ny - 2*i >= 2:
+            for ll, tt, bb in zip(left[i], y[i], y[-i-1]):
+                ax.add_patch(
+                    plt.Rectangle((ll, bb), ww[i], tt-bb, facecolor="w", edgecolor=color)
+                )
+            i += 1
+
+        # Inner lines
+        if ny - 2*i == 1:
+            for ll, yy in zip(left[-1], y[i]):
+                ax.add_patch(plt.Rectangle((ll, yy), width, 0, edgecolor=color))
+        return ax
+
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
