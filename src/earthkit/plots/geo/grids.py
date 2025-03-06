@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 _NO_SCIPY = False
 try:
@@ -147,6 +148,9 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         (grid_x, grid_y),
         method=method,
     )
+    if np.isnan(grid_z).any():
+        warnings.warn("Interpolation produced NaN values in the output grid, reinterpolating with `nearest`.")
+        return interpolate_unstructured(x, y, z, resolution=resolution, method="nearest")
 
     return grid_x, grid_y, grid_z
 
