@@ -502,7 +502,8 @@ class Subplot:
         self, style, method_name, x_values, y_values, z_values, kwargs
     ):
         """Attempts to plot with or without interpolation as needed."""
-        if "interpolation_method" in kwargs:
+        is_structured_grid = grids.is_structured(x_values, y_values)
+        if "interpolation_method" in kwargs and is_structured_grid:
             kwargs.pop("interpolation_method")
             warnings.warn(
                 "The 'interpolation_method' argument is only valid for unstructured data."
@@ -513,7 +514,7 @@ class Subplot:
                 self.ax, x_values, y_values, z_values, **kwargs
             )
         except (ValueError, TypeError) as err:
-            if not grids.is_structured(x_values, y_values):
+            if not is_structured_grid:
                 x_values, y_values, z_values = grids.interpolate_unstructured(
                     x_values,
                     y_values,
@@ -523,6 +524,7 @@ class Subplot:
                         "interpolation_distance_threshold", None
                     ),
                 )
+                _ = kwargs.pop("transform_first", None)
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
