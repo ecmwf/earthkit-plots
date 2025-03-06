@@ -569,58 +569,74 @@ class Style:
             kwargs.pop("cmap", None)
             kwargs.pop("norm", None)
         return ax.scatter(x, y, s=s, *args, **kwargs)
-    
-    def quantiles(self, ax, x, y, values, *args, type="boxplot",quantiles=[0,1], **kwargs):
-        
+
+    def quantiles(
+        self, ax, x, y, values, *args, type="boxplot", quantiles=[0, 1], **kwargs
+    ):
+
         quantiles = np.sort(quantiles)
-        stats =  np.quantile(values, quantiles, axis=1)
+        stats = np.quantile(values, quantiles, axis=1)
         if type == "boxplot":
             mappable = self.multiboxplot(ax, x, stats, *args, **kwargs)
-        elif type=="band":
+        elif type == "band":
             mappable = self.band_plot(ax, x, stats, *args, **kwargs)
         else:
             raise NotImplementedError(f"Plot of type {type} not yet implemented.")
         return mappable
-    
+
     def band_plot(self, ax, x, y, *args, **kwargs):
-        
-        for i in range(y.shape[0]-1):
-            ax.fill_between(x, y[i], y[i+1], *args, **kwargs)
+
+        for i in range(y.shape[0] - 1):
+            ax.fill_between(x, y[i], y[i + 1], *args, **kwargs)
 
         return ax
 
-    
-    def multiboxplot(self, ax, x, y, width=5, capfrac=0.618, color="k", *args, **kwargs):
+    def multiboxplot(
+        self, ax, x, y, width=5, capfrac=0.618, color="k", *args, **kwargs
+    ):
+        # TODO rectangles don't seem to trigger the axis limit adjustment so this will do it for now
+        ax.plot(x, y.T, color="k", alpha=0)
+
         ny = y.shape[0]
-        ww = np.linspace(0.5*width, width, ny//2)
-        left = x[None,:] - 0.5 * ww[:,None]
-        i = 0
+        # Widths for the different levels of boxes
+        widths = np.linspace(0.5 * width, width, ny // 2 - 1)
 
-        # Whiskers
-        if ny >= 2:
-            for xx, tt, bb in zip(x, y[i], y[-i-1]):
+        for j, xx in enumerate(x):
+            # Plots lines as 0-width rectangles to maintain zorder as plotting order
+
+            # Whiskers
+            if ny >= 2:
+                tt = y[0, j]
+                bb = y[-1, j]
                 ax.add_patch(
-                    plt.Rectangle((xx, bb), 0, tt-bb, facecolor="w", edgecolor=color)
+                    plt.Rectangle((xx, bb), 0, tt - bb, facecolor="w", edgecolor=color)
                 )
-                cap_x = [xx - 0.5 * capfrac * width, xx + 0.5 * capfrac * width]
-                ax.plot(cap_x, [tt, tt], color=color)
-                ax.plot(cap_x, [bb, bb], color=color)
-            i += 1
-
-        # Boxes
-        while ny - 2*i >= 2:
-            for ll, tt, bb in zip(left[i], y[i], y[-i-1]):
+                capll = xx - 0.5 * capfrac * width
                 ax.add_patch(
-                    plt.Rectangle((ll, bb), ww[i], tt-bb, facecolor="w", edgecolor=color)
+                    plt.Rectangle((capll, tt), capfrac * width, 0, edgecolor=color)
                 )
-            i += 1
+                ax.add_patch(
+                    plt.Rectangle((capll, bb), capfrac * width, 0, edgecolor=color)
+                )
 
-        # Inner lines
-        if ny - 2*i == 1:
-            for ll, yy in zip(left[-1], y[i]):
-                ax.add_patch(plt.Rectangle((ll, yy), width, 0, edgecolor=color))
+            # Boxes
+            for i in range(1, ny // 2):
+                tt = y[i, j]
+                bb = y[-i - 1, j]
+                ww = widths[i - 1]
+                ll = xx - 0.5 * ww
+                ax.add_patch(
+                    plt.Rectangle((ll, bb), ww, tt - bb, facecolor="w", edgecolor=color)
+                )
+
+            # Inner lines
+            if ny % 2 == 1:
+                ll = xx - 0.5 * width
+                ax.add_patch(
+                    plt.Rectangle((ll, y[ny // 2, j]), width, 0, edgecolor=color)
+                )
+
         return ax
-
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
