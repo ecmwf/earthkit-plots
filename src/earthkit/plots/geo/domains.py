@@ -350,7 +350,7 @@ class Domain:
         return can_bbox
 
     def extract(
-        self, x, y, values=None, extra_values=None, source_crs=None
+        self, x, y, values=None, extra_values=None, source_crs=None,
     ):
         """
         Slice data to fit the domain. Works for both gridded and unstructured data.
@@ -417,12 +417,19 @@ class Domain:
             if self.can_bbox:
                 # Determine if data is gridded or unstructured
                 if x.ndim == 1 and y.ndim == 1:
+                    # Pad the crs_bounds by 10%
+                    _crs_bounds = [
+                        crs_bounds[0] - 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[1] + 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[2] - 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                        crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                    ]
                     # Unstructured data: use point-in-polygon
                     polygon = Polygon([
-                        (crs_bounds[0], crs_bounds[2]),
-                        (crs_bounds[1], crs_bounds[2]),
-                        (crs_bounds[1], crs_bounds[3]),
-                        (crs_bounds[0], crs_bounds[3])
+                        (_crs_bounds[0], _crs_bounds[2]),
+                        (_crs_bounds[1], _crs_bounds[2]),
+                        (_crs_bounds[1], _crs_bounds[3]),
+                        (_crs_bounds[0], _crs_bounds[3])
                     ])
                     points = np.vstack([x, y]).T
                     mask = np.array([polygon.contains(Point(px, py)) for px, py in points])
