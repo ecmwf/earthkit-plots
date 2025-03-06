@@ -581,13 +581,51 @@ class Style:
         elif type == "band":
             mappable = self.band_plot(ax, x, stats, *args, **kwargs)
         else:
-            raise NotImplementedError(f"Plot of type {type} not yet implemented.")
+            raise NotImplementedError(
+                f"Plot of type {type} not yet implemented.")
         return mappable
 
-    def band_plot(self, ax, x, y, *args, **kwargs):
+    def adjust_lightness(self, color, amount=0.5):
+        import matplotlib.colors as mc
+        import colorsys
+        try:
+            c = mc.cnames[color]
+        except:
+            c = color
+        c = colorsys.rgb_to_hls(*mc.to_rgb(c))
+        new_c = c[1]
+        # if amount * c[1] > 1:
+        #     new_c = c[1]/(amount * c[1])
+        # amount = np.linspace(0, 0.9, n)
+        (1 - amount) * c[1] + amount
+        # return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
+        return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
+
+    def find_colors(self, num_bands, color):
+        num_colors = num_bands//2 + num_bands % 2
+        # amounts_lightening = 1 + np.log2(np.linspace(1, 1.9, num_colors))
+        amounts_lightening = np.linspace(0, 0.9, num_colors)
+        # amounts_lightening = np.sqrt(np.linspace(0, 0.9, num_colors))
+        colors = [self.adjust_lightness(color, amount)
+                  for amount in amounts_lightening]
+
+        uneven_num_bands = num_bands % 2
+        if uneven_num_bands == 0:
+            # Even
+            mirrored_colors = colors[::-1]
+        else:
+            mirrored_colors = colors[1:][::-1]
+        mirrored_colors.extend(colors)
+        return mirrored_colors
+
+    def band_plot(self, ax, x, y, color="b", *args, **kwargs):
+
+        num_bands = len(y) - 1
+        tot_colors = self.find_colors(num_bands, color)
 
         for i in range(y.shape[0] - 1):
-            ax.fill_between(x, y[i], y[i + 1], *args, **kwargs)
+            ax.fill_between(x, y[i], y[i + 1],
+                            color=tot_colors[i], *args, **kwargs)
 
         return ax
 
@@ -595,7 +633,9 @@ class Style:
         self, ax, x, y, width=None, capfrac=0.618, color="k", *args, **kwargs
     ):
         width = width if width is not None else np.min(np.diff(x))*0.5
-        
+
+        num_bands = len(y) - 1
+        tot_colors = self.find_colors(num_bands, color)
         ny = y.shape[0]
         # Widths for the different levels of boxes
         widths = width * np.linspace(
@@ -603,7 +643,8 @@ class Style:
         )[::-1]  # TODO lines are wrong if only one box
 
         def add_rect(*args, **kwargs):
-            options = {"edgecolor": color, "facecolor": "white"}
+            # options = {"edgecolor": "k", "facecolor": color}
+            options = {"edgecolor": "k"}
             options.update(kwargs)
             ax.add_patch(plt.Rectangle(*args, **options))
 
@@ -625,12 +666,13 @@ class Style:
                 bb = y[-i - 1, j]
                 ww = widths[i - 1]
                 ll = xx - 0.5 * ww
-                add_rect((ll, bb), ww, tt - bb, facecolor="w", edgecolor=color)
+                add_rect((ll, bb), ww, tt - bb,
+                         facecolor=tot_colors[i], edgecolor="k")
 
             # Inner lines
             if ny % 2 == 1:
                 ll = xx - 0.5 * width
-                add_rect((ll, y[ny // 2, j]), width, 0, edgecolor=color)
+                add_rect((ll, y[ny // 2, j]), width, 0, edgecolor="k")
 
         ax.autoscale_view()
         return ax
@@ -661,7 +703,8 @@ class Style:
 
         if mode == "spline":
             if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
+                x_smooth = linspace_datetime64(
+                    x.min(), x.max(), max(300, len(x) * 5))
             else:
                 x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
 
@@ -687,7 +730,8 @@ class Style:
 
         elif mode == "smooth":
             if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
+                x_smooth = linspace_datetime64(
+                    x.min(), x.max(), max(300, len(x) * 5))
             else:
                 x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
             func = interp1d(
@@ -862,7 +906,8 @@ class Style:
         bbox.y0 = min(bbox.y0, title_bbox.y0) - y * ymod
         bbox.y1 = max(bbox.y1, title_bbox.y1) + y * ymod
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
+        plt.savefig(filename, dpi="figure", bbox_inches=bbox,
+                    transparent=transparent)
 
     def _save_disjoint_graphic(self, data, x, y, filename, transparent, kwargs):
         from earthkit.maps import Chart
@@ -877,7 +922,8 @@ class Style:
         fig.canvas.draw()
         bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
+        plt.savefig(filename, dpi="figure", bbox_inches=bbox,
+                    transparent=transparent)
 
 
 class Categorical(Style):
@@ -886,7 +932,8 @@ class Categorical(Style):
     def __init__(self, *args, **kwargs):
         kwargs["legend_style"] = "disjoint"
         if isinstance(kwargs.get("levels"), dict):
-            kwargs["levels"], kwargs["categories"] = zip(*kwargs["levels"].items())
+            kwargs["levels"], kwargs["categories"] = zip(
+                *kwargs["levels"].items())
         if "categories" not in kwargs:
             kwargs["categories"] = kwargs.get("levels")
         super().__init__(*args, **kwargs)
@@ -1090,7 +1137,8 @@ class Hatched(Contour):
     def __eq__(self, other):
         keys = ["_levels", "_colors", "_foreground_colors", "hatches"]
         return all(
-            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
+            [getattr(self, key, None) == getattr(other, key, None)
+             for key in keys]
         )
 
     def contourf(self, *args, **kwargs):
@@ -1150,7 +1198,8 @@ class Hatched(Contour):
         """
         legend = super().disjoint(layer, *args, **kwargs)
 
-        linecolors = colors.expand(self._foreground_colors, layer.mappable.levels)
+        linecolors = colors.expand(
+            self._foreground_colors, layer.mappable.levels)
 
         for color, artist in zip(linecolors, legend.get_patches()):
             artist.set_edgecolor(color)

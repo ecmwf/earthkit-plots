@@ -186,6 +186,35 @@ class Subplot:
 
         return decorator
 
+    def plot_2D_bis(method_name=None):
+        def decorator(method):
+            def wrapper(
+                self,
+                *args,
+                x=None,
+                y=None,
+                z=None,
+                style=None,
+                every=None,
+                **kwargs,
+            ):
+                print("SOMETHING")
+                # kwargs.pop("color", None)
+                return self._extract_plottables_2D(
+                    method_name or method.__name__,
+                    args=args,
+                    x=x,
+                    y=y,
+                    z=z,
+                    style=style,
+                    every=every,
+                    **kwargs,
+                )
+
+            return wrapper
+
+        return decorator
+
     def plot_box(method_name=None):
         def decorator(method):
             def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
@@ -206,7 +235,8 @@ class Subplot:
                         locator = mdates.AutoDateLocator(maxticks=30)
                         formatter = mdates.ConciseDateFormatter(
                             locator,
-                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
+                            formats=["%Y", "%b", "%-d %b",
+                                     "%H:%M", "%H:%M", "%S.%f"],
                         )
                         self.ax.xaxis.set_major_locator(locator)
                         self.ax.xaxis.set_major_formatter(formatter)
@@ -274,8 +304,10 @@ class Subplot:
                         args[0], x=x, y=y, u=u, v=v, units=source_units
                     )
                 elif len(args) == 2:
-                    u_source = get_source(args[0], x=x, y=y, units=source_units)
-                    v_source = get_source(args[1], x=x, y=y, units=source_units)
+                    u_source = get_source(
+                        args[0], x=x, y=y, units=source_units)
+                    v_source = get_source(
+                        args[1], x=x, y=y, units=source_units)
 
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
 
@@ -291,8 +323,10 @@ class Subplot:
 
                 x_values = u_source.x_values
                 y_values = u_source.y_values
-                u_values = style.convert_units(u_source.z_values, u_source.units)
-                v_values = style.convert_units(v_source.z_values, v_source.units)
+                u_values = style.convert_units(
+                    u_source.z_values, u_source.units)
+                v_values = style.convert_units(
+                    v_source.z_values, v_source.units)
 
                 resample = style.resample or resample
 
@@ -324,7 +358,8 @@ class Subplot:
                     args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
 
                 mappable = m(self.ax, *args, **kwargs)
-                self.layers.append(Layer([u_source, v_source], mappable, self, style))
+                self.layers.append(
+                    Layer([u_source, v_source], mappable, self, style))
                 if isinstance(u_source._x, str):
                     self.ax.set_xlabel(u_source._x)
                 if isinstance(u_source._y, str):
@@ -334,6 +369,55 @@ class Subplot:
             return wrapper
 
         return decorator
+
+    def _extract_plottables_2D(
+        self,
+        method_name,
+        args,
+        x=None,
+        y=None,
+        z=None,
+        style=None,
+        no_style=False,
+        units=None,
+        every=None,
+        source_units=None,
+        auto_style=False,
+        regrid=False,
+        metadata=None,
+        **kwargs,
+    ):
+        # Step 1: Initialize the source
+        source = get_source(
+            *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
+        )
+        kwargs.update(self._plot_kwargs(source))
+
+        # Step 2: Configure the style
+        style = self._configure_style(
+            method_name, style, source, units, auto_style, kwargs
+        )
+
+        # Step 3: Process z values
+        z_values = self._process_z_values(style, source, z)
+
+        # Step 5: Process x, y values, apply sampling if specified
+        x_values, y_values = source.x_values, source.y_values
+        x_values, y_values, z_values = self._apply_sampling(
+            x_values, y_values, z_values, every
+        )
+
+        if no_style and z_values is None:
+            # TODO: why do we do this?
+            z_values = kwargs.pop("c", None)
+
+        mappable = getattr(style, method_name)(
+            self.ax, x_values, y_values, z_values, **kwargs
+        )
+
+        # Step 8: Store layer and return
+        self.layers.append(Layer(source, mappable, self, style))
+        return mappable
 
     def _extract_plottables(
         self,
@@ -400,7 +484,8 @@ class Subplot:
                 z_values, x_values = add_cyclic_point(z_values, coord=x_values)
                 if n_x:
                     x_values = np.tile(x_values, (n_x, 1))
-                    y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
+                    y_values = np.hstack(
+                        (y_values, y_values[:, -1][:, np.newaxis]))
             # Step 7: Plot with or without interpolation
             if "transform_first" in kwargs:
                 if (
@@ -618,12 +703,12 @@ class Subplot:
 
     def gridlines(self, *args, **kwargs):
         raise NotImplementedError
-    
-    @plot_2D()
+
+    @plot_2D_bis()
     def quantiles(self, *args, **kwargs):
         pass
 
-    @plot_2D()
+    @plot_2D_bis()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -650,8 +735,10 @@ class Subplot:
         x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
         x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
         kwargs.pop("x")
-        mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
+        mappable = self.ax.fill_between(
+            x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
+        self.layers.append(Layer(get_source(data=data_1),
+                           mappable, self, style=None))
         return mappable
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
@@ -677,7 +764,8 @@ class Subplot:
 
     def quickplot(self, data, style=None, units=None, **kwargs):
         if not kwargs.pop("auto_style", True):
-            warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
+            warnings.warn(
+                "`auto_style` cannot be switched off for `quickplot`.")
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)
@@ -787,7 +875,7 @@ class Subplot:
 
         return result
 
-    @plot_2D()
+    @plot_2D_bis()
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
@@ -1079,7 +1167,8 @@ class Subplot:
             dummy = [[1, 2], [3, 4]]
             mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
             layer = Layer(NumpySource(), mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
+            legend = layer.style.legend(
+                layer, label=kwargs.pop("label", ""), **kwargs)
             legends.append(legend)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):
