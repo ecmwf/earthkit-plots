@@ -171,7 +171,12 @@ class NumpySource(SingleSource):
                     m["latitudes"] = self._y
                     m["longitudes"] = self._x
 
-                d = earthkit.data.ArrayField(self._z, metadata=m)
-                return EarthkitSource(d, regrid=self.regrid)
+            if self._z is not None:
+                data = self._z
+            else:
+                data = self._data
+
+            d = earthkit.data.ArrayField(data, metadata=m)
+            return EarthkitSource(d, regrid=self.regrid)
 
         return self
