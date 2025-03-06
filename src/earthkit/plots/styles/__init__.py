@@ -594,11 +594,13 @@ class Style:
     def multiboxplot(
         self, ax, x, y, width=None, capfrac=0.618, color="k", *args, **kwargs
     ):
+        width = width if width is not None else np.min(np.diff(x))*0.5
+        
         ny = y.shape[0]
         # Widths for the different levels of boxes
-        widths = np.linspace(
-            0.5 * width, width, ny // 2 - 1
-        )  # TODO lines are wrong if only one box
+        widths = width * np.linspace(
+            1, 0.5, ny // 2 - 1
+        )[::-1]  # TODO lines are wrong if only one box
 
         def add_rect(*args, **kwargs):
             options = {"edgecolor": color, "facecolor": "white"}
