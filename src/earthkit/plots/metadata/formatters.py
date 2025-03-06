@@ -156,6 +156,7 @@ class LayerFormatter(BaseFormatter):
         return value
     
     def format_field(self, value, format_spec):
+        value = value if value is not None else ""
         if value.startswith("__units__"):
             return metadata.units.format_units(value.replace("__units__", ""), format_spec)
         else:
