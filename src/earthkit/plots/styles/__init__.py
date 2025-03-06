@@ -571,7 +571,7 @@ class Style:
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
     def quantiles(
-        self, ax, x, y, values, *args, type="boxplot", quantiles=[0, 1], **kwargs
+        self, ax, x, y, values, *args, type="boxplot", quantiles=[0, .25, .5, .75, 1], **kwargs
     ):
 
         quantiles = np.sort(quantiles)
@@ -592,7 +592,7 @@ class Style:
         return ax
 
     def multiboxplot(
-        self, ax, x, y, width=5, capfrac=0.618, color="k", *args, **kwargs
+        self, ax, x, y, width=None, capfrac=0.618, color="k", *args, **kwargs
     ):
         ny = y.shape[0]
         # Widths for the different levels of boxes
