@@ -370,13 +370,20 @@ class Subplot:
         z_values = self._process_z_values(style, source, z)
 
         # Step 4: Handle specific grid types
-        grid_type = source.metadata("gridType", default=None)
-        if grid_type == "healpix" and method_name == "pcolormesh":
-            mappable = self._plot_healpix(source, z_values, style, kwargs)
-        elif grid_type == "reduced_gg" and method_name == "pcolormesh":
-            mappable = self._plot_octahedral(source, z_values, style, kwargs)
-        else:
+        gs = source.gridspec
+        mappable = None
+        if method_name == "pcolormesh":
+            gs = source.gridspec
+            if gs is not None:
+                opt = {
+                    "healpix": self._plot_healpix,
+                    "reduced_gg": self._plot_octahedral,
+                }
+                method = opt.get(gs.name, None)
+                if method:
+                    mappable = method(source, z_values, style, kwargs)
 
+        if not mappable:
             # Step 5: Process x, y values, apply sampling if specified
             x_values, y_values = source.x_values, source.y_values
             x_values, y_values, z_values = self._apply_sampling(
@@ -579,9 +586,8 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
-            self._ax = self.figure.fig.add_subplot(
-                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
-            )
+            subspec = self.figure.gridspec.subgridspec(self.row + self.column)
+            self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
         return self._ax
 
     @property
@@ -763,10 +769,10 @@ class Subplot:
         rgb = xr.DataArray(
             rgb,
             coords={
-                "y": y_values,  # Ensure 1D
-                "x": x_values,  # Ensure 1D
+                "y": y_values,
+                "x": x_values,
                 "rgb": ["red", "green", "blue"],
-            },
+            },  # Ensure 1D  # Ensure 1D
             dims=["y", "x", "rgb"],
         )
 
@@ -812,10 +818,10 @@ class Subplot:
         rgb = xr.DataArray(
             rgb,
             coords={
-                "y": y_values,  # Ensure 1D
-                "x": x_values,  # Ensure 1D
+                "y": y_values,
+                "x": x_values,
                 "rgb": ["red", "green", "blue"],
-            },
+            },  # Ensure 1D  # Ensure 1D
             dims=["y", "x", "rgb"],
         )
 
