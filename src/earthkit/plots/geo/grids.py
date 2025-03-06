@@ -189,8 +189,6 @@ def interpolate_unstructured(
         # Mask points where the nearest source is beyond the threshold
         grid_z = np.where(distances.reshape(grid_x.shape) <= interpolation_distance_threshold, grid_z, np.nan)
 
-    # grid_z = np.where(grid_z_mask > 1, grid_z, np.nan)
-
     return grid_x, grid_y, grid_z
 
 
