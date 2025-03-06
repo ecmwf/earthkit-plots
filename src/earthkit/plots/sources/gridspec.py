@@ -107,11 +107,16 @@ class GridSpec(metaclass=ABCMeta):
             return data[0]
         return data
 
+    @property
+    def name(self):
+        return self.NAME
+
 
 class ReducedGG(GridSpec):
     """A reduced Gaussian grid specification."""
 
     GRIDSPEC_KEYS = ["grid"]
+    NAME = "reduced_gg"
 
     def to_dict(self):
         d = self._first(self.data)
@@ -149,6 +154,7 @@ class HEALPix(GridSpec):
     """A HEALPix grid specification."""
 
     GRIDSPEC_KEYS = ["grid", "ordering"]
+    NAME = "healpix"
 
     def to_dict(self):
         d = self._first(self.data)
