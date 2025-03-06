@@ -100,7 +100,6 @@ def is_global(x, y, tol=5):
     and if within tolerance, returns True.
     """
     if not _NO_EARTHKIT_GEO:
-        warnings.warn("Using earthkit.geo to determine if grid is global is not implemented.")
         pass
 
     if _NO_SCIPY:
@@ -184,7 +183,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
     ]
 
-    lon_delta = np.median(np.diff(np.sort(y)))
+    lon_delta = np.max(np.diff(np.unique(y)))
 
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
@@ -193,6 +192,7 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         (grid_x, grid_y),
         method=method,
     )
+
     if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
         warnings.warn("Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`.")
         return interpolate_unstructured(x, y, z, resolution=resolution, method="nearest")
