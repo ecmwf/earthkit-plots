@@ -371,7 +371,6 @@ class Domain:
                     extra_values = [np.roll(v, roll_by, axis=1) for v in extra_values]
 
             if self.can_bbox:
-
                 try:
                     import scipy.ndimage as sn
                 except ImportError:

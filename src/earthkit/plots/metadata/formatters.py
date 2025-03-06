@@ -15,10 +15,10 @@
 import itertools
 import logging
 from string import Formatter
-from zoneinfo import ZoneInfo
 
 import dateutil
 import numpy as np
+from zoneinfo import ZoneInfo
 
 from earthkit.plots import metadata
 from earthkit.plots.schemas import schema

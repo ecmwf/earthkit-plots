@@ -790,7 +790,6 @@ class Contour(Style):
         preferred_method="contour",
         **kwargs,
     ):
-
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
         self._line_colors = line_colors
         self.labels = labels
