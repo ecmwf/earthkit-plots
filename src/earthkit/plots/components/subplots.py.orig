@@ -197,9 +197,7 @@ class Subplot:
                 else:
                     positions = source.x_values
                 widths = min(0.5, np.diff(positions).min() * 0.7)
-                mappable = m(
-                    source.z_values, positions=positions, widths=widths, **kwargs
-                )
+                mappable = m(source.z_values, positions=positions, widths=widths, **kwargs)
                 self.layers.append(Layer(source, mappable, self, style))
                 if isinstance(source._x, str):
                     if source._x in identifiers.TIME:
@@ -280,12 +278,16 @@ class Subplot:
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
 
                 style = self._configure_style(
+<<<<<<< HEAD
                     method_name or method.__name__,
                     style,
                     u_source,
                     units,
                     False,
                     kwargs,
+=======
+                    method_name or method.__name__, style, u_source, units, False, kwargs
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
                 )
                 m = getattr(style, method_name or method.__name__)
 
@@ -379,9 +381,13 @@ class Subplot:
 
             # Step 5: Process x, y values, apply sampling if specified
             x_values, y_values = source.x_values, source.y_values
+<<<<<<< HEAD
             x_values, y_values, z_values = self._apply_sampling(
                 x_values, y_values, z_values, every
             )
+=======
+            x_values, y_values, z_values = self._apply_sampling(x_values, y_values, z_values, every)
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
 
             if no_style and z_values is None:
                 z_values = kwargs.pop("c", None)
@@ -491,20 +497,14 @@ class Subplot:
     #         **kwargs,
     #     )
 
-    def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, kwargs
-    ):
+    def _plot_with_interpolation(self, style, method_name, x_values, y_values, z_values, kwargs):
         """Attempts to plot with or without interpolation as needed."""
         if "interpolation_method" in kwargs:
             kwargs.pop("interpolation_method")
-            warnings.warn(
-                "The 'interpolation_method' argument is only valid for unstructured data."
-            )
+            warnings.warn("The 'interpolation_method' argument is only valid for unstructured data.")
 
         try:
-            return getattr(style, method_name)(
-                self.ax, x_values, y_values, z_values, **kwargs
-            )
+            return getattr(style, method_name)(self.ax, x_values, y_values, z_values, **kwargs)
         except (ValueError, TypeError) as err:
             if not grids.is_structured(x_values, y_values):
                 x_values, y_values, z_values = grids.interpolate_unstructured(
@@ -513,9 +513,7 @@ class Subplot:
                     z_values,
                     method=kwargs.pop("interpolation_method", "linear"),
                 )
-                return getattr(style, method_name)(
-                    self.ax, x_values, y_values, z_values, **kwargs
-                )
+                return getattr(style, method_name)(self.ax, x_values, y_values, z_values, **kwargs)
             raise err
 
     def _extract_plottables_envelope(
@@ -576,8 +574,14 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
+<<<<<<< HEAD
+            self._ax = self.figure.fig.add_subplot(
+                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
+            )
+=======
             subspec = self.figure.gridspec.subgridspec(self.row + self.column)
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
         return self._ax
 
     @property
@@ -651,9 +655,7 @@ class Subplot:
     @schema.envelope.apply()
     def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.15, **kwargs):
         prop_cycle = plt.rcParams["axes.prop_cycle"]
-        facecolor = kwargs.pop(
-            "facecolor", kwargs.get("color", next(cycle(prop_cycle.by_key()["color"])))
-        )
+        facecolor = kwargs.pop("facecolor", kwargs.get("color", next(cycle(prop_cycle.by_key()["color"]))))
         color = kwargs.pop("color", next(cycle(prop_cycle.by_key()["color"])))
         if isinstance(data, earthkit.data.core.Base):
             data = data.to_xarray()
@@ -662,12 +664,8 @@ class Subplot:
         for q in iter_utils.symmetrical_iter(quantiles):
             lines = data.quantile(q, dim=dim)
             if isinstance(q, tuple):
-                x, y1, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[0]), **kwargs
-                )
-                _, y2, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[1]), **kwargs
-                )
+                x, y1, _ = self._extract_plottables_envelope(y=lines.sel(quantile=q[0]), **kwargs)
+                _, y2, _ = self._extract_plottables_envelope(y=lines.sel(quantile=q[1]), **kwargs)
                 mappable = self.ax.fill_between(
                     x=x,
                     y1=y1,
@@ -679,9 +677,7 @@ class Subplot:
             else:
                 x, y, _ = self._extract_plottables_envelope(y=lines, **kwargs)
                 kwargs.pop("label", None)
-                mappable = self.ax.plot(
-                    x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
-                )
+                mappable = self.ax.plot(x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"})
 
         # kwargs.pop("x")
         # mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
@@ -758,11 +754,15 @@ class Subplot:
         # Turn RGB into an xarray
         rgb = xr.DataArray(
             rgb,
+<<<<<<< HEAD
             coords={
-                "y": y_values,
-                "x": x_values,
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
                 "rgb": ["red", "green", "blue"],
-            },  # Ensure 1D  # Ensure 1D
+            },
+=======
+            coords={"y": y_values, "x": x_values, "rgb": ["red", "green", "blue"]},  # Ensure 1D  # Ensure 1D
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
             dims=["y", "x", "rgb"],
         )
 
@@ -807,11 +807,15 @@ class Subplot:
         # Turn RGB into an xarray
         rgb = xr.DataArray(
             rgb,
+<<<<<<< HEAD
             coords={
-                "y": y_values,
-                "x": x_values,
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
                 "rgb": ["red", "green", "blue"],
-            },  # Ensure 1D  # Ensure 1D
+            },
+=======
+            coords={"y": y_values, "x": x_values, "rgb": ["red", "green", "blue"]},  # Ensure 1D  # Ensure 1D
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
             dims=["y", "x", "rgb"],
         )
 
@@ -1084,8 +1088,7 @@ class Subplot:
         import warnings
 
         warnings.warn(
-            "block is deprecated and will be removed in a future release. "
-            "Please use grid_cells instead."
+            "block is deprecated and will be removed in a future release. " "Please use grid_cells instead."
         )
         return self.pcolormesh(*args, **kwargs)
 
@@ -1179,9 +1182,7 @@ class Subplot:
             separately.
         """
         if not grouped:
-            return string_utils.list_to_human(
-                [LayerFormatter(layer).format(string) for layer in self.layers]
-            )
+            return string_utils.list_to_human([LayerFormatter(layer).format(string) for layer in self.layers])
         else:
             return SubplotFormatter(self, unique=unique).format(string)
 

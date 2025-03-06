@@ -20,16 +20,11 @@ from earthkit.plots.sources.xarray import XarraySource
 
 
 def get_source(
-    *args,
-    data=None,
-    x=None,
-    y=None,
-    z=None,
-    u=None,
-    v=None,
-    regrid=True,
-    metadata=None,
-    **kwargs
+<<<<<<< HEAD
+    *args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, **kwargs
+=======
+    *args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, metadata=None, **kwargs
+>>>>>>> b79fcdd (Allow plotting list-of-dicts  fieldlist)
 ):
     """
     Get a Source object from the given data.
