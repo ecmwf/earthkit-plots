@@ -594,30 +594,28 @@ class Style:
     def multiboxplot(
         self, ax, x, y, width=5, capfrac=0.618, color="k", *args, **kwargs
     ):
-        # TODO rectangles don't seem to trigger the axis limit adjustment so this will do it for now
-        ax.plot(x, y.T, color="k", alpha=0)
-
         ny = y.shape[0]
         # Widths for the different levels of boxes
-        widths = np.linspace(0.5 * width, width, ny // 2 - 1)
+        widths = np.linspace(
+            0.5 * width, width, ny // 2 - 1
+        )  # TODO lines are wrong if only one box
+
+        def add_rect(*args, **kwargs):
+            options = {"edgecolor": color, "facecolor": "white"}
+            options.update(kwargs)
+            ax.add_patch(plt.Rectangle(*args, **options))
 
         for j, xx in enumerate(x):
-            # Plots lines as 0-width rectangles to maintain zorder as plotting order
+            # Plots lines as 0-width or height rectangles to maintain zorder as plotting order
 
             # Whiskers
             if ny >= 2:
                 tt = y[0, j]
                 bb = y[-1, j]
-                ax.add_patch(
-                    plt.Rectangle((xx, bb), 0, tt - bb, facecolor="w", edgecolor=color)
-                )
+                add_rect((xx, bb), 0, tt - bb)
                 capll = xx - 0.5 * capfrac * width
-                ax.add_patch(
-                    plt.Rectangle((capll, tt), capfrac * width, 0, edgecolor=color)
-                )
-                ax.add_patch(
-                    plt.Rectangle((capll, bb), capfrac * width, 0, edgecolor=color)
-                )
+                add_rect((capll, tt), capfrac * width, 0)
+                add_rect((capll, bb), capfrac * width, 0)
 
             # Boxes
             for i in range(1, ny // 2):
@@ -625,17 +623,14 @@ class Style:
                 bb = y[-i - 1, j]
                 ww = widths[i - 1]
                 ll = xx - 0.5 * ww
-                ax.add_patch(
-                    plt.Rectangle((ll, bb), ww, tt - bb, facecolor="w", edgecolor=color)
-                )
+                add_rect((ll, bb), ww, tt - bb, facecolor="w", edgecolor=color)
 
             # Inner lines
             if ny % 2 == 1:
                 ll = xx - 0.5 * width
-                ax.add_patch(
-                    plt.Rectangle((ll, y[ny // 2, j]), width, 0, edgecolor=color)
-                )
+                add_rect((ll, y[ny // 2, j]), width, 0, edgecolor=color)
 
+        ax.autoscale_view()
         return ax
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
