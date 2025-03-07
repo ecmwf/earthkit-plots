@@ -573,7 +573,25 @@ class Style:
     def quantiles(
         self, ax, x, y, values, *args, type="boxplot", quantiles=[0, .25, .5, .75, 1], **kwargs
     ):
+        """
+        Compute and plot quantiles using this `Style`.
 
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The data of which to compute the statistics. The computation
+            is applied along axis 1, so the size along axis 0 must match
+            the size of the coordinates.
+        type : "boxplot" | "band"
+            The type of plot used to represent the quantile ranges.
+        quantiles : array_like
+            Probabilities of the quantiles to compute. Values must be
+            between 0 and 1 inclusive.
+        """
         quantiles = np.sort(quantiles)
         stats = np.quantile(values, quantiles, axis=1)
         if type == "boxplot":
