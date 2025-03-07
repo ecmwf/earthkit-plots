@@ -30,7 +30,7 @@ Easily swap styles to match your organisation, project, or personal preferences.
 Detects metadata like variables and units to optionally apply appropriate formatting and styling.
 
 🌍 **Complex grids supported out-of-the-box**
-Visualise grids like HEALPix and reduced gaussian without any extra legwork.
+Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
 
 
 .. important::
