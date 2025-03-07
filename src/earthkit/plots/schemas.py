@@ -111,8 +111,8 @@ class _use:
     def __init__(self, schema, name):
 
         self.old_schema = schema.copy()
-        self.schema.clear()
-        self.schema.add(_DEFAULT_SCHEMA)  # not use() as it calls _use
+        schema.clear()
+        schema.add(_DEFAULT_SCHEMA)  # not use() as it calls _use
 
         super().__init__(schema, name)
 
