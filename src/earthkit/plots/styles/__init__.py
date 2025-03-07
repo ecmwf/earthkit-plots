@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 
-from earthkit.plots import metadata, styles
+from earthkit.plots import metadata, styles, plottypes
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
 from earthkit.plots.styles.colors import magics_colors_to_rgb
@@ -594,10 +594,10 @@ class Style:
         """
         quantiles = np.sort(quantiles)
         stats = np.quantile(values, quantiles, axis=1)
-        if type == "boxplot":
-            mappable = self.multiboxplot(ax, x, stats, *args, **kwargs)
+        if type == "box":
+            mappable = self.boxplot(ax, x, stats, *args, **kwargs)
         elif type == "band":
-            mappable = self.band_plot(ax, x, stats, *args, **kwargs)
+            mappable = self.bandplot(ax, x, stats, *args, **kwargs)
         else:
             raise NotImplementedError(
                 f"Plot of type {type} not yet implemented.")
@@ -630,53 +630,15 @@ class Style:
         mirrored_colors.extend(colors)
         return mirrored_colors
 
-    def band_plot(self, ax, x, y, color="b", *args, **kwargs):
-
-        num_bands = len(y) - 1
+    def bandplot(self, ax, x, values, color="b", *args, **kwargs):
+        num_bands = len(values) - 1
         tot_colors = self.find_colors(num_bands, color)
+        return plottypes.bandplot(ax, x, values, colors=tot_colors, *args, **kwargs)
 
-        for i in range(y.shape[0] - 1):
-            ax.fill_between(x, y[i], y[i + 1],
-                            color=tot_colors[i], *args, **kwargs)
-
-        return ax
-
-    def multiboxplot(
-        self, ax, x, y, width=None, capfrac=0.618, color="k", *args, **kwargs
-    ):
-
-        width = width if width is not None else np.min(np.diff(x))*0.5
-
-        num_bands = len(y) - 1
+    def boxplot(self, ax, x, values, color="b", *args, **kwargs):
+        num_bands = len(values) - 1
         tot_colors = self.find_colors(num_bands, color)
-        ny = y.shape[0]
-
-        def add_rect(*args, **kwargs):
-            # options = {"edgecolor": "k", "facecolor": color}
-            options = {"edgecolor": "k"}
-            options.update(kwargs)
-            ax.add_patch(plt.Rectangle(*args, **options))
-
-        # Widths for the boxes. Plot whiskers (and other lines) as 0-width
-        # or height rectangles to maintain zorder as plotting order.
-        widths = width * np.linspace(0., 1., ny // 2)
-        widths = np.concat([widths, widths[-2+(ny%2)::-1]])
-
-        cap_width = width * capfrac
-
-        for j, xc in enumerate(x):
-            for yt, yb, width, color in zip(y[:-1,j], y[1:,j], widths, tot_colors):
-                add_rect((xc - 0.5*width, yb), width, yt - yb, facecolor=color)
-
-            if ny == 1:
-                raise NotImplementedError
-            # Draw caps at the end of whiskers
-            else:
-                add_rect((xc - 0.5*cap_width, y[0,j]), cap_width, 0)
-                add_rect((xc - 0.5*cap_width, y[-1,j]), cap_width, 0)
-
-        ax.autoscale_view()
-        return ax
+        return plottypes.boxplot(ax, x, values, colors=tot_colors, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
