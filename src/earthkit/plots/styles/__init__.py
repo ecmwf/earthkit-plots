@@ -655,10 +655,6 @@ class Style:
         num_bands = len(y) - 1
         tot_colors = self.find_colors(num_bands, color)
         ny = y.shape[0]
-        # Widths for the different levels of boxes
-        widths = width * np.linspace(
-            1, 0.5, ny // 2 - 1
-        )[::-1]  # TODO lines are wrong if only one box
 
         def add_rect(*args, **kwargs):
             # options = {"edgecolor": "k", "facecolor": color}
@@ -666,31 +662,23 @@ class Style:
             options.update(kwargs)
             ax.add_patch(plt.Rectangle(*args, **options))
 
-        for j, xx in enumerate(x):
-            # Plots lines as 0-width or height rectangles to maintain zorder as plotting order
+        # Widths for the boxes. Plot whiskers (and other lines) as 0-width
+        # or height rectangles to maintain zorder as plotting order.
+        widths = width * np.linspace(0., 1., ny // 2)
+        widths = np.concat([widths, widths[-2+(ny%2)::-1]])
 
-            # Whiskers
-            if ny >= 2:
-                tt = y[0, j]
-                bb = y[-1, j]
-                add_rect((xx, bb), 0, tt - bb)
-                capll = xx - 0.5 * capfrac * width
-                add_rect((capll, tt), capfrac * width, 0)
-                add_rect((capll, bb), capfrac * width, 0)
+        cap_width = width * capfrac
 
-            # Boxes
-            for i in range(1, ny // 2):
-                tt = y[i, j]
-                bb = y[-i - 1, j]
-                ww = widths[i - 1]
-                ll = xx - 0.5 * ww
-                add_rect((ll, bb), ww, tt - bb,
-                         facecolor=tot_colors[i], edgecolor="k")
+        for j, xc in enumerate(x):
+            for yt, yb, width, color in zip(y[:-1,j], y[1:,j], widths, tot_colors):
+                add_rect((xc - 0.5*width, yb), width, yt - yb, facecolor=color)
 
-            # Inner lines
-            if ny % 2 == 1:
-                ll = xx - 0.5 * width
-                add_rect((ll, y[ny // 2, j]), width, 0, edgecolor="k")
+            if ny == 1:
+                raise NotImplementedError
+            # Draw caps at the end of whiskers
+            else:
+                add_rect((xc - 0.5*cap_width, y[0,j]), cap_width, 0)
+                add_rect((xc - 0.5*cap_width, y[-1,j]), cap_width, 0)
 
         ax.autoscale_view()
         return ax
