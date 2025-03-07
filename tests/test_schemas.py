@@ -85,3 +85,5 @@ def test_use_schema():
 
     print(ekp.schema["foo"])
     assert ekp.schema["foo"] == "bar"
+    with pytest.raises(AttributeError):
+        ekp.schema.get("other_key")

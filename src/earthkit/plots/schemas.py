@@ -117,7 +117,11 @@ class _use(_add):
         super().__init__(schema, name)
 
     def __exit__(self, type, value, traceback):
-        self.schema = self.old_schema
+        # not the prettiest solution, but it we can't replace self.schema
+        # with a new Schema object, as we need to need to keep a pointer to
+        # the original schema object passed in the _set class
+        self.schema.clear()
+        self.schema.update(copy.deepcopy(self.old_schema))
 
 
 class Schema(dict):
