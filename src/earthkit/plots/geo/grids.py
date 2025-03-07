@@ -24,11 +24,11 @@ try:
 except ImportError:
     _NO_SCIPY = True
 
-_NO_EARTHKIT_GEO = False
-try:
-    import earthkit.geo
-except ImportError:
-    _NO_EARTHKIT_GEO = True
+# _NO_EARTHKIT_GEO = False
+# try:
+#     import earthkit.geo
+# except ImportError:
+#     _NO_EARTHKIT_GEO = True
 
 
 def is_structured(x, y, tol=1e-5):
@@ -103,11 +103,8 @@ def is_global(x, y, tol=5):
     Compares points of x and y to low resolution global grid,
     and if within tolerance, returns True.
     """
-    if not _NO_EARTHKIT_GEO:
-        warnings.warn(
-            "Using earthkit.geo to determine if grid is global is not implemented."
-        )
-        pass
+    # if not _NO_EARTHKIT_GEO:
+    #     pass
 
     if _NO_SCIPY:
         raise ImportError(
@@ -205,7 +202,7 @@ def interpolate_unstructured(
         x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
     ]
 
-    lon_delta = np.median(np.diff(np.sort(y)))
+    lon_delta = np.max(np.diff(np.unique(y)))
 
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
@@ -214,6 +211,7 @@ def interpolate_unstructured(
         (grid_x, grid_y),
         method=method,
     )
+
     if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
         warnings.warn(
             "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
@@ -242,22 +240,22 @@ def interpolate_unstructured(
         interpolation_distance_threshold = (
             interpolation_distance_threshold.lower().replace(" ", "")
         )
+        # Calculate the resolution of the plotting grid
+        plot_resolution = (
+            ((x.max() - x.min()) / resolution) ** 2
+            + ((y.max() - y.min()) / resolution) ** 2
+        ) ** 0.5
         if interpolation_distance_threshold == "auto":
-            interpolation_distance_threshold = (
-                median_distance * 2.0
-            )  # Factor of 2 to not mask out too much data
+            interpolation_distance_threshold = max(
+                median_distance, plot_resolution * 2.0
+            )  # Some hard-coded values, but this is auto-mode, so not for user configurability
         elif interpolation_distance_threshold.endswith("cells"):
             match = re.match(r"(\d+\.?\d*)cells", interpolation_distance_threshold)
             try:
                 n_cells = float(match.group(1))
             except TypeError:
                 raise ValueError(value_error_message)
-            # Calculate the resolution of the grid
-            res = (
-                ((x.max() - x.min()) / resolution) ** 2
-                + ((y.max() - y.min()) / resolution) ** 2
-            ) ** 0.5
-            interpolation_distance_threshold = n_cells * res
+            interpolation_distance_threshold = n_cells * plot_resolution
         else:
             raise ValueError(value_error_message)
 

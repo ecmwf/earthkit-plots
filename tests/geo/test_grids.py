@@ -6,8 +6,7 @@ from earthkit.plots.geo.grids import interpolate_unstructured
 X = np.array([0, 1, 2, 3, 0, 1, 2, 3])
 Y = np.array([0, 0, 1, 1, 2, 2, 3, 3])
 Z = np.array([10, 20, 30, 40, 50, 60, 70, 80])
-Z_nan = np.array([10, 20, 30, 40, np.nan, 60, np.nan, 80])
-# TEST_GRID_X =
+Z_NAN = np.array([10, 20, 30, 40, np.nan, 60, np.nan, 80])
 
 
 @pytest.mark.parametrize(
@@ -16,9 +15,9 @@ Z_nan = np.array([10, 20, 30, 40, np.nan, 60, np.nan, 80])
         (Z, "linear", 32.5),
         (Z, "nearest", 20.0),
         (Z, "cubic", 31.16515181455966),
-        (Z_nan, "linear", 32.5),
-        (Z_nan, "nearest", 20.0),
-        (Z_nan, "cubic", 30.26403836889215),
+        (Z_NAN, "linear", 32.5),
+        (Z_NAN, "nearest", 20.0),
+        (Z_NAN, "cubic", 30.26403836889215),
     ),
 )
 def test_interpolation_linear(z, method, result_1_1, x=X, y=Y):
@@ -47,7 +46,7 @@ def test_invalid_interpolation_method(x=X, y=Y, z=Z):
 
 
 @pytest.mark.parametrize(
-    "threshold, expected_nans", ((0.75, 68), ("auto", 40), ("2 cells", 68))
+    "threshold, expected_nans", ((0.75, 68), ("auto", 48), ("2 cells", 68))
 )
 def test_interpolation_distance_threshold(threshold, expected_nans):
     x = np.array([0, 3, 0, 3, 0, 3, 0, 3])
