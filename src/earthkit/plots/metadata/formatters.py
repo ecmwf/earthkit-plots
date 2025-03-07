@@ -155,7 +155,8 @@ class LayerFormatter(BaseFormatter):
                 value = string_utils.list_to_human(value)
         return value
 
-    def format_field(self, value, format_spec):
+    def format_field(self, _value, format_spec):
+        value = str(_value)
         if value.startswith("__units__"):
             return metadata.units.format_units(
                 value.replace("__units__", ""), format_spec
