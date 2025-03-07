@@ -901,7 +901,7 @@ class Subplot:
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
         interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one 
+            For unstructured data, a cell will only be plotted if there is at least one
             data point within this distance (inclusive).
             If None, all points are plotted. If an integer or float, the distance is
             in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
@@ -966,7 +966,7 @@ class Subplot:
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
         interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one 
+            For unstructured data, a cell will only be plotted if there is at least one
             data point within this distance (inclusive).
             If None, all points are plotted. If an integer or float, the distance is
             in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).

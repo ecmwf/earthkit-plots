@@ -133,21 +133,98 @@ def is_global(x, y, tol=5):
     return True
 
 
+def guess_resolution(dim_array: np.ndarray) -> float:
+    """
+    Guess the resolution based on the minimum distance between a point and all other points.
+
+    Parameters
+    ----------
+    dim_array : array_like
+        1D array of coordinates.
+
+    Returns
+    -------
+    float
+        The guessed resolution based on the minimum distance between points.
+    """
+    dim_array = np.asarray(dim_array)
+    if dim_array.ndim != 1:
+        raise ValueError("Input must be a 1D array.")
+
+    # Calculate the minimum distance between points
+    diffs = np.abs(dim_array[:, None] - dim_array)
+    np.fill_diagonal(diffs, np.inf)
+    min_distance = np.min(diffs)
+    return min_distance
+
+
+def guess_resolution_and_shape(
+    x: np.ndarray,
+    y: np.ndarray,
+    in_shape: int | tuple[int, int] | None = None,
+    in_resolution: float | tuple[float, float] | None = None,
+) -> tuple[tuple[float, float], tuple[int, int]]:
+    """
+    Guess the resolution and shape of the grid based on the input data.
+    """
+    x_min, x_max = x.min(), x.max()
+    y_min, y_max = y.min(), y.max()
+
+    # If a target resolution provided, calculate the target shape from the resolution and the x/y values
+    if in_resolution is not None:
+        # Determine shape from in_resolution
+        if not isinstance(in_resolution, (tuple, list)):
+            out_resolution: tuple[float, float] = (in_resolution, in_resolution)
+        else:
+            out_resolution = in_resolution
+        if in_shape is not None:
+            warnings.warn(
+                "Both shape and resolution are provided, using resolution to determine shape."
+            )
+        out_shape = (
+            int((x_max - x_min) / out_resolution[0]),
+            int((y_max - y_min) / out_resolution[1]),
+        )
+        return out_resolution, out_shape
+
+    # If a target shape provided, calculate the target resolution from the shape and the x/y values
+    if in_shape is not None:
+        # Determine resolution from in_shape
+        if not isinstance(in_resolution, (tuple, list)):
+            out_shape: tuple[int, int] = (in_shape, in_shape)
+        else:
+            out_shape = in_shape
+        out_resolution = (
+            float(x_max - x_min) / out_shape[0],
+            float(y_max - y_min) / out_shape[1],
+        )
+        return out_resolution, out_shape
+
+    # If neither are defined, guess the resolution from the data and calculate the shape
+    out_resolution = (guess_resolution(x), guess_resolution(y))
+    out_shape = (
+        int((x_max - x_min) / out_resolution[0]),
+        int((y_max - y_min) / out_resolution[1]),
+    )
+    return out_resolution, out_shape
+
+
 def interpolate_unstructured(
-    x,
-    y,
-    z,
-    resolution=1000,
-    method="linear",
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    target_shape: tuple[int, int] | int | None = None,
+    target_resolution: tuple[float, float] | float | None = None,
+    method: str = "linear",
     interpolation_distance_threshold: None | float | int | str = None,
-):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate unstructured data to a structured grid.
 
     This function takes unstructured (scattered) data points and interpolates them
     to a structured grid, handling NaN values in `z` and providing options for
     different interpolation methods. It creates a regular grid based on the given
-    resolution and interpolates the z-values from the unstructured points onto this grid.
+    number of cells (n_cells) and interpolates the z-values from the unstructured points onto this grid.
 
     Parameters
     ----------
@@ -157,9 +234,16 @@ def interpolate_unstructured(
         1D array of y-coordinates.
     z : array_like
         1D array of z-values at each (x, y) point.
-    resolution : int, optional
-        The number of points along each axis for the structured grid.
-        Default is 1000.
+    target_shape : tuple(int), optional
+        The number of points along x and y axes for the structured grid, it should be provided as
+        (n_cells_x, n_cells_y). If None, the number of points is determined based on the
+        resolution of the data.
+        Default is None.
+    target_resolution : float, optional
+        The resolution of the plot grid in the same units as the x and y coordinates.
+        It can be provided as a single float or a tuple of two floats (resolution_x, resolution_y).
+        If None, the resolution is guessed based on the minimum distance between points.
+        Default is None.
     method : {'linear', 'nearest', 'cubic'}, optional
         The interpolation method to use. Default is 'linear'.
         The methods supported are:
@@ -197,9 +281,13 @@ def interpolate_unstructured(
     y_filtered = y[mask]
     z_filtered = z[mask]
 
+    target_resolution, target_shape = guess_resolution_and_shape(
+        x_filtered, y_filtered, in_shape=target_shape, in_resolution=target_resolution
+    )
+
     # Create a structured grid
     grid_x, grid_y = np.mgrid[
-        x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
+        x.min() : x.max() : target_shape[0] * 1j, y.min() : y.max() : target_shape[1] * 1j
     ]
 
     lon_delta = np.max(np.diff(np.unique(y)))
@@ -217,7 +305,12 @@ def interpolate_unstructured(
             "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
         )
         return interpolate_unstructured(
-            x, y, z, resolution=resolution, method="nearest"
+            x,
+            y,
+            z,
+            target_resolution=target_resolution,
+            method="nearest",
+            interpolation_distance_threshold=interpolation_distance_threshold,
         )
 
     if interpolation_distance_threshold is None:
@@ -238,12 +331,12 @@ def interpolate_unstructured(
     except ValueError:
         # ensure string provided is lower case and without spaces
         interpolation_distance_threshold = (
-            interpolation_distance_threshold.lower().replace(" ", "")
+            str(interpolation_distance_threshold).lower().replace(" ", "")
         )
         # Calculate the resolution of the plotting grid
         plot_resolution = (
-            ((x.max() - x.min()) / resolution) ** 2
-            + ((y.max() - y.min()) / resolution) ** 2
+            ((x.max() - x.min()) / target_resolution) ** 2
+            + ((y.max() - y.min()) / target_resolution) ** 2
         ) ** 0.5
         if interpolation_distance_threshold == "auto":
             interpolation_distance_threshold = max(
@@ -251,11 +344,10 @@ def interpolate_unstructured(
             )  # Some hard-coded values, but this is auto-mode, so not for user configurability
         elif interpolation_distance_threshold.endswith("cells"):
             match = re.match(r"(\d+\.?\d*)cells", interpolation_distance_threshold)
-            try:
-                n_cells = float(match.group(1))
-            except TypeError:
+            if match is None:
                 raise ValueError(value_error_message)
-            interpolation_distance_threshold = n_cells * plot_resolution
+            _n_cells = float(match.group(1))
+            interpolation_distance_threshold = _n_cells * plot_resolution
         else:
             raise ValueError(value_error_message)
 
