@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,12 +13,19 @@
 # limitations under the License.
 
 import numpy as np
+import warnings
 
 _NO_SCIPY = False
 try:
     from scipy.interpolate import griddata
 except ImportError:
     _NO_SCIPY = True
+
+_NO_EARTHKIT_GEO = False
+try:
+    import earthkit.geo
+except ImportError:
+    _NO_EARTHKIT_GEO = True
 
 
 def is_structured(x, y, tol=1e-5):
@@ -85,6 +92,42 @@ def is_structured(x, y, tol=1e-5):
         # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
         return False
 
+def is_global(x, y, tol=5):
+    """
+    Determines whether the x and y points form a global grid.
+
+    Compares points of x and y to low resolution global grid,
+    and if within tolerance, returns True.
+    """
+    if not _NO_EARTHKIT_GEO:
+        pass
+
+    if _NO_SCIPY:
+        raise ImportError(
+            "The 'scipy' package is required for checking for global data."
+        )
+    
+    expected_x = np.arange(0, 360, 2).reshape(-1, 1)
+    expected_y = np.arange(-90, 90, 2).reshape(-1, 1)
+
+    if np.any(x<0):
+        x = np.roll(x, -180)
+    
+    from scipy.spatial import KDTree
+
+    x_tree = KDTree(x.flatten().reshape(-1, 1))
+    y_tree = KDTree(y.flatten().reshape(-1, 1))
+
+    x_dist, _ = x_tree.query(expected_x)
+    if np.any(x_dist > tol):
+        return False
+    
+    y_dist, _ = y_tree.query(expected_y)
+    if np.any(y_dist > tol):
+        return False
+    
+    return True
+
 
 def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
     """
@@ -140,6 +183,8 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
     ]
 
+    lon_delta = np.max(np.diff(np.unique(y)))
+
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
         np.column_stack((x_filtered, y_filtered)),
@@ -148,16 +193,21 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         method=method,
     )
 
+    if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
+        warnings.warn("Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`.")
+        return interpolate_unstructured(x, y, z, resolution=resolution, method="nearest")
+
     return grid_x, grid_y, grid_z
 
 
 def needs_cyclic_point(lons):
+    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(lons, np.arange(-90, 90, 2))
+
     lons = np.asarray(lons)
     lons_sorted = np.sort(lons)
     delta = np.median(np.diff(lons_sorted))  # Robust estimate of the longitude step
 
     actual_min, actual_max = np.min(lons), np.max(lons)
-    actual_range = [actual_min, actual_max]
 
     # Define both possible expected ranges
     expected_range_360 = [0, 360]
@@ -167,9 +217,11 @@ def needs_cyclic_point(lons):
     tolerance = delta / 2  # Adjust tolerance as a fraction of the longitude step
 
     # Check if the actual range covers the expected range within tolerance
-    check_360 = (np.isclose(actual_min, expected_range_360[0], atol=tolerance) and
-                 np.isclose(actual_max, expected_range_360[1] - delta, atol=tolerance))
-    check_180 = (np.isclose(actual_min, expected_range_180[0], atol=tolerance) and
-                 np.isclose(actual_max, expected_range_180[1] - delta, atol=tolerance))
+    check_360 = np.isclose(
+        actual_min, expected_range_360[0], atol=tolerance
+    ) and np.isclose(actual_max, expected_range_360[1] - delta, atol=tolerance)
+    check_180 = np.isclose(
+        actual_min, expected_range_180[0], atol=tolerance
+    ) and np.isclose(actual_max, expected_range_180[1] - delta, atol=tolerance)
 
     return check_360 or check_180

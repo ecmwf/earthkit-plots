@@ -1,3 +1,17 @@
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import cached_property
 
 import numpy as np
@@ -102,12 +116,15 @@ class NumpySource(SingleSource):
                     np.arange(len(y_values)) if self._x is None else np.asarray(self._x)
                 )
                 z_values = None
+            elif self._metadata.get("gridSpec") is not None:
+                x_values, y_values = None, None
+                z_values = np.asarray(self._z) if self._z is not None else None
             else:
                 raise ValueError("Insufficient arguments to infer x and y.")
-        
+
         # Ensure x and y values are 2D arrays
-        if x_values.ndim == 1:
-            x_values, y_values = np.meshgrid(x_values, y_values)
+        # if x_values.ndim == 1:
+        #     x_values, y_values = np.meshgrid(x_values, y_values)
 
         return x_values, y_values, z_values
 
@@ -133,3 +150,33 @@ class NumpySource(SingleSource):
         if isinstance(result, list):
             result = result[0]
         return result
+
+    def mutate(self):
+        """
+        Mutate the source with new attributes.
+
+        Parameters
+        ----------
+        **kwargs
+            The attributes to update.
+        """
+        if not self._crs and self.metadata("gridSpec", default=None) is not None:
+            import earthkit.data
+
+            from .earthkit import EarthkitSource
+
+            m = self._metadata
+            if self._x is not None and self._y is not None:
+                if "latitudes" not in m and "longitudes" not in m:
+                    m["latitudes"] = self._y
+                    m["longitudes"] = self._x
+
+            if self._z is not None:
+                data = self._z
+            else:
+                data = self._data
+
+            d = earthkit.data.ArrayField(data, metadata=m)
+            return EarthkitSource(d, regrid=self.regrid)
+
+        return self

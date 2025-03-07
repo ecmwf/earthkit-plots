@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ def test_string_to_crs():
 
 
 def test_parse_None():
-    assert coordinate_reference_systems.parse_crs(None) == ccrs.PlateCarree()
+    assert coordinate_reference_systems.parse_crs(None) is None
 
 
 def test_parse_string():

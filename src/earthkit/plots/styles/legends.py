@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import matplotlib.colors as mcolors
-from matplotlib.patches import Rectangle, Patch
-
+import numpy as np
+from matplotlib.patches import Patch
 
 DEFAULT_LEGEND_LABEL = "{variable_name} ({units})"
 
@@ -79,7 +78,6 @@ def colorbar(layer, *args, shrink=0.8, aspect=35, ax=None, color="black", **kwar
     )
     cbar.ax.minorticks_off()
     cbar.ax.tick_params(size=0, color=color)
-    
 
     if cbar.solids is not None:
         cbar.solids.set(alpha=1)
@@ -119,17 +117,26 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
         # Try to extract boundaries directly
         if isinstance(norm, mcolors.BoundaryNorm):
             levels = norm.boundaries  # Correct method for unevenly spaced levels
-        elif hasattr(layer.mappable, "colorbar") and hasattr(layer.mappable.colorbar, "boundaries"):
+        elif hasattr(layer.mappable, "colorbar") and hasattr(
+            layer.mappable.colorbar, "boundaries"
+        ):
             levels = layer.mappable.colorbar.boundaries  # Backup if available
         else:
-            levels = np.linspace(norm.vmin, norm.vmax, cmap.N)  # Fallback, but not ideal
+            levels = np.linspace(
+                norm.vmin, norm.vmax, cmap.N
+            )  # Fallback, but not ideal
 
         # Generate color patches manually
-        artists = [Patch(facecolor=cmap(norm(level)), edgecolor="#555", linewidth=0.5) for level in levels]
+        artists = [
+            Patch(facecolor=cmap(norm(level)), edgecolor="#555", linewidth=0.5)
+            for level in levels
+        ]
 
     labels = kwargs.pop("labels", layer.style._bin_labels) or labels
 
-    kwargs["ncols"] = kwargs.get("ncols", estimate_legend_cols(layer.axes, labels, position=location))
+    kwargs["ncols"] = kwargs.get(
+        "ncols", estimate_legend_cols(layer.axes, labels, position=location)
+    )
 
     legend = source.legend(
         artists,
@@ -151,14 +158,21 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
 
 
 def vector(layer, *args, vector_reference=16, **kwargs):
-    qkey = layer.axes[-1].quiverkey(layer.mappable, 1, 1.02, vector_reference, label=f"{vector_reference} {layer.style.units or '$m s^{-1}$'}")
+    layer.axes[-1].quiverkey(
+        layer.mappable,
+        1,
+        1.02,
+        vector_reference,
+        label=f"{vector_reference} {layer.style.units or '$m s^{-1}$'}",
+    )
     uses_cbar = getattr(layer.mappable, "_colorbar", True)
     cbar = None
     if uses_cbar:
         cbar = colorbar(layer, *args, **kwargs)
+    return cbar
 
 
-def estimate_legend_cols(axes, labels, position='top'):
+def estimate_legend_cols(axes, labels, position="top"):
     """
     Estimates the number of columns for a legend based on the total width or height of a list of axes,
     the position of the legend, and the lengths of the labels.
@@ -178,21 +192,23 @@ def estimate_legend_cols(axes, labels, position='top'):
     # Calculate total width of each label
     label_widths = [len(label) * char_width + padding for label in labels]
 
-    if position in ['top', 'bottom']:
+    if position in ["top", "bottom"]:
         # Calculate the total width of all axes
         total_width = sum(ax.get_position().width for ax in axes)
-        available_width = total_width * axes[0].figure.get_figwidth() * axes[0].figure.dpi
+        available_width = (
+            total_width * axes[0].figure.get_figwidth() * axes[0].figure.dpi
+        )
     else:  # 'left', 'right'
         # Calculate the total height of all axes
         total_height = sum(ax.get_position().height for ax in axes)
-        available_width = total_height * axes[0].figure.get_figheight() * axes[0].figure.dpi
+        available_width = (
+            total_height * axes[0].figure.get_figheight() * axes[0].figure.dpi
+        )
 
     # Sum of label widths
     total_label_width = np.sum(label_widths)
 
     # Calculate the number of columns that would fit
     num_columns = max(1, int(available_width / total_label_width * len(labels)))
-    
-    
 
     return num_columns

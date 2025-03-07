@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -55,7 +55,7 @@ class Resample:
     def __repr__(self):
         """
         Return a string representation of the resampler.
-        
+
         Returns
         -------
         str
@@ -92,27 +92,27 @@ class Subsample(Resample):
             self.nx = nx
             self.ny = ny
 
-        if mode not in ['stride', 'fixed']:
+        if mode not in ["stride", "fixed"]:
             raise ValueError("Mode must be 'stride' or 'fixed'")
         self.mode = mode
-    
+
     def _fixed_steps(self, x_values, y_values):
         x_step = 1
         if self.nx:
             if len(x_values.shape) == 1:
-                x_step = len(x_values) // (self.nx-1)
+                x_step = len(x_values) // (self.nx - 1)
             else:
-                x_step = x_values.shape[1] // (self.nx-1)
+                x_step = x_values.shape[1] // (self.nx - 1)
             x_step = max(1, x_step)
-        
+
         y_step = 1
         if self.ny:
             if len(y_values.shape) == 1:
-                y_step = len(y_values) // (self.ny-1)
+                y_step = len(y_values) // (self.ny - 1)
             else:
-                y_step = y_values.shape[0] // (self.ny-1)
+                y_step = y_values.shape[0] // (self.ny - 1)
             y_step = max(1, y_step)
-        
+
         return x_step, y_step
 
     def apply(self, x_values, y_values, *values, **kwargs):
@@ -126,24 +126,19 @@ class Subsample(Resample):
             x_values = x_values[::x_step]
         else:
             x_values = x_values[::y_step, ::x_step]
-        
+
         if len(y_values.shape) == 1:
             y_values = y_values[::y_values]
         else:
             y_values = y_values[::y_step, ::x_step]
-        
+
         values = (v[::y_step, ::x_step] for v in values)
-        
+
         return [x_values, y_values, *values]
-            
 
     def __repr__(self):
         return f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny})"
 
-
-import cartopy.crs as ccrs
-import numpy as np
-from scipy.interpolate import griddata
 
 class Regrid(Subsample):
     def apply(self, x_values, y_values, *values, source_crs, target_crs, extents):
@@ -157,7 +152,9 @@ class Regrid(Subsample):
         target_x_grid, target_y_grid = np.meshgrid(target_x_linspace, target_y_linspace)
 
         # Transform source coordinates to target CRS
-        transformed_points = target_crs.transform_points(source_crs, x_values.flatten(), y_values.flatten())
+        transformed_points = target_crs.transform_points(
+            source_crs, x_values.flatten(), y_values.flatten()
+        )
         source_x, source_y = transformed_points[..., 0], transformed_points[..., 1]
 
         # Filter out NaNs after transformation
@@ -171,13 +168,18 @@ class Regrid(Subsample):
             interpolated_data = griddata(
                 (source_x, source_y),  # Valid source coordinates in target CRS
                 val,  # Corresponding data
-                (target_x_grid.flatten(), target_y_grid.flatten()),  # Target grid coordinates
-                method='linear',
-                fill_value=np.nan  # Handle points outside convex hull
+                (
+                    target_x_grid.flatten(),
+                    target_y_grid.flatten(),
+                ),  # Target grid coordinates
+                method="linear",
+                fill_value=np.nan,  # Handle points outside convex hull
             )
             resampled_values.append(interpolated_data.reshape(target_y_grid.shape))
 
         return [target_x_grid, target_y_grid, *resampled_values]
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny}, mode='{self.mode}')"
+        return (
+            f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny}, mode='{self.mode}')"
+        )

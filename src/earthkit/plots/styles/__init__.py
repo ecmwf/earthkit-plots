@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,7 @@ from scipy.interpolate import interp1d, make_interp_spline
 
 from earthkit.plots import metadata, styles
 from earthkit.plots.schemas import schema
-from earthkit.plots.styles import auto, legends, levels
-from earthkit.plots.styles import colors
+from earthkit.plots.styles import auto, colors, legends, levels
 from earthkit.plots.styles.colors import magics_colors_to_rgb
 
 __all__ = [
@@ -123,12 +122,17 @@ class Style:
         self._colors = colors
         if isinstance(self._colors, (list, tuple)) and schema.color_mode == "magics":
             self._colors = magics_colors_to_rgb(self._colors)
-        
+
         if isinstance(levels, dict):
-            levels = styles.levels.Levels(**levels) 
+            levels = styles.levels.Levels(**levels)
         self._levels = (
-            levels if isinstance(levels, styles.levels.Levels)
-            else styles.levels.Levels(levels, categorical=categories is not None or self.__class__.__name__ == "Categorical")
+            levels
+            if isinstance(levels, styles.levels.Levels)
+            else styles.levels.Levels(
+                levels,
+                categorical=categories is not None
+                or self.__class__.__name__ == "Categorical",
+            )
         )
         self.normalize = normalize
         self.gradients = gradients
@@ -368,11 +372,11 @@ class Style:
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         return ax.contourf(x, y, values, *args, **kwargs)
-    
+
     def quiver(self, ax, x, y, u, v, *args, **kwargs):
         """
         Plot quiver arrows using this `Style`.
-        
+
         Parameters
         ----------
         ax : matplotlib.axes.Axes
@@ -392,7 +396,7 @@ class Style:
         norm = None
         kwargs = {**self._kwargs, **kwargs}
         if self._colors:
-            magnitude = np.sqrt(u ** 2 + v ** 2)
+            magnitude = np.sqrt(u**2 + v**2)
             kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
             cmap = kwargs.pop("cmap", None)
             norm = kwargs.pop("norm", None)
@@ -825,7 +829,7 @@ class Categorical(Style):
 
 class Quiver(Style):
     """A style for plotting vector data."""
-    
+
     def __init__(self, *args, colors=None, **kwargs):
         kwargs["legend_style"] = "vector"
         super().__init__(*args, colors=colors, **kwargs)
@@ -1115,6 +1119,9 @@ def compare_attributes(self, other, keys):
 
     # Use the is_equal function for each key in your check
     try:
-        return all(is_equal(getattr(self, key, None), getattr(other, key, None)) for key in keys)
+        return all(
+            is_equal(getattr(self, key, None), getattr(other, key, None))
+            for key in keys
+        )
     except ValueError:
         return False

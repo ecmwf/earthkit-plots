@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,12 +53,12 @@ def all_equal(iterable):
 def flatten(lst):
     """
     Flatten a nested list.
-    
+
     Parameters
     ----------
     lst : list
         The list to flatten.
-    
+
     Returns
     -------
     list

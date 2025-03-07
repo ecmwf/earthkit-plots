@@ -1,12 +1,25 @@
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from functools import cached_property
 
 import cartopy.crs as ccrs
 import numpy as np
 
 from earthkit.plots.identifiers import U, V
-from earthkit.plots.sources.single import SingleSource
 from earthkit.plots.schemas import schema
-from datetime import datetime
+from earthkit.plots.sources.single import SingleSource
 
 _NO_EARTHKIT_REGRID = False
 try:
@@ -21,6 +34,8 @@ VARIABLE_KEYS = [
     "long_name",
     "name",
 ]
+
+AXIS_NAMES = {"x": "lon", "y": "lat"}
 
 
 def get_points(dx):
@@ -55,6 +70,7 @@ class EarthkitSource(SingleSource):
 
     def _infer_xyz(self):
         """Infers x, y, and z values based on inputs."""
+
         # Determine z values
         if isinstance(self._z, str):
             # Select a specific variable for z if specified
@@ -68,15 +84,16 @@ class EarthkitSource(SingleSource):
                     f"earthkit-regrid is required for plotting data on a"
                     f"'{self.gridspec['grid']}' grid"
                 )
+
             x_values, y_values = get_points(schema.interpolate_target_resolution)
             # start = datetime.now()
             z_values = earthkit.regrid.interpolate(
                 z_values,
                 self.gridspec.to_dict(),
-                {"grid": [schema.interpolate_target_resolution]*2},
+                {"grid": [schema.interpolate_target_resolution] * 2},
             )
             # print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
-            
+
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")
@@ -89,14 +106,19 @@ class EarthkitSource(SingleSource):
             return self.data.sel(short_name=coord).to_numpy(flatten=False)
         else:
             # Automatically infer coordinate values from data dimensions or metadata
-            points = (
-                self.data.to_points(flatten=False)
-                if hasattr(self.data, "to_points")
-                else None
-            )
-            if points:
-                return points[axis]
+            try:
+                points = (
+                    self.data.to_points(flatten=False)
+                    if hasattr(self.data, "to_points")
+                    else None
+                )
+                if points:
+                    return points[axis]
+            except NotImplementedError:
+                pass
+
             latlon = self.data.to_latlon(flatten=False)
+            axis = AXIS_NAMES.get(axis, axis)
             return (
                 latlon[axis]
                 if axis in latlon

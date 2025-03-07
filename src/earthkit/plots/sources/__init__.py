@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,18 @@ from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
 
 
-def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=True, **kwargs):
+def get_source(
+    *args,
+    data=None,
+    x=None,
+    y=None,
+    z=None,
+    u=None,
+    v=None,
+    regrid=True,
+    metadata=None,
+    **kwargs
+):
     """
     Get a Source object from the given data.
 
@@ -48,7 +59,14 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, regrid=
         Additional keyword arguments to pass to the Source constructor.
     """
     cls = _get_source_class(*args, data=data)
-    return cls(*args, x=x, y=y, z=z, u=u, v=v, regrid=regrid, metadata=kwargs)
+
+    src = cls(*args, x=x, y=y, z=z, u=u, v=v, regrid=regrid, metadata=metadata)
+
+    prev = None
+    while src is not prev:
+        prev = src
+        src = src.mutate()
+    return src
 
 
 def _get_source_class(*args, data):

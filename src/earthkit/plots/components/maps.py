@@ -1,23 +1,33 @@
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
+from pyproj import Transformer
+from shapely.geometry import box
+from shapely.ops import transform
 
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.geo import domains, natural_earth, coordinate_reference_systems
+from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
-
-
-from shapely.ops import transform
-from shapely.geometry import box
-from pyproj import Transformer
-import cartopy.feature as cfeature
-import cartopy.io.shapereader as shpreader
 
 
 class Map(Subplot):
@@ -286,7 +296,10 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record in records:
                         for style in special_styles:
-                            if record.attributes.get(style["key"], None) in style["values"]:
+                            if (
+                                record.attributes.get(style["key"], None)
+                                in style["values"]
+                            ):
                                 special_records.append([record, style["kwargs"]])
                             else:
                                 filtered_records.append(record)
@@ -309,8 +322,15 @@ class Map(Subplot):
                         record
                         for record in records
                         if (
-                            (include is None or record.attributes.get(default_attribute) in include)
-                            and (exclude is None or record.attributes.get(default_attribute) not in exclude)
+                            (
+                                include is None
+                                or record.attributes.get(default_attribute) in include
+                            )
+                            and (
+                                exclude is None
+                                or record.attributes.get(default_attribute)
+                                not in exclude
+                            )
                         )
                     ]
 
@@ -326,7 +346,9 @@ class Map(Subplot):
                     )
 
                 # **Optimized Geometry Reprojection & Clipping**
-                transformer = Transformer.from_crs("EPSG:4326", self.crs, always_xy=True)
+                transformer = Transformer.from_crs(
+                    "EPSG:4326", self.crs, always_xy=True
+                )
 
                 def reproject_geom(geom):
                     return transform(transformer.transform, geom)
@@ -353,7 +375,7 @@ class Map(Subplot):
                     for record, style in special_records:
                         projected_geom = reproject_geom(record.geometry)
                         clipped_geom = projected_geom.intersection(extent_box)
-                        
+
                         if not clipped_geom.is_empty:
                             feature = cfeature.ShapelyFeature([clipped_geom], self.crs)
                             self.ax.add_feature(feature, *args, **{**kwargs, **style})
@@ -363,8 +385,6 @@ class Map(Subplot):
             return wrapper
 
         return decorator
-
-
 
     @schema.coastlines.apply()
     @natural_earth_layer("physical", "coastline", line=True)

@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -154,11 +154,13 @@ class LayerFormatter(BaseFormatter):
             else:
                 value = string_utils.list_to_human(value)
         return value
-    
+
     def format_field(self, value, format_spec):
         value = value if value is not None else ""
         if value.startswith("__units__"):
-            return metadata.units.format_units(value.replace("__units__", ""), format_spec)
+            return metadata.units.format_units(
+                value.replace("__units__", ""), format_spec
+            )
         else:
             return super().format_field(value, format_spec)
 
