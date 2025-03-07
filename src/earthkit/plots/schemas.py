@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 import yaml
 from matplotlib import rcParams
 
-from earthkit.plots._plugins import PLUGINS
+from earthkit.plots._plugins import PLUGINS, create_plugin
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 
@@ -82,6 +82,44 @@ class _set:
             self.schema.pop(key, None)
 
 
+class _add(_set):
+    def __init__(self, schema, name):
+        if name not in PLUGINS:
+            plugin = create_plugin(Path(name).expanduser().parent)
+
+            if not plugin[schema].exists():
+                raise SchemaNotFoundError(f"No plugin '{name}' found")
+        else:
+            plugin = PLUGINS[name]
+
+        if plugin.get("schema") is None or not plugin["schema"].exists():
+            raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
+
+        schema._plugins.append(plugin)
+
+        with open(plugin[schema], "r") as f:
+            kwargs = yaml.load(f, Loader=yaml.SafeLoader)
+
+        super().__init__(schema, **kwargs)
+
+    def __exit__(self, type, value, traceback):
+        self.schema._plugins.pop()
+        super().__exit__(type, value, traceback)
+
+
+class _use:
+    def __init__(self, schema, name):
+
+        self.old_schema = schema.copy()
+        self.schema.clear()
+        self.schema.add(_DEFAULT_SCHEMA)  # not use() as it calls _use
+
+        super().__init__(schema, name)
+
+    def __exit__(self, type, value, traceback):
+        self.schema = self.old_schema
+
+
 class Schema(dict):
     """Class for containing and maintaining global style settings."""
 
@@ -93,6 +131,7 @@ class Schema(dict):
 
     def __init__(self, parent=None, **kwargs):
         self._parent = parent
+        self._plugins = []
         self._update(**kwargs)
         self._apply_rcParams()
 
@@ -200,7 +239,7 @@ class Schema(dict):
 
     def use(self, name):
         """
-        Use a named schema.
+        Use a named schema replacing the existing schema.
 
         Parameters
         ----------
@@ -210,24 +249,44 @@ class Schema(dict):
         Example
         -------
         >>> schema.use("default")
-        >>> schema.use("~/custom.yaml")
+        >>> schema.use("~/my_schema.yaml")
+        >>> with schema.user("my_registed_schema"):
+        ...     print(schema.font)
+        ...
         """
-        if name not in PLUGINS:
-            file_name = Path(name).expanduser()
-            if not file_name.exists():
-                raise SchemaNotFoundError(f"No plugin '{name}' found")
-        elif PLUGINS[name].get("schema") is None:
-            raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
-        else:
-            file_name = PLUGINS[name]["schema"]
 
-        with open(file_name, "r") as f:
-            kwargs = yaml.load(f, Loader=yaml.SafeLoader)
+        return _use(self, name)
 
-        self._reset(**kwargs)
+    def add(self, name):
+        """
+        Add a named schema on top of the existing schema.
 
-    def _reset(self, **kwargs):
-        self.__init__(**kwargs)
+        Parameters
+        ----------
+        name : str
+            The name of the schema to use, or path to a user-implemented schema.
+
+        Example
+        -------
+        >>> schema.use("default")
+        >>> schema.use("~/my_schema.yaml")
+        >>> with schema.user("my_registed_schema"):
+        ...     print(schema.font)
+        ...
+        """
+
+        return _add(self, name)
+
+    def reset(self):
+        """
+        Reset the schema to the default settings.
+
+        Example
+        -------
+        >>> schema.reset()
+        """
+        self.clear()
+        self.use(_DEFAULT_SCHEMA)
 
 
 schema = Schema()

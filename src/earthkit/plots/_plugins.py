@@ -36,16 +36,21 @@ def register_plugins():
 
     for plugin in plugin_entry_points:
         path = Path(plugin.load().__file__).parents[0]
-        plugins[plugin.name] = {
-            "identities": path / "identities",
-            "schema": path / "schema.yml",
-            "styles": path / "styles",
-        }
+        plugins[plugin.name] = create_plugin(path)
         for key, value in plugins[plugin.name].items():
             if not value.exists():
                 plugins[plugin.name][key] = None
 
     return plugins
+
+
+def create_plugin(path):
+    plugin = {
+        "identities": path / "identities",
+        "schema": path / "schema.yml",
+        "styles": path / "styles",
+    }
+    return plugin
 
 
 PLUGINS = register_plugins()

@@ -14,52 +14,70 @@
 
 import glob
 import os
-from pathlib import Path
 
 import yaml
 
 from earthkit.plots import styles
-from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.metadata.units import are_equal
 from earthkit.plots.schemas import schema
 
 
-def _find_identity(data, identities_path):
+def _get_style_library_path(subfolder):
+    subfolder_paths = []
+    for plugin in schema._plugins:
+        subfolder_paths.append(plugin[subfolder])
+    return subfolder_paths
+
+
+# TODO: add cache for style guessing
+def _find_identity(data):
+
+    plugin_paths = _get_style_library_path("identities")
+
     identity = None
-    for fname in glob.glob(str(identities_path / "*")):
+    for identities_path in plugin_paths:  # loop through all the plugins
+        for fname in glob.glob(str(identities_path / "*")):
 
-        if os.path.isfile(fname):
-            with open(fname, "r") as f:
-                config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
+            if os.path.isfile(fname):
+                with open(fname, "r") as f:
+                    config = yaml.load(f, Loader=yaml.SafeLoader)
+            else:
+                continue
 
-        for criteria in config["criteria"]:
-            for key, value in criteria.items():
-                if data.metadata(key, default=None) == value:
-                    identity = config["id"]
-                    break
+            for criteria in config["criteria"]:
+                for key, value in criteria.items():
+                    if data.metadata(key, default=None) == value:
+                        identity = config["id"]
+                        break
+                else:
+                    continue
+                break
             else:
                 continue
             break
-        else:
-            continue
-        break
     return identity
 
 
-def _find_style_config(identity, styles_path):
+# TODO: add cache for style guessing
+def _find_style_config(identity=None):
+
+    plugin_paths = _get_style_library_path("styles")
+
     style_config = None
-    for fname in glob.glob(str(styles_path / "*")):
+    for styles_path in plugin_paths:  # loop through all the plugins
+        for fname in glob.glob(str(styles_path / "*")):
 
-        if os.path.isfile(fname):
-            with open(fname, "r") as f:
-                style_config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
+            if os.path.isfile(fname):
+                with open(fname, "r") as f:
+                    style_config = yaml.load(f, Loader=yaml.SafeLoader)
+            else:
+                continue
 
-        if style_config["id"] == identity:
-            break
+            if identity is None and style_config.get("id") is None:
+                break
+
+            if style_config.get("id") == identity:
+                break
 
     return style_config
 
@@ -99,21 +117,13 @@ def guess_style(data, units=None, **kwargs):
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
-    if schema.style_library not in PLUGINS:
-        path = Path(schema.style_library).expanduser()
-        identities_path = path / "identities"
-        styles_path = path / "styles"
-    else:
-        identities_path = PLUGINS[schema.style_library]["identities"]
-        styles_path = PLUGINS[schema.style_library]["styles"]
-
     # first loop identity files within the identities folder in the style library
-    identity = _find_identity(data, identities_path)
+    identity = _find_identity(data)
     if identity is None:
         return styles.DEFAULT_STYLE
 
     # from identity, find the style configuration file
-    style_config = _find_style_config(identity, styles_path)
+    style_config = _find_style_config(identity)
     if style_config is None:
         return styles.DEFAULT_STYLE
 
@@ -123,3 +133,51 @@ def guess_style(data, units=None, **kwargs):
     style = _style_from_units(style_config, units)
 
     return styles.Style.from_dict({**style, **kwargs})
+
+
+def get_available_styles(data):
+    """
+    Get the available styles for the data based on its metadata.
+
+    The styles are determined by the identity of the data, which is matched
+    against the identities in the style library. If the style library is not
+    set or no identity matches the metadata, the default style is returned.
+
+    Parameters
+    ----------
+    data : earthkit.plots.sources.Source
+        The data object containing the metadata.
+    """
+
+    styles = []
+
+    for field in data:
+
+        # first loop identity files within the identities folder in the style library
+        identity = _find_identity(field)
+
+        if identity is None:
+            return get_common_styles()
+
+        # from identity, find the style configuration file
+        style_config = _find_style_config(identity)
+
+        styles.append(style_config["styles"])
+
+    return styles
+
+
+def get_common_styles():
+    """
+    Get the common styles (styles without id).
+    """
+    styles = None
+    style_config = _find_style_config()
+    if style_config is None:
+        styles = {"default": styles.DEFAULT_STYLE}
+    else:
+        styles = style_config.get("styles")
+        if styles is None:
+            styles = {"default": styles.DEFAULT_STYLE}
+
+    return styles
