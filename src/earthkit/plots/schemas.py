@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import copy
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -85,9 +86,9 @@ class _set:
 class _add(_set):
     def __init__(self, schema, name):
         if name not in PLUGINS:
-            plugin = create_plugin(Path(name).expanduser().parent)
+            plugin = create_plugin(Path(name).expanduser())
 
-            if not plugin[schema].exists():
+            if not plugin["schema"].exists():
                 raise SchemaNotFoundError(f"No plugin '{name}' found")
         else:
             plugin = PLUGINS[name]
@@ -97,7 +98,7 @@ class _add(_set):
 
         schema._plugins.append(plugin)
 
-        with open(plugin[schema], "r") as f:
+        with open(plugin["schema"], "r") as f:
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
         super().__init__(schema, **kwargs)
@@ -107,12 +108,11 @@ class _add(_set):
         super().__exit__(type, value, traceback)
 
 
-class _use:
+class _use(_add):
     def __init__(self, schema, name):
 
-        self.old_schema = schema.copy()
-        self.schema.clear()
-        self.schema.add(_DEFAULT_SCHEMA)  # not use() as it calls _use
+        self.old_schema = copy.deepcopy(schema)
+        schema.reset()
 
         super().__init__(schema, name)
 
@@ -123,7 +123,7 @@ class _use:
 class Schema(dict):
     """Class for containing and maintaining global style settings."""
 
-    PROTECTED_KEYS = ["_parent"]
+    PROTECTED_KEYS = ["_parent", "_plugins"]
 
     parsers = {
         "reference_crs": parse_crs,
@@ -250,11 +250,10 @@ class Schema(dict):
         -------
         >>> schema.use("default")
         >>> schema.use("~/my_schema.yaml")
-        >>> with schema.user("my_registed_schema"):
+        >>> with schema.use("my_registed_schema"):
         ...     print(schema.font)
         ...
         """
-
         return _use(self, name)
 
     def add(self, name):
@@ -285,9 +284,13 @@ class Schema(dict):
         -------
         >>> schema.reset()
         """
+        parent = self._parent
         self.clear()
-        self.use(_DEFAULT_SCHEMA)
+        # clear will also remove private class attributes, so we need to rebuild them
+        self._parent = parent
+        self._plugins = []
+        self.add(_DEFAULT_SCHEMA)
 
 
 schema = Schema()
-schema.use(_DEFAULT_SCHEMA)
+schema.reset()
