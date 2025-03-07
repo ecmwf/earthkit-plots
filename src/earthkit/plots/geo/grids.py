@@ -12,12 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
+import re
 import warnings
+
+import numpy as np
 
 _NO_SCIPY = False
 try:
     from scipy.interpolate import griddata
+    from scipy.spatial import cKDTree
 except ImportError:
     _NO_SCIPY = True
 
@@ -92,6 +95,7 @@ def is_structured(x, y, tol=1e-5):
         # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
         return False
 
+
 def is_global(x, y, tol=5):
     """
     Determines whether the x and y points form a global grid.
@@ -100,20 +104,22 @@ def is_global(x, y, tol=5):
     and if within tolerance, returns True.
     """
     if not _NO_EARTHKIT_GEO:
-        warnings.warn("Using earthkit.geo to determine if grid is global is not implemented.")
+        warnings.warn(
+            "Using earthkit.geo to determine if grid is global is not implemented."
+        )
         pass
 
     if _NO_SCIPY:
         raise ImportError(
             "The 'scipy' package is required for checking for global data."
         )
-    
+
     expected_x = np.arange(0, 360, 2).reshape(-1, 1)
     expected_y = np.arange(-90, 90, 2).reshape(-1, 1)
 
-    if np.any(x<0):
+    if np.any(x < 0):
         x = np.roll(x, -180)
-    
+
     from scipy.spatial import KDTree
 
     x_tree = KDTree(x.flatten().reshape(-1, 1))
@@ -122,11 +128,11 @@ def is_global(x, y, tol=5):
     x_dist, _ = x_tree.query(expected_x)
     if np.any(x_dist > tol):
         return False
-    
+
     y_dist, _ = y_tree.query(expected_y)
     if np.any(y_dist > tol):
         return False
-    
+
     return True
 
 
@@ -165,7 +171,7 @@ def interpolate_unstructured(
         - 'nearest': Nearest-neighbor interpolation.
         - 'cubic': Cubic interpolation, which may produce smoother results.
     interpolation_distance_threshold: None | int | float | str, optional
-        A cell will only be plotted if there is at least one data point within this distance.
+        A cell will only be plotted if there is at least one data point within this distance (inclusive).
         If None, all points are plotted. If an integer or float, the distance is
         in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
         If 'auto', the distance is automatically determined based on the plot resolution.
@@ -209,51 +215,66 @@ def interpolate_unstructured(
         method=method,
     )
     if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
-        warnings.warn("Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`.")
-        return interpolate_unstructured(x, y, z, resolution=resolution, method="nearest")
-
-    if interpolation_distance_threshold is not None:
-
-        if isinstance(interpolation_distance_threshold, str):
-            try:
-                interpolation_distance_threshold = float(
-                    interpolation_distance_threshold
-                )
-            except ValueError:
-                if interpolation_distance_threshold == "auto":
-                    npoints = 3
-                elif interpolation_distance_threshold.endswith("cells"):
-                    npoints = int(interpolation_distance_threshold[:-5].strip(" "))
-                else:
-                    raise ValueError(
-                        "Invalid value for 'interpolation_distance_threshold'. "
-                        "Expected an integer or a string ending with 'cells' or 'auto'."
-                    )
-                # Calculate the resolution of the grid
-                res = (
-                    ((x.max() - x.min()) / resolution) ** 2
-                    + ((y.max() - y.min()) / resolution) ** 2
-                ) ** 0.5
-                interpolation_distance_threshold = npoints * res
-        from scipy.spatial import cKDTree
-
-        # Use cKDTree to find nearest distances
-        tree = cKDTree(np.c_[x_filtered, y_filtered])
-        grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
-        distances, _ = tree.query(grid_points)
-
-        # Mask points where the nearest source is beyond the threshold
-        grid_z = np.where(
-            distances.reshape(grid_x.shape) <= interpolation_distance_threshold,
-            grid_z,
-            np.nan,
+        warnings.warn(
+            "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
         )
+        return interpolate_unstructured(
+            x, y, z, resolution=resolution, method="nearest"
+        )
+
+    if interpolation_distance_threshold is None:
+        return grid_x, grid_y, grid_z
+
+    # Use cKDTree to find nearest distances
+    tree = cKDTree(np.c_[x_filtered, y_filtered])
+    grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
+    distances, _ = tree.query(grid_points)
+    median_distance = np.median(distances)
+
+    value_error_message = (
+        "Invalid value for 'interpolation_distance_threshold'. "
+        "Expected an integer, a float, a string 'auto', or a string in the format 'N cells'."
+    )
+    try:
+        interpolation_distance_threshold = float(interpolation_distance_threshold)
+    except ValueError:
+        # ensure string provided is lower case and without spaces
+        interpolation_distance_threshold = (
+            interpolation_distance_threshold.lower().replace(" ", "")
+        )
+        if interpolation_distance_threshold == "auto":
+            interpolation_distance_threshold = (
+                median_distance * 2.0
+            )  # Factor of 2 to not mask out too much data
+        elif interpolation_distance_threshold.endswith("cells"):
+            match = re.match(r"(\d+\.?\d*)cells", interpolation_distance_threshold)
+            try:
+                n_cells = float(match.group(1))
+            except TypeError:
+                raise ValueError(value_error_message)
+            # Calculate the resolution of the grid
+            res = (
+                ((x.max() - x.min()) / resolution) ** 2
+                + ((y.max() - y.min()) / resolution) ** 2
+            ) ** 0.5
+            interpolation_distance_threshold = n_cells * res
+        else:
+            raise ValueError(value_error_message)
+
+    # Mask points where the nearest data point is beyond the threshold
+    grid_z = np.where(
+        distances.reshape(grid_x.shape) <= interpolation_distance_threshold,
+        grid_z,
+        np.nan,
+    )
 
     return grid_x, grid_y, grid_z
 
 
 def needs_cyclic_point(lons):
-    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(lons, np.arange(-90, 90, 2))
+    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(
+        lons, np.arange(-90, 90, 2)
+    )
 
     lons = np.asarray(lons)
     lons_sorted = np.sort(lons)
