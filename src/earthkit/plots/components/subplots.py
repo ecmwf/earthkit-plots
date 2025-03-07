@@ -198,8 +198,6 @@ class Subplot:
                 every=None,
                 **kwargs,
             ):
-                print("SOMETHING")
-                # kwargs.pop("color", None)
                 return self._extract_plottables_2D(
                     method_name or method.__name__,
                     args=args,

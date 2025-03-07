@@ -611,19 +611,13 @@ class Style:
         except:
             c = color
         c = colorsys.rgb_to_hls(*mc.to_rgb(c))
-        new_c = c[1]
-        # if amount * c[1] > 1:
-        #     new_c = c[1]/(amount * c[1])
-        # amount = np.linspace(0, 0.9, n)
-        (1 - amount) * c[1] + amount
-        # return colorsys.hls_to_rgb(c[0], max(0, min(1, amount * c[1])), c[2])
         return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
 
     def find_colors(self, num_bands, color):
+        if not isinstance(color, str):
+            return color
         num_colors = num_bands//2 + num_bands % 2
-        # amounts_lightening = 1 + np.log2(np.linspace(1, 1.9, num_colors))
         amounts_lightening = np.linspace(0, 0.9, num_colors)
-        # amounts_lightening = np.sqrt(np.linspace(0, 0.9, num_colors))
         colors = [self.adjust_lightness(color, amount)
                   for amount in amounts_lightening]
 
@@ -650,6 +644,7 @@ class Style:
     def multiboxplot(
         self, ax, x, y, width=None, capfrac=0.618, color="k", *args, **kwargs
     ):
+
         width = width if width is not None else np.min(np.diff(x))*0.5
 
         num_bands = len(y) - 1
