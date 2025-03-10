@@ -571,7 +571,7 @@ class Style:
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
     def quantiles(
-        self, ax, x, y, values, *args, type="boxplot", quantiles=[0, .25, .5, .75, 1], **kwargs
+        self, ax, x, y, values, *args, type="band", quantiles=[0, .25, .5, .75, 1], **kwargs
     ):
         """
         Compute and plot quantiles using this `Style`.
@@ -586,7 +586,7 @@ class Style:
             The data of which to compute the statistics. The computation
             is applied along axis 1, so the size along axis 0 must match
             the size of the coordinates.
-        type : "boxplot" | "band"
+        type : "box" | "band"
             The type of plot used to represent the quantile ranges.
         quantiles : array_like
             Probabilities of the quantiles to compute. Values must be
