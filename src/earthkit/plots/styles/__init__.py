@@ -630,15 +630,26 @@ class Style:
         mirrored_colors.extend(colors)
         return mirrored_colors
 
-    def bandplot(self, ax, x, values, color="b", *args, **kwargs):
-        num_bands = len(values) - 1
-        tot_colors = self.find_colors(num_bands, color)
-        return plottypes.bandplot(ax, x, values, colors=tot_colors, *args, **kwargs)
+    def to_quantiles_kwargs(self, n, override):
+        # Colors kwarg receives preprocessing and can't be passed as-is
+        c = override.pop("colors", self._colors)
+        if isinstance(c, str):
+            # Generate symmetric colors
+            if c in mpl.colormaps:
+                c = mpl.colormaps[c](np.abs(np.linspace(-1., 1., n)))
+            else:
+                c = self.find_colors(n, c)
+        return {"colors": c, **self._kwargs}
 
-    def boxplot(self, ax, x, values, color="b", *args, **kwargs):
+    def bandplot(self, ax, x, values, *args, **kwargs):
         num_bands = len(values) - 1
-        tot_colors = self.find_colors(num_bands, color)
-        return plottypes.boxplot(ax, x, values, colors=tot_colors, *args, **kwargs)
+        kwargs = {**self.to_quantiles_kwargs(num_bands, kwargs), **kwargs}
+        return plottypes.bandplot(ax, x, values, *args, **kwargs)
+
+    def boxplot(self, ax, x, values, *args, **kwargs):
+        num_bands = len(values) - 1
+        kwargs = {**self.to_quantiles_kwargs(num_bands, kwargs), **kwargs}
+        return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
