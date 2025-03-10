@@ -584,7 +584,7 @@ class Style:
             The coordinates of the data to be plotted.
         values : numpy.ndarray
             The data of which to compute the statistics. The computation
-            is applied along axis 1, so the size along axis 0 must match
+            is applied along axis 0, so the size along axis 1 must match
             the size of the coordinates.
         type : "box" | "band"
             The type of plot used to represent the quantile ranges.
@@ -593,7 +593,7 @@ class Style:
             between 0 and 1 inclusive.
         """
         quantiles = np.sort(quantiles)
-        stats = np.quantile(values, quantiles, axis=1)
+        stats = np.quantile(values, quantiles, axis=0)
         if type == "box":
             mappable = self.boxplot(ax, x, stats, *args, **kwargs)
         elif type == "band":
