@@ -28,7 +28,7 @@ def bandplot(ax, x, y, colors=None, *args, **kwargs):
 
 
 
-def boxplot(ax, x, y, width=None, colors=None, edgecolor="black", capfrac=0.618, **kwargs):
+def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **kwargs):
     # Autoscale with based on data if not explicitly set
     width = width if width is not None else np.min(np.diff(x))*0.5
 
@@ -38,13 +38,14 @@ def boxplot(ax, x, y, width=None, colors=None, edgecolor="black", capfrac=0.618,
     ny = y.shape[0]
 
     def add_rect(*args, **kwargs):
-        options = {"edgecolor": edgecolor}
+        options = {"edgecolor": "black"}
         options.update(kwargs)
         ax.add_patch(matplotlib.patches.Rectangle(*args, **options))
 
     # Widths for the boxes. Plot whiskers (and other lines) as 0-width
     # or height rectangles to maintain zorder as plotting order.
-    widths = width * np.linspace(0., 1., ny // 2)
+    whisker_width = 0. if whiskers else 0.382
+    widths = width * np.linspace(whisker_width, 1., ny // 2)
     widths = np.concat([widths, widths[-2+(ny%2)::-1]])
 
     cap_width = width * capfrac
@@ -52,13 +53,13 @@ def boxplot(ax, x, y, width=None, colors=None, edgecolor="black", capfrac=0.618,
     for j, xc in enumerate(x):
         color = itertools.cycle(colors)
         for yt, yb, width in zip(y[:-1,j], y[1:,j], widths):
-            add_rect((xc - 0.5*width, yb), width, yt - yb, facecolor=next(color))
+            add_rect((xc - 0.5*width, yb), width, yt - yb, facecolor=next(color), **kwargs)
 
         if ny == 1:
             raise NotImplementedError
         # Draw caps at the end of whiskers
-        else:
-            add_rect((xc - 0.5*cap_width, y[0,j]), cap_width, 0)
-            add_rect((xc - 0.5*cap_width, y[-1,j]), cap_width, 0)
+        elif whiskers:
+            add_rect((xc - 0.5*cap_width, y[0,j]), cap_width, 0, **kwargs)
+            add_rect((xc - 0.5*cap_width, y[-1,j]), cap_width, 0, **kwargs)
 
     ax.autoscale_view()
