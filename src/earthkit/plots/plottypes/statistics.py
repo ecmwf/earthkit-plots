@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import numpy as np
+import pandas as pd
 import matplotlib.patches
 
 import itertools
@@ -31,6 +32,12 @@ def bandplot(ax, x, y, colors=None, *args, **kwargs):
 def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **kwargs):
     # Autoscale with based on data if not explicitly set
     width = width if width is not None else np.min(np.diff(x))*0.5
+
+    # if the width is np.timedelta-like, cast it to pandas.Timedelta in order
+    # to avoid integer division issue like np.timedelta64(1, 'D') * 0.5 == np.timedelta64(0, 'D')
+    # TODO: should we add pandas explicitly to the package dependencies (even though it is already a dependency via earthkit-data)?
+    if np.array(width).dtype.kind == 'm':
+        width = pd.Timedelta(width)
 
     if isinstance(colors, str) or colors is None:
         colors = [colors]
