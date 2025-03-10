@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import colorsys
+
 import matplotlib as mpl
 import numpy as np
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
@@ -195,3 +197,36 @@ def gradients(levels, colors, gradients, normalize, **kwargs):
         norm = BoundaryNorm(levels, cmap.N)
 
     return {**{"cmap": cmap, "norm": norm, "levels": levels}, **kwargs}
+
+
+def adjust_lightness(color, amount=0.5):
+    try:
+        c = mpl.colors.cnames[color]
+    except:
+        c = color
+    c = colorsys.rgb_to_hls(*mpl.colors.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
+
+
+def symmetric_from_color(color, n):
+    """Generate a symmetric list with shades of a color
+
+    color : str
+        Base color.
+    n : int
+        Total number of colors generated.
+    """
+    if not isinstance(color, str):
+        return color
+    num_colors = n//2 + n % 2
+    amounts_lightening = np.linspace(0, 0.9, num_colors)
+    colors = [adjust_lightness(color, amount) for amount in amounts_lightening]
+
+    uneven_num_bands = n % 2
+    if uneven_num_bands == 0:
+        # Even
+        mirrored_colors = colors[::-1]
+    else:
+        mirrored_colors = colors[1:][::-1]
+    mirrored_colors.extend(colors)
+    return mirrored_colors

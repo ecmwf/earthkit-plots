@@ -603,33 +603,6 @@ class Style:
                 f"Plot of type {type} not yet implemented.")
         return mappable
 
-    def adjust_lightness(self, color, amount=0.5):
-        import matplotlib.colors as mc
-        import colorsys
-        try:
-            c = mc.cnames[color]
-        except:
-            c = color
-        c = colorsys.rgb_to_hls(*mc.to_rgb(c))
-        return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
-
-    def find_colors(self, num_bands, color):
-        if not isinstance(color, str):
-            return color
-        num_colors = num_bands//2 + num_bands % 2
-        amounts_lightening = np.linspace(0, 0.9, num_colors)
-        colors = [self.adjust_lightness(color, amount)
-                  for amount in amounts_lightening]
-
-        uneven_num_bands = num_bands % 2
-        if uneven_num_bands == 0:
-            # Even
-            mirrored_colors = colors[::-1]
-        else:
-            mirrored_colors = colors[1:][::-1]
-        mirrored_colors.extend(colors)
-        return mirrored_colors
-
     def to_quantiles_kwargs(self, n, override):
         # Colors kwarg receives preprocessing and can't be passed as-is
         c = override.pop("colors", self._colors)
@@ -638,7 +611,7 @@ class Style:
             if c in mpl.colormaps:
                 c = mpl.colormaps[c](np.abs(np.linspace(-1., 1., n)))
             else:
-                c = self.find_colors(n, c)
+                c = colors.symmetric_from_color(c, n)
         return {"colors": c, **self._kwargs}
 
     def bandplot(self, ax, x, values, *args, **kwargs):
