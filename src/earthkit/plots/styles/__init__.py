@@ -603,9 +603,9 @@ class Style:
                 f"Plot of type {type} not yet implemented.")
         return mappable
 
-    def to_quantiles_kwargs(self, n, override):
-        # Colors kwarg receives preprocessing and can't be passed as-is
-        c = override.pop("colors", self._colors)
+    def to_quantiles_kwargs(self, n, c=None):
+        if c is None:
+            c = self._colors
         if isinstance(c, str):
             # Generate symmetric colors
             if c in mpl.colormaps:
@@ -614,14 +614,20 @@ class Style:
                 c = colors.symmetric_from_color(c, n)
         return {"colors": c, **self._kwargs}
 
-    def bandplot(self, ax, x, values, *args, **kwargs):
+    def bandplot(self, ax, x, values, colors=None, *args, **kwargs):
         num_bands = len(values) - 1
-        kwargs = {**self.to_quantiles_kwargs(num_bands, kwargs), **kwargs}
+        kwargs = {
+            **self.to_quantiles_kwargs(num_bands, c=colors),
+            **kwargs
+        }
         return plottypes.bandplot(ax, x, values, *args, **kwargs)
 
-    def boxplot(self, ax, x, values, *args, **kwargs):
+    def boxplot(self, ax, x, values, colors=None, *args, **kwargs):
         num_bands = len(values) - 1
-        kwargs = {**self.to_quantiles_kwargs(num_bands, kwargs), **kwargs}
+        kwargs = {
+            **self.to_quantiles_kwargs(num_bands, c=colors),
+            **kwargs
+        }
         return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
