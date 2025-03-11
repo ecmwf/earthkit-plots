@@ -133,31 +133,6 @@ def is_global(x, y, tol=5):
     return True
 
 
-def guess_resolution(dim_array: np.ndarray) -> float:
-    """
-    Guess the resolution based on the minimum distance between a point and all other points.
-
-    Parameters
-    ----------
-    dim_array : array_like
-        1D array of coordinates.
-
-    Returns
-    -------
-    float
-        The guessed resolution based on the minimum distance between points.
-    """
-    dim_array = np.asarray(dim_array)
-    if dim_array.ndim != 1:
-        raise ValueError("Input must be a 1D array.")
-
-    # Calculate the minimum distance between points
-    diffs = np.abs(dim_array[:, None] - dim_array)
-    np.fill_diagonal(diffs, np.inf)
-    min_distance = np.min(diffs)
-    return min_distance
-
-
 def guess_resolution_and_shape(
     x: np.ndarray,
     y: np.ndarray,
@@ -201,7 +176,16 @@ def guess_resolution_and_shape(
         return out_resolution, out_shape
 
     # If neither are defined, guess the resolution from the data and calculate the shape
-    out_resolution = (guess_resolution(x), guess_resolution(y))
+    # Use cKDTree to find nearest distances
+    points = np.c_[x, y]
+    tree = cKDTree(points)
+    distances, _ = tree.query(points, k=2)
+
+    # Use the median of the distances as the resolution,
+    # ensuring any duplicated points are ignored, this is cheaper than filtering points
+    _resolution = np.median(distances[distances > 0])
+
+    out_resolution = (_resolution, _resolution)
     out_shape = (
         int((x_max - x_min) / out_resolution[0]),
         int((y_max - y_min) / out_resolution[1]),
@@ -320,7 +304,6 @@ def interpolate_unstructured(
     tree = cKDTree(np.c_[x_filtered, y_filtered])
     grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
     distances, _ = tree.query(grid_points)
-    median_distance = np.median(distances)
 
     value_error_message = (
         "Invalid value for 'interpolation_distance_threshold'. "
@@ -333,15 +316,12 @@ def interpolate_unstructured(
         interpolation_distance_threshold = (
             str(interpolation_distance_threshold).lower().replace(" ", "")
         )
-        # Calculate the resolution of the plotting grid
-        plot_resolution = (
-            ((x.max() - x.min()) / target_resolution) ** 2
-            + ((y.max() - y.min()) / target_resolution) ** 2
-        ) ** 0.5
+        # use the mean resolution of the plotting grid
+        plot_resolution = max(target_resolution[0], target_resolution[1])
         if interpolation_distance_threshold == "auto":
-            interpolation_distance_threshold = max(
-                median_distance, plot_resolution * 2.0
-            )  # Some hard-coded values, but this is auto-mode, so not for user configurability
+            # data_resolution = max(guess_resolution(x_filtered), guess_resolution(y_filtered))
+            interpolation_distance_threshold = plot_resolution * 2.
+            # Some hard-coded values, but this is auto-mode, so not for user configurability
         elif interpolation_distance_threshold.endswith("cells"):
             match = re.match(r"(\d+\.?\d*)cells", interpolation_distance_threshold)
             if match is None:

@@ -523,6 +523,12 @@ class Subplot:
                     interpolation_distance_threshold=kwargs.pop(
                         "interpolation_distance_threshold", None
                     ),
+                    target_resolution=kwargs.pop(
+                        "target_resolution", None
+                    ),
+                    target_shape=kwargs.pop(
+                        "target_shape", None
+                    ),
                 )
                 _ = kwargs.pop("transform_first", None)
                 return getattr(style, method_name)(
