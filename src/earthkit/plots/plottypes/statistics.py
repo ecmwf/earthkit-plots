@@ -75,6 +75,11 @@ def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **k
         options.update(kwargs)
         ax.add_patch(matplotlib.patches.Rectangle(*args, **options))
 
+    # Before plotting anything on the axes ax, setup units of the x-axis
+    # (inspired by seaborn boxenplot routine, where this line does the trick:
+    # https://github.com/mwaskom/seaborn/blob/86b5481ca47cb46d3b3e079a5ed9b9fb46e315ef/seaborn/_base.py#L1135)
+    ax.xaxis.update_units(x)
+
     # Widths for the boxes. Plot whiskers (and other lines) as 0-width
     # or height rectangles to maintain zorder as plotting order.
     whisker_width = 0.0 if whiskers else 0.382
