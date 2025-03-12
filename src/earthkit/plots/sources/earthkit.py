@@ -82,7 +82,7 @@ class EarthkitSource(SingleSource):
             if _NO_EARTHKIT_REGRID:
                 raise ImportError(
                     f"earthkit-regrid is required for plotting data on a"
-                    f"'{self.gridspec['grid']}' grid"
+                    f"'{self.gridspec.__class__.__name__}' grid"
                 )
 
             x_values, y_values = get_points(schema.interpolate_target_resolution)
