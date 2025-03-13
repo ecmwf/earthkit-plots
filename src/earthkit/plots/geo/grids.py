@@ -15,7 +15,7 @@
 import re
 import warnings
 
-import cartopy.crs as ccrs
+# import cartopy.crs as ccrs
 import numpy as np
 
 _NO_SCIPY = False
@@ -92,9 +92,8 @@ def is_structured(x, y, tol=1e-5):
 
         return x_rows_consistent and y_columns_consistent
 
-    else:
-        # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
-        return False
+    # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
+    return False
 
 
 def is_global(x, y, tol=5):
@@ -138,7 +137,7 @@ def guess_resolution_and_shape(
     x: np.ndarray,
     y: np.ndarray,
     in_shape: int | tuple[int, int] | None = None,
-    in_resolution: float | tuple[float, float] | None = None,
+    in_resolution: float | tuple[float, float] | None = None
 ) -> tuple[tuple[float, float], tuple[int, int]]:
     """
     Guess the resolution and shape of the grid based on the input data.
@@ -177,6 +176,7 @@ def guess_resolution_and_shape(
         return out_resolution, out_shape
 
     # If neither are defined, guess the resolution from the data and calculate the shape
+
     # Use cKDTree to find nearest distances
     points = np.c_[x, y]
     tree = cKDTree(points)
@@ -185,8 +185,8 @@ def guess_resolution_and_shape(
     # Use the median of the distances as the resolution,
     # ensuring any duplicated points are ignored, this is cheaper than filtering points
     _resolution = np.median(distances[distances > 0])
-
     out_resolution = (_resolution, _resolution)
+
     out_shape = (
         int((x_max - x_min) / out_resolution[0]),
         int((y_max - y_min) / out_resolution[1]),
@@ -201,7 +201,7 @@ def interpolate_unstructured(
     target_shape: tuple[int, int] | int | None = None,
     target_resolution: tuple[float, float] | float | None = None,
     method: str = "linear",
-    distance_threshold: None | float | int | str = None,
+    distance_threshold: None | float | int | str = None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate unstructured data to a structured grid.
@@ -260,14 +260,9 @@ def interpolate_unstructured(
         raise ImportError(
             "The 'scipy' package is required for interpolating unstructured data."
         )
-    # Filter out NaN values from z and corresponding x, y
-    mask = ~np.isnan(z)
-    x_filtered = x[mask]
-    y_filtered = y[mask]
-    z_filtered = z[mask]
 
     target_resolution, target_shape = guess_resolution_and_shape(
-        x_filtered, y_filtered, in_shape=target_shape, in_resolution=target_resolution
+        x, y, in_shape=target_shape, in_resolution=target_resolution
     )
 
     # Create a structured grid
@@ -275,7 +270,11 @@ def interpolate_unstructured(
         x.min() : x.max() : target_shape[0] * 1j, y.min() : y.max() : target_shape[1] * 1j
     ]
 
-    lon_delta = np.max(np.diff(np.unique(y)))
+    # Filter out NaN values from z and corresponding x, y
+    mask = ~np.isnan(z)
+    x_filtered = x[mask]
+    y_filtered = y[mask]
+    z_filtered = z[mask]
 
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
@@ -285,7 +284,7 @@ def interpolate_unstructured(
         method=method,
     )
 
-    if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
+    if np.isnan(grid_z).any() and is_global(x, y, np.max(np.diff(np.unique(y))) * 2):
         warnings.warn(
             "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
         )

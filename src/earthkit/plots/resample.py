@@ -16,7 +16,7 @@ import cartopy.crs as ccrs
 import numpy as np
 from scipy.interpolate import griddata
 
-from earthkit.plots.geo.grids import interpolate_unstructured
+from earthkit.plots.geo import grids
 
 
 class Resample:
@@ -212,7 +212,6 @@ class Interpolate(Resample):
     def apply(self, x, y, z, source_crs=None, target_crs=None):
         # Ensure CRS definitions
         if self.transform:
-            print(1)
             source_crs = source_crs or ccrs.PlateCarree()
             target_crs = target_crs or ccrs.PlateCarree()
             # Transform source coordinates to target CRS
@@ -225,14 +224,14 @@ class Interpolate(Resample):
         else:
             target_x, target_y = x, y
 
-        return interpolate_unstructured(
+        return grids.interpolate_unstructured(
             target_x,
             target_y,
             z,
             target_shape=self.target_shape,
             target_resolution=self.target_resolution,
             method=self.method,
-            distance_threshold=self.distance_threshold,
+            distance_threshold=self.distance_threshold
         )
     
     def __repr__(self):
