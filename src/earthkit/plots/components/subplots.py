@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Regrid
+from earthkit.plots.resample import Regrid, Interpolate
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
@@ -417,7 +417,7 @@ class Subplot:
                     kwargs["transform_first"] = False
             if not no_style:
                 mappable = self._plot_with_interpolation(
-                    style, method_name, x_values, y_values, z_values, kwargs
+                    style, method_name, x_values, y_values, z_values, source.crs, kwargs
                 )
             else:
                 mappable = getattr(self.ax, method_name)(
@@ -499,7 +499,7 @@ class Subplot:
     #     )
 
     def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, kwargs
+        self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
     ):
         """Attempts to plot with or without interpolation as needed."""
         is_structured_grid = grids.is_structured(x_values, y_values)
@@ -508,33 +508,34 @@ class Subplot:
             warnings.warn(
                 "The 'interpolation_method' argument is only valid for unstructured data."
             )
-
-        try:
-            return getattr(style, method_name)(
-                self.ax, x_values, y_values, z_values, **kwargs
-            )
-        except (ValueError, TypeError) as err:
-            if not is_structured_grid:
-                x_values, y_values, z_values = grids.interpolate_unstructured(
-                    x_values,
-                    y_values,
-                    z_values,
-                    method=kwargs.pop("interpolation_method", "linear"),
-                    interpolation_distance_threshold=kwargs.pop(
-                        "interpolation_distance_threshold", None
-                    ),
-                    target_resolution=kwargs.pop(
-                        "target_resolution", None
-                    ),
-                    target_shape=kwargs.pop(
-                        "target_shape", None
-                    ),
-                )
-                _ = kwargs.pop("transform_first", None)
+        
+        if "interpolate" not in kwargs:
+            try:
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
-            raise err
+            except (ValueError, TypeError):
+                warnings.warn(
+                    f"{method_name} failed with raw data, attempting interpolation to structured grid."
+                )
+
+        interpolate = kwargs.pop("interpolate", dict())
+        if isinstance(interpolate, dict):
+            interpolate = Interpolate(**interpolate)
+        x_values, y_values, z_values = interpolate.apply(
+            x_values,
+            y_values,
+            z_values,
+            source_crs=source_crs,
+            target_crs=self.crs,
+        )
+        _ = kwargs.pop("transform_first", None)
+        if interpolate.transform:
+            print('pre-transformed')
+            _ = kwargs.pop("transform", None)    
+        return getattr(style, method_name)(
+            self.ax, x_values, y_values, z_values, **kwargs
+        )
 
     def _extract_plottables_envelope(
         self,

@@ -15,6 +15,7 @@
 import re
 import warnings
 
+import cartopy.crs as ccrs
 import numpy as np
 
 _NO_SCIPY = False
@@ -165,7 +166,7 @@ def guess_resolution_and_shape(
     # If a target shape provided, calculate the target resolution from the shape and the x/y values
     if in_shape is not None:
         # Determine resolution from in_shape
-        if not isinstance(in_resolution, (tuple, list)):
+        if not isinstance(in_shape, (tuple, list)):
             out_shape: tuple[int, int] = (in_shape, in_shape)
         else:
             out_shape = in_shape
@@ -200,7 +201,7 @@ def interpolate_unstructured(
     target_shape: tuple[int, int] | int | None = None,
     target_resolution: tuple[float, float] | float | None = None,
     method: str = "linear",
-    interpolation_distance_threshold: None | float | int | str = None,
+    distance_threshold: None | float | int | str = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate unstructured data to a structured grid.
@@ -235,7 +236,7 @@ def interpolate_unstructured(
         - 'linear': Linear interpolation between points.
         - 'nearest': Nearest-neighbor interpolation.
         - 'cubic': Cubic interpolation, which may produce smoother results.
-    interpolation_distance_threshold: None | int | float | str, optional
+    distance_threshold: None | int | float | str, optional
         A cell will only be plotted if there is at least one data point within this distance (inclusive).
         If None, all points are plotted. If an integer or float, the distance is
         in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
@@ -294,10 +295,10 @@ def interpolate_unstructured(
             z,
             target_resolution=target_resolution,
             method="nearest",
-            interpolation_distance_threshold=interpolation_distance_threshold,
+            distance_threshold=distance_threshold,
         )
 
-    if interpolation_distance_threshold is None:
+    if distance_threshold is None:
         return grid_x, grid_y, grid_z
 
     # Use cKDTree to find nearest distances
@@ -306,39 +307,40 @@ def interpolate_unstructured(
     distances, _ = tree.query(grid_points)
 
     value_error_message = (
-        "Invalid value for 'interpolation_distance_threshold'. "
+        "Invalid value for 'distance_threshold'. "
         "Expected an integer, a float, a string 'auto', or a string in the format 'N cells'."
     )
     try:
-        interpolation_distance_threshold = float(interpolation_distance_threshold)
+        distance_threshold = float(distance_threshold)
     except ValueError:
         # ensure string provided is lower case and without spaces
-        interpolation_distance_threshold = (
-            str(interpolation_distance_threshold).lower().replace(" ", "")
+        distance_threshold = (
+            str(distance_threshold).lower().replace(" ", "")
         )
         # use the mean resolution of the plotting grid
         plot_resolution = max(target_resolution[0], target_resolution[1])
-        if interpolation_distance_threshold == "auto":
+        if distance_threshold == "auto":
             # data_resolution = max(guess_resolution(x_filtered), guess_resolution(y_filtered))
-            interpolation_distance_threshold = plot_resolution * 2.
+            distance_threshold = plot_resolution * 2.
             # Some hard-coded values, but this is auto-mode, so not for user configurability
-        elif interpolation_distance_threshold.endswith("cells"):
-            match = re.match(r"(\d+\.?\d*)cells", interpolation_distance_threshold)
+        elif distance_threshold.endswith("cells"):
+            match = re.match(r"(\d+\.?\d*)cells", distance_threshold)
             if match is None:
                 raise ValueError(value_error_message)
             _n_cells = float(match.group(1))
-            interpolation_distance_threshold = _n_cells * plot_resolution
+            distance_threshold = _n_cells * plot_resolution
         else:
             raise ValueError(value_error_message)
 
     # Mask points where the nearest data point is beyond the threshold
     grid_z = np.where(
-        distances.reshape(grid_x.shape) <= interpolation_distance_threshold,
+        distances.reshape(grid_x.shape) <= distance_threshold,
         grid_z,
         np.nan,
     )
 
     return grid_x, grid_y, grid_z
+
 
 
 def needs_cyclic_point(lons):

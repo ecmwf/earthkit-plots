@@ -16,6 +16,8 @@ import cartopy.crs as ccrs
 import numpy as np
 from scipy.interpolate import griddata
 
+from earthkit.plots.geo.grids import interpolate_unstructured
+
 
 class Resample:
     def apply(self, data):
@@ -72,6 +74,8 @@ class Subsample(Resample):
             self.nx = nx
             self.ny = ny
 
+        self.shape = (self.nx, self.ny)
+        
         if mode not in ["stride", "fixed"]:
             raise ValueError("Mode must be 'stride' or 'fixed'")
         self.mode = mode
@@ -162,4 +166,78 @@ class Regrid(Subsample):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny}, mode='{self.mode}')"
+        )
+
+
+class Interpolate(Resample):
+    """
+    Resample data onto a new grid using interpolation.
+    """
+    def __init__(
+        self,
+        target_shape: None | tuple[int, int] | int = None,
+        target_resolution: None | tuple[float, float] | float = None,
+        method: str = "linear",
+        distance_threshold: None | float | int | str = None,
+        transform: bool = True,
+    ):
+        """
+        Parameters
+        ----------
+        target_shape : None | tuple[int, int] | int
+            The shape of the target grid. If an integer is provided, the target grid will be square.
+        target_resolution : None | tuple[float, float] | float
+            The resolution of the target grid. If a float is provided, the target grid will be square.
+        method : str
+            The interpolation method to use. Must be one of 'linear', 'nearest', or 'cubic'.
+        distance_threshold : None | float | int | str
+            The maximum distance between the source and target points for interpolation to be used.
+            If None, all points will be used.
+        transform : bool
+            Whether to transform the source coordinates to the target CRS before resampling.
+        """
+        # If a target shape provided, calculate the target resolution from the shape and the x/y values
+        if target_shape is not None and not isinstance(target_shape, (tuple, list)):
+            target_shape: tuple[int, int] = (target_shape, target_shape)
+
+        if target_resolution is not None and not isinstance(target_shape, (tuple, list)):
+            target_shape: tuple[int, int] = (target_shape, target_shape)
+
+        self.target_shape = target_shape
+        self.target_resolution = target_resolution
+        self.method = method
+        self.distance_threshold = distance_threshold
+        self.transform = transform
+
+    def apply(self, x, y, z, source_crs=None, target_crs=None):
+        # Ensure CRS definitions
+        if self.transform:
+            print(1)
+            source_crs = source_crs or ccrs.PlateCarree()
+            target_crs = target_crs or ccrs.PlateCarree()
+            # Transform source coordinates to target CRS
+            transformed_points = target_crs.transform_points(
+                source_crs, x.flatten(), y.flatten()
+            )
+            target_x, target_y = (
+                transformed_points[..., 0].reshape(x.shape), transformed_points[..., 1].reshape(y.shape)
+            )
+        else:
+            target_x, target_y = x, y
+
+        return interpolate_unstructured(
+            target_x,
+            target_y,
+            z,
+            target_shape=self.target_shape,
+            target_resolution=self.target_resolution,
+            method=self.method,
+            distance_threshold=self.distance_threshold,
+        )
+    
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}(target_shape={self.target_shape}, "
+            f"target_resolution={self.target_resolution}, method={self.method}, "
+            f"distance_threshold={self.distance_threshold})"
         )
