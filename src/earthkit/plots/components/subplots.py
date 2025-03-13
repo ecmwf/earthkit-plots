@@ -899,15 +899,13 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh`.
         """
@@ -964,15 +962,13 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.contourf`.
         """
