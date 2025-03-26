@@ -137,7 +137,7 @@ def guess_resolution_and_shape(
     x: np.ndarray,
     y: np.ndarray,
     in_shape: int | tuple[int, int] | None = None,
-    in_resolution: float | tuple[float, float] | None = None
+    in_resolution: float | tuple[float, float] | None = None,
 ) -> tuple[tuple[float, float], tuple[int, int]]:
     """
     Guess the resolution and shape of the grid based on the input data.
@@ -201,7 +201,7 @@ def interpolate_unstructured(
     target_shape: tuple[int, int] | int | None = None,
     target_resolution: tuple[float, float] | float | None = None,
     method: str = "linear",
-    distance_threshold: None | float | int | str = None
+    distance_threshold: None | float | int | str = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate unstructured data to a structured grid.
@@ -267,7 +267,8 @@ def interpolate_unstructured(
 
     # Create a structured grid
     grid_x, grid_y = np.mgrid[
-        x.min() : x.max() : target_shape[0] * 1j, y.min() : y.max() : target_shape[1] * 1j
+        x.min() : x.max() : target_shape[0] * 1j,
+        y.min() : y.max() : target_shape[1] * 1j,
     ]
 
     # Filter out NaN values from z and corresponding x, y
@@ -313,14 +314,12 @@ def interpolate_unstructured(
         distance_threshold = float(distance_threshold)
     except ValueError:
         # ensure string provided is lower case and without spaces
-        distance_threshold = (
-            str(distance_threshold).lower().replace(" ", "")
-        )
+        distance_threshold = str(distance_threshold).lower().replace(" ", "")
         # use the mean resolution of the plotting grid
         plot_resolution = max(target_resolution[0], target_resolution[1])
         if distance_threshold == "auto":
             # data_resolution = max(guess_resolution(x_filtered), guess_resolution(y_filtered))
-            distance_threshold = plot_resolution * 2.
+            distance_threshold = plot_resolution * 2.0
             # Some hard-coded values, but this is auto-mode, so not for user configurability
         elif distance_threshold.endswith("cells"):
             match = re.match(r"(\d+\.?\d*)cells", distance_threshold)
@@ -339,7 +338,6 @@ def interpolate_unstructured(
     )
 
     return grid_x, grid_y, grid_z
-
 
 
 def needs_cyclic_point(lons):

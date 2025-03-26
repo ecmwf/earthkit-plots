@@ -75,7 +75,7 @@ class Subsample(Resample):
             self.ny = ny
 
         self.shape = (self.nx, self.ny)
-        
+
         if mode not in ["stride", "fixed"]:
             raise ValueError("Mode must be 'stride' or 'fixed'")
         self.mode = mode
@@ -203,7 +203,9 @@ class Interpolate(Resample):
         if target_shape is not None and not isinstance(target_shape, (tuple, list)):
             target_shape = (target_shape, target_shape)
 
-        if target_resolution is not None and not isinstance(target_resolution, (tuple, list)):
+        if target_resolution is not None and not isinstance(
+            target_resolution, (tuple, list)
+        ):
             target_resolution = (target_resolution, target_resolution)
 
         self.target_shape = target_shape
@@ -254,7 +256,7 @@ class Interpolate(Resample):
             method=self.method,
             distance_threshold=self.distance_threshold,
         )
-    
+
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(target_shape={self.target_shape}, "

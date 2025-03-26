@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Regrid, Interpolate
+from earthkit.plots.resample import Interpolate, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
@@ -509,10 +509,13 @@ class Subplot:
                 )
             except (ValueError, TypeError):
                 warnings.warn(
-                    f"{method_name} failed with raw data, attempting interpolation to structured grid."
+                    f"{method_name} failed with raw data, attempting interpolation to structured grid with default interpolation options."
                 )
 
+        # TODO: handle interpolate kwarg in decorator
         interpolate = kwargs.pop("interpolate", dict())
+        if interpolate is True:
+            interpolate = Interpolate()
         if isinstance(interpolate, dict):
             interpolate = Interpolate(**interpolate)
         x_values, y_values, z_values = interpolate.apply(
@@ -524,7 +527,7 @@ class Subplot:
         )
         _ = kwargs.pop("transform_first", None)
         if interpolate.transform:
-            _ = kwargs.pop("transform", None)    
+            _ = kwargs.pop("transform", None)
         return getattr(style, method_name)(
             self.ax, x_values, y_values, z_values, **kwargs
         )
