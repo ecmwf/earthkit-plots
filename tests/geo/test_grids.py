@@ -21,12 +21,12 @@ Z_NAN = np.array([10, 20, 30, 40, np.nan, 60, np.nan, 80])
     ),
 )
 def test_interpolation_linear(z, method, result_1_1, x=X, y=Y):
-    resolution = 5
+    shape = 5
     grid_x, grid_y, grid_z = interpolate_unstructured(
-        x, y, z, resolution=resolution, method=method
+        x, y, z, target_shape=(shape, shape), method=method
     )
     assert (
-        grid_x.shape == grid_y.shape == grid_z.shape == (resolution, resolution)
+        grid_x.shape == grid_y.shape == grid_z.shape == (shape, shape)
     ), "Grid shapes do not match"
     assert np.array_equal(
         grid_x[:, 0].squeeze(), np.array([0.0, 0.75, 1.5, 2.25, 3.0])
@@ -42,11 +42,11 @@ def test_interpolation_linear(z, method, result_1_1, x=X, y=Y):
 
 def test_invalid_interpolation_method(x=X, y=Y, z=Z):
     with pytest.raises(ValueError):
-        interpolate_unstructured(x, y, z, resolution=5, method="invalid")
+        interpolate_unstructured(x, y, z, method="invalid")
 
 
 @pytest.mark.parametrize(
-    "threshold, expected_nans", ((0.75, 68), ("auto", 48), ("2 cells", 68))
+    "threshold, expected_nans", ((0.75, 68), ("auto", 84), ("3 cells", 68))
 )
 def test_interpolation_distance_threshold(threshold, expected_nans):
     x = np.array([0, 3, 0, 3, 0, 3, 0, 3])
@@ -56,9 +56,9 @@ def test_interpolation_distance_threshold(threshold, expected_nans):
         x,
         y,
         z,
-        resolution=10,
+        target_shape=(10, 10),
         method="linear",
-        interpolation_distance_threshold=threshold,
+        distance_threshold=threshold,
     )
     assert (
         np.isnan(grid_z).sum() == expected_nans
