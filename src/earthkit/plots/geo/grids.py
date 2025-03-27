@@ -157,8 +157,8 @@ def guess_resolution_and_shape(
                 "Both shape and resolution are provided, using resolution to determine shape."
             )
         out_shape = (
-            int((x_max - x_min) / out_resolution[0]),
-            int((y_max - y_min) / out_resolution[1]),
+            int((x_max - x_min) / out_resolution[0])+1,
+            int((y_max - y_min) / out_resolution[1])+1,
         )
         return out_resolution, out_shape
 
@@ -188,8 +188,8 @@ def guess_resolution_and_shape(
     out_resolution = (_resolution, _resolution)
 
     out_shape = (
-        int((x_max - x_min) / out_resolution[0]),
-        int((y_max - y_min) / out_resolution[1]),
+        int((x_max - x_min) / out_resolution[0])+1,
+        int((y_max - y_min) / out_resolution[1])+1,
     )
     return out_resolution, out_shape
 
