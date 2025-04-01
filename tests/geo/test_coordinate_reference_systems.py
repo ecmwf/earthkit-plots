@@ -28,7 +28,7 @@ def test_string_to_crs():
 
 
 def test_parse_None():
-    assert coordinate_reference_systems.parse_crs(None) is None
+    assert coordinate_reference_systems.parse_crs(None) == ccrs.PlateCarree()
 
 
 def test_parse_string():

@@ -1,33 +1,30 @@
 <p align="center">
   <picture>
     <source srcset="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-dark.svg" media="(prefers-color-scheme: dark)">
-    <img src="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-light.svg" height="120">
+    <img src="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-light.svg" height="80">
   </picture>
 </p>
 
 <p align="center">
   <a href="https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE">
     <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE/foundation_badge.svg" alt="Static Badge">
-  </a>
-  <a href="https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity">
+  </a><a href="https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity">
     <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity/incubating_badge.svg" alt="Maturity: Incubating">
-  </a>
-  <a href="https://opensource.org/licenses/apache-2-0">
-      <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
-    </a>
-  <a href="https://github.com/ecmwf/earthkit/releases">
-    <img src="https://img.shields.io/github/v/release/ecmwf/earthkit-plots?color=purple&label=Release" alt="Latest Release">
+  </a><a href="https://opensource.org/licenses/apache-2-0">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
+  </a><a href="https://pypi.python.org/pypi/earthkit-plots/">
+    <img src="https://badge.fury.io/py/earthkit-plots.svg" alt="PyPI version fury.io">
   </a>
 </p>
 
 <p align="center">
+  <a href="#quick-start">Quick Start</a> •
   <a href="#installation">Installation</a> •
   <a href="https://earthkit-plots.readthedocs.io/en/latest/">Documentation</a>
 </p>
 
 > \[!IMPORTANT\]
 > This software is **Incubating** and subject to ECMWF's guidelines on [Software Maturity](https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity).
-
 
 **earthkit-plots** leverages the power of the **earthkit** ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
 
@@ -40,6 +37,15 @@
 🔍 **Automatic data styling** – Detects metadata like variables and units to optionally apply appropriate formatting and styling.
 
 🌍 **Complex grids supported out-of-the-box** - Visualise grids like HEALPix and reduced gaussian without any extra legwork.
+
+## Quick Start
+
+```python
+import earthkit as ek
+
+data = ek.data.from_source("sample", "test.grib")
+ek.plots.quickplot(data)
+```
 
 ## Installation
 

@@ -97,10 +97,6 @@ def guess_style(data, units=None, **kwargs):
                 break
         else:
             # No style matching units found; return default
-            for _, style in style_config["styles"].items():
-                if "units" not in style:
-                    break
-            else:
-                return styles.DEFAULT_STYLE
+            return styles.DEFAULT_STYLE
 
     return styles.Style.from_dict({**style, **kwargs})

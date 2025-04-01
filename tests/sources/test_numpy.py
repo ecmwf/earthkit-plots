@@ -105,39 +105,6 @@ def test_NumpySource_2D_data_with_explicit_x_y():
     assert np.array_equal(source.z_values, np.array([[1, 2, 3], [4, 5, 6]]))
 
 
-def test_NumpySource_all_2d():
-    source = NumpySource(
-        [[1, 2, 3], [1, 2, 3]],
-        [[1, 1, 1], [2, 2, 2]],
-        [[1, 2, 3], [4, 5, 6]],
-    )
-    assert np.array_equal(source.x_values, [[1, 2, 3], [1, 2, 3]])
-    assert np.array_equal(source.y_values, [[1, 1, 1], [2, 2, 2]])
-    assert np.array_equal(source.z_values, [[1, 2, 3], [4, 5, 6]])
-
-
-def test_NumpySource_all_1d_flattened():
-    source = NumpySource(
-        [1, 2, 3],
-        [1, 2],
-        [[1, 2, 3], [4, 5, 6]],
-    )
-    assert np.array_equal(source.x_values, [1, 2, 3])
-    assert np.array_equal(source.y_values, [1, 2])
-    assert np.array_equal(source.z_values, [[1, 2, 3], [4, 5, 6]])
-
-
-def test_NumpySource_all_1d():
-    source = NumpySource(
-        x=[1, 2, 3],
-        y=[4, 5, 6],
-        z=[7, 8, 9],
-    )
-    assert np.array_equal(source.x_values, [1, 2, 3])
-    assert np.array_equal(source.y_values, [4, 5, 6])
-    assert np.array_equal(source.z_values, [7, 8, 9])
-
-
 def test_metadata():
     """Test that metadata is extracted from the data object."""
     source = NumpySource([1, 2, 3], metadata={"key": "value"})

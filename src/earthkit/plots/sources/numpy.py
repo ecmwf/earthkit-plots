@@ -116,9 +116,6 @@ class NumpySource(SingleSource):
                     np.arange(len(y_values)) if self._x is None else np.asarray(self._x)
                 )
                 z_values = None
-            elif self._metadata.get("gridSpec") is not None:
-                x_values, y_values = None, None
-                z_values = np.asarray(self._z) if self._z is not None else None
             else:
                 raise ValueError("Insufficient arguments to infer x and y.")
 
@@ -150,33 +147,3 @@ class NumpySource(SingleSource):
         if isinstance(result, list):
             result = result[0]
         return result
-
-    def mutate(self):
-        """
-        Mutate the source with new attributes.
-
-        Parameters
-        ----------
-        **kwargs
-            The attributes to update.
-        """
-        if not self._crs and self.metadata("gridSpec", default=None) is not None:
-            import earthkit.data
-
-            from .earthkit import EarthkitSource
-
-            m = self._metadata
-            if self._x is not None and self._y is not None:
-                if "latitudes" not in m and "longitudes" not in m:
-                    m["latitudes"] = self._y
-                    m["longitudes"] = self._x
-
-            if self._z is not None:
-                data = self._z
-            else:
-                data = self._data
-
-            d = earthkit.data.ArrayField(data, metadata=m)
-            return EarthkitSource(d, regrid=self.regrid)
-
-        return self

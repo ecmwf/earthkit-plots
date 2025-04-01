@@ -443,20 +443,13 @@ class Subplot:
         z_values = self._process_z_values(style, source, z)
 
         # Step 4: Handle specific grid types
-        gs = source.gridspec
-        mappable = None
-        if method_name == "pcolormesh":
-            gs = source.gridspec
-            if gs is not None:
-                opt = {
-                    "healpix": self._plot_healpix,
-                    "reduced_gg": self._plot_octahedral,
-                }
-                method = opt.get(gs.name, None)
-                if method:
-                    mappable = method(source, z_values, style, kwargs)
+        grid_type = source.metadata("gridType", default=None)
+        if grid_type == "healpix" and method_name == "pcolormesh":
+            mappable = self._plot_healpix(source, z_values, style, kwargs)
+        elif grid_type == "reduced_gg" and method_name == "pcolormesh":
+            mappable = self._plot_octahedral(source, z_values, style, kwargs)
+        else:
 
-        if not mappable:
             # Step 5: Process x, y values, apply sampling if specified
             x_values, y_values = source.x_values, source.y_values
             x_values, y_values, z_values = self._apply_sampling(
@@ -576,8 +569,7 @@ class Subplot:
         self, style, method_name, x_values, y_values, z_values, kwargs
     ):
         """Attempts to plot with or without interpolation as needed."""
-        is_structured_grid = grids.is_structured(x_values, y_values)
-        if "interpolation_method" in kwargs and is_structured_grid:
+        if "interpolation_method" in kwargs:
             kwargs.pop("interpolation_method")
             warnings.warn(
                 "The 'interpolation_method' argument is only valid for unstructured data."
@@ -588,17 +580,13 @@ class Subplot:
                 self.ax, x_values, y_values, z_values, **kwargs
             )
         except (ValueError, TypeError) as err:
-            if not is_structured_grid:
+            if not grids.is_structured(x_values, y_values):
                 x_values, y_values, z_values = grids.interpolate_unstructured(
                     x_values,
                     y_values,
                     z_values,
                     method=kwargs.pop("interpolation_method", "linear"),
-                    interpolation_distance_threshold=kwargs.pop(
-                        "interpolation_distance_threshold", None
-                    ),
                 )
-                _ = kwargs.pop("transform_first", None)
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
@@ -662,8 +650,9 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
-            subspec = self.figure.gridspec.subgridspec(self.row + self.column)
-            self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
+            self._ax = self.figure.fig.add_subplot(
+                self.figure.gridspec[self.row, self.column], **self._ax_kwargs
+            )
         return self._ax
 
     @property
@@ -809,10 +798,10 @@ class Subplot:
         rgb = xr.DataArray(
             rgb,
             coords={
-                "y": y_values,
-                "x": x_values,
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
                 "rgb": ["red", "green", "blue"],
-            },  # Ensure 1D  # Ensure 1D
+            },
             dims=["y", "x", "rgb"],
         )
 
@@ -858,10 +847,10 @@ class Subplot:
         rgb = xr.DataArray(
             rgb,
             coords={
-                "y": y_values,
-                "x": x_values,
+                "y": y_values,  # Ensure 1D
+                "x": x_values,  # Ensure 1D
                 "rgb": ["red", "green", "blue"],
-            },  # Ensure 1D  # Ensure 1D
+            },
             dims=["y", "x", "rgb"],
         )
 
@@ -889,7 +878,6 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the bar chart. If None, a Style is automatically
             generated based on the data.
-
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.bar`.
         """
@@ -938,15 +926,6 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one 
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh`.
         """
@@ -977,6 +956,10 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
         """
 
+    @schema.isolines.apply()
+    def isolines(self, *args, **kwargs):
+        return self.contour(*args, **kwargs)
+
     @schema.contourf.apply()
     @plot_3D(extract_domain=True)
     def contourf(self, *args, **kwargs):
@@ -999,15 +982,6 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one 
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.contourf`.
         """
