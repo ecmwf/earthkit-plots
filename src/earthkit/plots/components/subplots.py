@@ -154,36 +154,7 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None, extract_domain=False):
-        def decorator(method):
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                z=None,
-                style=None,
-                every=None,
-                **kwargs,
-            ):
-                kwargs.pop("color", None)
-                return self._extract_plottables(
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    extract_domain=extract_domain,
-                    **kwargs,
-                )
-
-            return wrapper
-
-        return decorator
-
-    def plot_2D_bis(method_name=None):
+    def plot_2D(method_name=None):
         def decorator(method):
             def wrapper(
                 self,
@@ -692,11 +663,11 @@ class Subplot:
     def gridlines(self, *args, **kwargs):
         raise NotImplementedError
 
-    @plot_2D_bis()
+    @plot_2D()
     def quantiles(self, *args, **kwargs):
         pass
 
-    @plot_2D_bis()
+    @plot_2D()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -860,7 +831,7 @@ class Subplot:
 
         return result
 
-    @plot_2D_bis()
+    @plot_2D()
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
@@ -883,7 +854,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D(extract_domain=True)
+    @plot_2D()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
