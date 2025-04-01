@@ -13,11 +13,8 @@
 # limitations under the License.
 
 import warnings
-from itertools import cycle
 
-import earthkit.data
 import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 from cartopy.util import add_cyclic_point
 
@@ -34,7 +31,7 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
-from earthkit.plots.utils import iter_utils, string_utils
+from earthkit.plots.utils import string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -233,8 +230,7 @@ class Subplot:
                         locator = mdates.AutoDateLocator(maxticks=30)
                         formatter = mdates.ConciseDateFormatter(
                             locator,
-                            formats=["%Y", "%b", "%-d %b",
-                                     "%H:%M", "%H:%M", "%S.%f"],
+                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
                         )
                         self.ax.xaxis.set_major_locator(locator)
                         self.ax.xaxis.set_major_formatter(formatter)
@@ -302,10 +298,8 @@ class Subplot:
                         args[0], x=x, y=y, u=u, v=v, units=source_units
                     )
                 elif len(args) == 2:
-                    u_source = get_source(
-                        args[0], x=x, y=y, units=source_units)
-                    v_source = get_source(
-                        args[1], x=x, y=y, units=source_units)
+                    u_source = get_source(args[0], x=x, y=y, units=source_units)
+                    v_source = get_source(args[1], x=x, y=y, units=source_units)
 
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
 
@@ -321,10 +315,8 @@ class Subplot:
 
                 x_values = u_source.x_values
                 y_values = u_source.y_values
-                u_values = style.convert_units(
-                    u_source.z_values, u_source.units)
-                v_values = style.convert_units(
-                    v_source.z_values, v_source.units)
+                u_values = style.convert_units(u_source.z_values, u_source.units)
+                v_values = style.convert_units(v_source.z_values, v_source.units)
 
                 resample = style.resample or resample
 
@@ -356,8 +348,7 @@ class Subplot:
                     args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
 
                 mappable = m(self.ax, *args, **kwargs)
-                self.layers.append(
-                    Layer([u_source, v_source], mappable, self, style))
+                self.layers.append(Layer([u_source, v_source], mappable, self, style))
                 if isinstance(u_source._x, str):
                     self.ax.set_xlabel(u_source._x)
                 if isinstance(u_source._y, str):
@@ -482,8 +473,7 @@ class Subplot:
                 z_values, x_values = add_cyclic_point(z_values, coord=x_values)
                 if n_x:
                     x_values = np.tile(x_values, (n_x, 1))
-                    y_values = np.hstack(
-                        (y_values, y_values[:, -1][:, np.newaxis]))
+                    y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
             # Step 7: Plot with or without interpolation
             if "transform_first" in kwargs:
                 if (
@@ -733,10 +723,8 @@ class Subplot:
         x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
         x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
         kwargs.pop("x")
-        mappable = self.ax.fill_between(
-            x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        self.layers.append(Layer(get_source(data=data_1),
-                           mappable, self, style=None))
+        mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
+        self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
         return mappable
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
@@ -762,8 +750,7 @@ class Subplot:
 
     def quickplot(self, data, style=None, units=None, **kwargs):
         if not kwargs.pop("auto_style", True):
-            warnings.warn(
-                "`auto_style` cannot be switched off for `quickplot`.")
+            warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)
@@ -1165,8 +1152,7 @@ class Subplot:
             dummy = [[1, 2], [3, 4]]
             mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
             layer = Layer(NumpySource(), mappable, self, style)
-            legend = layer.style.legend(
-                layer, label=kwargs.pop("label", ""), **kwargs)
+            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
             legends.append(legend)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):

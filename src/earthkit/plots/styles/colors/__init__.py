@@ -202,7 +202,7 @@ def gradients(levels, colors, gradients, normalize, **kwargs):
 def adjust_lightness(color, amount=0.5):
     try:
         c = mpl.colors.cnames[color]
-    except:
+    except KeyError:  # Raised if the color name is not found in the cnames dictionary
         c = color
     c = colorsys.rgb_to_hls(*mpl.colors.to_rgb(c))
     return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
@@ -218,7 +218,7 @@ def symmetric_from_color(color, n):
     """
     if not isinstance(color, str):
         return color
-    num_colors = n//2 + n % 2
+    num_colors = n // 2 + n % 2
     amounts_lightening = np.linspace(0, 0.9, num_colors)
     colors = [adjust_lightness(color, amount) for amount in amounts_lightening]
 

@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 
-from earthkit.plots import metadata, styles, plottypes
+from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
 from earthkit.plots.styles.colors import magics_colors_to_rgb
@@ -571,7 +571,15 @@ class Style:
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
     def quantiles(
-        self, ax, x, y, values, *args, type="band", quantiles=[0, .25, .5, .75, 1], **kwargs
+        self,
+        ax,
+        x,
+        y,
+        values,
+        *args,
+        type="band",
+        quantiles=[0, 0.25, 0.5, 0.75, 1],
+        **kwargs,
     ):
         """
         Compute and plot quantiles using this `Style`.
@@ -599,8 +607,7 @@ class Style:
         elif type == "band":
             mappable = self.bandplot(ax, x, stats, *args, **kwargs)
         else:
-            raise NotImplementedError(
-                f"Plot of type {type} not yet implemented.")
+            raise NotImplementedError(f"Plot of type {type} not yet implemented.")
         return mappable
 
     def to_quantiles_kwargs(self, n, c=None):
@@ -609,25 +616,19 @@ class Style:
         if isinstance(c, str):
             # Generate symmetric colors
             if c in mpl.colormaps:
-                c = mpl.colormaps[c](np.abs(np.linspace(-1., 1., n)))
+                c = mpl.colormaps[c](np.abs(np.linspace(-1.0, 1.0, n)))
             else:
                 c = colors.symmetric_from_color(c, n)
         return {"colors": c, **self._kwargs}
 
     def bandplot(self, ax, x, values, colors=None, *args, **kwargs):
         num_bands = len(values) - 1
-        kwargs = {
-            **self.to_quantiles_kwargs(num_bands, c=colors),
-            **kwargs
-        }
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
         return plottypes.bandplot(ax, x, values, *args, **kwargs)
 
     def boxplot(self, ax, x, values, colors=None, *args, **kwargs):
         num_bands = len(values) - 1
-        kwargs = {
-            **self.to_quantiles_kwargs(num_bands, c=colors),
-            **kwargs
-        }
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
         return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
@@ -656,8 +657,7 @@ class Style:
 
         if mode == "spline":
             if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(
-                    x.min(), x.max(), max(300, len(x) * 5))
+                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
             else:
                 x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
 
@@ -683,8 +683,7 @@ class Style:
 
         elif mode == "smooth":
             if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(
-                    x.min(), x.max(), max(300, len(x) * 5))
+                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
             else:
                 x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
             func = interp1d(
@@ -859,8 +858,7 @@ class Style:
         bbox.y0 = min(bbox.y0, title_bbox.y0) - y * ymod
         bbox.y1 = max(bbox.y1, title_bbox.y1) + y * ymod
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox,
-                    transparent=transparent)
+        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
 
     def _save_disjoint_graphic(self, data, x, y, filename, transparent, kwargs):
         from earthkit.maps import Chart
@@ -875,8 +873,7 @@ class Style:
         fig.canvas.draw()
         bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox,
-                    transparent=transparent)
+        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
 
 
 class Categorical(Style):
@@ -885,8 +882,7 @@ class Categorical(Style):
     def __init__(self, *args, **kwargs):
         kwargs["legend_style"] = "disjoint"
         if isinstance(kwargs.get("levels"), dict):
-            kwargs["levels"], kwargs["categories"] = zip(
-                *kwargs["levels"].items())
+            kwargs["levels"], kwargs["categories"] = zip(*kwargs["levels"].items())
         if "categories" not in kwargs:
             kwargs["categories"] = kwargs.get("levels")
         super().__init__(*args, **kwargs)
@@ -1090,8 +1086,7 @@ class Hatched(Contour):
     def __eq__(self, other):
         keys = ["_levels", "_colors", "_foreground_colors", "hatches"]
         return all(
-            [getattr(self, key, None) == getattr(other, key, None)
-             for key in keys]
+            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
         )
 
     def contourf(self, *args, **kwargs):
@@ -1151,8 +1146,7 @@ class Hatched(Contour):
         """
         legend = super().disjoint(layer, *args, **kwargs)
 
-        linecolors = colors.expand(
-            self._foreground_colors, layer.mappable.levels)
+        linecolors = colors.expand(self._foreground_colors, layer.mappable.levels)
 
         for color, artist in zip(linecolors, legend.get_patches()):
             artist.set_edgecolor(color)
