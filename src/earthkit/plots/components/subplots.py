@@ -939,10 +939,6 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
         """
 
-    @schema.isolines.apply()
-    def isolines(self, *args, **kwargs):
-        return self.contour(*args, **kwargs)
-
     @schema.contourf.apply()
     @plot_3D(extract_domain=True)
     def contourf(self, *args, **kwargs):

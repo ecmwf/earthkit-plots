@@ -187,3 +187,17 @@ def test_xarray_source_crs_with_cf_grid_mapping():
     )
     assert source.crs.proj4_params["lon_0"] == -95.0
     assert source.crs.proj4_params["lat_0"] == 15.0
+
+
+# def test_1D():
+#     """Test that units are extracted from the metadata of the xarray source."""
+#     data = xr.DataArray(
+#         np.array([1, 2, 3]),
+#         dims=["time"],
+#         coords={"time": [0, 1, 2]},
+#         attrs={"units": "seconds"},
+#     )
+#     source = XarraySource(data)
+#     assert np.array_equal(source.x_values, [0, 1, 2])
+#     assert np.array_equal(source.y_values, [1, 2, 3])
+#     assert source.z_values is None

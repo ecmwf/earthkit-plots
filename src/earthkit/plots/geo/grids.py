@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import re
+import importlib.util
 import warnings
 
 # import cartopy.crs as ccrs
@@ -21,15 +21,10 @@ import numpy as np
 _NO_SCIPY = False
 try:
     from scipy.interpolate import griddata
-    from scipy.spatial import cKDTree
 except ImportError:
     _NO_SCIPY = True
 
-# _NO_EARTHKIT_GEO = False
-# try:
-#     import earthkit.geo
-# except ImportError:
-#     _NO_EARTHKIT_GEO = True
+_NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
 
 
 def is_structured(x, y, tol=1e-5):
@@ -103,8 +98,8 @@ def is_global(x, y, tol=5):
     Compares points of x and y to low resolution global grid,
     and if within tolerance, returns True.
     """
-    # if not _NO_EARTHKIT_GEO:
-    #     pass
+    if not _NO_EARTHKIT_GEO:
+        pass
 
     if _NO_SCIPY:
         raise ImportError(
