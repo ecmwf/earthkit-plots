@@ -18,13 +18,6 @@ import warnings
 # import cartopy.crs as ccrs
 import numpy as np
 
-_NO_SCIPY = False
-try:
-    from scipy.interpolate import griddata
-    from scipy.spatial import cKDTree, KDTree
-except ImportError:
-    _NO_SCIPY = True
-
 _NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
 
 
@@ -101,8 +94,9 @@ def is_global(x, y, tol=5):
     """
     if not _NO_EARTHKIT_GEO:
         pass
-
-    if _NO_SCIPY:
+    try:
+        from scipy.spatial import KDTree
+    except ImportError:
         raise ImportError(
             "The 'scipy' package is required for checking for global data."
         )
@@ -171,6 +165,13 @@ def guess_resolution_and_shape(
 
     # If neither are defined, guess the resolution from the data and calculate the shape
 
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:
+        raise ImportError(
+            "The 'scipy.spatial' module is required for guessing resolution and shape."
+            "Alternatively, provide a target resolution or shape."
+        )
     # Use cKDTree to find nearest distances
     points = np.c_[x, y]
     tree = cKDTree(points)
@@ -250,7 +251,9 @@ def interpolate_unstructured(
         present in regions where interpolation was not possible (e.g., due to
         large gaps in the data).
     """
-    if _NO_SCIPY:
+    try:
+        from scipy.interpolate import griddata
+    except ImportError:
         raise ImportError(
             "The 'scipy' package is required for interpolating unstructured data."
         )
@@ -295,6 +298,12 @@ def interpolate_unstructured(
     if distance_threshold is None:
         return grid_x, grid_y, grid_z
 
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:
+        raise ImportError(
+            "The 'scipy.spatial' module is required for applying a distance threshold."
+        )
     # Use cKDTree to find nearest distances
     tree = cKDTree(np.c_[x_filtered, y_filtered])
     grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
