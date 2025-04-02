@@ -21,6 +21,7 @@ import numpy as np
 _NO_SCIPY = False
 try:
     from scipy.interpolate import griddata
+    from scipy.spatial import cKDTree, KDTree
 except ImportError:
     _NO_SCIPY = True
 
@@ -111,8 +112,6 @@ def is_global(x, y, tol=5):
 
     if np.any(x < 0):
         x = np.roll(x, -180)
-
-    from scipy.spatial import KDTree
 
     x_tree = KDTree(x.flatten().reshape(-1, 1))
     y_tree = KDTree(y.flatten().reshape(-1, 1))
