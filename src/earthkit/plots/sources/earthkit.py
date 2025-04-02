@@ -219,11 +219,11 @@ class EarthkitSource(SingleSource):
     def extract_x(self):
         """Extract the x values from the data."""
         return self.extract_xy()[0]
-    
+
     def extract_y(self):
         """Extract the y values from the data."""
         return self.extract_xy()[1]
-    
+
     def extract_u(data, u=None):
         u_data = None
         if u is not None:
