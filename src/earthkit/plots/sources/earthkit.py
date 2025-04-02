@@ -178,6 +178,52 @@ class EarthkitSource(SingleSource):
                 pass
         return value
 
+    def extract_xyz(self):
+        """Extract the x, y and z values from the data."""
+        x, y, z = self._x, self._y, self._z
+        if self._x is None and self._y is None and self._z is None:
+            x, y = self.extract_xy()
+        return x, y, z
+
+    @cached_property
+    def dims(self):
+        """Return the dimensions of the data."""
+        return list(self.data.dims)
+
+    # TODO: This method is invalid, and is the result of merging develop into experimental
+    def extract_xy(self):
+        """Extract the x and y values from the data."""
+        if self.regrid and self.gridspec is not None:
+            if _NO_EARTHKIT_REGRID:
+                raise ImportError(
+                    f"earthkit-regrid is required for plotting data on a"
+                    f"'{self.gridspec['grid']}' grid"
+                )
+            points = get_points(1)
+            x = points["x"]
+            y = points["y"]
+        else:
+            try:
+                points = self.data.to_points(flatten=False)
+                x = points["x"]
+                y = points["y"]
+            except ValueError:
+                latlon = self.data.to_latlon(flatten=False)
+                lat = latlon["lat"]
+                lon = latlon["lon"]
+                transformed = self.crs.transform_points(ccrs.PlateCarree(), lon, lat)
+                x = transformed[:, :, 0]
+                y = transformed[:, :, 1]
+        return x, y
+
+    def extract_x(self):
+        """Extract the x values from the data."""
+        return self.extract_xy()[0]
+    
+    def extract_y(self):
+        """Extract the y values from the data."""
+        return self.extract_xy()[1]
+    
     def extract_u(data, u=None):
         u_data = None
         if u is not None:
