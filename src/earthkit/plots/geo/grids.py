@@ -18,7 +18,9 @@ import warnings
 # import cartopy.crs as ccrs
 import numpy as np
 
-_NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
+# earthkit.geo is not yet used
+# TODO: Is this the best way to check for earthkit.geo?
+# _NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
 
 
 def is_structured(x, y, tol=1e-5):
@@ -92,8 +94,10 @@ def is_global(x, y, tol=5):
     Compares points of x and y to low resolution global grid,
     and if within tolerance, returns True.
     """
-    if not _NO_EARTHKIT_GEO:
-        pass
+    # earthkit.geo is not yet used
+    # TODO: Is this the best way to check for earthkit.geo? Can we copy what is done with scipy?
+    # if not _NO_EARTHKIT_GEO:
+    #     pass
     try:
         from scipy.spatial import KDTree
     except ImportError:
