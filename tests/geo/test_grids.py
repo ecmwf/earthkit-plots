@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from earthkit.plots.geo.grids import interpolate_unstructured
+from earthkit.plots.geo.grids import interpolate_unstructured, is_structured
 
 X = np.array([0, 1, 2, 3, 0, 1, 2, 3])
 Y = np.array([0, 0, 1, 1, 2, 2, 3, 3])
@@ -63,3 +63,62 @@ def test_interpolation_distance_threshold(threshold, expected_nans):
     assert (
         np.isnan(grid_z).sum() == expected_nans
     ), "Thresholding did not introduce the correct number of NaNs"
+
+
+def test_1d_structured():
+    x = np.linspace(0, 360, 361)
+    y = np.linspace(-90, 90, 181)
+    assert is_structured(x, y)
+
+
+def test_1d_unstructured():
+    x = np.linspace(0, 360, 361)
+    y = np.sort(np.random.rand(181) * 180 - 90)  # Not equally spaced
+    assert not is_structured(x, y)
+
+
+def test_2d_structured():
+    lon = np.linspace(0, 360, 361)
+    lat = np.linspace(-90, 90, 181)
+    x, y = np.meshgrid(lon, lat)
+    assert is_structured(x, y)
+
+
+def test_2d_unstructured():
+    lon = np.linspace(0, 360, 361)
+    lat = np.sort(np.random.rand(181) * 180 - 90)
+    x, y = np.meshgrid(lon, lat)
+    x[0, 0] += 0.1  # Introduce slight inconsistency
+    assert not is_structured(x, y)
+
+
+def test_lon_wrap_0_360():
+    lon = np.linspace(0, 360, 361)
+    lat = np.linspace(-90, 90, 181)
+    x, y = np.meshgrid(lon, lat)
+    x[:, -1] = x[:, -1] % 360  # Ensure wrap
+    assert is_structured(x, y, lon_wrap=True)
+
+
+def test_lon_wrap_negative180_180():
+    lon = np.linspace(-180, 180, 361)
+    lat = np.linspace(-90, 90, 181)
+    x, y = np.meshgrid(lon, lat)
+    assert is_structured(x, y, lon_wrap=True)
+
+
+def test_no_wrap_fails_on_wrapping_grid():
+    lon = np.linspace(0, 360, 361)
+    lat = np.linspace(-90, 90, 181)
+    x, y = np.meshgrid(lon, lat)
+    x[:, -1] = x[:, -1] % 360
+    assert not is_structured(x, y, lon_wrap=False)
+
+
+def test_tolerance_effect():
+    lon = np.linspace(0, 360, 361)
+    lat = np.linspace(-90, 90, 181)
+    x, y = np.meshgrid(lon, lat)
+    x[0, 1] += 1e-6  # Within tolerance
+    assert is_structured(x, y, tol=1e-5)
+    assert not is_structured(x, y, tol=1e-8)
