@@ -5,6 +5,7 @@ on:
     branches:
     - main
     - develop
+    - experimental
     tags:
     - "*"
   pull_request:
