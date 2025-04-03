@@ -26,69 +26,60 @@ except ImportError:
 _NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
 
 
-def is_structured(x, y, tol=1e-5):
+def is_structured(x, y, tol=1e-5, lon_wrap=True):
     """
-    Determines whether the x and y points form a structured grid.
-
-    This function checks if the x and y coordinate arrays represent a structured
-    grid, i.e., a grid with consistent spacing between points. The function supports
-    1D arrays (representing coordinates of a grid) and 2D arrays (representing the
-    actual grid coordinates) of x and y.
+    Determines whether the x and y points form a structured grid, accounting for longitude wrapping.
 
     Parameters
     ----------
     x : array_like
-        A 1D or 2D array of x-coordinates. For example, this can be longitude or
-        the x-coordinate in a Cartesian grid.
+        A 1D or 2D array of x-coordinates (e.g., longitude or x in Cartesian grid).
     y : array_like
-        A 1D or 2D array of y-coordinates. For example, this can be latitude or
-        the y-coordinate in a Cartesian grid.
+        A 1D or 2D array of y-coordinates (e.g., latitude or y in Cartesian grid).
     tol : float, optional
-        Tolerance for floating-point comparison to account for numerical precision
-        errors when checking spacing consistency. The default is 1e-5.
+        Tolerance for floating-point comparison to account for numerical precision errors.
+        Default is 1e-5.
+    lon_wrap : bool, optional
+        If True, handles cases where longitudes wrap around at -180/180 or 0/360.
+        Default is True.
 
     Returns
     -------
     bool
-        True if the data represents a structured grid, i.e., the spacing between
-        consecutive points in both x and y is consistent. False otherwise.
+        True if the data represents a structured grid, False otherwise.
     """
-
     x = np.asarray(x)
     y = np.asarray(y)
 
-    # If both x and y are 1D arrays, ensure they can form a grid
+    def wrap_diff(arr):
+        """Compute differences, considering longitude wrapping."""
+        diff = np.diff(arr)
+        if lon_wrap:
+            diff = np.mod(diff + 180, 360) - 180  # Wrap differences to [-180, 180]
+        return diff
+
     if x.ndim == 1 and y.ndim == 1:
-        # Check if the number of points match (can form a meshgrid)
         if len(x) * len(y) != x.size * y.size:
             return False
 
-        # Check consistent spacing in x and y
-        x_diff = np.diff(x)
-        y_diff = np.diff(y)
+        x_diff = wrap_diff(x)
+        y_diff = wrap_diff(y)
 
         x_spacing_consistent = np.all(np.abs(x_diff - x_diff[0]) < tol)
         y_spacing_consistent = np.all(np.abs(y_diff - y_diff[0]) < tol)
 
         return x_spacing_consistent and y_spacing_consistent
 
-    # If x and y are 2D arrays, verify they are structured as a grid
     elif x.ndim == 2 and y.ndim == 2:
-        # Check if rows of x and y have consistent spacing along the grid lines
-        # x should vary only along one axis, y along the other axis
+        x_diff_rows = wrap_diff(x)
+        y_diff_cols = wrap_diff(y)
 
-        x_rows_consistent = np.all(
-            np.abs(np.diff(x, axis=1) - np.diff(x, axis=1)[:, 0:1]) < tol
-        )
-        y_columns_consistent = np.all(
-            np.abs(np.diff(y, axis=0) - np.diff(y, axis=0)[0:1, :]) < tol
-        )
+        x_rows_consistent = np.all(np.abs(np.diff(x_diff_rows, axis=1)) < tol)
+        y_columns_consistent = np.all(np.abs(np.diff(y_diff_cols, axis=0)) < tol)
 
         return x_rows_consistent and y_columns_consistent
 
-    else:
-        # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
-        return False
+    return False
 
 
 def is_global(x, y, tol=5):
