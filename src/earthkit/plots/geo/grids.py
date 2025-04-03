@@ -118,7 +118,7 @@ def is_global(x, y, tol=5):
     return True
 
 
-def guess_resolution_and_shape(
+def _guess_resolution_and_shape(
     x: np.ndarray,
     y: np.ndarray,
     in_shape: int | tuple[int, int] | None = None,
@@ -255,7 +255,7 @@ def interpolate_unstructured(
             "The 'scipy' package is required for interpolating unstructured data."
         )
 
-    target_resolution, target_shape = guess_resolution_and_shape(
+    target_resolution, target_shape = _guess_resolution_and_shape(
         x, y, in_shape=target_shape, in_resolution=target_resolution
     )
 
