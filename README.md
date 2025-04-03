@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
     <source srcset="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-dark.svg" media="(prefers-color-scheme: dark)">
-    <img src="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-light.svg" height="120">
+    <img src="https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-light.svg" height="80">
   </picture>
 </p>
 
@@ -15,8 +15,8 @@
   <a href="https://opensource.org/licenses/apache-2-0">
       <img src="https://img.shields.io/badge/License-Apache%202.0-blue.svg" alt="License: Apache 2.0">
     </a>
-  <a href="https://github.com/ecmwf/earthkit/releases">
-    <img src="https://img.shields.io/github/v/release/ecmwf/earthkit-plots?color=purple&label=Release" alt="Latest Release">
+    <a href="https://pypi.python.org/pypi/earthkit-plots/">
+      <img src="https://badge.fury.io/py/earthkit-plots.svg" alt="PyPI version fury.io">
   </a>
 </p>
 
@@ -27,6 +27,7 @@
 
 > \[!IMPORTANT\]
 > This software is **Incubating** and subject to ECMWF's guidelines on [Software Maturity](https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity).
+
 
 **earthkit-plots** leverages the power of the **earthkit** ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
 
