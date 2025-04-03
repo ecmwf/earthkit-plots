@@ -28,6 +28,7 @@ dependencies = [
   "cartopy>=0.22.0",
   "pint",
   "matplotlib",
+  "pandas",
   "pyyaml",
   "numpy",
   "adjustText"

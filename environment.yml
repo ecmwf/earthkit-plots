@@ -12,6 +12,7 @@ dependencies:
 # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
 - earthkit-data
 - matplotlib
+- pandas
 - cartopy
 - pint
 - pyyaml
