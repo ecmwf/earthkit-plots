@@ -5,12 +5,14 @@ on:
     branches:
     - main
     - develop
+    - experimental
     tags:
     - "*"
   pull_request:
     branches:
     - main
     - develop
+    - experimental
   pull_request_target:
     types: [labeled]
   workflow_dispatch:
