@@ -13,11 +13,8 @@
 # limitations under the License.
 
 import warnings
-from itertools import cycle
 
-import earthkit.data
 import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 import numpy as np
 from cartopy.util import add_cyclic_point
 
@@ -34,7 +31,7 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
-from earthkit.plots.utils import iter_utils, string_utils
+from earthkit.plots.utils import string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -157,7 +154,7 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None, extract_domain=False):
+    def plot_2D(method_name=None):
         def decorator(method):
             def wrapper(
                 self,
@@ -169,8 +166,7 @@ class Subplot:
                 every=None,
                 **kwargs,
             ):
-                kwargs.pop("color", None)
-                return self._extract_plottables(
+                return self._extract_plottables_2D(
                     method_name or method.__name__,
                     args=args,
                     x=x,
@@ -178,7 +174,6 @@ class Subplot:
                     z=z,
                     style=style,
                     every=every,
-                    extract_domain=extract_domain,
                     **kwargs,
                 )
 
@@ -335,6 +330,56 @@ class Subplot:
 
         return decorator
 
+    def _extract_plottables_2D(
+        self,
+        method_name,
+        args,
+        x=None,
+        y=None,
+        z=None,
+        style=None,
+        no_style=False,
+        units=None,
+        every=None,
+        source_units=None,
+        auto_style=False,
+        regrid=False,
+        metadata=None,
+        **kwargs,
+    ):
+        # Step 1: Initialize the source
+        source = get_source(
+            *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
+        )
+        kwargs.update(self._plot_kwargs(source))
+
+        # Step 2: Configure the style
+        style = self._configure_style(
+            method_name, style, source, units, auto_style, kwargs
+        )
+
+        # Step 3: Process z values
+        z_values = self._process_z_values(style, source, z)
+
+        # Step 5: Process x, y values, apply sampling if specified
+        x_values, y_values = source.x_values, source.y_values
+        x_values, y_values, z_values = self._apply_sampling(
+            x_values, y_values, z_values, every
+        )
+
+        if no_style and z_values is None:
+            # We do this to ensure that the Style class has a consistent
+            # representation of z values
+            z_values = kwargs.pop("c", None)
+
+        mappable = getattr(style, method_name)(
+            self.ax, x_values, y_values, z_values, **kwargs
+        )
+
+        # Step 8: Store layer and return
+        self.layers.append(Layer(source, mappable, self, style))
+        return mappable
+
     def _extract_plottables(
         self,
         method_name,
@@ -420,6 +465,7 @@ class Subplot:
                     style, method_name, x_values, y_values, z_values, source.crs, kwargs
                 )
             else:
+                print("Warning: Style not set.")
                 mappable = getattr(self.ax, method_name)(
                     x_values, y_values, z_values, **kwargs
                 )
@@ -632,6 +678,10 @@ class Subplot:
         raise NotImplementedError
 
     @plot_2D()
+    def quantiles(self, *args, **kwargs):
+        pass
+
+    @plot_2D()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -660,46 +710,6 @@ class Subplot:
         kwargs.pop("x")
         mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
         self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
-        return mappable
-
-    @schema.envelope.apply()
-    def quantiles(self, data, quantiles=[0, 1], dim=None, alpha=0.15, **kwargs):
-        prop_cycle = plt.rcParams["axes.prop_cycle"]
-        facecolor = kwargs.pop(
-            "facecolor", kwargs.get("color", next(cycle(prop_cycle.by_key()["color"])))
-        )
-        color = kwargs.pop("color", next(cycle(prop_cycle.by_key()["color"])))
-        if isinstance(data, earthkit.data.core.Base):
-            data = data.to_xarray()
-        if dim is None:
-            dim = list(data.dims)[0]
-        for q in iter_utils.symmetrical_iter(quantiles):
-            lines = data.quantile(q, dim=dim)
-            if isinstance(q, tuple):
-                x, y1, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[0]), **kwargs
-                )
-                _, y2, _ = self._extract_plottables_envelope(
-                    y=lines.sel(quantile=q[1]), **kwargs
-                )
-                mappable = self.ax.fill_between(
-                    x=x,
-                    y1=y1,
-                    y2=y2,
-                    facecolor=facecolor,
-                    alpha=alpha,
-                    **{k: v for k, v in kwargs.items() if k != "x"},
-                )
-            else:
-                x, y, _ = self._extract_plottables_envelope(y=lines, **kwargs)
-                kwargs.pop("label", None)
-                mappable = self.ax.plot(
-                    x, y, color=color, **{k: v for k, v in kwargs.items() if k != "x"}
-                )
-
-        # kwargs.pop("x")
-        # mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        # self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
         return mappable
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
@@ -859,7 +869,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D(extract_domain=True)
+    @plot_2D()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.

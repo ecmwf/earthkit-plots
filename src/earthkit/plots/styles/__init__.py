@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 
-from earthkit.plots import metadata, styles
+from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
 from earthkit.plots.styles.colors import magics_colors_to_rgb
@@ -569,6 +569,67 @@ class Style:
             kwargs.pop("cmap", None)
             kwargs.pop("norm", None)
         return ax.scatter(x, y, s=s, *args, **kwargs)
+
+    def quantiles(
+        self,
+        ax,
+        x,
+        y,
+        values,
+        *args,
+        type="band",
+        quantiles=[0, 0.25, 0.5, 0.75, 1],
+        **kwargs,
+    ):
+        """
+        Compute and plot quantiles using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The data of which to compute the statistics. The computation
+            is applied along axis 0, so the size along axis 1 must match
+            the size of the coordinates.
+        type : "box" | "band"
+            The type of plot used to represent the quantile ranges.
+        quantiles : array_like
+            Probabilities of the quantiles to compute. Values must be
+            between 0 and 1 inclusive.
+        """
+        quantiles = np.sort(quantiles)
+        stats = np.quantile(values, quantiles, axis=0)
+        if type == "box":
+            mappable = self.boxplot(ax, x, stats, *args, **kwargs)
+        elif type == "band":
+            mappable = self.bandplot(ax, x, stats, *args, **kwargs)
+        else:
+            raise NotImplementedError(f"Plot of type {type} not yet implemented.")
+        return mappable
+
+    def to_quantiles_kwargs(self, n, c=None):
+        if c is None:
+            c = self._colors
+        if isinstance(c, str):
+            # Generate symmetric colors
+            if c in mpl.colormaps:
+                c = mpl.colormaps[c](np.abs(np.linspace(-1.0, 1.0, n)))
+            else:
+                c = colors.symmetric_from_color(c, n)
+        return {"colors": c, **self._kwargs}
+
+    def bandplot(self, ax, x, values, colors=None, *args, **kwargs):
+        num_bands = len(values) - 1
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
+        return plottypes.bandplot(ax, x, values, *args, **kwargs)
+
+    def boxplot(self, ax, x, values, colors=None, *args, **kwargs):
+        num_bands = len(values) - 1
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
+        return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
