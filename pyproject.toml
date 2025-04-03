@@ -29,6 +29,7 @@ dependencies = [
   "pint",
   "matplotlib",
   "pandas",
+  "plotly",
   "pyyaml",
   "numpy",
   "adjustText"

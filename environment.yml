@@ -17,6 +17,7 @@ dependencies:
 - pint
 - pyyaml
 - numpy
+- plotly
 - pip:
   - adjustText
   - git+https://github.com/ecmwf/earthkit-plots-default-styles@experimental
