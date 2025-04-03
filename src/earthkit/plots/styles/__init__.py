@@ -1104,9 +1104,8 @@ class Hatched(Contour):
 
         linecolors = colors.expand(self._foreground_colors, mappable.levels)
 
-        for i, collection in enumerate(mappable.collections):
-            collection.set_edgecolor(linecolors[i])
-            collection.set_linewidth(0)
+        mappable.set_edgecolor(linecolors)
+        mappable.set_linewidth(0)
 
         return mappable
 
