@@ -579,12 +579,11 @@ class Figure:
                     title_bbox = title_obj.get_window_extent(renderer)
                     bbox_fig = inv_transform.transform(title_bbox)
                     max_title_top = max(max_title_top, bbox_fig[1][1])
+                    # Clean up any previous title_obj variable that was used
+                    del title_obj
                 else:
                     # Fallback to checking the axis position
                     max_title_top = max(max_title_top, ax.get_position().ymax)
-
-                # Clean up any previous title_obj variable that was used
-                del title_obj
 
         # Set the suptitle just above the highest title
         # Adjust the offset as needed
