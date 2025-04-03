@@ -1,10 +1,27 @@
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
+from pyproj import Transformer
+from shapely.geometry import box
+from shapely.ops import transform
 
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.geo import domains, natural_earth
+from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
@@ -38,6 +55,8 @@ class Map(Subplot):
 
     def __init__(self, *args, domain=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
+        if isinstance(crs, str):
+            crs = coordinate_reference_systems.parse_crs(crs)
         if domain is None:
             self.domain = domain
             self._crs = crs
@@ -55,7 +74,10 @@ class Map(Subplot):
                 self.domain = domains.Domain.from_string(domain, crs=crs)
             elif isinstance(domain, domains.Domain):
                 self.domain = domain
-            self._crs = crs or self.domain.bbox.crs
+            if crs is not None:
+                self._crs = coordinate_reference_systems.parse_crs(crs)
+            else:
+                self._crs = self.domain.bbox.crs
         self.natural_earth_resolution = "medium"
 
     @property
@@ -120,15 +142,15 @@ class Map(Subplot):
             self._crs = source.crs or ccrs.PlateCarree()
         return {"transform": source.crs or ccrs.PlateCarree()}
 
-    @schema.gridpoints.apply()
-    def gridpoints(self, *args, **kwargs):
+    @schema.grid_points.apply()
+    def grid_points(self, *args, **kwargs):
         """
         Plot gridpoint centroids on the map.
 
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot gridpoints.
+            The data source for which to plot grid_points.
         x : str, optional
             The name of the x-coordinate variable in the data source.
         y : str, optional
@@ -136,6 +158,11 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
         """
+        popped_kwargs = []
+        for key in ["style", "levels", "units", "colors"]:
+            if key in kwargs:
+                popped_kwargs.append(key)
+                kwargs.pop(key)
         return self.scatter(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
@@ -153,7 +180,7 @@ class Map(Subplot):
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot gridpoints.
+            The data source for which to plot grid_points.
         x : str, optional
             The name of the x-coordinate variable in the data source.
         y : str, optional
@@ -232,6 +259,7 @@ class Map(Subplot):
                 include=None,
                 exclude=None,
                 labels=False,
+                special_styles=None,
                 adjust_labels=False,
                 **kwargs,
             ):
@@ -260,12 +288,25 @@ class Map(Subplot):
                 )
                 reader = shpreader.Reader(shpfilename)
 
-                records = reader.records()
+                records = list(reader.records())
 
                 filtered_records = []
-                if include is None and exclude is None:
-                    filtered_records = list(reader.records())
+                special_records = []
+
+                if special_styles is not None:
+                    for record in records:
+                        for style in special_styles:
+                            if (
+                                record.attributes.get(style["key"], None)
+                                in style["values"]
+                            ):
+                                special_records.append([record, style["kwargs"]])
+                            else:
+                                filtered_records.append(record)
                 else:
+                    filtered_records = list(reader.records())
+
+                if include is not None or exclude is not None:
                     exclude = (
                         [exclude]
                         if not (isinstance(exclude, (list, tuple)) or exclude is None)
@@ -276,16 +317,22 @@ class Map(Subplot):
                         if not (isinstance(include, (list, tuple)) or include is None)
                         else include
                     )
-                    for record in records:
-                        value = record.attributes.get(default_attribute)
-                        if (include is None or value in include) and (
-                            exclude is None or value not in exclude
-                        ):
-                            filtered_records.append(record)
-                    if exclude is not None:
-                        for record in records:
-                            if record.attributes.get(default_attribute) in include:
-                                filtered_records.append(record)
+
+                    filtered_records = [
+                        record
+                        for record in records
+                        if (
+                            (
+                                include is None
+                                or record.attributes.get(default_attribute) in include
+                            )
+                            and (
+                                exclude is None
+                                or record.attributes.get(default_attribute)
+                                not in exclude
+                            )
+                        )
+                    ]
 
                 if labels:
                     if not isinstance(labels, str):
@@ -298,11 +345,42 @@ class Map(Subplot):
                         adjust_labels=adjust_labels,
                     )
 
-                feature = cfeature.ShapelyFeature(
-                    [record.geometry for record in filtered_records], ccrs.PlateCarree()
+                # **Optimized Geometry Reprojection & Clipping**
+                transformer = Transformer.from_crs(
+                    "EPSG:4326", self.crs, always_xy=True
                 )
 
-                return self.ax.add_feature(feature, *args, **kwargs)
+                def reproject_geom(geom):
+                    return transform(transformer.transform, geom)
+
+                # Get visible extent of the plot
+                xlim, ylim = self.ax.get_xlim(), self.ax.get_ylim()
+                extent_box = box(xlim[0], ylim[0], xlim[1], ylim[1])
+
+                reprojected_geometries = []
+                for record in filtered_records:
+                    projected_geom = reproject_geom(record.geometry)
+
+                    # **Clip to viewport**
+                    clipped_geom = projected_geom.intersection(extent_box)
+
+                    if not clipped_geom.is_empty:  # Only keep visible parts
+                        reprojected_geometries.append(clipped_geom)
+
+                # Add optimized features
+                feature = cfeature.ShapelyFeature(reprojected_geometries, self.crs)
+                result = self.ax.add_feature(feature, *args, **kwargs)
+
+                if special_styles is not None:
+                    for record, style in special_records:
+                        projected_geom = reproject_geom(record.geometry)
+                        clipped_geom = projected_geom.intersection(extent_box)
+
+                        if not clipped_geom.is_empty:
+                            feature = cfeature.ShapelyFeature([clipped_geom], self.crs)
+                            self.ax.add_feature(feature, *args, **{**kwargs, **style})
+
+                return result
 
             return wrapper
 

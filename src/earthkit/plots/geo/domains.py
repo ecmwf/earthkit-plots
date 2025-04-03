@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ import warnings
 
 import cartopy.crs as ccrs
 import numpy as np
+from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
 from earthkit.plots.geo.bounds import BoundingBox
@@ -55,10 +56,29 @@ def roll_from_0_360_to_minus_180_180(x):
 
     Parameters
     ----------
-    x : array-like
+    x : array-like (1D or 2D)
         The longitudes to be checked.
+
+    Returns
+    -------
+    int
+        The index at which the array crosses 180°.
     """
-    return np.argwhere(x[0] >= 180)[0][0]
+    x = np.asarray(x)
+
+    if x.ndim == 1:
+        # Handle 1D longitude array
+        idx = np.argwhere(x >= 180)
+    elif x.ndim == 2:
+        # Handle 2D longitude array (original behavior)
+        idx = np.argwhere(x[0] >= 180)
+    else:
+        raise ValueError("Input array must be 1D or 2D.")
+
+    if len(idx) == 0:
+        raise ValueError("No longitude values found greater than or equal to 180°.")
+
+    return idx[0][0]
 
 
 def roll_from_minus_180_180_to_0_360(x):
@@ -276,6 +296,11 @@ class Domain:
         else:
             return self._name
 
+    def __eq__(self, value):
+        if not isinstance(value, Domain):
+            return False
+        return list(self.bbox) == list(value.bbox) and self.crs == value.crs
+
     def __add__(self, second_domain):
         if isinstance(self._name, list):
             if isinstance(second_domain._name, list):
@@ -323,10 +348,15 @@ class Domain:
         return can_bbox
 
     def extract(
-        self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()
+        self,
+        x,
+        y,
+        values=None,
+        extra_values=None,
+        source_crs=None,
     ):
         """
-        Slice data to fit the domain.
+        Slice data to fit the domain. Works for both gridded and unstructured data.
 
         Parameters
         ----------
@@ -341,20 +371,29 @@ class Domain:
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the input data.
         """
+        # If source_crs is None, assume PlateCarree
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
         values = np.array(values) if values is not None else None
+
+        if values is not None and values.ndim == 3:
+            additional_dim = values.shape[-1]
+        else:
+            additional_dim = None
+
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
-            roll_by = None
 
+            # Handle longitude wrapping
+            roll_by = None
             if crs_bounds[0] < 0:
                 if crs_bounds[0] < np.array(x).min() and (x > 180).any():
                     roll_by = roll_from_0_360_to_minus_180_180(x)
                     x = force_minus_180_to_180(x)
                     for i in range(2):
-                        if -180 > crs_bounds[i] or crs_bounds[i] > 180:
-                            crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
+                        crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
             elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
                 if crs_bounds[1] > x.max():
                     roll_by = roll_from_minus_180_180_to_0_360(x)
@@ -363,50 +402,97 @@ class Domain:
                         crs_bounds[i] = force_0_to_360(crs_bounds[i])
 
             if roll_by is not None:
-                x = np.roll(x, roll_by, axis=1)
-                y = np.roll(y, roll_by, axis=1)
-                if values is not None:
-                    values = np.roll(values, roll_by, axis=1)
-                if extra_values is not None:
-                    extra_values = [np.roll(v, roll_by, axis=1) for v in extra_values]
+                if x.ndim == 1:
+                    x = np.roll(x, roll_by)
+                    y = np.roll(y, roll_by)
+                    if values is not None:
+                        values = np.roll(values, roll_by)
+                    if extra_values is not None:
+                        extra_values = [np.roll(v, roll_by) for v in extra_values]
+                else:
+                    x = np.roll(x, roll_by, axis=1)
+                    y = np.roll(y, roll_by, axis=1)
+                    if values is not None:
+                        values = np.roll(values, roll_by, axis=1)
+                    if extra_values is not None:
+                        extra_values = [
+                            np.roll(v, roll_by, axis=1) for v in extra_values
+                        ]
 
             if self.can_bbox:
-
-                try:
-                    import scipy.ndimage as sn
-                except ImportError:
-                    warnings.warn(
-                        "No scipy installation found; scipy is required to "
-                        "speed up plotting of smaller domains by slicing "
-                        "the input data. Consider installing scipy to speed "
-                        "up this process."
+                # Determine if data is gridded or unstructured
+                if x.ndim == 1 and y.ndim == 1:
+                    # Pad the crs_bounds by 10%
+                    _crs_bounds = [
+                        crs_bounds[0] - 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[1] + 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[2] - 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                        crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                    ]
+                    # Unstructured data: use point-in-polygon
+                    polygon = Polygon(
+                        [
+                            (_crs_bounds[0], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[3]),
+                            (_crs_bounds[0], _crs_bounds[3]),
+                        ]
                     )
-                finally:
-                    bbox = np.where(
-                        (x >= crs_bounds[0])
-                        & (x <= crs_bounds[1])
-                        & (y >= crs_bounds[2])
-                        & (y <= crs_bounds[3]),
-                        True,
-                        False,
+                    points = np.vstack([x, y]).T
+                    mask = np.array(
+                        [polygon.contains(Point(px, py)) for px, py in points]
                     )
 
-                    kernel = np.ones((8, 8), dtype="uint8")
-                    bbox = sn.morphology.binary_dilation(
-                        bbox,
-                        kernel,
-                    ).astype(bool)
+                    x = x[mask]
+                    y = y[mask]
 
-                    shape = bbox[
-                        np.ix_(np.any(bbox, axis=1), np.any(bbox, axis=0))
-                    ].shape
-
-                    x = x[bbox].reshape(shape)
-                    y = y[bbox].reshape(shape)
                     if values is not None:
-                        values = values[bbox].reshape(shape)
+                        values = values[mask]
                     if extra_values is not None:
-                        extra_values = [v[bbox].reshape(shape) for v in extra_values]
+                        extra_values = [v[mask] for v in extra_values]
+
+                else:
+                    # Gridded data: use bounding box slicing
+                    try:
+                        import scipy.ndimage as sn
+                    except ImportError:
+                        warnings.warn(
+                            "No scipy installation found; scipy is required to "
+                            "speed up plotting of smaller domains by slicing "
+                            "the input data. Consider installing scipy to speed "
+                            "up this process."
+                        )
+                    finally:
+                        bbox = np.where(
+                            (x >= crs_bounds[0])
+                            & (x <= crs_bounds[1])
+                            & (y >= crs_bounds[2])
+                            & (y <= crs_bounds[3]),
+                            True,
+                            False,
+                        )
+
+                        kernel = np.ones((8, 8), dtype="uint8")
+                        bbox = sn.morphology.binary_dilation(
+                            bbox,
+                            kernel,
+                        ).astype(bool)
+
+                        shape = bbox[
+                            np.ix_(np.any(bbox, axis=1), np.any(bbox, axis=0))
+                        ].shape
+
+                        x = x[bbox].reshape(shape)
+                        y = y[bbox].reshape(shape)
+                        if values is not None:
+                            if additional_dim is not None:
+                                values = values[bbox].reshape(shape + (additional_dim,))
+                            else:
+                                values = values[bbox].reshape(shape)
+                        if extra_values is not None:
+                            extra_values = [
+                                v[bbox].reshape(shape) for v in extra_values
+                            ]
 
         if not extra_values:
             return x, y, values

@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -204,7 +204,7 @@ class Global(CRSOptimiser):
 
 
 class Equatorial(CRSOptimiser):
-    """A domain with a central longitude < ±25 degrees, covering < 20% of the globe."""
+    """A domain with a central latitude < ±25 degrees, covering < 20% of the globe."""
 
     CRS = PlateCarree
 
@@ -221,7 +221,7 @@ class Equatorial(CRSOptimiser):
 
 
 class NorthPolar(CRSOptimiser):
-    """A domain with a central longitude > 75 degrees."""
+    """A domain with a central latitude > 75 degrees."""
 
     CRS = NorthPolarStereo
 
@@ -233,13 +233,13 @@ class NorthPolar(CRSOptimiser):
 
 
 class SouthPolar(CRSOptimiser):
-    """A domain with a central longitude < -75 degrees."""
+    """A domain with a central latitude < -75 degrees."""
 
     CRS = SouthPolarStereo
 
 
 class LargeEqatorial(CRSOptimiser):
-    """A domain with a central longitude < ±25 degrees, covering > 20% of the globe."""
+    """A domain with a central latitude < ±25 degrees, covering > 20% of the globe."""
 
     CRS = PlateCarree
 
