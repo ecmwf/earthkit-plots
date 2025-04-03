@@ -368,7 +368,8 @@ class Subplot:
         )
 
         if no_style and z_values is None:
-            # TODO: why do we do this?
+            # We do this to ensure that the Style class has a consistent
+            # representation of z values
             z_values = kwargs.pop("c", None)
 
         mappable = getattr(style, method_name)(
