@@ -29,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Regrid
+from earthkit.plots.resample import Interpolate, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.numpy import NumpySource
@@ -417,7 +417,7 @@ class Subplot:
                     kwargs["transform_first"] = False
             if not no_style:
                 mappable = self._plot_with_interpolation(
-                    style, method_name, x_values, y_values, z_values, kwargs
+                    style, method_name, x_values, y_values, z_values, source.crs, kwargs
                 )
             else:
                 mappable = getattr(self.ax, method_name)(
@@ -499,36 +499,38 @@ class Subplot:
     #     )
 
     def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, kwargs
+        self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
     ):
         """Attempts to plot with or without interpolation as needed."""
-        is_structured_grid = grids.is_structured(x_values, y_values)
-        if "interpolation_method" in kwargs and is_structured_grid:
-            kwargs.pop("interpolation_method")
-            warnings.warn(
-                "The 'interpolation_method' argument is only valid for unstructured data."
-            )
-
-        try:
-            return getattr(style, method_name)(
-                self.ax, x_values, y_values, z_values, **kwargs
-            )
-        except (ValueError, TypeError) as err:
-            if not is_structured_grid:
-                x_values, y_values, z_values = grids.interpolate_unstructured(
-                    x_values,
-                    y_values,
-                    z_values,
-                    method=kwargs.pop("interpolation_method", "linear"),
-                    interpolation_distance_threshold=kwargs.pop(
-                        "interpolation_distance_threshold", None
-                    ),
-                )
-                _ = kwargs.pop("transform_first", None)
+        if "interpolate" not in kwargs:
+            try:
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
-            raise err
+            except (ValueError, TypeError):
+                warnings.warn(
+                    f"{method_name} failed with raw data, attempting interpolation to structured grid with default interpolation options."
+                )
+
+        # TODO: handle interpolate kwarg in decorator
+        interpolate = kwargs.pop("interpolate", dict())
+        if interpolate is True:
+            interpolate = Interpolate()
+        if isinstance(interpolate, dict):
+            interpolate = Interpolate(**interpolate)
+        x_values, y_values, z_values = interpolate.apply(
+            x_values,
+            y_values,
+            z_values,
+            source_crs=source_crs,
+            target_crs=self.crs,
+        )
+        _ = kwargs.pop("transform_first", None)
+        if interpolate.transform:
+            _ = kwargs.pop("transform", None)
+        return getattr(style, method_name)(
+            self.ax, x_values, y_values, z_values, **kwargs
+        )
 
     def _extract_plottables_envelope(
         self,
@@ -900,15 +902,13 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh`.
         """
@@ -961,15 +961,13 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolation_distance_threshold:  None, int, float, str, optional
-            For unstructured data, a cell will only be plotted if there is at least one
-            data point within this distance (inclusive).
-            If None, all points are plotted. If an integer or float, the distance is
-            in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
-            If 'auto', the distance is automatically determined based on the plot resolution.
-            If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
-            that number of cells on the plot grid.
-            Default is None.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.contourf`.
         """

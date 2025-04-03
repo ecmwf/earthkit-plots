@@ -12,18 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib.util
+import re
 import warnings
 
+# import cartopy.crs as ccrs
 import numpy as np
 
-_NO_SCIPY = False
-try:
-    from scipy.interpolate import griddata
-except ImportError:
-    _NO_SCIPY = True
-
-_NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
+# earthkit.geo is not yet used
+# TODO: Is this the best way to check for earthkit.geo?
+# _NO_EARTHKIT_GEO = importlib.util.find_spec("earthkit.geo") is None
 
 
 def is_structured(x, y, tol=1e-5, lon_wrap=True):
@@ -79,6 +76,7 @@ def is_structured(x, y, tol=1e-5, lon_wrap=True):
 
         return x_rows_consistent and y_columns_consistent
 
+    # Invalid input, dimensions of x and y must match (either both 1D or both 2D)
     return False
 
 
@@ -89,10 +87,13 @@ def is_global(x, y, tol=5):
     Compares points of x and y to low resolution global grid,
     and if within tolerance, returns True.
     """
-    if not _NO_EARTHKIT_GEO:
-        pass
-
-    if _NO_SCIPY:
+    # earthkit.geo is not yet used
+    # TODO: Is this the best way to check for earthkit.geo? Can we copy what is done with scipy?
+    # if not _NO_EARTHKIT_GEO:
+    #     pass
+    try:
+        from scipy.spatial import KDTree
+    except ImportError:
         raise ImportError(
             "The 'scipy' package is required for checking for global data."
         )
@@ -102,8 +103,6 @@ def is_global(x, y, tol=5):
 
     if np.any(x < 0):
         x = np.roll(x, -180)
-
-    from scipy.spatial import KDTree
 
     x_tree = KDTree(x.flatten().reshape(-1, 1))
     y_tree = KDTree(y.flatten().reshape(-1, 1))
@@ -119,14 +118,90 @@ def is_global(x, y, tol=5):
     return True
 
 
-def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
+def _guess_resolution_and_shape(
+    x: np.ndarray,
+    y: np.ndarray,
+    in_shape: int | tuple[int, int] | None = None,
+    in_resolution: float | tuple[float, float] | None = None,
+) -> tuple[tuple[float, float], tuple[int, int]]:
+    """
+    Guess the resolution and shape of the grid based on the input data.
+    """
+    x_min, x_max = x.min(), x.max()
+    y_min, y_max = y.min(), y.max()
+
+    # If a target resolution provided, calculate the target shape from the resolution and the x/y values
+    if in_resolution is not None:
+        # Determine shape from in_resolution
+        if not isinstance(in_resolution, (tuple, list)):
+            out_resolution: tuple[float, float] = (in_resolution, in_resolution)
+        else:
+            out_resolution = in_resolution
+        if in_shape is not None:
+            warnings.warn(
+                "Both shape and resolution are provided, using resolution to determine shape."
+            )
+        out_shape = (
+            int((x_max - x_min) / out_resolution[0]) + 1,
+            int((y_max - y_min) / out_resolution[1]) + 1,
+        )
+        return out_resolution, out_shape
+
+    # If a target shape provided, calculate the target resolution from the shape and the x/y values
+    if in_shape is not None:
+        # Determine resolution from in_shape
+        if not isinstance(in_shape, (tuple, list)):
+            out_shape: tuple[int, int] = (in_shape, in_shape)
+        else:
+            out_shape = in_shape
+        out_resolution = (
+            float(x_max - x_min) / out_shape[0],
+            float(y_max - y_min) / out_shape[1],
+        )
+        return out_resolution, out_shape
+
+    # If neither are defined, guess the resolution from the data and calculate the shape
+
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:
+        raise ImportError(
+            "The 'scipy.spatial' module is required for guessing resolution and shape."
+            "Alternatively, provide a target resolution or shape."
+        )
+    # Use cKDTree to find nearest distances
+    points = np.c_[x, y]
+    tree = cKDTree(points)
+    distances, _ = tree.query(points, k=2)
+
+    # Use the median of the distances as the resolution,
+    # ensuring any duplicated points are ignored, this is cheaper than filtering points
+    _resolution = np.median(distances[distances > 0])
+    out_resolution = (_resolution, _resolution)
+
+    out_shape = (
+        int((x_max - x_min) / out_resolution[0]) + 1,
+        int((y_max - y_min) / out_resolution[1]) + 1,
+    )
+    return out_resolution, out_shape
+
+
+def interpolate_unstructured(
+    x: np.ndarray,
+    y: np.ndarray,
+    z: np.ndarray,
+    target_shape: tuple[int, int] | int | None = None,
+    target_resolution: tuple[float, float] | float | None = None,
+    method: str = "linear",
+    distance_threshold: None | float | int | str = None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Interpolate unstructured data to a structured grid.
 
     This function takes unstructured (scattered) data points and interpolates them
     to a structured grid, handling NaN values in `z` and providing options for
     different interpolation methods. It creates a regular grid based on the given
-    resolution and interpolates the z-values from the unstructured points onto this grid.
+    number of cells (n_cells) and interpolates the z-values from the unstructured points onto this grid.
 
     Parameters
     ----------
@@ -136,9 +211,16 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         1D array of y-coordinates.
     z : array_like
         1D array of z-values at each (x, y) point.
-    resolution : int, optional
-        The number of points along each axis for the structured grid.
-        Default is 1000.
+    target_shape : tuple(int), optional
+        The number of points along x and y axes for the structured grid, it should be provided as
+        (n_cells_x, n_cells_y). If None, the number of points is determined based on the
+        resolution of the data.
+        Default is None.
+    target_resolution : float, optional
+        The resolution of the plot grid in the same units as the x and y coordinates.
+        It can be provided as a single float or a tuple of two floats (resolution_x, resolution_y).
+        If None, the resolution is guessed based on the minimum distance between points.
+        Default is None.
     method : {'linear', 'nearest', 'cubic'}, optional
         The interpolation method to use. Default is 'linear'.
         The methods supported are:
@@ -146,6 +228,14 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         - 'linear': Linear interpolation between points.
         - 'nearest': Nearest-neighbor interpolation.
         - 'cubic': Cubic interpolation, which may produce smoother results.
+    distance_threshold: None | int | float | str, optional
+        A cell will only be plotted if there is at least one data point within this distance (inclusive).
+        If None, all points are plotted. If an integer or float, the distance is
+        in the units of the plot projection (e.g. degrees for `ccrs.PlateCarree`).
+        If 'auto', the distance is automatically determined based on the plot resolution.
+        If a string that ends with 'cells' (e.g. '2 cells') the distance threshold is
+        that number of cells on the plot grid.
+        Default is None.
 
     Returns
     -------
@@ -158,22 +248,28 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         present in regions where interpolation was not possible (e.g., due to
         large gaps in the data).
     """
-    if _NO_SCIPY:
+    try:
+        from scipy.interpolate import griddata
+    except ImportError:
         raise ImportError(
             "The 'scipy' package is required for interpolating unstructured data."
         )
+
+    target_resolution, target_shape = _guess_resolution_and_shape(
+        x, y, in_shape=target_shape, in_resolution=target_resolution
+    )
+
+    # Create a structured grid
+    grid_x, grid_y = np.mgrid[
+        x.min() : x.max() : target_shape[0] * 1j,
+        y.min() : y.max() : target_shape[1] * 1j,
+    ]
+
     # Filter out NaN values from z and corresponding x, y
     mask = ~np.isnan(z)
     x_filtered = x[mask]
     y_filtered = y[mask]
     z_filtered = z[mask]
-
-    # Create a structured grid
-    grid_x, grid_y = np.mgrid[
-        x.min() : x.max() : resolution * 1j, y.min() : y.max() : resolution * 1j
-    ]
-
-    lon_delta = np.max(np.diff(np.unique(y)))
 
     # Interpolate the filtered data onto the structured grid
     grid_z = griddata(
@@ -183,13 +279,63 @@ def interpolate_unstructured(x, y, z, resolution=1000, method="linear"):
         method=method,
     )
 
-    if np.isnan(grid_z).any() and is_global(x, y, lon_delta * 2):
+    if np.isnan(grid_z).any() and is_global(x, y, np.max(np.diff(np.unique(y))) * 2):
         warnings.warn(
             "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
         )
         return interpolate_unstructured(
-            x, y, z, resolution=resolution, method="nearest"
+            x,
+            y,
+            z,
+            target_resolution=target_resolution,
+            method="nearest",
+            distance_threshold=distance_threshold,
         )
+
+    if distance_threshold is None:
+        return grid_x, grid_y, grid_z
+
+    try:
+        from scipy.spatial import cKDTree
+    except ImportError:
+        raise ImportError(
+            "The 'scipy.spatial' module is required for applying a distance threshold."
+        )
+    # Use cKDTree to find nearest distances
+    tree = cKDTree(np.c_[x_filtered, y_filtered])
+    grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
+    distances, _ = tree.query(grid_points)
+
+    value_error_message = (
+        "Invalid value for 'distance_threshold'. "
+        "Expected an integer, a float, a string 'auto', or a string in the format 'N cells'."
+    )
+    try:
+        distance_threshold = float(distance_threshold)
+    except ValueError:
+        # ensure string provided is lower case and without spaces
+        distance_threshold = str(distance_threshold).lower().replace(" ", "")
+        # use the mean resolution of the plotting grid
+        plot_resolution = max(target_resolution[0], target_resolution[1])
+        if distance_threshold == "auto":
+            # data_resolution = max(guess_resolution(x_filtered), guess_resolution(y_filtered))
+            distance_threshold = plot_resolution * 2.0
+            # Some hard-coded values, but this is auto-mode, so not for user configurability
+        elif distance_threshold.endswith("cells"):
+            match = re.match(r"(\d+\.?\d*)cells", distance_threshold)
+            if match is None:
+                raise ValueError(value_error_message)
+            _n_cells = float(match.group(1))
+            distance_threshold = _n_cells * plot_resolution
+        else:
+            raise ValueError(value_error_message)
+
+    # Mask points where the nearest data point is beyond the threshold
+    grid_z = np.where(
+        distances.reshape(grid_x.shape) <= distance_threshold,
+        grid_z,
+        np.nan,
+    )
 
     return grid_x, grid_y, grid_z
 
