@@ -18,4 +18,4 @@ dependencies:
 - numpy
 - pip:
   - adjustText
-  - earthkit-plots-default-styles
+  - git+https://github.com/ecmwf/earthkit-plots-default-styles@experimental
