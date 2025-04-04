@@ -70,7 +70,7 @@ class Subplot:
 
         self.domain = None
         self._crs = None
-    
+
     @property
     def crs(self):
         return None
