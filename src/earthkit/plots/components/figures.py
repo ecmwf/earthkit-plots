@@ -543,11 +543,20 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        self.fig.canvas.draw()
+        self.draw()
         return result
 
-    def _get_suptitle_y(self):
+    def draw(self):
+        """
+        Draw the figure and all its subplots.
+        """
         self.fig.canvas.draw()
+        for subplot in self.subplots:
+            for layer in subplot.layers:
+                layer.reset_facecolors()
+
+    def _get_suptitle_y(self):
+        self.draw()
         max_title_top = 0
         renderer = self.fig.canvas.get_renderer()
         inv_transform = self.fig.transFigure.inverted()
@@ -579,12 +588,11 @@ class Figure:
                     title_bbox = title_obj.get_window_extent(renderer)
                     bbox_fig = inv_transform.transform(title_bbox)
                     max_title_top = max(max_title_top, bbox_fig[1][1])
+                    # Clean up any previous title_obj variable that was used
+                    del title_obj
                 else:
                     # Fallback to checking the axis position
                     max_title_top = max(max_title_top, ax.get_position().ymax)
-
-                # Clean up any previous title_obj variable that was used
-                del title_obj
 
         # Set the suptitle just above the highest title
         # Adjust the offset as needed
