@@ -152,8 +152,6 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
         layer.fig.add_artist(layer.fig._previous_legend)
     layer.fig._previous_legend = legend
 
-    layer.fig.canvas.draw()
-
     return legend
 
 
