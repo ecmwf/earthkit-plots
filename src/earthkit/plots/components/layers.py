@@ -43,7 +43,7 @@ class Layer:
         self.subplot = subplot
         self.style = style
         self._magnitude = None
-        
+
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()
         else:
