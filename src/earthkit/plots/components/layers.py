@@ -43,6 +43,18 @@ class Layer:
         self.subplot = subplot
         self.style = style
         self._magnitude = None
+        
+        if hasattr(mappable, "get_facecolor"):
+            self._facecolors = mappable.get_facecolor()
+        else:
+            self._facecolors = None
+
+    def reset_facecolors(self):
+        """
+        Reset the facecolors of the mappable object.
+        """
+        if self._facecolors is not None:
+            self.mappable.set_facecolor(self._facecolors)
 
     @property
     def magnitude(self):
