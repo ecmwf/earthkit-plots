@@ -796,47 +796,42 @@ class Style:
         """Create a vector legend for this `Style`."""
         return styles.legends.vector(*args, **kwargs)
 
-    def save_legend_graphic(
-        self, filename="legend.png", data=None, transparent=True, **kwargs
+    def save_legend(
+        self, data=None, label=None, filename="legend.png", transparent=True, **kwargs
     ):
         """
         Save a standalone image of the legend associated with this `Style`.
 
         Parameters
         ----------
-        filename : str
-            The name of the image to save.
         data : earthkit.data.core.Base, optional
             It can sometimes be useful to pass some data in order to
             automatically generate legend labels or color ranges, depending on
             the `Style`.
+        label : str, optional
+            The label to use for the legend. If not provided, the label will be
+            generated automatically based on the `Style`'s units.
+        filename : str
+            The name of the file to save the legend to. The file format will
+            be determined by the file extension (e.g., `.png`, `.pdf`, etc.).
+            By default, the legend will be saved as a file named `legend.png`.
+        transparent : bool, optional
+            If `True`, the saved legend will have a transparent background.
+            Otherwise, it will have a white background. Default is `True`.
+        **kwargs
+            Additional keyword arguments to be passed to the legend method.
         """
-        x = None
-        y = None
-
-        if data is None:
-            data = [[1, 2], [3, 4]]
-            x = [[1, 2], [3, 4]]
-            y = [[1, 2], [3, 4]]
-            kwargs["label"] = kwargs.get("label", "")
-
-        backend = mpl.get_backend()
-        mpl.use("Agg")
-
-        try:
-            getattr(self, f"_save_{self._legend_style}_graphic")(
-                data, x, y, filename, transparent, kwargs
-            )
-        finally:
-            mpl.use(backend)
-
-    def _save_colorbar_graphic(self, data, x, y, filename, transparent, kwargs):
         from earthkit.plots import Subplot
 
-        chart = Subplot()
-        chart.contourf(data, x=x, y=y, style=self)
+        if label is None and data is None:
+            label = "{units}" if self.units is not None else ""
 
-        legend = chart.legend(**kwargs)[0]
+        plot_data = [[1, 2], [3, 4]]
+
+        chart = Subplot()
+        chart.contourf(plot_data, style=self)
+
+        legend = chart.legend(label=label, **kwargs)[0]
 
         chart.fig.canvas.draw()
         bbox = legend.ax.get_window_extent().transformed(
@@ -858,20 +853,8 @@ class Style:
         bbox.y0 = min(bbox.y0, title_bbox.y0) - y * ymod
         bbox.y1 = max(bbox.y1, title_bbox.y1) + y * ymod
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
-
-    def _save_disjoint_graphic(self, data, x, y, filename, transparent, kwargs):
-        from earthkit.maps import Chart
-
-        chart = Chart()
-        chart.contourf(data, x=x, y=y, style=self)
-
-        legend = chart.legend(**kwargs)[0]
-
-        chart.fig.canvas.draw()
-        fig = legend.figure
-        fig.canvas.draw()
-        bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        chart.ax.set_xlim(bbox.x0, bbox.x1)
+        chart.ax.set_ylim(bbox.y0, bbox.y1)
 
         plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
 
@@ -1104,7 +1087,8 @@ class Hatched(Contour):
 
         linecolors = colors.expand(self._foreground_colors, mappable.levels)
 
-        mappable.set_edgecolor(linecolors)
+        mappable.set_edgecolors(linecolors)
+        mappable.set_facecolors([(0, 0, 0, 0)] * len(mappable.levels))
         mappable.set_linewidth(0)
 
         return mappable

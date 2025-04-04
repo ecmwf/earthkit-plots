@@ -543,11 +543,20 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        self.fig.canvas.draw()
+        self.draw()
         return result
 
-    def _get_suptitle_y(self):
+    def draw(self):
+        """
+        Draw the figure and all its subplots.
+        """
         self.fig.canvas.draw()
+        for subplot in self.subplots:
+            for layer in subplot.layers:
+                layer.reset_facecolors()
+
+    def _get_suptitle_y(self):
+        self.draw()
         max_title_top = 0
         renderer = self.fig.canvas.get_renderer()
         inv_transform = self.fig.transFigure.inverted()
