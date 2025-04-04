@@ -59,7 +59,7 @@ def colorbar(layer, *args, ax=None, color="black", **kwargs):
     """
     label = kwargs.pop("label", DEFAULT_LEGEND_LABEL)
     label = layer.format_string(label)
-    
+
     shrink: float = kwargs.pop("shrink", 0.8)
     aspect: int = kwargs.pop("aspect", 35)
 
