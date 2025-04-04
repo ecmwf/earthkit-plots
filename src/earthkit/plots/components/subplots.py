@@ -69,7 +69,11 @@ class Subplot:
         self.column = column
 
         self.domain = None
-        self.crs = None
+        self._crs = None
+    
+    @property
+    def crs(self):
+        return None
 
     def set_major_xticks(
         self,
