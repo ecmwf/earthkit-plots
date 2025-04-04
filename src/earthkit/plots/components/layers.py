@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,20 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.metadata.formatters import LayerFormatter
@@ -48,11 +35,36 @@ class Layer:
         The style to be applied to this layer.
     """
 
-    def __init__(self, source, mappable, subplot, style=None):
-        self.source = source
+    def __init__(self, sources, mappable, subplot, style=None):
+        if not isinstance(sources, (list, tuple)):
+            sources = [sources]
+        self.sources = sources
         self.mappable = mappable
         self.subplot = subplot
         self.style = style
+        self._magnitude = None
+
+        if hasattr(mappable, "get_facecolor"):
+            self._facecolors = mappable.get_facecolor()
+        else:
+            self._facecolors = None
+
+    def reset_facecolors(self):
+        """
+        Reset the facecolors of the mappable object.
+        """
+        if self._facecolors is not None:
+            self.mappable.set_facecolor(self._facecolors)
+
+    @property
+    def magnitude(self):
+        if self._magnitude is None:
+            if len(self.sources) != 2:
+                raise ValueError("Magnitude can only be calculated for vector data.")
+            self._magnitude = np.sqrt(
+                self.sources[0].values ** 2 + self.sources[1].values ** 2
+            )
+        return self._magnitude
 
     @property
     def fig(self):
@@ -81,7 +93,9 @@ class Layer:
 
     @property
     def _default_title_template(self):
-        if self.source.metadata("type", default="an") == "an":
+        if all(
+            source.metadata("type", default="an") == "an" for source in self.sources
+        ):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

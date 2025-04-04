@@ -12,6 +12,7 @@ dependencies:
 # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
 - earthkit-data
 - matplotlib
+- pandas
 - cartopy
 - pint
 - pyyaml
@@ -19,4 +20,4 @@ dependencies:
 - plotly
 - pip:
   - adjustText
-  - earthkit-plots-default-styles
+  - git+https://github.com/ecmwf/earthkit-plots-default-styles@experimental
