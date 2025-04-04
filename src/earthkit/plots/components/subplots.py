@@ -69,6 +69,7 @@ class Subplot:
         self.column = column
 
         self.domain = None
+        self.crs = None
 
     def set_major_xticks(
         self,
@@ -636,7 +637,7 @@ class Subplot:
     def ax(self):
         """The underlying matplotlib Axes object."""
         if self._ax is None:
-            subspec = self.figure.gridspec.subgridspec(self.row + self.column)
+            subspec = self.figure.gridspec[self.row, self.column]
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
         return self._ax
 
