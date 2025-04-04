@@ -861,7 +861,7 @@ class Style:
         plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
 
     def _save_disjoint_graphic(self, data, x, y, filename, transparent, kwargs):
-        from earthkit.maps import Chart
+        from earthkit.plots import Subplot
 
         chart = Chart()
         chart.contourf(data, x=x, y=y, style=self)
@@ -1104,7 +1104,8 @@ class Hatched(Contour):
 
         linecolors = colors.expand(self._foreground_colors, mappable.levels)
 
-        mappable.set_edgecolor(linecolors)
+        mappable.set_edgecolors(linecolors)
+        mappable.set_facecolors([(0, 0, 0, 0)]*len(mappable.levels))
         mappable.set_linewidth(0)
 
         return mappable
