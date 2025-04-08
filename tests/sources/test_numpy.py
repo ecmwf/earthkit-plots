@@ -116,18 +116,18 @@ def test_NumpySource_all_2d():
     assert np.array_equal(source.z_values, [[1, 2, 3], [4, 5, 6]])
 
 
-def test_NumpySource_all_1d_flattened():
+def test_NumpySource_all_1d_positional():
     source = NumpySource(
         [1, 2, 3],
-        [1, 2],
-        [[1, 2, 3], [4, 5, 6]],
+        [4, 5, 6],
+        [7, 8, 9],
     )
     assert np.array_equal(source.x_values, [1, 2, 3])
-    assert np.array_equal(source.y_values, [1, 2])
-    assert np.array_equal(source.z_values, [[1, 2, 3], [4, 5, 6]])
+    assert np.array_equal(source.y_values, [4, 5, 6])
+    assert np.array_equal(source.z_values, [7, 8, 9])
 
 
-def test_NumpySource_all_1d():
+def test_NumpySource_all_1d_keywords():
     source = NumpySource(
         x=[1, 2, 3],
         y=[4, 5, 6],

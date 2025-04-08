@@ -36,7 +36,7 @@ class NumpySource(SingleSource):
         metadata=None,
         **kwargs,
     ):
-        # TODO: Ask James - can most of this be moved into the base class?
+        # TODO: Can most of this be moved into the base class?
         # (Temporarily comment out call to SingleSource constructor)
         ## Initialize attributes using SingleSource constructor
         # super().__init__(*args, x=x, y=y, z=z, crs=crs, metadata=metadata, **kwargs)
@@ -57,7 +57,6 @@ class NumpySource(SingleSource):
     @cached_property
     def data(self):
         """Returns the data as a NumPy array."""
-        # TODO: check behaviour with James...
         if self.z_values is not None:
             return self.z_values
         return self.y_values
@@ -73,8 +72,8 @@ class NumpySource(SingleSource):
             )
 
         inputs = infer_pos_inputs(inputs)
-        self._check_dims(inputs)
         inputs = self._add_missing_arrays(inputs)
+        self._check_dims(inputs)
 
         x, y = inputs["x"], inputs["y"]
         z = inputs.get("z", None)
@@ -103,14 +102,15 @@ class NumpySource(SingleSource):
     @staticmethod
     def _infer_pos_inputs_from_2(inputs):
         if 1 in inputs:
-            # two postional args, assume x and y (both 1D)
-            # (if one is 2D, it will be unclear whether the other is x or y)
+            # two postional args, assume x and y
             for idx, key in enumerate(("x", "y")):
                 inputs[key] = inputs.pop(idx)
         elif 0 in inputs:
-            # one positional arg, other arg must be kwarg - allow only x or y
+            # one positional arg - other arg must be kwarg
+            # allow only x or y as the kwarg and infer the other
+            # (if z passed in, unclear whether pos arg should be x or y)
             if "z" in inputs:
-                raise ValueError("Ambiguously defined inputs")
+                raise ValueError("Ambiguously defined inputs. Pass by kwargs instead")
             key = "y" if "x" in inputs else "x"
             inputs[key] = inputs.pop(0)
         return inputs
@@ -118,12 +118,19 @@ class NumpySource(SingleSource):
     @staticmethod
     def _infer_pos_inputs_from_3(inputs):
         if 2 in inputs:
-            # all (three) positional, assume x, y, z
+            # all (three) positional, assume x, y, z (in order)
             for idx, key in enumerate(("x", "y", "z")):
                 inputs[key] = inputs.pop(idx)
         elif 1 in inputs:
             # two positional, one kwarg
-            # assign the 2D one to z
+            # check the dims can be used to unambiguously define the order
+            # i.e. one is 1D, the other is 2D
+            input_dims = {inputs[key].ndim for key in (0, 1)}
+            if input_dims != {1, 2}:
+                raise ValueError(
+                    "Unable to infer positional inputs from dimensions alone"
+                )
+            # now safe to assign the 2D one to z
             for key in (0, 1):
                 value = inputs.pop(key)
                 if value.ndim == 2:
@@ -139,14 +146,22 @@ class NumpySource(SingleSource):
 
     @staticmethod
     def _check_dims(inputs):
-        for key, expected_ndim in (("x", 1), ("y", 1), ("z", 2)):
-            if key not in inputs:
-                continue
-            if inputs[key].ndim != expected_ndim:
-                raise ValueError(f"{key} values expected to be {expected_ndim}D")
+        for key, value in inputs.items():
+            if value.ndim not in (1, 2):
+                raise ValueError(f"{key} values expected to be 1D or 2D")
+
+        if inputs["x"].ndim != inputs["y"].ndim:
+            raise ValueError("x and y values must be the same dimensionality")
+
+        if "z" in inputs and inputs["x"].ndim == 2 and inputs["z"].ndim != 2:
+            raise ValueError("z must be 2D if x and y are 2D")
 
     @staticmethod
     def _add_missing_arrays(inputs):
+        if "z" in inputs and inputs["z"].ndim == 1:
+            # don't add index arrays for 1D z data (lists of points)
+            return inputs
+
         create_index = np.arange
         if "x" not in inputs:
             n = inputs["z"].shape[1] if "z" in inputs else len(inputs["y"])
