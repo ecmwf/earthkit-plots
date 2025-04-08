@@ -106,6 +106,7 @@ def test_NumpySource_2D_data_with_explicit_x_y():
 
 
 def test_NumpySource_all_2d():
+    """Test with all inputs as 2D arrays."""
     source = NumpySource(
         [[1, 2, 3], [1, 2, 3]],
         [[1, 1, 1], [2, 2, 2]],
@@ -116,7 +117,27 @@ def test_NumpySource_all_2d():
     assert np.array_equal(source.z_values, [[1, 2, 3], [4, 5, 6]])
 
 
+def test_NumpySource_2d_x_z_missing_y():
+    """Test x and z as 2D inputs. y is not generated as a 2D index, instead raises."""
+    with pytest.raises(ValueError):
+        NumpySource(
+            x=[[1, 2, 3], [1, 2, 3]],
+            z=[[1, 2, 3], [4, 5, 6]],
+        )
+
+
+def test_NumpySource_x_y_different_dims():
+    """Test exception is raised when x and y are different dimensionalities."""
+    with pytest.raises(ValueError):
+        NumpySource(
+            x=[[1, 2, 3], [1, 2, 3]],
+            y=[1, 2, 3],
+            z=[[1, 2, 3], [4, 5, 6]],
+        )
+
+
 def test_NumpySource_all_1d_positional():
+    """Test all 1D inputs."""
     source = NumpySource(
         [1, 2, 3],
         [4, 5, 6],
@@ -128,6 +149,7 @@ def test_NumpySource_all_1d_positional():
 
 
 def test_NumpySource_all_1d_keywords():
+    """Test all 1D inputs when passed as keywords."""
     source = NumpySource(
         x=[1, 2, 3],
         y=[4, 5, 6],
