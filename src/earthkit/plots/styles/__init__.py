@@ -278,6 +278,23 @@ class Style:
             **self._kwargs,
         }
 
+    @staticmethod
+    def _xy_for_contour(x, y):
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+        return x, y
+
+    @staticmethod
+    def _xy_for_scatter(x, y):
+        if x.ndim == 1 and y.ndim == 1 and len(x) != len(y):
+            x, y = np.meshgrid(x, y)
+            x = x.flatten()
+            y = y.flatten()
+        elif x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
+            x = x.flatten()
+            y = y.flatten()
+        return x, y
+
     def to_contourf_kwargs(self, data):
         """
         Generate `contourf` arguments required for plotting data in this `Style`.
@@ -371,6 +388,7 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
+        x, y = self._xy_for_contour(x, y)
         return ax.contourf(x, y, values, *args, **kwargs)
 
     def quiver(self, ax, x, y, u, v, *args, **kwargs):
@@ -473,6 +491,7 @@ class Style:
         """
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
+        x, y = self._xy_for_contour(x, y)
         return ax.contour(x, y, values, *args, **kwargs)
 
     def pcolormesh(self, ax, x, y, values, *args, **kwargs):
@@ -568,6 +587,7 @@ class Style:
         if isinstance(kwargs.get("c"), str):
             kwargs.pop("cmap", None)
             kwargs.pop("norm", None)
+        x, y = self._xy_for_scatter(x, y)
         return ax.scatter(x, y, s=s, *args, **kwargs)
 
     def quantiles(
