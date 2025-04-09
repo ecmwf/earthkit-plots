@@ -43,7 +43,8 @@ def quickplot(
     Parameters
     ----------
     *args : list
-        The data to be plotted.
+        The data to be plotted. Can be a single xarray or earthkit data object,
+        or separate x, y, z, u, v arguments.
     rows : int, optional
         Number of rows in the subplot layout.
     columns : int, optional
@@ -60,6 +61,13 @@ def quickplot(
         Units to convert the data to.
     **kwargs : dict
         Additional arguments for the plot method(s).
+
+    Example
+    -------
+    >>> import earthkit.data
+    >>> import earthkit.plots
+    >>> data = ek.data.from_source("sample", "era5-monthly-mean-2t-199312.grib")
+    >>> earthkit.plots.quickplot(data, units="celsius", domain="Europe")
     """
     field_list = []
     for arg in args:
