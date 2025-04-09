@@ -129,8 +129,10 @@ class LayerFormatter(BaseFormatter):
     Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
-    def __init__(self, layer):
+    def __init__(self, layer, default=None, issue_warnings=True):
         self.layer = layer
+        self._default = default
+        self._issue_warnings = issue_warnings
 
     def format_key(self, key):
         if key in self.SUBPLOT_ATTRIBUTES:
@@ -139,14 +141,25 @@ class LayerFormatter(BaseFormatter):
             value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
             if value is None:
                 value = [
-                    metadata.labels.extract(source, key)
+                    metadata.labels.extract(
+                        source,
+                        key,
+                        default=self._default,
+                        issue_warnings=self._issue_warnings,
+                    )
                     for source in self.layer.sources
                 ]
                 if key == "units":
                     value = [f"__units__{v}" for v in value]
         else:
             value = [
-                metadata.labels.extract(source, key) for source in self.layer.sources
+                metadata.labels.extract(
+                    source,
+                    key,
+                    default=self._default,
+                    issue_warnings=self._issue_warnings,
+                )
+                for source in self.layer.sources
             ]
         if isinstance(value, list):
             if len(value) == 1 or iter_utils.all_equal(value):
