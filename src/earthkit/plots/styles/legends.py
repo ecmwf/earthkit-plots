@@ -57,8 +57,13 @@ def colorbar(layer, *args, ax=None, color="black", **kwargs):
     **kwargs
         Any keyword arguments accepted by `matplotlib.figures.Figure.colorbar`.
     """
-    label = kwargs.pop("label", DEFAULT_LEGEND_LABEL)
-    label = layer.format_string(label)
+    label = kwargs.pop("label", None)
+    if label is None:
+        label = layer.format_string(
+            DEFAULT_LEGEND_LABEL, default="", issue_warnings=False
+        )
+    else:
+        label = layer.format_string(label)
 
     shrink: float = kwargs.pop("shrink", 0.8)
     aspect: int = kwargs.pop("aspect", 35)
