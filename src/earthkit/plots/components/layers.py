@@ -160,7 +160,7 @@ class LayerGroup:
         """The object that is plotted on the axes."""
         return self.layers[0].mappable
 
-    def format_string(self, string, unique=True):
+    def format_string(self, string, unique=True, **kwargs):
         """
         Format a string with the layer group's metadata.
 
@@ -173,7 +173,7 @@ class LayerGroup:
             Whether to return only unique values for each placeholder. If False,
             all values will be returned.
         """
-        results = [layer.format_string(string) for layer in self.layers]
+        results = [layer.format_string(string, **kwargs) for layer in self.layers]
 
         if unique:
             results = list(dict.fromkeys(results))
