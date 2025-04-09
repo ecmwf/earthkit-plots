@@ -88,8 +88,8 @@ class Layer:
         if self.style is not None:
             return self.style.legend(self, *args, **kwargs)
 
-    def format_string(self, string):
-        return LayerFormatter(self).format(string)
+    def format_string(self, string, **kwargs):
+        return LayerFormatter(self, **kwargs).format(string)
 
     @property
     def _default_title_template(self):

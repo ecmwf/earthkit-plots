@@ -72,7 +72,7 @@ def default_label(data):
     return format_string
 
 
-def extract(data, attr, default=None):
+def extract(data, attr, default=None, issue_warnings=True):
     """
     Extract an attribute from a data object.
 
@@ -118,7 +118,8 @@ def extract(data, attr, default=None):
             if label is not None:
                 break
         else:
-            warnings.warn(f'No key "{attr}" found in layer metadata.')
+            if issue_warnings:
+                warnings.warn(f'No key "{attr}" found in layer metadata.')
 
         if remove_underscores:
             if isinstance(label, (list, tuple)):
