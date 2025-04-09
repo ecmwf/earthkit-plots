@@ -36,11 +36,6 @@ class NumpySource(SingleSource):
         metadata=None,
         **kwargs,
     ):
-        # TODO: Can most of this be moved into the base class?
-        # (Temporarily comment out call to SingleSource constructor)
-        ## Initialize attributes using SingleSource constructor
-        # super().__init__(*args, x=x, y=y, z=z, crs=crs, metadata=metadata, **kwargs)
-        # below all from constructor....
         self._u = u
         self._v = v
         self._crs = crs
@@ -170,6 +165,16 @@ class NumpySource(SingleSource):
             n = inputs["z"].shape[0] if "z" in inputs else len(inputs["x"])
             inputs["y"] = create_index(n)
         return inputs
+
+    @property
+    def _data(self):
+        if self.z_values is None:
+            if self.y_values is None:
+                return self.x_values
+            else:
+                return self.y_values
+        else:
+            return self.z_values
 
     @property
     def x_values(self):
