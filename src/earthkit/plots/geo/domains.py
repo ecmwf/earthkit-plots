@@ -472,7 +472,14 @@ class Domain:
                             False,
                         )
 
-                        kernel = np.ones((8, 8), dtype="uint8")
+                        # Calculate grid resolution
+                        resolution_x = (x.max() - x.min()) / x.shape[1]
+                        resolution_y = (y.max() - y.min()) / y.shape[0]
+                        resolution = max(resolution_x, resolution_y)
+
+                        # Calculate kernel size as roughly 2 / resolution in degrees
+                        kernel_size = max(1, int(2 / resolution))
+                        kernel = np.ones((kernel_size, kernel_size), dtype="uint8")
                         bbox = sn.morphology.binary_dilation(
                             bbox,
                             kernel,
