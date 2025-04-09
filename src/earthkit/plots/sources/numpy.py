@@ -36,97 +36,140 @@ class NumpySource(SingleSource):
         metadata=None,
         **kwargs,
     ):
-        # Initialize attributes using BaseSource constructor
-        super().__init__(*args, x=x, y=y, z=z, crs=crs, metadata=metadata, **kwargs)
+        # TODO: Can most of this be moved into the base class?
+        # (Temporarily comment out call to SingleSource constructor)
+        ## Initialize attributes using SingleSource constructor
+        # super().__init__(*args, x=x, y=y, z=z, crs=crs, metadata=metadata, **kwargs)
+        # below all from constructor....
+        self._u = u
+        self._v = v
+        self._crs = crs
+        self._metadata = metadata or {}
+        self._metadata.update(kwargs)
+        self._earthkit_data = None
+        self._gridspec = None
 
-        # Handle positional arguments for _data and coordinates
-        if len(args) > 3:
-            raise ValueError(
-                f"{self.__class__.__name__} accepts at most three positional arguments (got {len(args)})."
-            )
-
-        if len(args) == 1:
-            # Single positional argument: 1D or 2D data
-            self._data = np.asarray(args[0])
-        elif len(args) == 2:
-            # Two positional arguments: interpret as x and y
-            self._x, self._y = np.asarray(args[0]), np.asarray(args[1])
-        elif len(args) == 3:
-            # Three positional arguments: interpret as x, y, and z
-            self._x, self._y, self._z = map(np.asarray, args)
-            self._data = self._z
-
+        # Collect only non-None inputs into a dictionary
+        inputs = self._collect_inputs(*args, x=x, y=y, z=z)
         # Infer x, y, z values from inputs
-        self._x_values, self._y_values, self._z_values = self._infer_xyz()
+        self._x_values, self._y_values, self._z_values = self._infer_xyz(inputs)
 
     @cached_property
     def data(self):
         """Returns the data as a NumPy array."""
-        return self._data
+        if self.z_values is not None:
+            return self.z_values
+        return self.y_values
 
-    def _infer_xyz(self):
+    def _infer_xyz(self, inputs):
         """Infers x, y, and z values based on inputs."""
-        # Case 1: If _data is provided as a single positional argument
-        if self._data is not None:
-            if self._data.ndim == 1:
-                # 1D data interpreted as y_values; x_values inferred or provided by keyword
-                y_values = self._data
-                if self._x is not None:
-                    x_values = np.asarray(self._x)
-                elif self._y is not None:
-                    # Interpret positional data as x_values if y is given
-                    x_values = self._data
-                    y_values = np.asarray(self._y)
+        num_inputs = len(inputs)
+        try:
+            infer_pos_inputs = getattr(self, f"_infer_pos_inputs_from_{num_inputs}")
+        except AttributeError:
+            raise ValueError(
+                f"{self.__class__.__name__} accepts at most three arguments (got {num_inputs})."
+            )
+
+        inputs = infer_pos_inputs(inputs)
+        inputs = self._add_missing_arrays(inputs)
+        self._check_dims(inputs)
+
+        x, y = inputs["x"], inputs["y"]
+        z = inputs.get("z", None)
+        return x, y, z
+
+    @staticmethod
+    def _collect_inputs(*args, x=None, y=None, z=None):
+        # bring together all inputs into a dictionary for easier manipulation
+        _to_numpy = np.atleast_1d
+        inputs = {i: _to_numpy(arg) for i, arg in enumerate(args)}
+        for var in ("x", "y", "z"):
+            value = vars()[var]
+            # assume None values weren't explicitly passed in
+            if value is not None:
+                inputs[var] = _to_numpy(value)
+        return inputs
+
+    @staticmethod
+    def _infer_pos_inputs_from_1(inputs):
+        # if one positional arg passed in, assume y if 1D
+        if 0 in inputs:
+            new_key = "y" if inputs[0].ndim == 1 else "z"
+            inputs[new_key] = inputs.pop(0)
+        return inputs
+
+    @staticmethod
+    def _infer_pos_inputs_from_2(inputs):
+        if 1 in inputs:
+            # two postional args, assume x and y
+            for idx, key in enumerate(("x", "y")):
+                inputs[key] = inputs.pop(idx)
+        elif 0 in inputs:
+            # one positional arg - other arg must be kwarg
+            # allow only x or y as the kwarg and infer the other
+            # (if z passed in, unclear whether pos arg should be x or y)
+            if "z" in inputs:
+                raise ValueError("Ambiguously defined inputs. Pass by kwargs instead")
+            key = "y" if "x" in inputs else "x"
+            inputs[key] = inputs.pop(0)
+        return inputs
+
+    @staticmethod
+    def _infer_pos_inputs_from_3(inputs):
+        if 2 in inputs:
+            # all (three) positional, assume x, y, z (in order)
+            for idx, key in enumerate(("x", "y", "z")):
+                inputs[key] = inputs.pop(idx)
+        elif 1 in inputs:
+            # two positional, one kwarg
+            # check the dims can be used to unambiguously define the order
+            # i.e. one is 1D, the other is 2D
+            input_dims = {inputs[key].ndim for key in (0, 1)}
+            if input_dims != {1, 2}:
+                raise ValueError(
+                    "Unable to infer positional inputs from dimensions alone"
+                )
+            # now safe to assign the 2D one to z
+            for key in (0, 1):
+                value = inputs.pop(key)
+                if value.ndim == 2:
+                    new_key = "z"
                 else:
-                    x_values = np.arange(len(self._data))
-                z_values = None
-            elif self._data.ndim == 2:
-                # 2D data interpreted as z_values; x and y inferred or provided by keyword
-                x_values = (
-                    np.arange(self._data.shape[1])
-                    if self._x is None
-                    else np.asarray(self._x)
-                )
-                y_values = (
-                    np.arange(self._data.shape[0])
-                    if self._y is None
-                    else np.asarray(self._y)
-                )
-                z_values = self._data
-            else:
-                raise ValueError("Positional data must be 1D or 2D.")
+                    new_key = "y" if "x" in inputs else "x"
+                inputs[new_key] = value
+        elif 0 in inputs:
+            # one positional input, two kwargs - set missing value
+            missing_key = ({"x", "y", "z"} - set(inputs.keys())).pop()
+            inputs[missing_key] = inputs.pop(0)
+        return inputs
 
-        else:
-            # Case 2: Keyword arguments only
-            if self._x is not None and self._y is not None:
-                # Both x and y are provided explicitly
-                x_values, y_values = np.asarray(self._x), np.asarray(self._y)
-                z_values = np.asarray(self._z) if self._z is not None else None
-            elif self._x is not None:
-                # Only x provided; infer y as index range if not set
-                x_values = np.asarray(self._x)
-                y_values = (
-                    np.arange(len(x_values)) if self._y is None else np.asarray(self._y)
-                )
-                z_values = None
-            elif self._y is not None:
-                # Only y provided; infer x as index range if not set
-                y_values = np.asarray(self._y)
-                x_values = (
-                    np.arange(len(y_values)) if self._x is None else np.asarray(self._x)
-                )
-                z_values = None
-            elif self._metadata.get("gridSpec") is not None:
-                x_values, y_values = None, None
-                z_values = np.asarray(self._z) if self._z is not None else None
-            else:
-                raise ValueError("Insufficient arguments to infer x and y.")
+    @staticmethod
+    def _check_dims(inputs):
+        for key, value in inputs.items():
+            if value.ndim not in (1, 2):
+                raise ValueError(f"{key} values expected to be 1D or 2D")
 
-        # Ensure x and y values are 2D arrays
-        # if x_values.ndim == 1:
-        #     x_values, y_values = np.meshgrid(x_values, y_values)
+        if inputs["x"].ndim != inputs["y"].ndim:
+            raise ValueError("x and y values must be the same dimensionality")
 
-        return x_values, y_values, z_values
+        if "z" in inputs and inputs["x"].ndim == 2 and inputs["z"].ndim != 2:
+            raise ValueError("z must be 2D if x and y are 2D")
+
+    @staticmethod
+    def _add_missing_arrays(inputs):
+        if "z" in inputs and inputs["z"].ndim == 1:
+            # don't add index arrays for 1D z data (lists of points)
+            return inputs
+
+        create_index = np.arange
+        if "x" not in inputs:
+            n = inputs["z"].shape[1] if "z" in inputs else len(inputs["y"])
+            inputs["x"] = create_index(n)
+        if "y" not in inputs:
+            n = inputs["z"].shape[0] if "z" in inputs else len(inputs["x"])
+            inputs["y"] = create_index(n)
+        return inputs
 
     @property
     def x_values(self):
