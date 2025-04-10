@@ -145,7 +145,7 @@ class Map(Subplot):
     @schema.grid_points.apply()
     def grid_points(self, *args, **kwargs):
         """
-        Plot gridpoint centroids on the map.
+        Plot grid point centroids on the map.
 
         Parameters
         ----------
@@ -164,6 +164,15 @@ class Map(Subplot):
                 popped_kwargs.append(key)
                 kwargs.pop(key)
         return self.scatter(*args, **kwargs)
+
+    def gridpoints(self, *args, **kwargs):
+        import warnings
+
+        warnings.warn(
+            "gridpoints is deprecated and will be removed in a future release. "
+            "Please use grid_points instead."
+        )
+        return self.grid_points(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         source = get_source(data=data, x=x, y=y)
