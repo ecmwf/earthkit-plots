@@ -57,6 +57,10 @@ autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
 autoapi_add_toctree_entry = True
 
+nbsphinx_thumbnails = {
+    "examples/examples/string-formatting-units": "_static/string-formatting-units.png",
+}
+
 # napoleon configuration
 # napoleon_google_docstring = False
 # napoleon_numpy_docstring = True

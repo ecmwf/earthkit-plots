@@ -67,6 +67,7 @@ Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
    :caption: Installation
 
    install
+   release-notes/index
    licence
 
 .. toctree::
