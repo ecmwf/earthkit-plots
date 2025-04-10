@@ -18,7 +18,7 @@ The API for quickplot has changed:
  - You cannot currently choose different plot types (e.g. `contour`, `scatter`, etc.)
    using the `quickplot` function. This will be added in a future release. If you
    want more control over the plot type, you should construct the plot from the
-   core `earthkit.plots` API.   
+   core `earthkit.plots` API.
 
 .. list-table::
    :header-rows: 0
@@ -96,4 +96,3 @@ The new name follows the naming convention of other methods in `earthkit.plots`.
    * -
 
         .. literalinclude:: include/migrated_gridpoints.py
-
