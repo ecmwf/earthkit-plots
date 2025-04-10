@@ -40,6 +40,15 @@ MAGIC_KEYS = {
     "short_name": {
         "preference": ["short_name", "name", "standard_name", "long_name"],
     },
+    "ensemble_member": {
+        "preference": [
+            "ensemble_member",
+            "realization",
+            "number",
+            "ensemble",
+            "member",
+        ],
+    },
     "month": {
         "function": format_month,
     },
