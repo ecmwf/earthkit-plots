@@ -111,6 +111,23 @@ class BaseFormatter(Formatter):
                 format_string = format_string.replace(key, replacement_key)
         return super().format(format_string, *args, **kwargs)
 
+    def format_field(self, value, format_spec):
+        """
+        Format a field value according to the format specification.
+
+        Parameters
+        ----------
+        value : object
+            The value to be formatted.
+        format_spec : str
+            The format specification.
+        """
+        if isinstance(value, str) and value.startswith("__units__"):
+            return metadata.units.format_units(
+                value.replace("__units__", ""), format_spec
+            )
+        return super().format_field(value, format_spec)
+
 
 class SourceFormatter(BaseFormatter):
     """
@@ -149,8 +166,11 @@ class LayerFormatter(BaseFormatter):
                     )
                     for source in self.layer.sources
                 ]
-                if key == "units":
-                    value = [f"__units__{v}" for v in value]
+            if key == "units":
+                if isinstance(value, list):
+                    value = [f"__units__{v}" if v is not None else "" for v in value]
+                else:
+                    value = [f"__units__{value}" if value is not None else ""]
         else:
             value = [
                 metadata.labels.extract(
@@ -170,12 +190,7 @@ class LayerFormatter(BaseFormatter):
 
     def format_field(self, _value, format_spec):
         value = str(_value)
-        if value.startswith("__units__"):
-            return metadata.units.format_units(
-                value.replace("__units__", ""), format_spec
-            )
-        else:
-            return super().format_field(value, format_spec)
+        return super().format_field(value, format_spec)
 
 
 class SubplotFormatter(BaseFormatter):
