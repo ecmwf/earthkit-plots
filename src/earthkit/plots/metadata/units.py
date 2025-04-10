@@ -177,6 +177,8 @@ def format_units(units, format=None):
     ----------
     units : str
         The units to format.
+    format : str, optional
+        The format to use. If not provided, the default format from the schema is used.
 
     Example
     -------
@@ -184,6 +186,10 @@ def format_units(units, format=None):
     "$kg m^{-2}$"
     """
     format = format or schema.units_format
+    if format == "R":
+        return units
+    if format == "~R":
+        raise ValueError("Format '~R' is not supported.")
     units = _pintify(units)
     if isinstance(units, str):
         return units
