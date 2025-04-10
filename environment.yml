@@ -20,4 +20,4 @@ dependencies:
 - plotly
 - pip:
   - adjustText
-  - git+https://github.com/ecmwf/earthkit-plots-default-styles@experimental
+  - earthkit-plots-default-styles>=0.1.0

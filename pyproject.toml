@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
   "earthkit-data",
-  "earthkit-plots-default-styles",
+  "earthkit-plots-default-styles>=0.1.0",
   "cartopy>=0.22.0",
   "pint",
   "matplotlib",
