@@ -1,0 +1,1 @@
+chart.quickplot(data)

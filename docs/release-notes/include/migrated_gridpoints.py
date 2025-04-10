@@ -1,0 +1,1 @@
+chart.grid_points(data)
