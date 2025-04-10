@@ -203,7 +203,7 @@ class Style:
         if self._units_label is not None:
             return self._units_label
         elif self._units is not None:
-            return metadata.units.format_units(self._units)
+            return self._units
 
     def apply_scale_factor(self, values):
         """Apply the scale factor to some values."""
