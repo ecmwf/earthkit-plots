@@ -160,6 +160,15 @@ def test_NumpySource_all_1d_keywords():
     assert np.array_equal(source.z_values, [7, 8, 9])
 
 
+def test_NumpySource_private_xyz():
+    source = NumpySource(
+        z=[[1, 2, 3], [4, 5, 6]],
+    )
+    assert source._x is None
+    assert source._y is None
+    assert np.array_equal(source._z, [[1, 2, 3], [4, 5, 6]])
+
+
 def test_metadata():
     """Test that metadata is extracted from the data object."""
     source = NumpySource([1, 2, 3], metadata={"key": "value"})
