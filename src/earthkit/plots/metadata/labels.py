@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -40,6 +40,15 @@ MAGIC_KEYS = {
     "short_name": {
         "preference": ["short_name", "name", "standard_name", "long_name"],
     },
+    "ensemble_member": {
+        "preference": [
+            "ensemble_member",
+            "realization",
+            "number",
+            "ensemble",
+            "member",
+        ],
+    },
     "month": {
         "function": format_month,
     },
@@ -72,7 +81,7 @@ def default_label(data):
     return format_string
 
 
-def extract(data, attr, default=None):
+def extract(data, attr, default=None, issue_warnings=True):
     """
     Extract an attribute from a data object.
 
@@ -118,7 +127,8 @@ def extract(data, attr, default=None):
             if label is not None:
                 break
         else:
-            warnings.warn(f'No key "{attr}" found in layer metadata.')
+            if issue_warnings:
+                warnings.warn(f'No key "{attr}" found in layer metadata.')
 
         if remove_underscores:
             if isinstance(label, (list, tuple)):

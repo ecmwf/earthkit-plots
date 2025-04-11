@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,9 +19,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 
-from earthkit.plots import metadata, styles
+from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
+from earthkit.plots.styles.colors import magics_colors_to_rgb
 
 __all__ = [
     "colors",
@@ -112,19 +113,30 @@ class Style:
         legend_kwargs=None,
         categories=None,
         ticks=None,
-        preferred_method="block",
+        preferred_method="contourf",
+        resample=None,
         **kwargs,
     ):
         if categories is not None and levels is None:
             levels = range(len(categories) + 1)
         self._colors = colors
+        if isinstance(self._colors, (list, tuple)) and schema.color_mode == "magics":
+            self._colors = magics_colors_to_rgb(self._colors)
+
+        if isinstance(levels, dict):
+            levels = styles.levels.Levels(**levels)
         self._levels = (
             levels
             if isinstance(levels, styles.levels.Levels)
-            else styles.levels.Levels(levels)
+            else styles.levels.Levels(
+                levels,
+                categorical=categories is not None
+                or self.__class__.__name__ == "Categorical",
+            )
         )
         self.normalize = normalize
         self.gradients = gradients
+        self.resample = resample
 
         self._units = units
         self._units_label = units_label
@@ -155,9 +167,7 @@ class Style:
 
     def __eq__(self, other):
         keys = ["_levels", "_colors"]
-        return all(
-            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
-        )
+        return compare_attributes(self, other, keys)
 
     def levels(self, data=None):
         """
@@ -193,7 +203,7 @@ class Style:
         if self._units_label is not None:
             return self._units_label
         elif self._units is not None:
-            return metadata.units.format_units(self._units)
+            return self._units
 
     def apply_scale_factor(self, values):
         """Apply the scale factor to some values."""
@@ -268,6 +278,23 @@ class Style:
             **self._kwargs,
         }
 
+    @staticmethod
+    def _xy_for_contour(x, y):
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+        return x, y
+
+    @staticmethod
+    def _xy_for_scatter(x, y):
+        if x.ndim == 1 and y.ndim == 1 and len(x) != len(y):
+            x, y = np.meshgrid(x, y)
+            x = x.flatten()
+            y = y.flatten()
+        elif x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
+            x = x.flatten()
+            y = y.flatten()
+        return x, y
+
     def to_contourf_kwargs(self, data):
         """
         Generate `contourf` arguments required for plotting data in this `Style`.
@@ -279,6 +306,9 @@ class Style:
         """
         kwargs = self.to_matplotlib_kwargs(data)
         kwargs.pop("linewidths", None)
+        kwargs.pop("hatches", None)
+        kwargs.pop("linecolors", None)
+        kwargs.pop("labels", None)
         return kwargs
 
     def to_contour_kwargs(self, data):
@@ -305,6 +335,9 @@ class Style:
         kwargs.pop("levels", None)
         kwargs.pop("transform_first", None)
         kwargs.pop("extend", None)
+        kwargs.pop("labels", None)
+        kwargs.pop("linecolors", None)
+        kwargs.pop("hatches", None)
         return kwargs
 
     def to_scatter_kwargs(self, data):
@@ -317,6 +350,19 @@ class Style:
             The data to be plotted using this `Style`.
         """
         kwargs = self.to_matplotlib_kwargs(data, extend_levels=False)
+        kwargs.pop("levels", None)
+        return kwargs
+
+    def to_quiver_kwargs(self, data):
+        """
+        Generate `quiver` arguments required for plotting data in this `Style`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to be plotted using this `Style`.
+        """
+        kwargs = self.to_matplotlib_kwargs(data)
         kwargs.pop("levels", None)
         return kwargs
 
@@ -342,7 +388,46 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
+        x, y = self._xy_for_contour(x, y)
         return ax.contourf(x, y, values, *args, **kwargs)
+
+    def quiver(self, ax, x, y, u, v, *args, **kwargs):
+        """
+        Plot quiver arrows using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        u : numpy.ndarray
+            The u-component of the data to be plotted.
+        v : numpy.ndarray
+            The v-component of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.quiver`.
+        """
+        cmap = None
+        norm = None
+        kwargs = {**self._kwargs, **kwargs}
+        if self._colors:
+            magnitude = np.sqrt(u**2 + v**2)
+            kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
+            cmap = kwargs.pop("cmap", None)
+            norm = kwargs.pop("norm", None)
+            if cmap and norm:
+                kwargs["color"] = cmap(norm(magnitude))[0]
+        mappable = ax.quiver(x, y, u, v, *args, **kwargs)
+        mappable.cmap = cmap
+        mappable.norm = norm
+        if cmap is None:
+            mappable._colorbar = False
+        else:
+            mappable._colorbar = True
+        return mappable
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
@@ -405,6 +490,8 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
+        kwargs.pop("labels", None)
+        x, y = self._xy_for_contour(x, y)
         return ax.contour(x, y, values, *args, **kwargs)
 
     def pcolormesh(self, ax, x, y, values, *args, **kwargs):
@@ -497,7 +584,72 @@ class Style:
                 )
         if values is not None:
             kwargs["c"] = kwargs.pop("c", values)
+        if isinstance(kwargs.get("c"), str):
+            kwargs.pop("cmap", None)
+            kwargs.pop("norm", None)
+        x, y = self._xy_for_scatter(x, y)
         return ax.scatter(x, y, s=s, *args, **kwargs)
+
+    def quantiles(
+        self,
+        ax,
+        x,
+        y,
+        values,
+        *args,
+        type="band",
+        quantiles=[0, 0.25, 0.5, 0.75, 1],
+        **kwargs,
+    ):
+        """
+        Compute and plot quantiles using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The data of which to compute the statistics. The computation
+            is applied along axis 0, so the size along axis 1 must match
+            the size of the coordinates.
+        type : "box" | "band"
+            The type of plot used to represent the quantile ranges.
+        quantiles : array_like
+            Probabilities of the quantiles to compute. Values must be
+            between 0 and 1 inclusive.
+        """
+        quantiles = np.sort(quantiles)
+        stats = np.quantile(values, quantiles, axis=0)
+        if type == "box":
+            mappable = self.boxplot(ax, x, stats, *args, **kwargs)
+        elif type == "band":
+            mappable = self.bandplot(ax, x, stats, *args, **kwargs)
+        else:
+            raise NotImplementedError(f"Plot of type {type} not yet implemented.")
+        return mappable
+
+    def to_quantiles_kwargs(self, n, c=None):
+        if c is None:
+            c = self._colors
+        if isinstance(c, str):
+            # Generate symmetric colors
+            if c in mpl.colormaps:
+                c = mpl.colormaps[c](np.abs(np.linspace(-1.0, 1.0, n)))
+            else:
+                c = colors.symmetric_from_color(c, n)
+        return {"colors": c, **self._kwargs}
+
+    def bandplot(self, ax, x, values, colors=None, *args, **kwargs):
+        num_bands = len(values) - 1
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
+        return plottypes.bandplot(ax, x, values, *args, **kwargs)
+
+    def boxplot(self, ax, x, values, colors=None, *args, **kwargs):
+        num_bands = len(values) - 1
+        kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
+        return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
     def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
@@ -660,47 +812,46 @@ class Style:
         """Create a disjoint legend for this `Style`."""
         return styles.legends.disjoint(*args, **kwargs)
 
-    def save_legend_graphic(
-        self, filename="legend.png", data=None, transparent=True, **kwargs
+    def vector(self, *args, **kwargs):
+        """Create a vector legend for this `Style`."""
+        return styles.legends.vector(*args, **kwargs)
+
+    def save_legend(
+        self, data=None, label=None, filename="legend.png", transparent=True, **kwargs
     ):
         """
         Save a standalone image of the legend associated with this `Style`.
 
         Parameters
         ----------
-        filename : str
-            The name of the image to save.
         data : earthkit.data.core.Base, optional
             It can sometimes be useful to pass some data in order to
             automatically generate legend labels or color ranges, depending on
             the `Style`.
+        label : str, optional
+            The label to use for the legend. If not provided, the label will be
+            generated automatically based on the `Style`'s units.
+        filename : str
+            The name of the file to save the legend to. The file format will
+            be determined by the file extension (e.g., `.png`, `.pdf`, etc.).
+            By default, the legend will be saved as a file named `legend.png`.
+        transparent : bool, optional
+            If `True`, the saved legend will have a transparent background.
+            Otherwise, it will have a white background. Default is `True`.
+        **kwargs
+            Additional keyword arguments to be passed to the legend method.
         """
-        x = None
-        y = None
-
-        if data is None:
-            data = [[1, 2], [3, 4]]
-            x = [[1, 2], [3, 4]]
-            y = [[1, 2], [3, 4]]
-            kwargs["label"] = kwargs.get("label", "")
-
-        backend = mpl.get_backend()
-        mpl.use("Agg")
-
-        try:
-            getattr(self, f"_save_{self._legend_style}_graphic")(
-                data, x, y, filename, transparent, kwargs
-            )
-        finally:
-            mpl.use(backend)
-
-    def _save_colorbar_graphic(self, data, x, y, filename, transparent, kwargs):
         from earthkit.plots import Subplot
 
-        chart = Subplot()
-        chart.contourf(data, x=x, y=y, style=self)
+        if label is None and data is None:
+            label = "{units}" if self.units is not None else ""
 
-        legend = chart.legend(**kwargs)[0]
+        plot_data = [[1, 2], [3, 4]]
+
+        chart = Subplot()
+        chart.contourf(plot_data, style=self)
+
+        legend = chart.legend(label=label, **kwargs)[0]
 
         chart.fig.canvas.draw()
         bbox = legend.ax.get_window_extent().transformed(
@@ -722,20 +873,8 @@ class Style:
         bbox.y0 = min(bbox.y0, title_bbox.y0) - y * ymod
         bbox.y1 = max(bbox.y1, title_bbox.y1) + y * ymod
 
-        plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
-
-    def _save_disjoint_graphic(self, data, x, y, filename, transparent, kwargs):
-        from earthkit.maps import Chart
-
-        chart = Chart()
-        chart.contourf(data, x=x, y=y, style=self)
-
-        legend = chart.legend(**kwargs)[0]
-
-        chart.fig.canvas.draw()
-        fig = legend.figure
-        fig.canvas.draw()
-        bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+        chart.ax.set_xlim(bbox.x0, bbox.x1)
+        chart.ax.set_ylim(bbox.y0, bbox.y1)
 
         plt.savefig(filename, dpi="figure", bbox_inches=bbox, transparent=transparent)
 
@@ -745,7 +884,19 @@ class Categorical(Style):
 
     def __init__(self, *args, **kwargs):
         kwargs["legend_style"] = "disjoint"
+        if isinstance(kwargs.get("levels"), dict):
+            kwargs["levels"], kwargs["categories"] = zip(*kwargs["levels"].items())
+        if "categories" not in kwargs:
+            kwargs["categories"] = kwargs.get("levels")
         super().__init__(*args, **kwargs)
+
+
+class Quiver(Style):
+    """A style for plotting vector data."""
+
+    def __init__(self, *args, colors=None, **kwargs):
+        kwargs["legend_style"] = "vector"
+        super().__init__(*args, colors=colors, **kwargs)
 
 
 class Contour(Style):
@@ -760,7 +911,7 @@ class Contour(Style):
         three (four)-element lists of RGB(A) values), or a pre-defined
         matplotlib colormap object. If not provided, the default colormap of the
         active `schema` will be used.
-    line_colors : str or list or matplotlib.colors.Colormap, optional
+    linecolors : str or list or matplotlib.colors.Colormap, optional
         The colors to be used for contour lines. This can be a named matplotlib
         colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
         three (four)-element lists of RGB(A) values), or a pre-defined
@@ -783,20 +934,19 @@ class Contour(Style):
     def __init__(
         self,
         colors=None,
-        line_colors="#555",
+        linecolors="viridis_r",
         labels=False,
         label_kwargs=None,
         interpolate=True,
         preferred_method="contour",
         **kwargs,
     ):
-
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
-        self._line_colors = line_colors
+        self._linecolors = linecolors
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
-        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.5)
+        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.75)
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""
@@ -820,7 +970,7 @@ class Contour(Style):
         levels = self.levels(data)
 
         cmap, norm = styles.colors.cmap_and_norm(
-            self._line_colors,
+            self._linecolors,
             levels,
             self.normalize,
             self.extend,
@@ -849,8 +999,8 @@ class Contour(Style):
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         mappable = super().contourf(ax, x, y, values, *args, **kwargs)
-        if self._line_colors is not None:
-            self.contour(ax, x, y, values, *args, **kwargs)
+        # if self._linecolors is not None:
+        #     self.contour(ax, x, y, values, *args, **kwargs)
         return mappable
 
     def contour(self, *args, **kwargs):
@@ -955,11 +1105,11 @@ class Hatched(Contour):
         """
         mappable = super().contourf(*args, hatches=self.hatches, **kwargs)
 
-        line_colors = colors.expand(self._foreground_colors, mappable.levels)
+        linecolors = colors.expand(self._foreground_colors, mappable.levels)
 
-        for i, collection in enumerate(mappable.collections):
-            collection.set_edgecolor(line_colors[i])
-            collection.set_linewidth(0)
+        mappable.set_edgecolors(linecolors)
+        mappable.set_facecolors([(0, 0, 0, 0)] * len(mappable.levels))
+        mappable.set_linewidth(0)
 
         return mappable
 
@@ -978,9 +1128,9 @@ class Hatched(Contour):
 
         levels = colorbar.mappable.levels
 
-        line_colors = colors.expand(self._foreground_colors, levels)
+        linecolors = colors.expand(self._foreground_colors, levels)
         for i, artist in enumerate(colorbar.solids_patches):
-            artist.set_edgecolor(line_colors[i])
+            artist.set_edgecolor(linecolors[i])
 
         return colorbar
 
@@ -999,9 +1149,9 @@ class Hatched(Contour):
         """
         legend = super().disjoint(layer, *args, **kwargs)
 
-        line_colors = colors.expand(self._foreground_colors, layer.mappable.levels)
+        linecolors = colors.expand(self._foreground_colors, layer.mappable.levels)
 
-        for color, artist in zip(line_colors, legend.get_patches()):
+        for color, artist in zip(linecolors, legend.get_patches()):
             artist.set_edgecolor(color)
             artist.set_linewidth(0.0)
 
@@ -1010,8 +1160,32 @@ class Hatched(Contour):
 
 DEFAULT_STYLE = Style()
 
+DEFAULT_QUIVER_STYLE = Quiver()
+
 _STYLE_KWARGS = list(
     set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
 )
 
-_OVERRIDE_KWARGS = ["labels", "line_colors", "hatches"]
+_OVERRIDE_KWARGS = ["labels"]
+
+
+def compare_attributes(self, other, keys):
+    def is_equal(x, y):
+        # Check if both are numpy arrays
+        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+            return np.array_equal(x, y)
+        # If one is an array and the other isn't, they are not equal
+        elif isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
+            return False
+        # Default to standard equality check for non-array types
+        else:
+            return x == y
+
+    # Use the is_equal function for each key in your check
+    try:
+        return all(
+            is_equal(getattr(self, key, None), getattr(other, key, None))
+            for key in keys
+        )
+    except ValueError:
+        return False

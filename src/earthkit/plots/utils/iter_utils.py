@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -28,3 +28,46 @@ def symmetrical_iter(lst):
             yield x
         else:
             yield (x, y)
+
+
+def all_equal(iterable):
+    """
+    Check if all elements in an iterable are equal.
+
+    Parameters
+    ----------
+    iterable : iterable
+        The iterable to check.
+
+    Returns
+    -------
+    bool
+        True if all elements are equal, False otherwise.
+    """
+    from itertools import groupby
+
+    g = groupby(iterable)
+    return next(g, True) and not next(g, False)
+
+
+def flatten(lst):
+    """
+    Flatten a nested list.
+
+    Parameters
+    ----------
+    lst : list
+        The list to flatten.
+
+    Returns
+    -------
+    list
+        The flattened list.
+    """
+    flat_list = []
+    for item in lst:
+        if isinstance(item, list):
+            flat_list.extend(flatten(item))
+        else:
+            flat_list.append(item)
+    return flat_list

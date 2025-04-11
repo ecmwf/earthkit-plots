@@ -1,45 +1,77 @@
 Welcome to the earthkit-plots documentation
 ======================================================
 
-.. warning::
+|Static Badge| |image1| |License: Apache 2.0|
 
-    This project is in the **BETA** stage of development. Please be aware that interfaces and functionality may change as the project develops. If this software is to be used in operational systems you are **strongly advised to use a released tag in your system configuration**, and you should be willing to accept incoming changes and bug fixes that require adaptations on your part. ECMWF **does use** this software in operations and abides by the same caveats.
+.. |Static Badge| image:: https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE/foundation_badge.svg
+   :target: https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE
+.. |image1| image:: https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity/incubating_badge.svg
+   :target: https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity
+.. |License: Apache 2.0| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
+   :target: https://opensource.org/licenses/apache-2-0
 
-**earthkit-plots** is a Python package for producing publication-quality weather
-and climate graphs and maps using a simple API and a convenient library of templates.
 
-**earthkit-plots** makes it possible to generate automatic
-visualisations driven by an understanding of common weather and climate science
-metadata standards.
+**earthkit-plots** leverages the power of the **earthkit** ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
+
+It is built on top of popular data science and visualisation tools like **numpy**, **xarray**, **matplotlib** and **cartopy**, but provides a very high-level API enriched with domain-specific knowledge, making it exceptionally easy to use.
+
+Key features include:
+
+⚡ **Concise, high-level API**
+Generate high-quality visualisations with minimal code.
+
+🧠 **Intelligent formatting**
+Titles and labels automatically adapt based on common metadata standards.
+
+🎨 **Customisable style libraries**
+Easily swap styles to match your organisation, project, or personal preferences.
+
+🔍 **Automatic data styling**
+Detects metadata like variables and units to optionally apply appropriate formatting and styling.
+
+🌍 **Complex grids supported out-of-the-box**
+Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
+
+
+.. important::
+
+    This software is **Incubating** and subject to ECMWF's guidelines on `Software Maturity <https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity>`_.
+
+**Quick start**
 
 .. code-block:: python
 
-    qmap.plot(data, domain="Europe", units="celsius")
+    earthkit.plots.quickplot(data, domain="Europe", units="celsius")
 
 .. image:: images/quickplot-era5-t2m-19931201.png
    :width: 600
 
-**earthkit-plots** also provides deep levels of customisation to tailor
-visualisations to suit your needs.
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Examples
+
+   examples/examples/examples.ipynb
+   examples/gallery/gallery.ipynb
 
 .. toctree::
    :maxdepth: 1
    :caption: Documentation
 
-   _api/index
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Examples
-   :titlesonly:
-
    user-guide
-   examples/gallery/gallery.ipynb
+   _api/index
+   development
 
 .. toctree::
    :maxdepth: 1
    :caption: Installation
 
    install
-   development
+   release-notes/index
    licence
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Projects
+
+   earthkit <https://earthkit.readthedocs.io/en/latest>
