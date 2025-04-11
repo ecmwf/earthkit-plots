@@ -44,6 +44,12 @@ class NumpySource(SingleSource):
         self._earthkit_data = None
         self._gridspec = None
 
+        self._x = x
+        self._y = y
+        self._z = z
+
+        self.regrid = True
+
         # Collect only non-None inputs into a dictionary
         inputs = self._collect_inputs(*args, x=x, y=y, z=z)
         # Infer x, y, z values from inputs
@@ -214,6 +220,7 @@ class NumpySource(SingleSource):
             from .earthkit import EarthkitSource
 
             m = self._metadata
+
             if self._x is not None and self._y is not None:
                 if "latitudes" not in m and "longitudes" not in m:
                     m["latitudes"] = self._y
