@@ -1,6 +1,16 @@
 Version 0.3 Updates
 /////////////////////////
 
+Version 0.3.1
+===============
+
+Bug fixes
+++++++++++++++++++
+
+ - Fixed a bug that prevented plotting of NumPy arrays with a grid specification.
+   You can now pass 1D NumPy arrays describing HEALPix or Octahedral data along
+   with a corresponding gridspec to generate plots correctly.
+
 Version 0.3.0
 ===============
 
