@@ -34,7 +34,6 @@ class NumpySource(SingleSource):
         v=None,
         crs=None,
         metadata=None,
-        regrid=True,
         **kwargs,
     ):
         self._u = u
@@ -49,7 +48,7 @@ class NumpySource(SingleSource):
         self._y = y
         self._z = z
 
-        self.regrid = regrid
+        self.regrid = True
 
         # Collect only non-None inputs into a dictionary
         inputs = self._collect_inputs(*args, x=x, y=y, z=z)
@@ -233,6 +232,6 @@ class NumpySource(SingleSource):
                 data = self._data
 
             d = earthkit.data.ArrayField(data, metadata=m)
-            return EarthkitSource(d, regrid=True)
+            return EarthkitSource(d, regrid=self.regrid)
 
         return self
