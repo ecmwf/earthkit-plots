@@ -34,6 +34,7 @@ class NumpySource(SingleSource):
         v=None,
         crs=None,
         metadata=None,
+        regrid=True,
         **kwargs,
     ):
         self._u = u
@@ -43,6 +44,12 @@ class NumpySource(SingleSource):
         self._metadata.update(kwargs)
         self._earthkit_data = None
         self._gridspec = None
+
+        self._x = x
+        self._y = y
+        self._z = z
+
+        self.regrid = regrid
 
         # Collect only non-None inputs into a dictionary
         inputs = self._collect_inputs(*args, x=x, y=y, z=z)
@@ -214,6 +221,7 @@ class NumpySource(SingleSource):
             from .earthkit import EarthkitSource
 
             m = self._metadata
+
             if self._x is not None and self._y is not None:
                 if "latitudes" not in m and "longitudes" not in m:
                     m["latitudes"] = self._y
@@ -225,6 +233,6 @@ class NumpySource(SingleSource):
                 data = self._data
 
             d = earthkit.data.ArrayField(data, metadata=m)
-            return EarthkitSource(d, regrid=self.regrid)
+            return EarthkitSource(d, regrid=True)
 
         return self
