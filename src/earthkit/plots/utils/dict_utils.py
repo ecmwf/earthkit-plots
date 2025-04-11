@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import collections
-
 
 def recursive_dict_update(original_dict, update_dict):
     """
@@ -26,6 +24,8 @@ def recursive_dict_update(original_dict, update_dict):
     update_dict : dict
         The dictionary containing keys to be updated in the original dictionary.
     """
+    import collections
+
     for k, v in update_dict.items():
         if isinstance(v, collections.abc.Mapping):
             original_dict[k] = recursive_dict_update(original_dict.get(k, {}), v)

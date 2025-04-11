@@ -1,4 +1,4 @@
-# Copyright 2023, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,57 +19,58 @@ from earthkit.plots.schemas import schema
 
 def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels):
     """
-    Attempt to generate a suitable range of levels for arbitrary input data.
-
-    NOTE: **Experimental!**
+    Generate a suitable range of levels for arbitrary input data.
 
     Parameters
     ----------
     data : numpy.ndarray or xarray.DataArray or earthkit.data.core.Base
         The data for which to generate a list of levels.
     divergence_point : float, optional
-        If provided, force the levels to be centred on this point. This is
-        mostly useful for parameters which use diverging colors in their style,
-        such as anomalies.
+        If provided, force the levels to be centered on this point. Useful for
+        parameters that use diverging colors in their style, such as anomalies.
     n_levels : int, optional
-        The number of levels to generate.
+        The target number of levels to generate (default is 10).
 
     Returns
     -------
     list
+        A list of levels spaced across the data range with easy-to-interpret intervals.
     """
-    try:
+    if hasattr(data, "to_numpy"):
         data = data.to_numpy()
-    except AttributeError:
-        pass
 
     min_value = np.nanmin(data)
     max_value = np.nanmax(data)
 
+    if np.isnan(min_value) or min_value == max_value:
+        return [0] * (n_levels + 1)
+
     if divergence_point is not None:
-        max_diff = max(max_value - divergence_point, divergence_point - min_value)
-        max_value = max_diff
-        min_value = -max_diff
+        max_diff = max(
+            abs(max_value - divergence_point), abs(divergence_point - min_value)
+        )
+        min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
     data_range = max_value - min_value
+    step_candidates = [1, 2, 5, 10]
+    magnitude = 10 ** np.floor(np.log10(data_range / n_levels))
 
-    initial_bin = data_range / n_levels
+    best_levels = None
+    min_diff = float("inf")
 
-    magnitude = 10 ** (np.floor(np.log10(initial_bin)))
-    bin_width = initial_bin - (initial_bin % -magnitude)
+    for step_factor in step_candidates:
+        step = step_factor * magnitude
+        levels = np.arange(
+            np.floor(min_value / step) * step,
+            np.ceil(max_value / step) * step + step,
+            step,
+        )
+        diff = abs(len(levels) - n_levels)
+        if diff < min_diff:
+            best_levels = levels
+            min_diff = diff
 
-    min_value -= min_value % bin_width
-    max_value -= max_value % -bin_width
-
-    if divergence_point is not None:
-        min_value += divergence_point
-        max_value += divergence_point
-
-    return np.linspace(
-        min_value,
-        max_value,
-        n_levels + 1,
-    ).tolist()
+    return best_levels.tolist()
 
 
 def step_range(data, step, reference=None):
@@ -113,6 +114,44 @@ def step_range(data, step, reference=None):
         levels = levels[1:]
 
     return levels
+
+
+def categorical_range(values):
+    """
+    Generate a range of levels for categorical data.
+
+    This can be necessary to make sure that categorical data falls inside the
+    correct bins, as values at the edge of a bin may not be included in the
+    bin.
+
+    Parameters
+    ----------
+    values : numpy.ndarray or xarray.DataArray or earthkit.data.core.Base
+        The data for which to generate a list of levels.
+
+    Returns
+    -------
+    list
+    """
+    # Ensure the values are sorted and unique
+    values = sorted(set(values))
+
+    # Calculate bin edges
+    if len(values) == 1:
+        # Special case for a single value, create a small bin around it
+        return [values[0] - 0.1, values[0] + 0.1]
+
+    bins = [values[0] - (values[1] - values[0]) / 2]  # First bin edge
+
+    # Middle bin edges based on midpoints between consecutive values
+    for i in range(1, len(values)):
+        mid_point = (values[i] + values[i - 1]) / 2
+        bins.append(mid_point)
+
+    # Last bin edge
+    bins.append(values[-1] + (values[-1] - values[-2]) / 2)
+
+    return bins
 
 
 class Levels:
@@ -163,11 +202,16 @@ class Levels:
         step=None,
         reference=None,
         divergence_point=None,
+        categorical=False,
     ):
-        self._levels = levels
+        if categorical and levels is not None:
+            self._levels = categorical_range(levels)
+        else:
+            self._levels = levels
         self._step = step
         self._reference = reference
         self._divergence_point = divergence_point
+        self._categorical = categorical
 
     def apply(self, data):
         """
@@ -183,6 +227,8 @@ class Levels:
         list
         """
         if self._levels is None:
+            if self._categorical:
+                return categorical_range(np.unique(data))
             if self._step is None:
                 return auto_range(data, self._divergence_point)
             else:

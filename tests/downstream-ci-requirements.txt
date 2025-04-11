@@ -1,6 +1,7 @@
 plotly
 numpy
 xarray
+pandas
 earthkit-data
 pyyaml
 # for testing
