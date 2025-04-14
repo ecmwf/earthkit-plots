@@ -625,7 +625,7 @@ class Subplot:
 
     @property
     def figure(self):
-        from earthkit.plots import Figure
+        from earthkit.plots.components.figures import Figure
 
         if self._figure is None:
             self._figure = Figure(1, 1)
