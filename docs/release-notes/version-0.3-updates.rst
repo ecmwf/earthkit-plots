@@ -27,6 +27,8 @@ Quickplot module → function
 
 The API for quickplot has changed:
  - `quickplot` is now a *function* rather than a *module*.
+ - The `quickmap` module has also now been absorbed into the functionality of `quickplot`;
+   `quickmap` has been deprecated and will be removed in a future release.
  - The `quickplot` function will attempt to infer an "optimal" style for the data
    passed to it, based on the metadata of the data.
  - You cannot currently choose different plot types (e.g. `contour`, `scatter`, etc.)
