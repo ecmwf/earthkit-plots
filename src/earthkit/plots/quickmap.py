@@ -21,7 +21,8 @@ from earthkit.plots.schemas import schema
 def _quickmap(function):
     def wrapper(*args, return_subplot=False, domain=None, **kwargs):
         warnings.warn(
-            "The quickmap module is deprecated and will be removed in earthkit-plots 0.4."
+            "The quickmap module is deprecated and will be removed in earthkit-plots 0.4. "
+            "Please use the quickplot module instead."
         )
         figure = Figure()
         figure.add_map(domain=domain)
