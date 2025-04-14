@@ -20,8 +20,13 @@ from earthkit.plots.schemas import schema
 
 def _quickmap(function):
     def wrapper(*args, return_subplot=False, domain=None, **kwargs):
+        warnings.warn(
+            "The quickmap module is deprecated and will be removed in earthkit-plots 0.4."
+        )
         figure = Figure()
-        subplot = figure.add_map(domain=domain)
+        figure.add_map(domain=domain)
+        figure._release_queue()
+        subplot = figure[0]
         try:
             getattr(subplot, function.__name__)(*args, **kwargs)
         except Exception as e:
@@ -30,7 +35,9 @@ def _quickmap(function):
                 "constructing the plot manually."
             )
             raise e
-        for method in schema.quickmap_workflow:
+        for method in (
+            schema.quickmap_subplot_workflow + schema.quickmap_figure_workflow
+        ):
             try:
                 getattr(subplot, method)()
             except Exception:
@@ -44,8 +51,11 @@ def _quickmap(function):
 
 
 @_quickmap
-def plot(*args, **kwargs):
+def quickplot(*args, **kwargs):
     """Quick plot"""
+
+
+plot = quickplot
 
 
 @_quickmap
