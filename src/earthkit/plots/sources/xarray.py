@@ -156,16 +156,35 @@ class XarraySource(SingleSource):
         default : any, optional
             The default value to return if the key is not found.
         """
+        # First, try the normal lookup
         value = super().metadata(key, default)
-        if value == default:
-            if key in self.data.attrs:
-                value = self.data.attrs[key]
-            elif hasattr(self.data, key):
-                value = getattr(self.data, key)
-            elif hasattr(self._xarray_source, key):
-                value = getattr(self._xarray_source, key)
-            if hasattr(value, "values"):
-                value = value.values
+
+        if value != default:
+            return value
+
+        # Then check in attrs and object attributes
+        possible_keys = [key]
+        if not key.startswith("GRIB_"):
+            possible_keys.append(f"GRIB_{key}")
+
+        for k in possible_keys:
+            if k in self.data.attrs:
+                value = self.data.attrs[k]
+                break
+            elif hasattr(self.data, k):
+                value = getattr(self.data, k)
+                break
+            elif hasattr(self._xarray_source, k):
+                value = getattr(self._xarray_source, k)
+                break
+        else:
+            # If no match found, use default
+            return default
+
+        # If value has a .values attribute (e.g., xarray objects), extract it
+        if hasattr(value, "values"):
+            value = value.values
+
         return value
 
     @property
