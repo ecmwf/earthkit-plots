@@ -59,7 +59,7 @@ def sanitise(axes=("x", "y"), multiplot=True):
             deaccumulate=False,
             **kwargs,
         ):
-            time_axis = kwargs.pop("time_axis", 0)
+            time_axis = kwargs.pop("time_axis", None)
             traces = []
             if data is not None:
                 ds = to_xarray(data)
@@ -108,6 +108,10 @@ def sanitise(axes=("x", "y"), multiplot=True):
                 else:
                     trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
                     if not multiplot:
+                        if time_axis is None:
+                            time_axis = list(data.dims).index(
+                                times.guess_non_time_dim(data)
+                            )
                         trace_kwargs["time_axis"] = time_axis
                     traces.append(function(*args, **trace_kwargs))
             else:
@@ -123,7 +127,19 @@ def get_xarray_kwargs(data, axes, kwargs):
     data = to_xarray(data)
     kwargs = kwargs.copy()
     data_vars = list(data.data_vars)
-    dim = list(data.dims)[-1]
+
+    time_dim = times.guess_time_dim(data)
+    dims = list(data.dims)
+    non_time_dims = [d for d in dims if d != time_dim]
+
+    axis_default = {
+        "x": (
+            time_dim
+            if time_dim in dims
+            else (non_time_dims[0] if non_time_dims else dims[-1])
+        ),
+        "y": data_vars[0],
+    }
 
     axis_attrs = dict()
     assigned_attrs = [
@@ -132,9 +148,10 @@ def get_xarray_kwargs(data, axes, kwargs):
     for axis in axes:
         attr = kwargs.get(axis)
         if attr is None:
-            if dim not in list(axis_attrs.values()) + assigned_attrs:
-                attr = dim
-            else:
+            attr = axis_default.get(axis, dims[-1])
+        else:
+            attr = attr.split(".")[-1]
+            if attr in axis_attrs.values() + assigned_attrs:
                 attr = data_vars[0]
                 if len(data_vars) > 1:
                     warnings.warn(
