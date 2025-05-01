@@ -1171,15 +1171,17 @@ _OVERRIDE_KWARGS = ["labels"]
 
 def compare_attributes(self, other, keys):
     def is_equal(x, y):
+        is_x_arr = isinstance(x, np.ndarray)
+        is_y_arr = isinstance(y, np.ndarray)
+
         # Check if both are numpy arrays
-        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+        if is_x_arr and is_y_arr:
             return np.array_equal(x, y)
         # If one is an array and the other isn't, they are not equal
-        elif isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
+        if is_x_arr != is_y_arr:
             return False
         # Default to standard equality check for non-array types
-        else:
-            return x == y
+        return x == y
 
     # Use the is_equal function for each key in your check
     try:
