@@ -192,9 +192,14 @@ class Levels:
 
     def __eq__(self, other):
         if self._levels is not None and other is not None:
+            is_self_arr = isinstance(self._levels, np.ndarray)
+            is_other_arr = isinstance(other._levels, np.ndarray)
+            if is_self_arr and is_other_arr:
+                return np.array_equal(self._levels, other._levels)
+            if is_self_arr != is_other_arr:
+                return False
             return self._levels == other._levels
-        else:
-            return False
+        return False
 
     def __init__(
         self,
