@@ -14,7 +14,6 @@
 
 
 import matplotlib.patheffects as pe
-from pyproj import Transformer
 from shapely.geometry import box
 from shapely.ops import transform
 
@@ -364,6 +363,8 @@ class Map(Subplot):
                     )
 
                 # **Optimized Geometry Reprojection & Clipping**
+                from pyproj import Transformer
+
                 transformer = Transformer.from_crs(
                     "EPSG:4326", self.crs, always_xy=True
                 )
