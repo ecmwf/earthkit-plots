@@ -16,7 +16,6 @@ import warnings
 
 import matplotlib.dates as mdates
 import numpy as np
-from cartopy.util import add_cyclic_point
 
 from earthkit.plots import identifiers
 from earthkit.plots.components.layers import Layer
@@ -403,6 +402,8 @@ class Subplot:
         metadata=None,
         **kwargs,
     ):
+        from cartopy.util import add_cyclic_point
+
         if method_name.startswith("contour"):
             regrid = True
         # Step 1: Initialize the source
