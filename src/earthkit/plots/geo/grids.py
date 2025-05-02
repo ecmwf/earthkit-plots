@@ -15,7 +15,6 @@
 import re
 import warnings
 
-# import cartopy.crs as ccrs
 import numpy as np
 
 # earthkit.geo is not yet used

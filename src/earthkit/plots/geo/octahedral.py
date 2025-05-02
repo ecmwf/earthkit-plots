@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
+
 import numpy as np
 
 
@@ -69,6 +69,8 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         color_data.append(data[i])
 
     if style is not None:
+        import cartopy.crs as ccrs
+
         kwargs = {
             **kwargs,
             **style.to_pcolormesh_kwargs(data),

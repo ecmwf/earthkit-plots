@@ -14,8 +14,6 @@
 
 import inspect
 
-import cartopy.crs as ccrs
-
 GLOBE_AREA = 64800  # 360*180
 
 
@@ -25,6 +23,8 @@ class OptimisedCRS:
     """
 
     def to_ccrs(self, optimiser):
+        import cartopy.crs as ccrs
+
         return getattr(ccrs, self.cartopy_crs())(**self.get_kwargs(optimiser))
 
     def get_kwargs(self, optimiser):

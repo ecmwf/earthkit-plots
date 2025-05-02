@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.io.shapereader as shpreader
-
 from earthkit.plots.geo.bounds import BoundingBox
 from earthkit.plots.utils import string_utils
 
@@ -129,6 +127,8 @@ class NaturalEarthDomain:
 
     @property
     def record(self):
+        import cartopy.io.shapereader as shpreader
+
         if self._record is None:
             for source, attribute in self.NATURAL_EARTH_SOURCES.items():
                 shpfilename = shpreader.natural_earth(

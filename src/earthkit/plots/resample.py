@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
 import numpy as np
 from scipy.interpolate import griddata
 
@@ -126,6 +125,8 @@ class Subsample(Resample):
 
 class Regrid(Subsample):
     def apply(self, x_values, y_values, *values, source_crs, target_crs, extents):
+        import cartopy.crs as ccrs
+
         # Ensure CRS definitions
         source_crs = source_crs or ccrs.PlateCarree()
         target_crs = target_crs or ccrs.PlateCarree()
@@ -236,6 +237,8 @@ class Interpolate(Resample):
         array-like
             Interpolated values on the target grid.
         """
+        import cartopy.crs as ccrs
+
         if self.transform:
             source_crs = source_crs or ccrs.PlateCarree()
             target_crs = target_crs or ccrs.PlateCarree()

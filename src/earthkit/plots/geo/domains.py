@@ -14,7 +14,6 @@
 
 import warnings
 
-import cartopy.crs as ccrs
 import numpy as np
 from shapely.geometry import Point, Polygon
 
@@ -26,15 +25,15 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
 
 NO_TRANSFORM_FIRST = [
-    ccrs.Stereographic,
-    ccrs.NearsidePerspective,
-    ccrs.TransverseMercator,
+    "Stereographic",
+    "NearsidePerspective",
+    "TransverseMercator",
 ]
 
 NO_BBOX = [
-    ccrs.SouthPolarStereo,
-    ccrs.NorthPolarStereo,
-    ccrs.TransverseMercator,
+    "SouthPolarStereo",
+    "NorthPolarStereo",
+    "TransverseMercator",
 ]
 
 
@@ -271,6 +270,8 @@ class Domain:
         data : xarray.Dataset or earthkit.data.core.Base
             The dataset from which to create the domain.
         """
+        import cartopy.crs as ccrs
+
         bbox = [None, None, None, None]
         try:
             crs = data.projection().to_cartopy_crs()
@@ -373,6 +374,8 @@ class Domain:
         """
         # If source_crs is None, assume PlateCarree
         if source_crs is None:
+            import cartopy.crs as ccrs
+
             source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
@@ -509,7 +512,7 @@ class Domain:
 
 class PresetDomain(Domain):
     BBOX = BoundingBox(-180, 180, -90, 90)
-    CRS = ccrs.PlateCarree()
+    CRS = "PlateCarree"
     NAME = "Custom Domain"
 
     def __init__(self, bbox=None, crs=None, name=None):

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
-import healpy as hp
 import numpy as np
 
 
@@ -25,6 +23,9 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     ax: axis to plot on
     kwargs: additional arguments to imshow
     """
+    import cartopy.crs as ccrs
+    import healpy as hp
+
     kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()

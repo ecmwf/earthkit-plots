@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
 import numpy as np
 
 from earthkit.plots.geo import coordinate_reference_systems, optimisers
@@ -249,6 +248,8 @@ class BoundingBox:
         -------
         earthkit.plots.geo.bounds.BoundingBox
         """
+        import cartopy.crs as ccrs
+
         return self.to_bbox(target_crs=ccrs.PlateCarree())
 
     def to_bbox(self, target_crs):

@@ -12,25 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
 
-DEFAULT_CRS = ccrs.PlateCarree()
+DEFAULT_CRS = "PlateCarree"
 
 CYLINDRICAL_COORDINATE_SYSTEMS = [
-    ccrs.LambertCylindrical,
-    ccrs.Mercator,
-    ccrs.Miller,
-    ccrs.PlateCarree,
+    "LambertCylindrical",
+    "Mercator",
+    "Miller",
+    "PlateCarree",
 ]
 
 CANNOT_TRANSFORM_FIRST = [
-    ccrs.NorthPolarStereo,
-    ccrs.SouthPolarStereo,
+    "NorthPolarStereo",
+    "SouthPolarStereo",
 ]
 
 CRS_MAPPING = {
-    "EPSG:4326": ccrs.PlateCarree,
-    "cylindrical": ccrs.PlateCarree,
+    "EPSG:4326": "PlateCarree",
+    "cylindrical": "PlateCarree",
 }
 
 
@@ -69,6 +68,8 @@ def dict_to_crs(kwargs):
     -------
     cartopy.crs.CRS
     """
+    import cartopy.crs as ccrs
+
     crs = getattr(ccrs, kwargs.pop("name"))
     return crs(**kwargs)
 
@@ -104,6 +105,8 @@ def string_to_crs(string):
     -------
     cartopy.crs.CRS
     """
+    import cartopy.crs as ccrs
+
     try:
         crs = getattr(ccrs, string)()
     except AttributeError:
@@ -164,6 +167,8 @@ def parse_crs(crs):
     -------
     cartopy.crs.CRS
     """
+    import cartopy.crs as ccrs
+
     if not isinstance(crs, (ccrs.CRS, type(None))):
         if isinstance(crs, dict):
             crs = dict_to_crs(crs)

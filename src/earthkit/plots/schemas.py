@@ -19,7 +19,6 @@ import yaml
 from matplotlib import rcParams
 
 from earthkit.plots._plugins import PLUGINS
-from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 
 _DEFAULT_SCHEMA = "default"
@@ -88,7 +87,7 @@ class Schema(dict):
     PROTECTED_KEYS = ["_parent"]
 
     parsers = {
-        "reference_crs": parse_crs,
+        # "reference_crs": parse_crs,
     }
 
     def __init__(self, parent=None, **kwargs):

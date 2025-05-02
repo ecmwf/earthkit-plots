@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-import cartopy.io.shapereader as shpreader
+
 import matplotlib.patheffects as pe
 from pyproj import Transformer
 from shapely.geometry import box
@@ -54,6 +52,8 @@ class Map(Subplot):
     """
 
     def __init__(self, *args, domain=None, crs=None, **kwargs):
+        import cartopy.crs as ccrs
+
         super().__init__(*args, **kwargs)
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
@@ -88,7 +88,7 @@ class Map(Subplot):
         elif self.domain is not None:
             return self.domain.bbox.crs
         elif self._crs is None:
-            return ccrs.PlateCarree()
+            return "PlateCarree"
 
     @property
     def crs_name(self):
@@ -138,6 +138,8 @@ class Map(Subplot):
         return self._ax
 
     def _plot_kwargs(self, source):
+        import cartopy.crs as ccrs
+
         if self._crs is None:
             self._crs = source.crs or ccrs.PlateCarree()
         return {"transform": source.crs or ccrs.PlateCarree()}
@@ -175,6 +177,8 @@ class Map(Subplot):
         return self.grid_points(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
+        import cartopy.crs as ccrs
+
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
         crs = source.crs or ccrs.PlateCarree()
@@ -207,6 +211,8 @@ class Map(Subplot):
         label_key=None,
         adjust_labels=False,
     ):
+        import cartopy.crs as ccrs
+
         label_kwargs = dict()
         label_kwargs = {
             **dict(
@@ -272,6 +278,9 @@ class Map(Subplot):
                 adjust_labels=False,
                 **kwargs,
             ):
+                import cartopy.feature as cfeature
+                import cartopy.io.shapereader as shpreader
+
                 if resolution is None:
                     resolution = self.natural_earth_resolution
                 resolution = natural_earth.get_resolution(
@@ -573,6 +582,9 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to the scatter method.
         """
+        import cartopy.crs as ccrs
+        import cartopy.io.shapereader as shpreader
+
         if density is None:
             density = self.natural_earth_resolution
         density = natural_earth.get_resolution(density, self.ax, self.crs)
@@ -645,7 +657,7 @@ class Map(Subplot):
         """
         self.ax.stock_img(*args, **kwargs)
 
-    def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
+    def image(self, img, extent, origin="upper", transform=None):
         """
         Add an image to the map.
 
@@ -660,6 +672,10 @@ class Map(Subplot):
         transform : cartopy.crs.CRS, optional
             The CRS of the image. Default is PlateCarree (euirectangular).
         """
+        if transform is None:
+            import cartopy.crs as ccrs
+
+            transform = ccrs.PlateCarree()
         if isinstance(img, str):
             import PIL
 
@@ -671,7 +687,7 @@ class Map(Subplot):
         self,
         shapes,
         *args,
-        transform=ccrs.PlateCarree(),
+        transform=None,
         adjust_labels=False,
         labels=False,
         **kwargs,
@@ -697,7 +713,13 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to the add_geometries method.
         """
+        if transform is None:
+            import cartopy.crs as ccrs
+
+            transform = ccrs.PlateCarree()
         if isinstance(shapes, str):
+            import cartopy.io.shapereader as shpreader
+
             shapes = shpreader.Reader(shapes)
         results = self.ax.add_geometries(
             shapes.geometries(), transform, *args, **kwargs

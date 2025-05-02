@@ -14,7 +14,6 @@
 
 from functools import cached_property
 
-import cartopy.crs as ccrs
 import numpy as np
 
 from earthkit.plots.identifiers import U, V
@@ -156,6 +155,8 @@ class EarthkitSource(SingleSource):
             try:
                 self._crs = self.data.projection().to_cartopy_crs()
             except AttributeError:
+                import cartopy.crs as ccrs
+
                 self._crs = ccrs.PlateCarree()
         return self._crs
 
