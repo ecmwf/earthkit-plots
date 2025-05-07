@@ -281,7 +281,10 @@ class Style:
     @staticmethod
     def _xy_for_contour(x, y):
         if x.ndim == 1 and y.ndim == 1:
-            x, y = np.meshgrid(x, y)
+            try:
+                x, y = np.meshgrid(x, y)
+            except Exception as e:
+                raise ValueError(f"Cannot meshgrid with x and y: {e}")
         return x, y
 
     @staticmethod
