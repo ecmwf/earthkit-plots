@@ -413,7 +413,7 @@ class Subplot:
 
         # Step 2: Configure the style
         style = self._configure_style(
-            method_name, style, source, units, auto_style, kwargs
+            method_name, style, source, units, auto_style, kwargs.copy()
         )
 
         # Step 3: Process z values
