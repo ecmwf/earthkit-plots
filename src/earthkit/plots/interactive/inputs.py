@@ -109,8 +109,8 @@ def sanitise(axes=("x", "y"), multiplot=True):
                     trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
                     if not multiplot:
                         if time_axis is None:
-                            time_axis = list(data.dims).index(
-                                times.guess_non_time_dim(data)
+                            time_axis = list(ds[data_vars[0]].dims).index(
+                                times.guess_non_time_dim(ds)
                             )
                         trace_kwargs["time_axis"] = time_axis
                     traces.append(function(*args, **trace_kwargs))
