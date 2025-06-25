@@ -62,66 +62,6 @@ jobs:
       run: |
         make unit-tests
 
-  # type-check:
-  #   needs: [unit-tests]
-  #   if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       shell: bash -l {0}
-
-  #   steps:
-  #   - uses: actions/checkout@v3
-  #     with:
-  #       ref: ${{ github.event.pull_request.head.sha || github.ref }}
-  #   - name: Install Conda environment with Micromamba
-  #     uses: mamba-org/provision-with-micromamba@v12
-  #     with:
-  #       environment-file: environment.yml
-  #       environment-name: DEVELOP
-  #       channels: conda-forge
-  #       cache-env: true
-  #       cache-env-key: ubuntu-latest-3.10
-  #       extra-specs: |
-  #         python=3.10
-  #   - name: Install package
-  #     run: |
-  #       python -m pip install --no-deps -e .
-  #   - name: Run code quality checks
-  #     run: |
-  #       echo type-check not used
-
-  # documentation:
-  #   needs: [unit-tests]
-  #   if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
-  #   runs-on: ubuntu-latest
-  #   defaults:
-  #     run:
-  #       shell: bash -l {0}
-
-  #   steps:
-  #   - uses: actions/checkout@v3
-  #     with:
-  #       ref: ${{ github.event.pull_request.head.sha || github.ref }}
-  #   - name: Install Conda environment with Micromamba
-  #     uses: mamba-org/provision-with-micromamba@v12
-  #     with:
-  #       environment-file: environment.yml
-  #       environment-name: DEVELOP
-  #       channels: conda-forge
-  #       cache-env: true
-  #       cache-env-key: ubuntu-latest-3.10
-  #       extra-specs: |
-  #         python=3.10
-  #   - name: Install package
-  #     run: |
-  #       conda install pandoc
-  #       python -m pip install --no-deps -e .
-  #       python -m pip install -r docs/requirements.txt
-  #   - name: Build documentation
-  #     run: |
-  #       make docs-build
-
   integration-tests:
     needs: [unit-tests]
     if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
@@ -156,6 +96,38 @@ jobs:
       run: |
         make unit-tests
 
+  image-tests:
+    name: image-tests
+    needs: [integration-tests]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - name: Install Conda environment with Micromamba
+        uses: mamba-org/setup-micromamba@v1
+        with:
+          environment-file: environment.yml
+          environment-name: IMAGE-TESTS
+          cache-environment: true
+          create-args: >-
+            python=3.10
+      - name: Install package
+        run: |
+          python -m pip install --no-deps -e .
+      - name: Run image tests
+        run: make image-tests
+        continue-on-error: true
+      - name: Upload mpl-results HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpl-results
+          path: mpl-results/
+
   distribution:
     needs: [integration-tests]
     if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
@@ -175,20 +147,3 @@ jobs:
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
-
-  # notify:
-  #   if: always() && ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
-  #   needs:
-  #   - pre-commit
-  #   - unit-tests
-  #   - type-check
-  #   # - documentation
-  #   - integration-tests
-  #   - distribution
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #   - name: Trigger Teams notification
-  #     uses: ecmwf-actions/notify-teams@v1
-  #     with:
-  #       incoming_webhook: ${{ secrets.MS_TEAMS_INCOMING_WEBHOOK }}
-  #       needs_context: ${{ toJSON(needs) }}

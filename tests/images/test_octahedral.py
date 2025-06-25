@@ -3,7 +3,7 @@ import earthkit.data
 import pytest
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(baseline_dir="/Users/mavj/ek/test-images/images/")
+@pytest.mark.mpl_image_compare
 def test_octahedral_interpolated():
     data = earthkit.data.from_source(
         "url",
@@ -23,7 +23,7 @@ def test_octahedral_interpolated():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(baseline_dir="/Users/mavj/ek/test-images/images/")
+@pytest.mark.mpl_image_compare
 def test_octahedral_point_cloud():
     data = earthkit.data.from_source(
         "url",

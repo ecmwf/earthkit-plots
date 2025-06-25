@@ -3,7 +3,7 @@ import earthkit.data
 import pytest
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(baseline_dir="/Users/mavj/ek/test-images/images/")
+@pytest.mark.mpl_image_compare
 def test_temperature_pressure():
     temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
     chart = earthkit.plots.Map(domain="Europe")
@@ -20,7 +20,7 @@ def test_temperature_pressure():
     return chart.fig
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(baseline_dir="/Users/mavj/ek/test-images/images/")
+@pytest.mark.mpl_image_compare
 def test_efi_hatched():
     from earthkit.plots.styles import Hatched
     
