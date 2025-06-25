@@ -1,6 +1,8 @@
-import earthkit.plots
 import earthkit.data
 import pytest
+
+import earthkit.plots
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
@@ -15,7 +17,7 @@ def test_healpix_interpolated():
 
     chart.title()
     chart.gridlines()
-    
+
     return chart.fig
 
 
@@ -32,5 +34,5 @@ def test_healpix_pixels():
 
     chart.title()
     chart.gridlines()
-    
+
     return chart.fig

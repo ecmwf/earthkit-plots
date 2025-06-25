@@ -1,11 +1,15 @@
-import earthkit.plots
 import earthkit.data
 import pytest
+
+import earthkit.plots
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
 def test_temperature_pressure():
-    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
+    temperature, pressure = earthkit.data.from_source(
+        "sample", "era5-2t-msl-1985122512.grib"
+    )
     chart = earthkit.plots.Map(domain="Europe")
     chart.quickplot(temperature, units="celsius")
     chart.quickplot(pressure, units="hPa")
@@ -16,21 +20,24 @@ def test_temperature_pressure():
 
     chart.title()
     chart.gridlines()
-    
+
     return chart.fig
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
 def test_efi_hatched():
     from earthkit.plots.styles import Hatched
-    
-    data = earthkit.data.from_source("url", "https://get.ecmwf.int/repository/test-data/metview/gallery/efi.grib")
+
+    data = earthkit.data.from_source(
+        "url", "https://get.ecmwf.int/repository/test-data/metview/gallery/efi.grib"
+    )
 
     fgi = data.sel(shortName="10fgi")
     tpi = data.sel(shortName="tpi")
 
     LEVELS = [0.6, 0.8, 1.0]
-    HATCHES = ["."*5, "o"*5]
+    HATCHES = ["." * 5, "o" * 5]
 
     fgi_style = Hatched(
         colors="magenta",
@@ -59,4 +66,3 @@ def test_efi_hatched():
     chart.legend(label="{variable_name!l}", location=["top left", "top right"], ncols=2)
 
     return chart.fig
-

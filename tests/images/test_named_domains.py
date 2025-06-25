@@ -1,5 +1,7 @@
-import earthkit.plots
 import pytest
+
+import earthkit.plots
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
@@ -10,6 +12,7 @@ def test_named_europe():
     chart.title("{domain} ({crs})")
     return chart.fig
 
+
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
 def test_named_new_zealand():
@@ -18,6 +21,7 @@ def test_named_new_zealand():
     chart.gridlines()
     chart.title("{domain} ({crs})")
     return chart.fig
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare

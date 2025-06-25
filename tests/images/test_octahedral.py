@@ -1,6 +1,8 @@
-import earthkit.plots
 import earthkit.data
 import pytest
+
+import earthkit.plots
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare
@@ -18,7 +20,7 @@ def test_octahedral_interpolated():
 
     chart.title()
     chart.gridlines()
-    
+
     return chart.fig
 
 
@@ -38,5 +40,5 @@ def test_octahedral_point_cloud():
 
     chart.title()
     chart.gridlines()
-    
+
     return chart.fig
