@@ -104,28 +104,28 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.ref }}
-      - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: environment.yml
-          environment-name: IMAGE-TESTS
-          cache-environment: true
-          create-args: >-
-            python=3.10
-      - name: Install package
-        run: |
-          python -m pip install --no-deps -e .
-      - name: Run image tests
-        run: make image-tests
-      - name: Upload mpl-results HTML
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mpl-results
-          path: mpl-results/
+    - uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha || github.ref }}
+    - name: Install Conda environment with Micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: environment.yml
+        environment-name: IMAGE-TESTS
+        cache-environment: true
+        create-args: >-
+          python=3.10
+    - name: Install package
+      run: |
+        python -m pip install --no-deps -e .
+    - name: Run image tests
+      run: make image-tests
+    - name: Upload mpl-results HTML
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: mpl-results
+        path: mpl-results/
 
   distribution:
     needs: [integration-tests]
