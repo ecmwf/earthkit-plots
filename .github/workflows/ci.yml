@@ -98,7 +98,7 @@ jobs:
 
   image-tests:
     name: image-tests
-    needs: [integration-tests]
+    needs: [unit-tests]
     runs-on: ubuntu-latest
     defaults:
       run:
