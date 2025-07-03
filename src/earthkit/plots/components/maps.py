@@ -368,16 +368,18 @@ class Map(Subplot):
 
                 reprojected_geometries = []
                 for record in filtered_records:
-                    projected_geom = reproject_geom(record.geometry)
+                    projected_geom = record.geometry
 
                     # **Clip to viewport**
-                    clipped_geom = projected_geom.intersection(extent_box)
+                    clipped_geom = projected_geom
 
                     if not clipped_geom.is_empty:  # Only keep visible parts
                         reprojected_geometries.append(clipped_geom)
 
                 # Add optimized features
-                feature = cfeature.ShapelyFeature(reprojected_geometries, self.crs)
+                feature = cfeature.ShapelyFeature(
+                    reprojected_geometries, ccrs.PlateCarree()
+                )
                 result = self.ax.add_feature(feature, *args, **kwargs)
 
                 if special_styles is not None:
