@@ -35,6 +35,34 @@ class AmbiguousDataError(Exception):
     pass
 
 
+def get_path(source, data_type=None):
+    """
+    Get the path to an earthkit.plots ancillary data file.
+
+    Parameters
+    ----------
+    source : str
+        The name of a file (with or without extension) found within
+        earthkit/plots/data.
+    data_type : str
+        If applicable, the name of the subdirectory within earthkit/plots/data
+        in which the auxilliary file will be found.
+    """
+    path = definitions.DATA_DIR
+    if data_type is not None:
+        path /= data_type
+
+    matches = list(path.glob(f"{source}*"))
+    if not matches:
+        raise DataNotFoundError(f"could not find data named '{source}'")
+    elif len(matches) > 1:
+        raise AmbiguousDataError(
+            f"multiple data sources named '{source}'; file extension required"
+        )
+
+    return matches[0]
+
+
 def load(source, data_type=None):
     """
     Load an earthkit.plots ancillary data file.
