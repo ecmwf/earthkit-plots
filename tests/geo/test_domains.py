@@ -29,6 +29,23 @@ def test_union():
     )
 
 
+def test_force_minus_180_to_180():
+    assert domains.force_minus_180_to_180(-190) == 170
+    assert domains.force_minus_180_to_180(190) == -170
+    assert domains.force_minus_180_to_180(180) == 180
+    assert domains.force_minus_180_to_180(-180) == -180
+    assert domains.force_minus_180_to_180(0) == 0
+
+
+def test_force_0_to_360():
+    assert domains.force_0_to_360(-10) == 350
+    assert domains.force_0_to_360(370) == 10
+    assert domains.force_0_to_360(360) == 360
+    assert domains.force_0_to_360(0) == 0
+    assert domains.force_0_to_360(180) == 180
+    assert domains.force_0_to_360(-180) == 180
+
+
 def test_Domain_from_string():
     domain = domains.Domain.from_string("United Kingdom")
     assert list(domain.bbox) == pytest.approx([-363797, 373425, -541558, 545791], 0.001)
