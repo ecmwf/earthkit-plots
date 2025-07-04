@@ -16,9 +16,6 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
-from pyproj import Transformer
-from shapely.geometry import box
-from shapely.ops import transform
 
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
@@ -354,39 +351,22 @@ class Map(Subplot):
                         adjust_labels=adjust_labels,
                     )
 
-                # **Optimized Geometry Reprojection & Clipping**
-                transformer = Transformer.from_crs(
-                    "EPSG:4326", self.crs, always_xy=True
-                )
-
-                def reproject_geom(geom):
-                    return transform(transformer.transform, geom)
-
-                # Get visible extent of the plot
-                xlim, ylim = self.ax.get_xlim(), self.ax.get_ylim()
-                extent_box = box(xlim[0], ylim[0], xlim[1], ylim[1])
-
-                reprojected_geometries = []
+                geometries = []
                 for record in filtered_records:
-                    projected_geom = reproject_geom(record.geometry)
+                    geom = record.geometry
 
-                    # **Clip to viewport**
-                    clipped_geom = projected_geom.intersection(extent_box)
-
-                    if not clipped_geom.is_empty:  # Only keep visible parts
-                        reprojected_geometries.append(clipped_geom)
+                    if not geom.is_empty:  # Only keep visible parts
+                        geometries.append(geom)
 
                 # Add optimized features
-                feature = cfeature.ShapelyFeature(reprojected_geometries, self.crs)
+                feature = cfeature.ShapelyFeature(geometries, ccrs.PlateCarree())
                 result = self.ax.add_feature(feature, *args, **kwargs)
 
                 if special_styles is not None:
                     for record, style in special_records:
-                        projected_geom = reproject_geom(record.geometry)
-                        clipped_geom = projected_geom.intersection(extent_box)
-
-                        if not clipped_geom.is_empty:
-                            feature = cfeature.ShapelyFeature([clipped_geom], self.crs)
+                        geom = record.geometry
+                        if not geom.is_empty:
+                            feature = cfeature.ShapelyFeature([geom], self.crs)
                             self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
                 return result

@@ -40,14 +40,16 @@ NO_BBOX = [
 
 def force_minus_180_to_180(x):
     """
-    Force an array of longitudes to be in the range -180 to 180.
-
-    Parameters
-    ----------
-    x : array-like
-        The longitudes to be forced into the range -180 to 180.
+    Force an array of longitudes to lie in [-180, +180],
+    *but* preserve any original +180° values (so you don’t
+    collapse the east edge onto the west edge).
     """
-    return (x + 180) % 360 - 180
+    x = np.asarray(x)
+    x2 = (x + 180) % 360 - 180
+    # now restore +180 wherever the original was exactly +180
+    # (so that our grid retains its full span)
+    x2 = np.where(np.isclose(x, 180), 180, x2)
+    return x2
 
 
 def roll_from_0_360_to_minus_180_180(x):
@@ -102,7 +104,9 @@ def force_0_to_360(x):
     x : array-like
         The longitudes to be forced into the range 0 to 360.
     """
-    return x % 360
+    x2 = np.asarray(x % 360)
+    x2 = np.where(np.isclose(x, 360), 360, x2)
+    return x2
 
 
 def is_latlon(data):
