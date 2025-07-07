@@ -17,9 +17,6 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
-from pyproj import Transformer
-from shapely.geometry import box
-from shapely.ops import transform
 
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
@@ -370,30 +367,23 @@ class Map(Subplot):
                         adjust_labels=adjust_labels,
                     )
 
-                # Geometry reprojection & clipping
-                transformer = Transformer.from_crs("EPSG:4326", self.crs, always_xy=True)
-                def reproject(geom): return transform(transformer.transform, geom)
+                geometries = []
+                for record in filtered_records:
+                    geom = record.geometry
 
-                x0, x1 = self.ax.get_xlim(); y0, y1 = self.ax.get_ylim()
-                bbox = box(x0, y0, x1, y1)
+                    if not geom.is_empty:  # Only keep visible parts
+                        geometries.append(geom)
 
-                geoms = []
-                for rec in filtered:
-                    proj = reproject(rec.geometry)
-                    clip = proj.intersection(bbox)
-                    if not clip.is_empty:
-                        geoms.append(clip)
+                # Add optimized features
+                feature = cfeature.ShapelyFeature(geometries, ccrs.PlateCarree())
+                result = self.ax.add_feature(feature, *args, **kwargs)
 
-                feat = cfeature.ShapelyFeature(geoms, self.crs)
-                result = self.ax.add_feature(feat, *args, **kwargs)
-
-                # Draw specials
-                for rec, style_kw in special:
-                    proj = reproject(rec.geometry)
-                    clip = proj.intersection(bbox)
-                    if not clip.is_empty:
-                        sp_fe = cfeature.ShapelyFeature([clip], self.crs)
-                        self.ax.add_feature(sp_fe, *args, **{**kwargs, **style_kw})
+                if special_styles is not None:
+                    for record, style in special_records:
+                        geom = record.geometry
+                        if not geom.is_empty:
+                            feature = cfeature.ShapelyFeature([geom], self.crs)
+                            self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
                 return result
 
