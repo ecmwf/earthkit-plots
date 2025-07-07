@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
@@ -26,7 +25,6 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
-from earthkit.plots.definitions import DATA_DIR
 
 
 class Map(Subplot):
@@ -257,13 +255,8 @@ class Map(Subplot):
         default_label="NAME_LONG",
         max_resolution="high",
         min_resolution="low",
-        file_template=None,
         line=False,
     ):
-        """
-        Decorator to plot Natural Earth layers. If file_template is provided,
-        uses that local path (formatted per resolution) instead of shapereader.natural_earth.
-        """
         def decorator(method):
             def wrapper(
                 self,
@@ -276,7 +269,6 @@ class Map(Subplot):
                 adjust_labels=False,
                 **kwargs,
             ):
-                # Determine resolution
                 if resolution is None:
                     resolution = self.natural_earth_resolution
                 resolution = natural_earth.get_resolution(
@@ -287,83 +279,75 @@ class Map(Subplot):
                     min_resolution,
                 )
 
-                # Handle line styling
-                if line and "color" in kwargs:
-                    kwargs["edgecolor"] = kwargs.pop("color")
+                if line:
+                    if "color" in kwargs:
+                        kwargs["edgecolor"] = kwargs.pop("color")
 
-                # Determine shapefile name
-                shape_name = name[resolution] if isinstance(name, dict) else name
+                shape_name = name
+                if isinstance(name, dict):
+                    shape_name = name[resolution]
 
-                # Use file_template or default shapereader
-                template = file_template
-                if template is None:
-                    shpfilename = shpreader.natural_earth(
-                        resolution=resolution,
-                        category=category,
-                        name=shape_name,
-                    )
-                else:
-                    # format only the template string, not the outer variable
-                    shpfilename = DATA_DIR /  "shapefiles" / template.format(resolution=resolution)
-                    # If zipped, unzip and look for .shp
-                    if str(shpfilename).endswith(".zip"):
-                        shp_path = str(shpfilename)[:-4] + ".shp"
-                        if not os.path.exists(shp_path):
-                            import zipfile
-                            with zipfile.ZipFile(shpfilename, 'r') as z:
-                                shp_files = [f for f in z.namelist() if f.endswith('.shp')]
-                                if not shp_files:
-                                    raise FileNotFoundError(f"No .shp file found in {shpfilename}")
-                                # Extract the .shp and all associated files (.dbf, .shx, etc.)
-                                base = os.path.splitext(shp_files[0])[0]
-                                for f in z.namelist():
-                                    if f.startswith(base) and (
-                                        f.endswith('.shp') or f.endswith('.dbf') or f.endswith('.shx') or f.endswith('.prj')
-                                    ):
-                                        z.extract(f, os.path.dirname(shpfilename))
-                                shp_path = os.path.join(os.path.dirname(shpfilename), shp_files[0])
-                        shpfilename = shp_path
-                
-                print(shpfilename)
-
-                # Read features
+                shpfilename = shpreader.natural_earth(
+                    resolution=resolution,
+                    category=category,
+                    name=shape_name,
+                )
                 reader = shpreader.Reader(shpfilename)
+
                 records = list(reader.records())
 
-                # Split out special styles
-                filtered = []
-                special = []
-                if special_styles:
-                    for rec in records:
-                        matched = False
-                        for style in special_styles:
-                            if rec.attributes.get(style["key"]) in style["values"]:
-                                special.append((rec, style["kwargs"]))
-                                matched = True
-                                break
-                        if not matched:
-                            filtered.append(rec)
-                else:
-                    filtered = records.copy()
+                filtered_records = []
+                special_records = []
 
-                # Include/exclude
+                if special_styles is not None:
+                    for record in records:
+                        for style in special_styles:
+                            if (
+                                record.attributes.get(style["key"], None)
+                                in style["values"]
+                            ):
+                                special_records.append([record, style["kwargs"]])
+                            else:
+                                filtered_records.append(record)
+                else:
+                    filtered_records = list(reader.records())
+
                 if include is not None or exclude is not None:
-                    inc = include if isinstance(include, (list, tuple)) else ([include] if include else None)
-                    exc = exclude if isinstance(exclude, (list, tuple)) else ([exclude] if exclude else None)
-                    filtered = [
-                        rec for rec in records
-                        if ((inc is None or rec.attributes.get(default_attribute) in inc)
-                            and (exc is None or rec.attributes.get(default_attribute) not in exc))
+                    exclude = (
+                        [exclude]
+                        if not (isinstance(exclude, (list, tuple)) or exclude is None)
+                        else exclude
+                    )
+                    include = (
+                        [include]
+                        if not (isinstance(include, (list, tuple)) or include is None)
+                        else include
+                    )
+
+                    filtered_records = [
+                        record
+                        for record in records
+                        if (
+                            (
+                                include is None
+                                or record.attributes.get(default_attribute) in include
+                            )
+                            and (
+                                exclude is None
+                                or record.attributes.get(default_attribute)
+                                not in exclude
+                            )
+                        )
                     ]
 
-                # Labels
                 if labels:
-                    label_key = labels if isinstance(labels, str) else default_label
+                    if not isinstance(labels, str):
+                        labels = default_label
                     self._add_polygon_labels(
-                        filtered,
+                        filtered_records,
                         x_key="LABEL_X",
                         y_key="LABEL_Y",
-                        label_key=label_key,
+                        label_key=labels,
                         adjust_labels=adjust_labels,
                     )
 
@@ -390,7 +374,6 @@ class Map(Subplot):
             return wrapper
 
         return decorator
-
 
     @schema.coastlines.apply()
     @natural_earth_layer("physical", "coastline", line=True)
@@ -475,7 +458,7 @@ class Map(Subplot):
         """
 
     @schema.countries.apply()
-    @natural_earth_layer("cultural", "admin_0_countries", default_label="ISO_A2_EH", file_template="ne_{resolution}_admin_0_earthkit.zip")
+    @natural_earth_layer("cultural", "admin_0_countries", default_label="ISO_A2_EH")
     def countries(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
