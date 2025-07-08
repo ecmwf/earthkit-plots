@@ -225,6 +225,7 @@ class Schema(dict):
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
         self._reset(**kwargs)
+        self.style_library = name
 
     def _reset(self, **kwargs):
         self.__init__(**kwargs)

@@ -56,8 +56,6 @@ def guess_style(data, units=None, **kwargs):
         identities_path = PLUGINS[schema.style_library]["identities"]
         styles_path = PLUGINS[schema.style_library]["styles"]
 
-    identity = None
-
     for fname in glob.glob(str(identities_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:
@@ -78,29 +76,31 @@ def guess_style(data, units=None, **kwargs):
         break
     else:
         return styles.DEFAULT_STYLE
+
+    variable_styles = config["styles"]
+
+    if schema.use_preferred_units:
+        style = config["styles"][config.get("default_units", list(variable_styles)[0])]
+    else:
+        for style_units in config["styles"]:
+            if are_equal(style_units, units):
+                style = variable_styles[units][0]
+                break
+        else:
+            return styles.DEFAULT_STYLE
+    
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:
-                style_config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
-        if style_config["id"] == identity:
-            break
-    else:
-        return styles.DEFAULT_STYLE
-
-    if schema.use_preferred_units:
-        style = style_config["styles"][style_config["optimal"]]
-    else:
-        for _, style in style_config["styles"].items():
-            if are_equal(style.get("units"), units):
-                break
-        else:
-            # No style matching units found; return default
-            for _, style in style_config["styles"].items():
-                if "units" not in style:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            for style_name in config:
+                if style_name == style:
+                    style = config[style_name]
                     break
             else:
-                return styles.DEFAULT_STYLE
+                continue
+            break
+        else:
+            continue
 
     return styles.Style.from_dict({**style, **kwargs})
