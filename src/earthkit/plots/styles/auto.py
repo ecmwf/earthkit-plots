@@ -66,7 +66,6 @@ def guess_style(data, units=None, **kwargs):
         for criteria in config["criteria"]:
             for key, value in criteria.items():
                 if data.metadata(key, default=None) == value:
-                    identity = config["id"]
                     break
             else:
                 continue
@@ -88,7 +87,7 @@ def guess_style(data, units=None, **kwargs):
                 break
         else:
             return styles.DEFAULT_STYLE
-    
+
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:

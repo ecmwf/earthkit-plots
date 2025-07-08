@@ -12,14 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import glob
 import inspect
+import os
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import yaml
 from scipy.interpolate import interp1d, make_interp_spline
 
 from earthkit.plots import metadata, plottypes, styles
+from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
 from earthkit.plots.styles.colors import magics_colors_to_rgb
@@ -100,6 +105,37 @@ class Style:
             kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
         return getattr(styles, style_type)(**kwargs)
 
+    @classmethod
+    def from_name(cls, name):
+        if schema.style_library not in PLUGINS:
+            path = Path(schema.style_library).expanduser()
+            styles_path = path / "styles"
+        else:
+            styles_path = PLUGINS[schema.style_library]["styles"]
+
+        kwargs = None
+
+        for fname in glob.glob(str(styles_path / "*")):
+            if os.path.isfile(fname):
+                with open(fname, "r") as f:
+                    config = yaml.load(f, Loader=yaml.SafeLoader)
+                for style_name in config:
+                    if style_name == name:
+                        kwargs = config[style_name]
+                        break
+                else:
+                    continue
+                break
+            else:
+                continue
+
+        if kwargs is None:
+            raise ValueError(
+                f"No style named '{name}' found in {schema.style_library} styles"
+            )
+
+        return cls.from_dict(kwargs)
+
     def __init__(
         self,
         colors=schema.default_cmap,
@@ -115,6 +151,7 @@ class Style:
         ticks=None,
         preferred_method="contourf",
         resample=None,
+        metadata=None,
         **kwargs,
     ):
         if categories is not None and levels is None:
@@ -156,6 +193,8 @@ class Style:
 
         self._kwargs = kwargs
         self._preferred_method = preferred_method
+
+        self._metadata = metadata
 
     # TODO
     # def to_yaml(self):

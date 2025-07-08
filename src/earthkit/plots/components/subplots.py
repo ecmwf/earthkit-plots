@@ -403,6 +403,8 @@ class Subplot:
         metadata=None,
         **kwargs,
     ):
+        if isinstance(style, str):
+            style = Style.from_name(style)
         if method_name.startswith("contour"):
             regrid = True
         # Step 1: Initialize the source
@@ -749,6 +751,8 @@ class Subplot:
             else:
                 method = self.grid_cells
         else:
+            if isinstance(style, str):
+                style = Style.from_name(style)
             method = getattr(self, style._preferred_method)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
