@@ -387,6 +387,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
+        if values.ndim == 1:
+            return self.tricontourf(ax, x, y, values, *args, **kwargs)
+
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         x, y = self._xy_for_contour(x, y)
         return ax.contourf(x, y, values, *args, **kwargs)
@@ -431,6 +434,27 @@ class Style:
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
+
+    def tricontour(self, ax, x, y, values, *args, **kwargs):
+        """
+        Plot triangulated contour lines using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The values of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.tricontour`.
+        """
+        kwargs = {**self.to_contour_kwargs(values), **kwargs}
+        kwargs.pop("labels", None)
+        return ax.tricontour(x, y, values, *args, **kwargs)
 
     def tricontourf(self, ax, x, y, values, *args, **kwargs):
         """
@@ -489,6 +513,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
+        if values.ndim == 1:
+            return self.tricontour(ax, x, y, values, *args, **kwargs)
+        
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
         x, y = self._xy_for_contour(x, y)
