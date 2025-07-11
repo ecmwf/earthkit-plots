@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -27,6 +27,23 @@ def test_union():
     assert list(domain.bbox) == pytest.approx(
         [-932531, 781009, -1070763, 1162024], 0.001
     )
+
+
+def test_force_minus_180_to_180():
+    assert domains.force_minus_180_to_180(-190) == 170
+    assert domains.force_minus_180_to_180(190) == -170
+    assert domains.force_minus_180_to_180(180) == 180
+    assert domains.force_minus_180_to_180(-180) == -180
+    assert domains.force_minus_180_to_180(0) == 0
+
+
+def test_force_0_to_360():
+    assert domains.force_0_to_360(-10) == 350
+    assert domains.force_0_to_360(370) == 10
+    assert domains.force_0_to_360(360) == 360
+    assert domains.force_0_to_360(0) == 0
+    assert domains.force_0_to_360(180) == 180
+    assert domains.force_0_to_360(-180) == 180
 
 
 def test_Domain_from_string():

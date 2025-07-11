@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,6 +23,10 @@ CYLINDRICAL_COORDINATE_SYSTEMS = [
     ccrs.PlateCarree,
 ]
 
+CANNOT_TRANSFORM_FIRST = [
+    ccrs.NorthPolarStereo,
+    ccrs.SouthPolarStereo,
+]
 
 CRS_MAPPING = {
     "EPSG:4326": ccrs.PlateCarree,
@@ -160,10 +164,7 @@ def parse_crs(crs):
     -------
     cartopy.crs.CRS
     """
-    if crs is None:
-        crs = DEFAULT_CRS
-
-    if not isinstance(crs, ccrs.CRS):
+    if not isinstance(crs, (ccrs.CRS, type(None))):
         if isinstance(crs, dict):
             crs = dict_to_crs(crs)
         else:
