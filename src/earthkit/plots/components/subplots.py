@@ -1230,6 +1230,38 @@ class Subplot:
             label = label[0].upper() + label[1:]
         return self.ax.set_title(label, wrap=wrap, **kwargs)
 
+    def suptitle(self, *args, **kwargs):
+        """
+        Add a top-level title to the chart.
+
+        Parameters
+        ----------
+        label : str, optional
+            The text to use in the title. This text can include format keys
+            surrounded by `{}` curly brackets, which will extract metadata from
+            your plotted data layers.
+        unique : bool, optional
+            If True, format keys which are uniform across subplots/layers will
+            produce a single result. For example, if all data layers have the
+            same `variable_name`, only one variable name will appear in the
+            title.
+            If False, each format key will evaluate to a list of values found
+            across subplots/layers.
+        grouped : bool, optional
+            If True, a single title will be generated to represent all data
+            layers, with each format key evaluating to a list where layers
+            differ - e.g. `"{variable} at {time}"` might be evaluated to
+            `"temperature and wind at 2023-01-01 00:00".
+            If False, the title will be duplicated by the number of subplots/
+            layers - e.g. `"{variable} at {time}"` might be evaluated to
+            `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
+        kwargs : dict, optional
+            Keyword argument to matplotlib.pyplot.suptitle (see
+            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.suptitle.html#matplotlib-pyplot-suptitle
+            ).
+        """
+        return self.figure.title(*args, **kwargs)
+
     def format_string(self, string, unique=True, grouped=True):
         """
         Format a string with metadata from the Subplot.
