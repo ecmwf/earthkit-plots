@@ -75,6 +75,8 @@ class Figure:
         self._queue = []
         self._subplot_queue = []
 
+        self.attributions = []
+
         if None not in (self.rows, self.columns):
             self._setup()
 
@@ -626,6 +628,18 @@ class Figure:
             method(self, *args, **kwargs)
         for queued_method, queued_args, queued_kwargs in self._queue:
             queued_method(self, *queued_args, **queued_kwargs)
+        if self.attributions:
+            attribution_text = "; ".join(self.attributions)
+            self.fig.text(
+                0.5,
+                -0.05,
+                attribution_text,
+                ha="center",
+                va="bottom",
+                fontsize=9,
+                color="gray",
+                wrap=True,
+            )
         return self
 
     def show(self, *args, **kwargs):
@@ -654,6 +668,18 @@ class Figure:
     def resize(self):
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
+
+    def add_attribution(self, attribution):
+        """
+        Add an attribution to the figure.
+
+        Parameters
+        ----------
+        attribution : str
+            The attribution text to add to the figure.
+        """
+        if attribution not in self.attributions:
+            self.attributions.append(attribution)
 
 
 def resize_figure_to_fit_axes(fig):

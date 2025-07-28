@@ -75,6 +75,17 @@ class Subplot:
     def crs(self):
         return None
 
+    def add_attribution(self, attribution):
+        """
+        Add an attribution to the figure.
+
+        Parameters
+        ----------
+        attribution : str
+            The attribution text to add to the figure.
+        """
+        self.figure.add_attribution(attribution)
+
     def set_major_xticks(
         self,
         frequency=None,
