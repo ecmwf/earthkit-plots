@@ -60,7 +60,7 @@ class Subplot:
 
     def __init__(self, row=0, column=0, figure=None, size=None, **kwargs):
         self._figure = figure
-        
+
         if figure is not None and size is not None:
             warnings.warn("Subplot size is ignored when a Figure is provided.")
             self._size = None
@@ -92,7 +92,7 @@ class Subplot:
             The attribution text to add to the figure.
         """
         self.figure.add_attribution(attribution)
-    
+
     def add_logo(self, logo):
         """
         Add a logo to the figure.
