@@ -12,30 +12,30 @@ jobs:
         shell: bash -l {0}
 
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: Install Conda environment with Micromamba
-        uses: mamba-org/setup-micromamba@v1
-        with:
-          environment-file: environment.yml
-          environment-name: IMAGE-GEN
-          cache-environment: true
-          create-args: >-
-            python=3.10
+    - name: Install Conda environment with Micromamba
+      uses: mamba-org/setup-micromamba@v1
+      with:
+        environment-file: environment.yml
+        environment-name: IMAGE-GEN
+        cache-environment: true
+        create-args: >-
+          python=3.10
 
-      - name: Install package
-        run: |
-          python -m pip install --no-deps -e .
+    - name: Install package
+      run: |
+        python -m pip install --no-deps -e .
 
-      - name: Generate test baseline images
-        run: make generate-test-images
+    - name: Generate test baseline images
+      run: make generate-test-images
 
-      - name: Zip generated images
-        run: |
-          zip -r test-baseline-images.zip tests/baseline-images/
+    - name: Zip generated images
+      run: |
+        zip -r test-baseline-images.zip tests/baseline-images/
 
-      - name: Upload baseline images zip
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-baseline-images
-          path: test-baseline-images.zip
+    - name: Upload baseline images zip
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-baseline-images
+        path: test-baseline-images.zip
