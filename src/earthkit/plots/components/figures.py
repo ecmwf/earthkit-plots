@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
 
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+from earthkit.plots.ancillary import find_logo
 from earthkit.plots.components.layers import LayerGroup
 from earthkit.plots.components.layouts import rows_cols
 from earthkit.plots.components.maps import Map
@@ -76,6 +79,7 @@ class Figure:
         self._subplot_queue = []
 
         self.attributions = []
+        self.logos = []
 
         if None not in (self.rows, self.columns):
             self._setup()
@@ -630,16 +634,37 @@ class Figure:
             queued_method(self, *queued_args, **queued_kwargs)
         if self.attributions:
             attribution_text = "; ".join(self.attributions)
+            x = 0.5 if not self.logos else 0.05
+            y = -0.02
+            ha = "center" if not self.logos else "left"
+
             self.fig.text(
-                0.5,
-                -0.05,
+                x,
+                y,
                 attribution_text,
-                ha="center",
-                va="bottom",
+                ha=ha,
+                va="top",
                 fontsize=9,
                 color="gray",
                 wrap=True,
             )
+        if self.logos:
+            # Place each logo horizontally, bottom-right, with some spacing
+            logo_width = 0.12  # fraction of figure width
+            logo_height = 0.05  # fraction of figure height
+            spacing = 0.01  # horizontal spacing
+            # Start from right, go left
+            for i, image_file in enumerate(reversed(self.logos)):
+                if not os.path.exists(image_file):
+                    image_file = find_logo(image_file)
+                logo = mpimg.imread(image_file)
+                left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
+                bottom = -0.05  # 0.01 margin from bottom
+                ax_logo = self.fig.add_axes(
+                    [left, bottom, logo_width, logo_height], zorder=100
+                )
+                ax_logo.imshow(logo)
+                ax_logo.axis("off")
         return self
 
     def show(self, *args, **kwargs):
@@ -680,6 +705,18 @@ class Figure:
         """
         if attribution not in self.attributions:
             self.attributions.append(attribution)
+
+    def add_logo(self, logo):
+        """
+        Add a logo to the figure.
+
+        Parameters
+        ----------
+        logo : str
+            Either the name of a built-in logo, or a path to the logo image file to add to the figure.
+        """
+        if logo not in self.logos:
+            self.logos.append(logo)
 
 
 def resize_figure_to_fit_axes(fig):
