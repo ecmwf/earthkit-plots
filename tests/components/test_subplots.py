@@ -19,4 +19,3 @@ def test_subplots_figure_size():
     # Test that the figure size is set correctly when creating a subplot
     subplot = subplots.Subplot(size=[10, 5])
     assert subplot.figure._figsize == [10, 5]
-    
