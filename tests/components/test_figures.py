@@ -40,7 +40,7 @@ def test_add_logo():
     fig = figures.Figure()
     fig.add_logo("ecmwf")
     assert fig.logos == ["ecmwf"]
-    
+
 
 def test_add_logo_duplicate():
     fig = figures.Figure()
