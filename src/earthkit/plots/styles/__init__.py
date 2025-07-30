@@ -52,6 +52,31 @@ def linspace_datetime64(start_date, end_date, n):
     return np.linspace(0, 1, n) * (end_date - start_date) + start_date
 
 
+def _validate_projection_for_tricontour(ccrs) -> bool:
+    """
+    Validate that the projection is suitable for tricontour plotting.
+
+    Banned list established from iterative search.
+    """
+    if ccrs is None:
+        return True
+
+    bad_list = [
+        "TransverseMercator",
+        "Sinusoidal",
+        "Robinson",
+        "Hammer",
+        "EqualEarth",
+        "LambertAzimuthalEqualArea",
+    ]
+    if any(proj in str(ccrs.__class__.__name__) for proj in bad_list):
+        raise ValueError(
+            f"Projection {ccrs} is not suitable for tricontour plotting. "
+            "Please use a different projection."
+        )
+    return True
+
+
 class Style:
     """
     A style for plotting data.
@@ -454,6 +479,7 @@ class Style:
         """
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
+        _validate_projection_for_tricontour(kwargs.get("transform", None))
         return ax.tricontour(x, y, values, *args, **kwargs)
 
     def tricontourf(self, ax, x, y, values, *args, **kwargs):
@@ -474,6 +500,7 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.tricontourf`.
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
+        _validate_projection_for_tricontour(kwargs.get("transform", None))
         return ax.tricontourf(x, y, values, *args, **kwargs)
 
     def tripcolor(self, ax, x, y, values, *args, **kwargs):
@@ -515,7 +542,7 @@ class Style:
         """
         if values.ndim == 1:
             return self.tricontour(ax, x, y, values, *args, **kwargs)
-        
+
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
         x, y = self._xy_for_contour(x, y)
