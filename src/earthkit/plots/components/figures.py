@@ -648,7 +648,10 @@ class Figure:
         """
         self._release_queue()
         return plt.savefig(
-            *args, bbox_inches=bbox_inches, dpi=kwargs.pop("dpi", schema.figure.dpi), **kwargs
+            *args,
+            bbox_inches=bbox_inches,
+            dpi=kwargs.pop("dpi", schema.figure.dpi),
+            **kwargs,
         )
 
     def resize(self):
