@@ -15,7 +15,7 @@
 
 import pytest
 
-from earthkit.plots.components.layouts import rows_cols
+from earthkit.plots.core.layouts import rows_cols
 
 
 def test_rows_cols_with_preset_shapes():

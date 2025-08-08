@@ -19,7 +19,7 @@ import numpy as np
 from cartopy.util import add_cyclic_point
 
 from earthkit.plots import identifiers
-from earthkit.plots.components.layers import Layer
+from earthkit.plots.core.layers import Layer
 from earthkit.plots.geo import coordinate_reference_systems, grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
@@ -654,7 +654,7 @@ class Subplot:
 
     @property
     def figure(self):
-        from earthkit.plots.components.figures import Figure
+        from earthkit.plots.core.figures import Figure
 
         if self._figure is None:
             self._figure = Figure(1, 1, size=self._size)

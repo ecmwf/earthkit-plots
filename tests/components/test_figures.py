@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from earthkit.plots.components import figures
+from earthkit.plots.core import figures
 
 
 def test_add_attribution():

@@ -17,14 +17,27 @@ import os
 
 from matplotlib import font_manager
 
+# Import all modules to make them available for import
 from earthkit.plots import styles
-from earthkit.plots.components.figures import Figure
-from earthkit.plots.components.maps import Map
-from earthkit.plots.components.subplots import Subplot
+from earthkit.plots.core.figures import Figure
+from earthkit.plots.core.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
+from earthkit.plots.geospatial.maps import Map
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
+
+# Make modules available as attributes
+from . import (
+    ancillary,
+    definitions,
+    geo,
+    identifiers,
+    interactive,
+    metadata,
+    sources,
+    utils,
+)
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -43,6 +56,14 @@ __all__ = [
     "schema",
     "styles",
     "quickplot",
+    "ancillary",
+    "definitions",
+    "geo",
+    "identifiers",
+    "interactive",
+    "metadata",
+    "sources",
+    "utils",
 ]
 
 
