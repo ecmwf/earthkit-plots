@@ -380,6 +380,9 @@ class Domain:
             source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+
         values = np.array(values) if values is not None else None
 
         if values is not None and values.ndim == 3:
