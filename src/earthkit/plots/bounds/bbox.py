@@ -15,7 +15,10 @@
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.bounds.coordinate_reference_systems import DEFAULT_CRS, is_cylindrical
+from earthkit.plots.bounds.coordinate_reference_systems import (
+    DEFAULT_CRS,
+    is_cylindrical,
+)
 from earthkit.plots.bounds.optimisers import Global
 
 
