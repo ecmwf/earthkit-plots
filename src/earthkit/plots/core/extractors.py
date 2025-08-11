@@ -33,10 +33,9 @@ from cartopy.util import add_cyclic_point
 
 from earthkit.plots.bounds import coordinate_reference_systems
 from earthkit.plots.grids import grids
+from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
-from earthkit.plots.resample import Interpolate
-
 
 # =============================================================================
 # Main Data Extraction Functions
@@ -62,10 +61,10 @@ def extract_plottables_2D(
 ) -> Any:
     """
     Extract and process data for 2D plotting methods.
-    
+
     This function handles the complete data pipeline for 2D plots including:
     source creation, style configuration, value processing, sampling, and plotting.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -94,17 +93,15 @@ def extract_plottables_2D(
         Additional metadata for the data source.
     **kwargs
         Additional keyword arguments passed to the plotting method.
-    
+
     Returns
     -------
     Any
         The matplotlib mappable object created by the plotting method.
-    
+
     Examples
     --------
-    >>> mappable = extract_plottables_2D(
-    ...     subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6]
-    ... )
+    >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
     # Step 1: Initialize the data source
     source = get_source(
@@ -133,6 +130,7 @@ def extract_plottables_2D(
 
     # Step 7: Store the layer and return the mappable
     from earthkit.plots.core.layers import Layer
+
     subplot.layers.append(Layer(source, mappable, subplot, style))
     return mappable
 
@@ -157,11 +155,11 @@ def extract_plottables_3D(
 ) -> Any:
     """
     Extract and process data for 3D plotting methods.
-    
+
     This function handles the complete data pipeline for 3D plots including:
     source creation, style configuration, value processing, domain extraction,
     cyclic point handling, and specialized grid type plotting.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -192,12 +190,12 @@ def extract_plottables_3D(
         Additional metadata for the data source.
     **kwargs
         Additional keyword arguments passed to the plotting method.
-    
+
     Returns
     -------
     Any
         The matplotlib mappable object created by the plotting method.
-    
+
     Examples
     --------
     >>> mappable = extract_plottables_3D(
@@ -207,7 +205,7 @@ def extract_plottables_3D(
     # Step 1: Enable regridding for contour methods
     if method_name.startswith("contour"):
         regrid = True
-    
+
     # Step 2: Initialize the data source
     source = get_source(
         *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
@@ -221,12 +219,16 @@ def extract_plottables_3D(
     z_values = process_z_values(style, source, z)
 
     # Step 5: Handle specialized grid types (healpix, octahedral)
-    mappable = _handle_specialized_grids(subplot, source, z_values, style, method_name, kwargs)
+    mappable = _handle_specialized_grids(
+        subplot, source, z_values, style, method_name, kwargs
+    )
 
     if not mappable:
         # Step 6: Process x, y values and apply sampling
         x_values, y_values = source.x_values, source.y_values
-        x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
+        x_values, y_values, z_values = apply_sampling(
+            x_values, y_values, z_values, every
+        )
 
         # Step 7: Handle no-style case for z values
         if no_style and z_values is None:
@@ -240,7 +242,9 @@ def extract_plottables_3D(
 
         # Step 9: Handle cyclic point wrapping for contour plots
         if method_name.startswith("contour"):
-            x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
+            x_values, y_values, z_values = _handle_cyclic_points(
+                x_values, y_values, z_values
+            )
 
         # Step 10: Handle coordinate transformation settings
         kwargs = _handle_transform_settings(subplot, kwargs)
@@ -248,7 +252,14 @@ def extract_plottables_3D(
         # Step 11: Create the plot with or without interpolation
         if not no_style:
             mappable = plot_with_interpolation(
-                subplot, style, method_name, x_values, y_values, z_values, source.crs, kwargs
+                subplot,
+                style,
+                method_name,
+                x_values,
+                y_values,
+                z_values,
+                source.crs,
+                kwargs,
             )
         else:
             warnings.warn("Style not set - using raw matplotlib method.")
@@ -258,6 +269,7 @@ def extract_plottables_3D(
 
     # Step 12: Store the layer and return the mappable
     from earthkit.plots.core.layers import Layer
+
     subplot.layers.append(Layer(source, mappable, subplot, style))
     return mappable
 
@@ -275,10 +287,10 @@ def extract_plottables_envelope(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
     """
     Extract data for envelope plotting methods (e.g., fill_between).
-    
+
     This function handles data extraction for envelope plots, which typically
     need x, y coordinates and optional z values for operations like fill_between.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -295,12 +307,12 @@ def extract_plottables_envelope(
         Whether to extract data within the subplot's domain boundaries.
     **kwargs
         Additional keyword arguments.
-    
+
     Returns
     -------
     tuple
         A tuple of (x_values, y_values, z_values) where z_values may be None.
-    
+
     Examples
     --------
     >>> x, y, z = extract_plottables_envelope(
@@ -312,7 +324,7 @@ def extract_plottables_envelope(
         source = get_source(data=data, x=x, y=y, z=z, units=source_units)
     else:
         source = get_source(data=data, x=x, y=y, z=z)
-    
+
     kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     # Step 2: Determine z values
@@ -335,9 +347,12 @@ def extract_plottables_envelope(
     # Step 5: Extract data within domain boundaries if requested
     if subplot.domain is not None and extract_domain:
         x_values, y_values, z_values = subplot.domain.extract(
-            x_values, y_values, z_values, source_crs=source.crs,
+            x_values,
+            y_values,
+            z_values,
+            source_crs=source.crs,
         )
-    
+
     return x_values, y_values, z_values
 
 
@@ -356,11 +371,11 @@ def configure_style(
 ) -> Style:
     """
     Configure the plotting style based on method name and data characteristics.
-    
+
     This function determines the appropriate style class and creates a style
     instance with the given parameters. It handles automatic style selection
     and parameter extraction from kwargs.
-    
+
     Parameters
     ----------
     method_name : str
@@ -375,22 +390,22 @@ def configure_style(
         Whether to automatically guess the appropriate style.
     kwargs : dict
         Keyword arguments that may contain style parameters.
-    
+
     Returns
     -------
     Style
         A configured style object.
-    
+
     Examples
     --------
     >>> style = configure_style("contour", None, source, "K", False, {})
     """
     if style is not None:
         return style
-    
+
     # Extract style-specific keyword arguments
     style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-    
+
     # Determine the appropriate style class based on method name
     if method_name.startswith("contour"):
         style_class = Contour
@@ -398,23 +413,25 @@ def configure_style(
         style_class = Quiver
     else:
         style_class = Style
-    
+
     # Create the style instance
     if not auto_style:
         style = style_class(**{**style_kwargs, "units": units})
     else:
         style = auto.guess_style(source, units=units or source.units)
-    
+
     return style
 
 
-def process_z_values(style: Style, source: Any, z: Optional[Union[str, np.ndarray, List[float]]]) -> Optional[np.ndarray]:
+def process_z_values(
+    style: Style, source: Any, z: Optional[Union[str, np.ndarray, List[float]]]
+) -> Optional[np.ndarray]:
     """
     Process z values by converting units and applying scale factors.
-    
+
     This function handles the conversion of z values from source units to
     target units and applies any scale factors defined in the style.
-    
+
     Parameters
     ----------
     style : Style
@@ -423,12 +440,12 @@ def process_z_values(style: Style, source: Any, z: Optional[Union[str, np.ndarra
         The data source object.
     z : str, array-like, or None
         Z values or coordinate name. If None, uses source.z_values.
-    
+
     Returns
     -------
     array-like or None
         Processed z values, or None if no data is available.
-    
+
     Examples
     --------
     >>> z_processed = process_z_values(style, source, None)
@@ -449,10 +466,10 @@ def apply_sampling(
 ) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
     """
     Apply sampling to x, y, and z values if a sampling interval is specified.
-    
+
     This function reduces the resolution of the data by taking every nth element,
     which can improve plotting performance for large datasets.
-    
+
     Parameters
     ----------
     x_values, y_values : array-like
@@ -461,12 +478,12 @@ def apply_sampling(
         Z value array, or None if not applicable.
     every : int or None
         Sampling interval. If None, no sampling is applied.
-    
+
     Returns
     -------
     tuple
         A tuple of (x_values, y_values, z_values) with sampling applied.
-    
+
     Examples
     --------
     >>> x_sampled, y_sampled, z_sampled = apply_sampling(
@@ -475,15 +492,15 @@ def apply_sampling(
     """
     if every is None:
         return x_values, y_values, z_values
-    
+
     # Apply sampling to x and y values
     x_values = x_values[::every]
     y_values = y_values[::every]
-    
+
     # Apply sampling to z values if they exist
     if z_values is not None:
         z_values = z_values[::every, ::every]
-    
+
     return x_values, y_values, z_values
 
 
@@ -502,10 +519,10 @@ def _handle_specialized_grids(
 ) -> Optional[Any]:
     """
     Handle plotting for specialized grid types like healpix and octahedral.
-    
+
     This function checks if the data source has a specialized grid specification
     and delegates plotting to the appropriate handler.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -520,7 +537,7 @@ def _handle_specialized_grids(
         The name of the plotting method.
     kwargs : dict
         Keyword arguments for plotting.
-    
+
     Returns
     -------
     Any or None
@@ -528,21 +545,21 @@ def _handle_specialized_grids(
     """
     if method_name != "pcolormesh":
         return None
-    
+
     gridspec = source.gridspec
     if gridspec is None:
         return None
-    
+
     # Map grid types to their plotting functions
     grid_handlers = {
         "healpix": plot_healpix,
         "reduced_gg": plot_octahedral,
     }
-    
+
     handler = grid_handlers.get(gridspec.name)
     if handler is not None:
         return handler(subplot, source, z_values, style, kwargs)
-    
+
     return None
 
 
@@ -555,10 +572,10 @@ def plot_healpix(
 ) -> Any:
     """
     Handle plotting for HEALPix grid data.
-    
+
     HEALPix (Hierarchical Equal Area isoLatitude Pixelization) grids require
     special handling due to their unique coordinate system and pixel structure.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -571,24 +588,24 @@ def plot_healpix(
         The style object for plotting.
     kwargs : dict
         Keyword arguments for plotting.
-    
+
     Returns
     -------
     Any
         The matplotlib mappable object.
-    
+
     Examples
     --------
     >>> mappable = plot_healpix(subplot, source, z_values, style, {})
-        """
+    """
     from earthkit.plots.grids import healpix
 
     # Determine if the grid uses nested ordering
     nest = source.metadata("orderingConvention", default=None) == "nested"
-    
+
     # Set the coordinate transformation
     kwargs["transform"] = subplot.crs
-    
+
     # Use the HEALPix-specific plotting function
     return healpix.nnshow(z_values, ax=subplot.ax, nest=nest, style=style, **kwargs)
 
@@ -602,10 +619,10 @@ def plot_octahedral(
 ) -> Any:
     """
     Handle plotting for octahedral grid data.
-    
+
     Octahedral grids are used for certain types of global atmospheric models
     and require specialized plotting functions.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -618,12 +635,12 @@ def plot_octahedral(
         The style object for plotting.
     kwargs : dict
         Keyword arguments for plotting.
-    
+
     Returns
     -------
     Any
         The matplotlib mappable object.
-    
+
     Examples
     --------
     >>> mappable = plot_octahedral(subplot, source, z_values, style, {})
@@ -647,72 +664,71 @@ def _handle_cyclic_points(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Handle cyclic point wrapping for contour plots.
-    
+
     This function adds cyclic points to the data to ensure proper wrapping
     around the globe for longitude-based plots.
-    
+
     Parameters
     ----------
     x_values, y_values, z_values : array-like
         The coordinate and value arrays.
-    
+
     Returns
     -------
     tuple
         A tuple of (x_values, y_values, z_values) with cyclic points added.
-    
+
     Examples
     --------
     >>> x_cyclic, y_cyclic, z_cyclic = _handle_cyclic_points(x, y, z)
     """
     if not grids.needs_cyclic_point(x_values):
         return x_values, y_values, z_values
-    
+
     # Handle 2D coordinate arrays
     n_x = None
     if len(x_values.shape) != 1:
         n_x = x_values.shape[0]
         x_values = x_values[0]
-    
+
     # Add cyclic points
     z_values, x_values = add_cyclic_point(z_values, coord=x_values)
-    
+
     # Restore 2D structure if needed
     if n_x:
         x_values = np.tile(x_values, (n_x, 1))
         y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
-    
+
     return x_values, y_values, z_values
 
 
 def _handle_transform_settings(subplot: Any, kwargs: Dict[str, Any]) -> Dict[str, Any]:
     """
     Handle coordinate transformation settings for the plotting method.
-    
+
     This function checks if the subplot's coordinate reference system
     supports transform-first operations and adjusts kwargs accordingly.
-    
+
     Parameters
     ----------
     subplot : Subplot
         The subplot instance.
     kwargs : dict
         Keyword arguments for plotting.
-    
+
     Returns
     -------
     dict
         Modified keyword arguments with appropriate transform settings.
-    
+
     Examples
     --------
     >>> kwargs = _handle_transform_settings(subplot, {"transform_first": True})
     """
     if "transform_first" in kwargs:
-        if (subplot.crs.__class__ in 
-            coordinate_reference_systems.CANNOT_TRANSFORM_FIRST):
+        if subplot.crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
             kwargs["transform_first"] = False
-    
+
     return kwargs
 
 
@@ -728,10 +744,10 @@ def plot_with_interpolation(
 ) -> Any:
     """
     Attempt to plot with or without interpolation as needed.
-    
+
     This function first tries to plot the raw data. If that fails, it
     automatically falls back to interpolation to create a structured grid.
-    
+
     Parameters
     ----------
     subplot : Subplot
@@ -746,12 +762,12 @@ def plot_with_interpolation(
         The coordinate reference system of the source data.
     kwargs : dict
         Keyword arguments for plotting.
-    
+
     Returns
     -------
     Any
         The matplotlib mappable object.
-    
+
     Examples
     --------
     >>> mappable = plot_with_interpolation(
@@ -776,19 +792,21 @@ def plot_with_interpolation(
         interpolate = Interpolate()
     elif isinstance(interpolate, dict):
         interpolate = Interpolate(**interpolate)
-    
+
     # Apply interpolation
     x_values, y_values, z_values = interpolate.apply(
-        x_values, y_values, z_values,
+        x_values,
+        y_values,
+        z_values,
         source_crs=source_crs,
         target_crs=subplot.crs,
     )
-    
+
     # Handle transform settings after interpolation
     _ = kwargs.pop("transform_first", None)
     if interpolate.transform:
         _ = kwargs.pop("transform", None)
-    
+
     # Plot the interpolated data
     return getattr(style, method_name)(
         subplot.ax, x_values, y_values, z_values, **kwargs

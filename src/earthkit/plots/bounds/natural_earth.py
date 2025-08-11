@@ -14,8 +14,9 @@
 
 import cartopy.io.shapereader as shpreader
 
-from .bounds import BoundingBox
 from earthkit.plots.utils import string_utils
+
+from .bounds import BoundingBox
 
 DEFAULT_CAPITAL_CITIES_KWARGS = {
     "marker": "s",

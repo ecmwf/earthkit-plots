@@ -19,12 +19,14 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
-from .bounds import BoundingBox
-from .coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
 from earthkit.plots.identifiers import LATITUDE, LONGITUDE
+
 # Import schema lazily to avoid circular imports
 # from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
+
+from .bounds import BoundingBox
+from .coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
 
 NO_TRANSFORM_FIRST = [
     ccrs.Stereographic,
@@ -393,6 +395,7 @@ class Domain:
 
         # Lazy import to avoid circular dependency
         from earthkit.plots.schemas import schema
+
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
 

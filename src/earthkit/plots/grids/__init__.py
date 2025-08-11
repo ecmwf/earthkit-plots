@@ -23,20 +23,15 @@ This submodule contains classes and functions for handling:
 """
 
 from .grids import (
-    is_structured,
-    is_global,
     _guess_resolution_and_shape,
     interpolate_unstructured,
+    is_global,
+    is_structured,
     needs_cyclic_point,
 )
 from .healpix import nnshow
-from .octahedral import plot_octahedral_grid, calculate_row_heights
-from .utils import (
-    GridSpec,
-    ReducedGG,
-    HEALPix,
-    GRIDSPECS,
-)
+from .octahedral import calculate_row_heights, plot_octahedral_grid
+from .utils import GRIDSPECS, GridSpec, HEALPix, ReducedGG
 
 __all__ = [
     "is_structured",

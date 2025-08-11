@@ -19,16 +19,11 @@ This module provides grid specification and utility functions for working with
 different grid types in earthkit-plots.
 """
 
-from .gridspec import (
-    GridSpec,
-    ReducedGG,
-    HEALPix,
-    GRIDSPECS,
-)
+from .gridspec import GRIDSPECS, GridSpec, HEALPix, ReducedGG
 
 __all__ = [
     "GridSpec",
-    "ReducedGG", 
+    "ReducedGG",
     "HEALPix",
     "GRIDSPECS",
 ]

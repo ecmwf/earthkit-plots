@@ -17,77 +17,14 @@ import os
 
 from matplotlib import font_manager
 
-# Import all modules to make them available for import
 from earthkit.plots import styles
-from earthkit.plots.bounds import (
-    CANNOT_TRANSFORM_FIRST,
-    DEFAULT_CRS,
-    AlbersEqualArea,
-    BoundingBox,
-    CRSOptimiser,
-    Domain,
-    Equatorial,
-    Global,
-    LambertAzimuthalEqualArea,
-    Landscape,
-    LargeEqatorial,
-    NaturalEarthDomain,
-    NorthPolar,
-    NorthPolarStereo,
-    OptimisedCRS,
-    PlateCarree,
-    Portrait,
-    PresetDomain,
-    SouthPolar,
-    SouthPolarStereo,
-    Square,
-    TransverseMercator,
-    dict_to_crs,
-    force_0_to_360,
-    force_minus_180_to_180,
-    format_name,
-    get_resolution,
-    is_cylindrical,
-    is_latlon,
-    parse_crs,
-    roll_from_0_360_to_minus_180_180,
-    roll_from_minus_180_180_to_0_360,
-    string_to_crs,
-    union,
-)
 from earthkit.plots.core.figures import Figure
 from earthkit.plots.core.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.geo.maps import Map
-from earthkit.plots.grids import (
-    GRIDSPECS,
-    GridSpec,
-    HEALPix,
-    ReducedGG,
-    _guess_resolution_and_shape,
-    calculate_row_heights,
-    interpolate_unstructured,
-    is_global,
-    is_structured,
-    needs_cyclic_point,
-    nnshow,
-    plot_octahedral_grid,
-)
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
-
-# Make modules available as attributes
-from . import (
-    ancillary,
-    definitions,
-    geo,
-    identifiers,
-    interactive,
-    metadata,
-    sources,
-    utils,
-)
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -106,62 +43,6 @@ __all__ = [
     "schema",
     "styles",
     "quickplot",
-    "ancillary",
-    "definitions",
-    "geo",
-    "identifiers",
-    "interactive",
-    "metadata",
-    "sources",
-    "utils",
-    # Bounds and coordinate systems
-    "BoundingBox",
-    "DEFAULT_CRS",
-    "CANNOT_TRANSFORM_FIRST",
-    "dict_to_crs",
-    "string_to_crs",
-    "parse_crs",
-    "is_cylindrical",
-    "Domain",
-    "PresetDomain",
-    "force_minus_180_to_180",
-    "roll_from_0_360_to_minus_180_180",
-    "roll_from_minus_180_180_to_0_360",
-    "force_0_to_360",
-    "is_latlon",
-    "format_name",
-    "union",
-    "NaturalEarthDomain",
-    "get_resolution",
-    "OptimisedCRS",
-    "PlateCarree",
-    "LambertAzimuthalEqualArea",
-    "TransverseMercator",
-    "AlbersEqualArea",
-    "NorthPolarStereo",
-    "SouthPolarStereo",
-    "CRSOptimiser",
-    "Global",
-    "Equatorial",
-    "NorthPolar",
-    "SouthPolar",
-    "LargeEqatorial",
-    "Square",
-    "Landscape",
-    "Portrait",
-    # Grids
-    "is_structured",
-    "is_global",
-    "_guess_resolution_and_shape",
-    "interpolate_unstructured",
-    "needs_cyclic_point",
-    "nnshow",
-    "plot_octahedral_grid",
-    "calculate_row_heights",
-    "GridSpec",
-    "ReducedGG",
-    "HEALPix",
-    "GRIDSPECS",
 ]
 
 

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import cartopy.crs as ccrs
+
 # Temporarily commented out to avoid scipy compatibility issue
 import numpy as np
 
@@ -45,7 +46,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     )
     valid = np.all(np.isfinite(latlon), axis=-1)
     points = latlon[valid].T
-    
+
     pix = hp.ang2pix(
         hp.npix2nside(len(var)),
         theta=points[0],
