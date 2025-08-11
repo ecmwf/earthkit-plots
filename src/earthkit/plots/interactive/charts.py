@@ -14,10 +14,14 @@
 
 from plotly.subplots import make_subplots
 
+<<<<<<< Updated upstream
 from typing import Dict, List, Optional, Union
 import xarray as xr
 
 from earthkit.plots.interactive import bar, box, inputs, line, polar, heat
+=======
+from earthkit.plots.interactive import bar, box, inputs, line, polar
+>>>>>>> Stashed changes
 
 DEFAULT_LAYOUT = {
     "colorway": [
