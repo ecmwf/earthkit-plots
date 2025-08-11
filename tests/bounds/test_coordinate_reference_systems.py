@@ -14,7 +14,7 @@
 
 import cartopy.crs as ccrs
 
-from earthkit.plots.geo import coordinate_reference_systems
+from earthkit.plots.bounds import coordinate_reference_systems
 
 
 def test_dict_to_crs():

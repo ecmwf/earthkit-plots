@@ -11,3 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+Grid utilities module.
+
+This module provides grid specification and utility functions for working with
+different grid types in earthkit-plots.
+"""
+
+from .gridspec import (
+    GridSpec,
+    ReducedGG,
+    HEALPix,
+    GRIDSPECS,
+)
+
+__all__ = [
+    "GridSpec",
+    "ReducedGG", 
+    "HEALPix",
+    "GRIDSPECS",
+]

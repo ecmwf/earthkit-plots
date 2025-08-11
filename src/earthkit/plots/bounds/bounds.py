@@ -15,7 +15,7 @@
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.geo import coordinate_reference_systems, optimisers
+from . import coordinate_reference_systems, optimisers
 
 
 class BoundingBox:
@@ -42,7 +42,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         try:
             geometries = list(geometry.geoms)  # get sub-geometries, if present
@@ -75,13 +75,13 @@ class BoundingBox:
 
         Parameters
         ----------
-        bbox : list or earthkit.plots.geo.bounds.BoundingBox
+        bbox : list or BoundingBox
             The bounding box around which to generate a new bounding box. If a
             list, mus
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the source bounding box.  If
             `None` (default), assumes a cylindrical lat-lon CRS, unless the
-            source bounding box is an `earthkit.plots.geo.bounds.BoundingBox`
+            source bounding box is an `BoundingBox`
             with its own CRS.
         target_crs : cartopy.crs.CRS, optional
             The coordinate reference system in which to generate a new bounding
@@ -91,7 +91,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         bounds = list(bbox)
 
@@ -247,7 +247,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         return self.to_bbox(target_crs=ccrs.PlateCarree())
 
@@ -262,7 +262,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.BoundingBox
+        BoundingBox
         """
         return BoundingBox.from_bbox(self, target_crs=target_crs)
 

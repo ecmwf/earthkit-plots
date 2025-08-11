@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from earthkit.plots.geo.grids import interpolate_unstructured, is_structured
+from earthkit.plots.grids import interpolate_unstructured, is_structured
 
 X = np.array([0, 1, 2, 3, 0, 1, 2, 3])
 Y = np.array([0, 0, 1, 1, 2, 2, 3, 3])

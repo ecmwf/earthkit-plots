@@ -15,7 +15,7 @@
 import cartopy.crs as ccrs
 import pytest
 
-from earthkit.plots.geo import optimisers
+from earthkit.plots.bounds import optimisers
 
 
 def test_CRSOptimiser_area_global():

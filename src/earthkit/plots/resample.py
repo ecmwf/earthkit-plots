@@ -16,7 +16,7 @@ import cartopy.crs as ccrs
 import numpy as np
 from scipy.interpolate import griddata
 
-from earthkit.plots.geo import grids
+from earthkit.plots.grids import grids
 
 
 class Resample:

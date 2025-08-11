@@ -15,7 +15,7 @@
 import cartopy.crs as ccrs
 import pytest
 
-from earthkit.plots.geo import bounds
+from earthkit.plots.bounds import bounds
 
 
 def test_BoundingBox():
