@@ -19,11 +19,10 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
+from earthkit.plots.bounds.bbox import BoundingBox
+from earthkit.plots.bounds.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
 from earthkit.plots.identifiers import LATITUDE, LONGITUDE
 from earthkit.plots.utils import string_utils
-
-from .bounds import BoundingBox
-from .coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
 
 NO_TRANSFORM_FIRST = [
     ccrs.Stereographic,
@@ -207,7 +206,7 @@ class Domain:
         crs : cartopy.crs.CRS, optional
             The coordinate reference system to be used.
         """
-        from . import natural_earth
+        from earthkit.plots.bounds import natural_earth
 
         domain_name = format_name(string)
         domain_lookup = load("domains", data_type="geo")
