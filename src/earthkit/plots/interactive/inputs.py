@@ -16,6 +16,7 @@ import warnings
 
 import earthkit.data
 import numpy as np
+import xarray as xr
 
 from earthkit.plots.interactive import times
 
@@ -48,74 +49,59 @@ def to_numpy(data):
     return _earthkitify(data).to_numpy()
 
 
-def sanitise(axes=("x", "y"), multiplot=True):
+# In src/earthkit/plots/interactive/inputs.py
+
+# ... (keep your existing imports and helper functions like to_xarray, etc.) ...
+
+# V-- REPLACE THE ENTIRE sanitise FUNCTION WITH THIS --V
+def sanitise(axes=("x", "y"), is_2d=False): # Add the new is_2d flag
     def decorator(function):
-        def wrapper(
-            data=None,
-            *args,
-            time_frequency=None,
-            time_aggregation="mean",
-            aggregation=None,
-            deaccumulate=False,
-            **kwargs,
-        ):
-            time_axis = kwargs.pop("time_axis", 0)
+        def wrapper(data=None, *args, **kwargs):
             traces = []
             if data is not None:
                 ds = to_xarray(data)
-                time_dim = times.guess_time_dim(ds)
+
+                # --- NEW LOGIC FOR 2D PLOTS ---
+                if is_2d:
+                    # If it's a Dataset with multiple variables, plot each one
+                    if isinstance(ds, xr.Dataset):
+                        for var_name in ds.data_vars:
+                            # Call the decorated function for each DataArray
+                            trace = function(ds[var_name], *args, **kwargs)
+                            traces.append(trace)
+                    # If it's a single DataArray, just plot it
+                    elif isinstance(ds, xr.DataArray):
+                        trace = function(ds, *args, **kwargs)
+                        traces.append(trace)
+                    return traces # Return the list of traces for the Chart class
+
+                # --- EXISTING LOGIC FOR 1D PLOTS ---
+                # (This part remains mostly the same as before)
                 data_vars = list(ds.data_vars)
-                if time_frequency is not None:
-                    if isinstance(time_aggregation, (list, tuple)):
-                        for i, var_name in enumerate(data_vars):
-                            ds[var_name] = getattr(
-                                ds[var_name].resample(**{time_dim: time_frequency}),
-                                time_aggregation[i],
-                            )()
-                    else:
-                        ds = getattr(
-                            ds.resample(**{time_dim: time_frequency}), time_aggregation
-                        )()
-                    time_axis = 1
-                if aggregation is not None:
-                    ds = getattr(ds, aggregation)(dim=times.guess_non_time_dim(ds))
-                    if "name" not in kwargs:
-                        kwargs["name"] = aggregation
-                if deaccumulate:
-                    if isinstance(deaccumulate, str):
-                        ds[deaccumulate] = ds[deaccumulate].diff(dim=time_dim)
-                    else:
-                        ds = ds.diff(dim=time_dim)
                 if len(data_vars) > 1:
-                    repeat_kwargs = {
-                        k: v for k, v in kwargs.items() if k != "time_frequency"
-                    }
-                    repeat_kwargs
+                    # Handle multi-variable datasets by calling recursively
                     return [
-                        wrapper(
-                            ds[data_var], *args, time_axis=time_axis, **repeat_kwargs
-                        )
+                        wrapper(ds[data_var], *args, **kwargs)
                         for data_var in data_vars
                     ]
-                if len(ds.dims) == 2 and multiplot:
+
+                # Logic for slicing 2D data into multiple 1D traces
+                if len(ds.dims) == 2:
                     expand_dim = times.guess_non_time_dim(ds)
                     for i in range(len(ds[expand_dim])):
                         kwargs["name"] = f"{expand_dim}={ds[expand_dim][i].item()}"
                         trace_kwargs = get_xarray_kwargs(
-                            ds.isel(**{expand_dim: i}), axes, kwargs
+                            ds.isel(**{expand_dim: i}), axes, kwargs.copy()
                         )
                         traces.append(function(*args, **trace_kwargs))
                 else:
-                    trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
-                    if not multiplot:
-                        trace_kwargs["time_axis"] = time_axis
+                    # Logic for a single 1D trace
+                    trace_kwargs = get_xarray_kwargs(ds, axes, kwargs.copy())
                     traces.append(function(*args, **trace_kwargs))
             else:
                 traces.append(function(*args, **kwargs))
             return traces
-
         return wrapper
-
     return decorator
 
 

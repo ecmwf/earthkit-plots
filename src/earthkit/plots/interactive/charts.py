@@ -14,7 +14,10 @@
 
 from plotly.subplots import make_subplots
 
-from earthkit.plots.interactive import bar, box, inputs, line
+from typing import Dict, List, Optional, Union
+import xarray as xr
+
+from earthkit.plots.interactive import bar, box, inputs, line, polar, heat
 
 DEFAULT_LAYOUT = {
     "colorway": [
@@ -43,6 +46,19 @@ DEFAULT_LAYOUT = {
         "showgrid": True,
         "showline": True,
         "zeroline": False,
+    },
+    "polar": {
+        # "bgcolor": "white",
+        "radialaxis": {
+             "showline": False,
+        #     "gridcolor": "#E0E0E0",
+        },
+        "angularaxis": {
+            "showline": False,
+            "direction": "clockwise",
+            "rotation": 90,
+            # "gridcolor": "#E0E0E0",
+        },
     },
     "height": 750,
     "showlegend": False,
@@ -247,6 +263,84 @@ class Chart:
                     self.add_trace(sub_trace, row=i + 1, col=1)
             else:
                 self.add_trace(trace)
+
+    @set_subplot_titles
+    def polar(self, *args, **kwargs):
+        """
+        Adds a polar windrose plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.windrose(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
+    @set_subplot_titles
+    def polar_frequency(self, *args, **kwargs):
+        """
+        Adds a polar frequency plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.frequency(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
+
+# In src/earthkit/plots/interactive/charts.py
+
+# ... (inside the Chart class) ...
+
+    # V-- ADD THE NEW, SIMPLE METHOD HERE --V
+    # @set_subplot_titles
+    # def heatmap(self, *args, **kwargs):
+    #     """
+    #     Adds one or more heatmap plots to the chart.
+    #     """
+    #     traces = heat.heatmap(*args, **kwargs)
+
+    #     # The decorator now returns a simple list of traces
+    #     for i, trace in enumerate(traces):
+    #         # This logic correctly handles single or multiple traces for subplots
+    #         self.add_trace(trace, row=i + 1, col=1)
+    # # ^-- END OF NEW METHOD --^
+
+    def heatmap(self, data, **kwargs):
+        """
+        Adds one or more heatmap plots to the chart.
+        Accepts a single xarray.DataArray or an xarray.Dataset.
+        """
+        data = inputs.to_xarray(data) # Standardize the input first
+
+        # If the input is a Dataset, loop through its variables
+        if isinstance(data, xr.Dataset):
+            if self._rows is None and self._columns is None:
+                self._rows = len(data.data_vars)
+                self._columns = 1
+
+            self._subplot_titles = list(data.data_vars)
+
+            for i, var_name in enumerate(data.data_vars):
+                data_array = data[var_name]
+                trace = heat.heatmap(data_array, **kwargs)
+                self.add_trace(trace, row=i + 1, col=1)
+
+        # If the input is a single DataArray
+        elif isinstance(data, xr.DataArray):
+            trace = heat.heatmap(data, **kwargs)
+            self.add_trace(trace)
+
+        else:
+            # Handle cases where the input is not xarray-compatible
+            raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
+    # ^-- END OF CORRECTED METHOD --^
+
 
     def title(self, title):
         """
