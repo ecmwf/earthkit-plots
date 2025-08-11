@@ -14,7 +14,10 @@
 
 from plotly.subplots import make_subplots
 
-from earthkit.plots.interactive import bar, box, inputs, line
+from typing import Dict, List, Optional, Union
+import xarray as xr
+
+from earthkit.plots.interactive import bar, box, inputs, line, polar
 
 DEFAULT_LAYOUT = {
     "colorway": [
@@ -43,6 +46,19 @@ DEFAULT_LAYOUT = {
         "showgrid": True,
         "showline": True,
         "zeroline": False,
+    },
+    "polar": {
+        # "bgcolor": "white",
+        "radialaxis": {
+             "showline": False,
+        #     "gridcolor": "#E0E0E0",
+        },
+        "angularaxis": {
+            "showline": False,
+            "direction": "clockwise",
+            "rotation": 90,
+            # "gridcolor": "#E0E0E0",
+        },
     },
     "height": 750,
     "showlegend": False,
@@ -247,6 +263,35 @@ class Chart:
                     self.add_trace(sub_trace, row=i + 1, col=1)
             else:
                 self.add_trace(trace)
+
+    @set_subplot_titles
+    def polar(self, *args, **kwargs):
+        """
+        Adds a polar windrose plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.windrose(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
+    @set_subplot_titles
+    def polar_frequency(self, *args, **kwargs):
+        """
+        Adds a polar frequency plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.frequency(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
 
     def title(self, title):
         """
