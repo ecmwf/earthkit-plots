@@ -28,7 +28,7 @@ DEFAULT_KWARGS = {
 }
 
 
-@inputs.sanitise()
+@inputs.sanitise(multiplot=False)
 def box(*args, quantiles=DEFAULT_QUANTILES, time_axis=0, **kwargs):
     """
     Generate a set of box plot traces based on the provided data and quantiles.
