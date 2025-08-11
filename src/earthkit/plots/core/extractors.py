@@ -32,7 +32,7 @@ import numpy as np
 from cartopy.util import add_cyclic_point
 
 from earthkit.plots.bounds import coordinate_reference_systems
-from earthkit.plots.grids import grids
+from earthkit.plots.grids.utils import needs_cyclic_point
 from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
@@ -682,7 +682,7 @@ def _handle_cyclic_points(
     --------
     >>> x_cyclic, y_cyclic, z_cyclic = _handle_cyclic_points(x, y, z)
     """
-    if not grids.needs_cyclic_point(x_values):
+    if not needs_cyclic_point(x_values):
         return x_values, y_values, z_values
 
     # Handle 2D coordinate arrays

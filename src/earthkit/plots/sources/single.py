@@ -15,7 +15,7 @@
 import earthkit.data
 import numpy as np
 
-from earthkit.plots.grids.utils import gridspec
+from earthkit.plots.grids import gridspec
 
 _NO_EARTHKIT_REGRID = False
 try:
