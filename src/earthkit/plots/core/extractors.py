@@ -37,10 +37,6 @@ from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
 
-# =============================================================================
-# Main Data Extraction Functions
-# =============================================================================
-
 
 def extract_plottables_2D(
     subplot: Any,
@@ -113,26 +109,109 @@ def extract_plottables_2D(
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
     # Step 3: Process z values (convert units, apply scale factors)
-    z_values = process_z_values(style, source, z)
+    if z is not None or source.z_values is not None:
+        z_values = process_z_values(style, source, z)
+    else:
+        z_values = None
 
-    # Step 4: Apply sampling if specified
-    x_values, y_values = source.x_values, source.y_values
+    # Step 4: Apply unit conversion to x and y values if needed
+    x_values, y_values = _apply_coordinate_unit_conversion(
+        source, units, x, y, method_name
+    )
+
+    # Step 5: Apply sampling if specified
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
-    # Step 5: Handle no-style case for z values
+    # Step 6: Handle no-style case for z values
     if no_style and z_values is None:
         z_values = kwargs.pop("c", None)
 
-    # Step 6: Create the plot using the style object
+    # Step 7: Create the plot using the style object
     mappable = getattr(style, method_name)(
         subplot.ax, x_values, y_values, z_values, **kwargs
     )
 
-    # Step 7: Store the layer and return the mappable
+    # Step 8: Store the layer and return the mappable
     from earthkit.plots.core.layers import Layer
 
     subplot.layers.append(Layer(source, mappable, subplot, style))
     return mappable
+
+
+def _apply_coordinate_unit_conversion(source, units, x, y, method_name):
+    """
+    Apply unit conversion to x and y coordinate values if needed.
+    
+    This function identifies which coordinates contain primary data (not just
+    coordinate dimensions) and applies unit conversion appropriately using
+    the new metadata system.
+    
+    Parameters
+    ----------
+    source : Source
+        The data source object.
+    units : str or None
+        The target units for conversion. If None, no conversion is applied.
+    x, y : str, array-like, or None
+        X and Y coordinate values or names.
+    method_name : str
+        The name of the plotting method being used.
+        
+    Returns
+    -------
+    tuple
+        A tuple of (x_values, y_values) with unit conversion applied if needed.
+    """
+    from earthkit.plots.metadata import units as metadata_units
+    import warnings
+    
+    x_values = source.x_values
+    y_values = source.y_values
+    
+    # Only apply unit conversion if target units are specified
+    if units is None:
+        return x_values, y_values
+    
+    # Use the source's data_dim method to identify which axis contains the data
+    if hasattr(source, 'data_dim'):
+        data_axis = source.data_dim()
+        print(f"Data axis identified: {data_axis}")
+        
+        if data_axis == 'x':
+            # Convert x values if they have units
+            x_meta = source.x_metadata
+            if 'units' in x_meta and x_meta['units'] != units:
+                try:
+                    x_values = metadata_units.convert(x_values, x_meta['units'], units)
+                except Exception as e:
+                    warnings.warn(f"Failed to convert x values: {e}")
+        elif data_axis == 'y':
+            # Convert y values if they have units
+            y_meta = source.y_metadata
+            if 'units' in y_meta and y_meta['units'] != units:
+                try:
+                    y_values = metadata_units.convert(y_values, y_meta['units'], units)
+                except Exception as e:
+                    warnings.warn(f"Failed to convert y values: {e}")
+    else:
+        
+        # Check if x or y values have units that need conversion
+        x_meta = getattr(source, 'x_metadata', {})
+        y_meta = getattr(source, 'y_metadata', {})
+        
+        if 'units' in x_meta and x_meta['units'] != units:
+            try:
+                x_values = metadata_units.convert(x_values, x_meta['units'], units)
+            except Exception as e:
+                warnings.warn(f"Failed to convert x values: {e}")
+        
+        if 'units' in y_meta and y_meta['units'] != units:
+            try:
+                y_values = metadata_units.convert(y_values, y_meta['units'], units)
+            except Exception as e:
+                warnings.warn(f"Failed to convert y values: {e}")
+    
+    return x_values, y_values
 
 
 def extract_plottables_3D(
@@ -225,7 +304,9 @@ def extract_plottables_3D(
 
     if not mappable:
         # Step 6: Process x, y values and apply sampling
-        x_values, y_values = source.x_values, source.y_values
+        x_values, y_values = _apply_coordinate_unit_conversion(
+            source, style.units, x, y, method_name
+        )
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
         )

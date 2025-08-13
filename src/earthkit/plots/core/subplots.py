@@ -248,6 +248,7 @@ class Subplot:
     def quantiles(self, *args, **kwargs):
         pass
 
+    @schema.line.apply()
     @plot_2D()
     def line(self, *args, **kwargs):
         """
@@ -729,6 +730,32 @@ class Subplot:
                     legend = layer.style.legend(layer, location=loc, **kwargs)
                 legends.append(legend)
         return legends
+    
+    def ylabel(self, label=None, **kwargs):
+        """
+        Add a y-axis label to the plot.
+        """
+        if label is None:
+            metadata = self.layers[0].sources[0].y_metadata
+            if metadata is not None and "units" in metadata:
+                label = "{variable_name} ({units})"
+            else:
+                label = "{variable_name}"
+        label = self.format_string(label, axis="y")
+        return self.ax.set_ylabel(label, **kwargs)
+    
+    def xlabel(self, label=None, **kwargs):
+        """
+        Add an x-axis label to the plot.
+        """
+        if label is None:
+            metadata = self.layers[0].sources[0].x_metadata
+            if metadata is not None and "units" in metadata:
+                label = "{variable_name} ({units})"
+            else:
+                label = "{variable_name}"
+        label = self.format_string(label, axis="x")
+        return self.ax.set_xlabel(label, **kwargs)
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
@@ -797,7 +824,7 @@ class Subplot:
         """
         return self.figure.title(*args, **kwargs)
 
-    def format_string(self, string, unique=True, grouped=True):
+    def format_string(self, string, unique=True, grouped=True, axis=None):
         """
         Format a string with metadata from the Subplot.
 
@@ -813,13 +840,16 @@ class Subplot:
             Whether to group metadata values from all Layers into a single
             string. If False, metadata values from each Layer are listed
             separately.
+        axis : str, optional
+            The axis to format. If None, the format string will use the
+            general metadata of the subplot.
         """
         if not grouped:
             return string_utils.list_to_human(
-                [LayerFormatter(layer).format(string) for layer in self.layers]
+                [LayerFormatter(layer, axis=axis).format(string) for layer in self.layers]
             )
         else:
-            return SubplotFormatter(self, unique=unique).format(string)
+            return SubplotFormatter(self, unique=unique, axis=axis).format(string)
 
     def show(self):
         """Display the plot."""
