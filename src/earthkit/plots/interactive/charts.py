@@ -14,9 +14,6 @@
 
 from plotly.subplots import make_subplots
 
-from typing import Dict, List, Optional, Union
-import xarray as xr
-
 from earthkit.plots.interactive import bar, box, inputs, line, polar
 
 DEFAULT_LAYOUT = {
@@ -48,16 +45,13 @@ DEFAULT_LAYOUT = {
         "zeroline": False,
     },
     "polar": {
-        # "bgcolor": "white",
         "radialaxis": {
              "showline": False,
-        #     "gridcolor": "#E0E0E0",
         },
         "angularaxis": {
             "showline": False,
             "direction": "clockwise",
             "rotation": 90,
-            # "gridcolor": "#E0E0E0",
         },
     },
     "height": 750,

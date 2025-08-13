@@ -172,15 +172,6 @@ def windrose(*args, colors=None, **kwargs):
             marker=dict(color='rgba(100, 100, 100, 0.7)', size=5)))
     return traces
 
-
-# --- Frequency Windrose Function ---
-# In src/earthkit/plots/interactive/polar.py
-
-# ... (all your existing code for windrose, etc., stays here) ...
-
-
-# --- New Polar Frequency Function (Corrected) ---
-
 @inputs.sanitise(axes=("r", "theta"))
 def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
     """
@@ -188,15 +179,13 @@ def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
     """
     r_data = kwargs.get("r")
     theta_data = kwargs.get("theta")
-
-    # 1. Create a DataFrame for easy processing
     df = pd.DataFrame({'r': r_data, 'theta': theta_data}).dropna()
 
-    # 2. Bin the angular data (directions)
+    # Angular data
     sector_width = 360.0 / n_angular_sectors
     df['theta_bin'] = ((df['theta'] + sector_width / 2.0) // sector_width * sector_width) % 360
 
-    # 3. Bin the radial data (speed)
+    # Radial data
     if radial_bins is None:
         min_val, max_val = df['r'].min(), df['r'].max()
         radial_bins = np.linspace(min_val, max_val, 6).tolist()
@@ -211,10 +200,9 @@ def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
         include_lowest=True
     )
 
-    # 4. Calculate the frequency for each combined bin
+    # Frequency
     freq_df = df.groupby(['theta_bin', 'r_bin'], observed=False).size().reset_index(name='frequency')
 
-    # 5. Create a Barpolar trace for each radial bin
     traces = []
     for r_label in radial_labels:
         subset = freq_df[freq_df['r_bin'] == r_label]
