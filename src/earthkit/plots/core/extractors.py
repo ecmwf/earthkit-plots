@@ -141,11 +141,11 @@ def extract_plottables_2D(
 def _apply_coordinate_unit_conversion(source, units, x, y, method_name):
     """
     Apply unit conversion to x and y coordinate values if needed.
-    
+
     This function identifies which coordinates contain primary data (not just
     coordinate dimensions) and applies unit conversion appropriately using
     the new metadata system.
-    
+
     Parameters
     ----------
     source : Source
@@ -156,61 +156,62 @@ def _apply_coordinate_unit_conversion(source, units, x, y, method_name):
         X and Y coordinate values or names.
     method_name : str
         The name of the plotting method being used.
-        
+
     Returns
     -------
     tuple
         A tuple of (x_values, y_values) with unit conversion applied if needed.
     """
-    from earthkit.plots.metadata import units as metadata_units
     import warnings
-    
+
+    from earthkit.plots.metadata import units as metadata_units
+
     x_values = source.x_values
     y_values = source.y_values
-    
+
     # Only apply unit conversion if target units are specified
     if units is None:
         return x_values, y_values
-    
+
     # Use the source's data_dim method to identify which axis contains the data
-    if hasattr(source, 'data_dim'):
+    if hasattr(source, "data_dim"):
         data_axis = source.data_dim()
         print(f"Data axis identified: {data_axis}")
-        
-        if data_axis == 'x':
+
+        if data_axis == "x":
             # Convert x values if they have units
             x_meta = source.x_metadata
-            if 'units' in x_meta and x_meta['units'] != units:
+            if "units" in x_meta and x_meta["units"] != units:
                 try:
-                    x_values = metadata_units.convert(x_values, x_meta['units'], units)
+                    x_values = metadata_units.convert(x_values, x_meta["units"], units)
                 except Exception as e:
                     warnings.warn(f"Failed to convert x values: {e}")
-        elif data_axis == 'y':
+        elif data_axis == "y":
             # Convert y values if they have units
             y_meta = source.y_metadata
-            if 'units' in y_meta and y_meta['units'] != units:
+            if "units" in y_meta and y_meta["units"] != units:
                 try:
-                    y_values = metadata_units.convert(y_values, y_meta['units'], units)
+                    y_values = metadata_units.convert(y_values, y_meta["units"], units)
                 except Exception as e:
                     warnings.warn(f"Failed to convert y values: {e}")
     else:
-        
+
         # Check if x or y values have units that need conversion
-        x_meta = getattr(source, 'x_metadata', {})
-        y_meta = getattr(source, 'y_metadata', {})
-        
-        if 'units' in x_meta and x_meta['units'] != units:
+        x_meta = getattr(source, "x_metadata", {})
+        y_meta = getattr(source, "y_metadata", {})
+
+        if "units" in x_meta and x_meta["units"] != units:
             try:
-                x_values = metadata_units.convert(x_values, x_meta['units'], units)
+                x_values = metadata_units.convert(x_values, x_meta["units"], units)
             except Exception as e:
                 warnings.warn(f"Failed to convert x values: {e}")
-        
-        if 'units' in y_meta and y_meta['units'] != units:
+
+        if "units" in y_meta and y_meta["units"] != units:
             try:
-                y_values = metadata_units.convert(y_values, y_meta['units'], units)
+                y_values = metadata_units.convert(y_values, y_meta["units"], units)
             except Exception as e:
                 warnings.warn(f"Failed to convert y values: {e}")
-    
+
     return x_values, y_values
 
 

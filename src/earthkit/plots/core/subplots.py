@@ -730,7 +730,7 @@ class Subplot:
                     legend = layer.style.legend(layer, location=loc, **kwargs)
                 legends.append(legend)
         return legends
-    
+
     def ylabel(self, label=None, **kwargs):
         """
         Add a y-axis label to the plot.
@@ -743,7 +743,7 @@ class Subplot:
                 label = "{variable_name}"
         label = self.format_string(label, axis="y")
         return self.ax.set_ylabel(label, **kwargs)
-    
+
     def xlabel(self, label=None, **kwargs):
         """
         Add an x-axis label to the plot.
@@ -846,7 +846,10 @@ class Subplot:
         """
         if not grouped:
             return string_utils.list_to_human(
-                [LayerFormatter(layer, axis=axis).format(string) for layer in self.layers]
+                [
+                    LayerFormatter(layer, axis=axis).format(string)
+                    for layer in self.layers
+                ]
             )
         else:
             return SubplotFormatter(self, unique=unique, axis=axis).format(string)

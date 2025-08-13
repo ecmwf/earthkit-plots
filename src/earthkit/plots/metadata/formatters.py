@@ -136,7 +136,7 @@ class BaseFormatter(Formatter):
             return metadata.units.format_units(
                 value.replace("__units__", ""), format_spec
             )
-        
+
         # Handle coordinate format specifiers
         if format_spec == "%Lt":
             # Format as latitude with degree symbol and N/S direction
@@ -144,9 +144,9 @@ class BaseFormatter(Formatter):
         elif format_spec == "%Ln":
             # Format as longitude with degree symbol and E/W direction
             return self._format_longitude(value)
-        
+
         return super().format_field(value, format_spec)
-    
+
     def _format_latitude(self, value):
         """Format a latitude value with degree symbol and N/S direction."""
         try:
@@ -156,7 +156,7 @@ class BaseFormatter(Formatter):
             return f"{abs_lat:.2f}°{direction}"
         except (ValueError, TypeError):
             return str(value)
-    
+
     def _format_longitude(self, value):
         """Format a longitude value with degree symbol and E/W direction."""
         try:
@@ -212,10 +212,10 @@ class LayerFormatter(BaseFormatter):
                 # Only apply style units to the axis that contains the main data
                 # For time series: y-axis (data) should get style units, x-axis (time) should not
                 # For maps: z-axis (data) should get style units, x/y axes (coordinates) should not
-                if self._axis in ['x', 'y']:
+                if self._axis in ["x", "y"]:
                     # For x and y axes, check if this axis contains the main data
                     # If it's a coordinate axis (like time, longitude), don't apply style units
-                    if self._axis == 'x':
+                    if self._axis == "x":
                         # X-axis typically contains coordinates (time, longitude, etc.)
                         # Only apply style units if this is explicitly a data axis
                         value = [
@@ -228,14 +228,19 @@ class LayerFormatter(BaseFormatter):
                             )
                             for source in self.layer.sources
                         ]
-                    elif self._axis == 'y':
+                    elif self._axis == "y":
                         # Y-axis typically contains the main data values
                         # Apply style units if available, otherwise fall back to source metadata
                         if value is not None:
                             if isinstance(value, list):
-                                value = [f"__units__{v}" if v is not None else "" for v in value]
+                                value = [
+                                    f"__units__{v}" if v is not None else ""
+                                    for v in value
+                                ]
                             else:
-                                value = [f"__units__{value}" if value is not None else ""]
+                                value = [
+                                    f"__units__{value}" if value is not None else ""
+                                ]
                         else:
                             value = [
                                 metadata.labels.extract(
@@ -250,7 +255,9 @@ class LayerFormatter(BaseFormatter):
                 else:
                     # For other axes (like z), apply style units as before
                     if isinstance(value, list):
-                        value = [f"__units__{v}" if v is not None else "" for v in value]
+                        value = [
+                            f"__units__{v}" if v is not None else "" for v in value
+                        ]
                     else:
                         value = [f"__units__{value}" if value is not None else ""]
         else:
@@ -308,7 +315,8 @@ class SubplotFormatter(BaseFormatter):
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
             values = [
-                LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers
+                LayerFormatter(layer, axis=self._axis).format_key(key)
+                for layer in self.subplot.layers
             ]
         return values
 

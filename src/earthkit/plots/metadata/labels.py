@@ -106,8 +106,10 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
     else:
         if axis is not None:
             metadata = getattr(data, f"{axis}_metadata")
+
             def search(x, default):
                 return metadata.get(x, default)
+
         elif hasattr(data, "metadata"):
             search = data.metadata
         else:
