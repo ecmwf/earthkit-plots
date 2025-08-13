@@ -20,9 +20,6 @@ import xarray as xr
 
 from earthkit.plots.interactive import times
 
-# from earthkit.plots.schemas import schema
-
-
 AXES = ["x", "y"]
 
 
@@ -47,11 +44,6 @@ def to_pandas(data):
 
 def to_numpy(data):
     return _earthkitify(data).to_numpy()
-
-
-# In src/earthkit/plots/interactive/inputs.py
-
-# ... (keep your existing imports and helper functions like to_xarray, etc.) ...
 
 def sanitise(axes=("x", "y"), multiplot=True):
     def decorator(function):

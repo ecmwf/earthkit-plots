@@ -254,7 +254,7 @@ class Chart:
         Adds one or more heatmap plots to the chart.
         Accepts a single xarray.DataArray or an xarray.Dataset.
         """
-        data = inputs.to_xarray(data) # Standardize the input first
+        data = inputs.to_xarray(data)
 
         # If the input is a Dataset, loop through its variables
         if isinstance(data, xr.Dataset):
