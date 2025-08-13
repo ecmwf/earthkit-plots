@@ -81,7 +81,7 @@ def default_label(data):
     return format_string
 
 
-def extract(data, attr, default=None, issue_warnings=True):
+def extract(data, attr, default=None, issue_warnings=True, axis=None):
     """
     Extract an attribute from a data object.
 
@@ -93,6 +93,9 @@ def extract(data, attr, default=None, issue_warnings=True):
         The attribute to extract.
     default : str, optional
         The default label to use if the attribute is not found.
+    axis : str, optional
+        The axis to extract the label from. If None, the label will be extracted
+        from the general metadata of the data.
     """
     if attr in TIME_KEYS:
         handler = TimeFormatter(data.datetime())
@@ -101,7 +104,11 @@ def extract(data, attr, default=None, issue_warnings=True):
             label = label[0]
 
     else:
-        if hasattr(data, "metadata"):
+        if axis is not None:
+            metadata = getattr(data, f"{axis}_metadata")
+            def search(x, default):
+                return metadata.get(x, default)
+        elif hasattr(data, "metadata"):
             search = data.metadata
         else:
             data_key = [

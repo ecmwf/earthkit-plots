@@ -38,7 +38,17 @@ SPECIAL_METHODS = {
 
 class BaseFormatter(Formatter):
     """
-    Formatter of earthkit-plots components, enabling convient titles and labels.
+    Base formatter class for earthkit-plots metadata.
+
+    This class provides basic formatting capabilities for metadata values,
+    including support for coordinate formatting with degree symbols and directions.
+
+    Format Specifiers:
+    - %Lt: Format as latitude with degree symbol and N/S direction
+           Example: 45.0 -> "45.00°N", -30.5 -> "30.50°S"
+    - %Ln: Format as longitude with degree symbol and E/W direction
+           Example: 15.2 -> "15.20°E", -45.8 -> "45.80°W"
+    - __units__: Format units using the metadata.units module
     """
 
     #: Attributes of subplots which can be extracted by format strings
@@ -126,7 +136,36 @@ class BaseFormatter(Formatter):
             return metadata.units.format_units(
                 value.replace("__units__", ""), format_spec
             )
+        
+        # Handle coordinate format specifiers
+        if format_spec == "%Lt":
+            # Format as latitude with degree symbol and N/S direction
+            return self._format_latitude(value)
+        elif format_spec == "%Ln":
+            # Format as longitude with degree symbol and E/W direction
+            return self._format_longitude(value)
+        
         return super().format_field(value, format_spec)
+    
+    def _format_latitude(self, value):
+        """Format a latitude value with degree symbol and N/S direction."""
+        try:
+            lat = float(value)
+            direction = "N" if lat >= 0 else "S" if lat < 0 else ""
+            abs_lat = abs(lat)
+            return f"{abs_lat:.2f}°{direction}"
+        except (ValueError, TypeError):
+            return str(value)
+    
+    def _format_longitude(self, value):
+        """Format a longitude value with degree symbol and E/W direction."""
+        try:
+            lon = float(value)
+            direction = "E" if lon >= 0 else "W"
+            abs_lon = abs(lon)
+            return f"{abs_lon:.2f}°{direction}"
+        except (ValueError, TypeError):
+            return str(value)
 
 
 class SourceFormatter(BaseFormatter):
@@ -134,11 +173,12 @@ class SourceFormatter(BaseFormatter):
     Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
-    def __init__(self, source):
+    def __init__(self, source, axis=None):
         self.source = source
+        self._axis = axis
 
     def format_key(self, key):
-        return [metadata.labels.extract(self.source, key)[0]]
+        return [metadata.labels.extract(self.source, key, axis=self._axis)[0]]
 
 
 class LayerFormatter(BaseFormatter):
@@ -146,10 +186,11 @@ class LayerFormatter(BaseFormatter):
     Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
-    def __init__(self, layer, default=None, issue_warnings=True):
+    def __init__(self, layer, default=None, issue_warnings=True, axis=None):
         self.layer = layer
         self._default = default
         self._issue_warnings = issue_warnings
+        self._axis = axis
 
     def format_key(self, key):
         if key in self.SUBPLOT_ATTRIBUTES:
@@ -163,14 +204,55 @@ class LayerFormatter(BaseFormatter):
                         key,
                         default=self._default,
                         issue_warnings=self._issue_warnings,
+                        axis=self._axis,
                     )
                     for source in self.layer.sources
                 ]
             if key == "units":
-                if isinstance(value, list):
-                    value = [f"__units__{v}" if v is not None else "" for v in value]
+                # Only apply style units to the axis that contains the main data
+                # For time series: y-axis (data) should get style units, x-axis (time) should not
+                # For maps: z-axis (data) should get style units, x/y axes (coordinates) should not
+                if self._axis in ['x', 'y']:
+                    # For x and y axes, check if this axis contains the main data
+                    # If it's a coordinate axis (like time, longitude), don't apply style units
+                    if self._axis == 'x':
+                        # X-axis typically contains coordinates (time, longitude, etc.)
+                        # Only apply style units if this is explicitly a data axis
+                        value = [
+                            metadata.labels.extract(
+                                source,
+                                key,
+                                default=self._default,
+                                issue_warnings=self._issue_warnings,
+                                axis=self._axis,
+                            )
+                            for source in self.layer.sources
+                        ]
+                    elif self._axis == 'y':
+                        # Y-axis typically contains the main data values
+                        # Apply style units if available, otherwise fall back to source metadata
+                        if value is not None:
+                            if isinstance(value, list):
+                                value = [f"__units__{v}" if v is not None else "" for v in value]
+                            else:
+                                value = [f"__units__{value}" if value is not None else ""]
+                        else:
+                            value = [
+                                metadata.labels.extract(
+                                    source,
+                                    key,
+                                    default=self._default,
+                                    issue_warnings=self._issue_warnings,
+                                    axis=self._axis,
+                                )
+                                for source in self.layer.sources
+                            ]
                 else:
-                    value = [f"__units__{value}" if value is not None else ""]
+                    # For other axes (like z), apply style units as before
+                    if isinstance(value, list):
+                        value = [f"__units__{v}" if v is not None else "" for v in value]
+                    else:
+                        value = [f"__units__{value}" if value is not None else ""]
         else:
             value = [
                 metadata.labels.extract(
@@ -178,6 +260,7 @@ class LayerFormatter(BaseFormatter):
                     key,
                     default=self._default,
                     issue_warnings=self._issue_warnings,
+                    axis=self._axis,
                 )
                 for source in self.layer.sources
             ]
@@ -198,10 +281,11 @@ class SubplotFormatter(BaseFormatter):
     Formatter of earthkit-plots `Subplots`, enabling convient titles and labels.
     """
 
-    def __init__(self, subplot, unique=True):
+    def __init__(self, subplot, unique=True, axis=None):
         self.subplot = subplot
         self.unique = unique
         self._layer_index = None
+        self._axis = axis
 
     def convert_field(self, value, conversion):
         f = super().convert_field
@@ -224,7 +308,7 @@ class SubplotFormatter(BaseFormatter):
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
             values = [
-                LayerFormatter(layer).format_key(key) for layer in self.subplot.layers
+                LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers
             ]
         return values
 
