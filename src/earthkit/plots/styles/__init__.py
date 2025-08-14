@@ -800,7 +800,7 @@ class Style:
 
     def bar(self, ax, x, y, values, *args, mode="linear", **kwargs):
         """
-        Plot a scatter plot using this `Style`.
+        Plot a bar chart using this `Style`.
 
         Parameters
         ----------
@@ -813,9 +813,36 @@ class Style:
         values : numpy.ndarray
             The values of the data to be plotted.
         **kwargs
-            Any additional arguments accepted by `matplotlib.axes.Axes.scatter`.
+            Any additional arguments accepted by `matplotlib.axes.Axes.bar`.
         """
         kwargs.pop("transform_first", None)
+
+        # Calculate bar widths based on spacing between x-values
+        if len(x) > 1:
+            # Calculate the spacing between consecutive x-values
+            x_diffs = np.diff(x)
+
+            # For the first and last bars, use the same spacing as their neighbors
+            if len(x_diffs) > 0:
+                first_width = x_diffs[0]
+                last_width = x_diffs[-1]
+
+                # Create widths array with appropriate spacing
+                widths = np.concatenate([[first_width], x_diffs, [last_width]])
+
+                # Use the minimum width to ensure bars don't overlap
+                min_width = (
+                    np.min(widths) * 0.8
+                )  # 80% of minimum spacing to prevent overlap
+
+                # Set the width parameter for matplotlib.bar
+                kwargs["width"] = min_width
+            else:
+                # Single bar case
+                kwargs["width"] = 1.0
+        else:
+            # Single value case
+            kwargs["width"] = 1.0
 
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
@@ -823,6 +850,107 @@ class Style:
             kwargs["c"] = kwargs.pop("c", values)
 
         mappable = ax.bar(x, y, *args, **kwargs)
+
+        return mappable
+
+    def stripes(self, ax, x, y, values, *args, cmap="RdBu_r", center=0, **kwargs):
+        """
+        Plot climate stripes using this `Style`.
+
+        Climate stripes are horizontal bars where each bar represents a time period
+        and the color represents the value, creating a visually striking representation
+        of long-term trends. Each stripe is centered on its x-value, making it
+        compatible with other plot types. Stripes extend infinitely in the y-direction
+        to cover whatever y-range other plot elements use.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted (typically time).
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The values of the data to be plotted.
+        cmap : str, optional
+            Colormap to use for the stripes. Default is 'RdBu_r'.
+        center : float, optional
+            Value to center the colormap on. Default is 0.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.imshow`.
+        """
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import Normalize, TwoSlopeNorm
+
+        kwargs.pop("transform_first", None)
+
+        # Prepare data for stripes
+        if values is not None:
+            stripe_values = values
+        else:
+            # Use y values if no values provided
+            stripe_values = y
+
+        # Ensure we have 1D data
+        if stripe_values.ndim > 1:
+            # If 2D, take the first row or flatten
+            if stripe_values.shape[0] == 1:
+                stripe_values = stripe_values.flatten()
+            else:
+                # Multiple rows - create multiple stripe layers
+                stripe_values = stripe_values[0]  # Take first row for now
+
+        # Set up colormap and normalization
+        if cmap != "RdBu_r" or center != 0:
+            # Override style colormap if custom parameters provided
+            if center != 0:
+                # Center the colormap on the specified value
+                vmin = np.min(stripe_values)
+                vmax = np.max(stripe_values)
+                vrange = max(abs(vmax - center), abs(center - vmin))
+                norm = TwoSlopeNorm(
+                    vmin=center - vrange, vcenter=center, vmax=center + vrange
+                )
+            else:
+                norm = Normalize(vmin=np.min(stripe_values), vmax=np.max(stripe_values))
+
+            # Use custom colormap
+            cmap_obj = plt.get_cmap(cmap)
+        else:
+            # Use style's default colormap and normalization
+            mpl_kwargs = self.to_matplotlib_kwargs(y)
+            cmap_obj = mpl_kwargs.get("cmap", plt.get_cmap(cmap))
+            norm = mpl_kwargs.get("norm", None)
+            if norm is None:
+                norm = Normalize(vmin=np.min(stripe_values), vmax=np.max(stripe_values))
+
+        # Create a single row of data for the stripes
+        # This ensures the stripes span the full width
+        stripe_data = stripe_values.reshape(1, -1)
+
+        # Set default kwargs for infinite y-coverage
+        default_kwargs = {
+            "aspect": "auto",  # Let matplotlib handle aspect ratio
+            "extent": [x[0], x[-1], -1e6, 1e6],  # Enormous y-extent to cover any range
+            "origin": "lower",
+            "zorder": -1,  # Draw behind other elements
+            "alpha": 0.8,  # Slightly transparent
+        }
+        # Update with user kwargs, but ensure our defaults take precedence
+        default_kwargs.update(kwargs)
+
+        # Plot the stripes using imshow
+        mappable = ax.imshow(stripe_data, cmap=cmap_obj, norm=norm, **default_kwargs)
+
+        # Hide y-axis ticks and labels for clean appearance
+        ax.set_yticks([])
+        ax.set_ylabel("")
+
+        # CRITICAL: Don't set any axis limits here
+        # Let the other plot elements determine the y-axis range
+        # The stripes will automatically scale to fill whatever y-range is set
+        # The enormous y-extent ensures they cover any possible range
 
         return mappable
 

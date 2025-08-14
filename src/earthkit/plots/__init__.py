@@ -24,7 +24,9 @@ from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.geo.maps import Map
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
+from earthkit.plots.shortcuts import stripes, timeseries
 from earthkit.plots.styles import Style
+from earthkit.plots.temporal import TimeSeries
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -43,6 +45,9 @@ __all__ = [
     "schema",
     "styles",
     "quickplot",
+    "TimeSeries",
+    "timeseries",
+    "stripes",
 ]
 
 

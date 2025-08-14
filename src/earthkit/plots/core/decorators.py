@@ -75,7 +75,7 @@ def plot_2D(method_name=None):
             **kwargs,
         ):
             """Wrapper for 2D plotting methods."""
-            return extract_plottables_2D(
+            result = extract_plottables_2D(
                 self,
                 method_name or method.__name__,
                 args=args,
@@ -86,6 +86,9 @@ def plot_2D(method_name=None):
                 every=every,
                 **kwargs,
             )
+
+            self._cleanup(method_name=method_name or method.__name__)
+            return result
 
         return wrapper
 

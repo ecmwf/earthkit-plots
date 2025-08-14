@@ -87,6 +87,48 @@ TIME = [
     "year",
 ]
 
+# Dimensions that are typically NOT primary data (coordinates, metadata, etc.)
+COORDINATE_DIMS = [
+    "x",
+    "y",
+    "z",
+    "X",
+    "Y",
+    "Z",
+    "longitude",
+    "long",
+    "lon",
+    "latitude",
+    "lat",
+    "time",
+    "valid_time",
+    "t",
+    "date",
+    "dayofyear",
+    "month",
+    "year",
+    "level",
+    "height",
+    "depth",
+    "pressure",
+    "altitude",
+    "ensemble",
+    "member",
+    "realization",
+    "forecast_time",
+    "forecast_period",
+    "lead_time",
+    "step",
+    "step_type",
+    "step_units",
+    "grid_type",
+    "grid_name",
+    "projection_x_coordinate",
+    "projection_y_coordinate",
+    "xc",
+    "yc",
+]
+
 VARIABLE_NAME_PREFERENCE = [
     "long_name",
     "standard_name",
@@ -135,6 +177,74 @@ def find_longitude(array):
 
 def find_time(array):
     return find(array, TIME)
+
+
+def identify_primary(data, exclude_dims=None):
+    """
+    Identify which dimension/variable is the primary data (not coordinates or metadata).
+
+    This function is useful for determining which dimension should be used for unit
+    conversion, statistical operations, or other data processing tasks.
+
+    Parameters
+    ----------
+    data : xarray.DataArray, xarray.Dataset, or list
+        The data to analyze. Can be a DataArray, Dataset, or list of dimension names.
+    exclude_dims : list, optional
+        Additional dimensions to exclude from consideration as primary data.
+        Defaults to COORDINATE_DIMS.
+
+    Returns
+    -------
+    str or None
+        The name of the primary dimension/variable, or None if not found.
+    """
+    if exclude_dims is None:
+        exclude_dims = COORDINATE_DIMS
+
+    # Handle different input types
+    if hasattr(data, "dims"):
+        # xarray DataArray or Dataset
+        dims = list(data.dims)
+    elif hasattr(data, "coords"):
+        # xarray object with coords
+        dims = list(data.coords.keys())
+    elif isinstance(data, (list, tuple)):
+        # List of dimension names
+        dims = list(data)
+    else:
+        return None
+
+    # Filter out coordinate/metadata dimensions
+    primary_dims = [dim for dim in dims if dim not in exclude_dims]
+
+    if not primary_dims:
+        return None
+
+    # If multiple primary dimensions, try to identify the most likely one
+    if len(primary_dims) == 1:
+        return primary_dims[0]
+
+    # For multiple primary dimensions, use heuristics to choose the best one
+    # Priority: data variables > non-coordinate dimensions > first available
+
+    # Check if any are data variables (for xarray objects)
+    if hasattr(data, "data_vars"):
+        data_vars = list(data.data_vars.keys())
+        for dim in primary_dims:
+            if dim in data_vars:
+                return dim
+
+    # Check if any have non-numeric names (likely data, not coordinates)
+    for dim in primary_dims:
+        if not any(
+            coord_name in dim.lower()
+            for coord_name in ["x", "y", "z", "time", "lat", "lon"]
+        ):
+            return dim
+
+    # Default to first available
+    return primary_dims[0]
 
 
 def is_regular_latlon(data):
