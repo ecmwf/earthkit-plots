@@ -44,7 +44,7 @@ ts.show()
 All plotting methods support the `@plot_temporal()` decorator for automatic time handling:
 
 - `line()`: Line plots
-- `bar()`: Bar charts  
+- `bar()`: Bar charts
 - `scatter()`: Scatter plots
 
 #### Time Axis Configuration
@@ -110,9 +110,9 @@ ts.line(values, x=dates, y=values)
 The `@plot_temporal()` decorator automatically:
 
 1. Detects time dimensions in your data
-2. Configures appropriate time axis formatting
-3. Sets up major and minor tick marks
-4. Applies time-specific styling
+1. Configures appropriate time axis formatting
+1. Sets up major and minor tick marks
+1. Applies time-specific styling
 
 ### Manual Configuration
 
@@ -136,7 +136,7 @@ ts = ekp.temporal.TimeSeries(
 ### Frequency Options
 
 - `'D'`: Daily
-- `'W'`: Weekly  
+- `'W'`: Weekly
 - `'M'`: Monthly
 - `'Q'`: Quarterly
 - `'Y'`: Yearly
@@ -228,9 +228,9 @@ Planned features for the temporal submodule:
 The temporal submodule is designed to be extensible. To add new temporal plot types:
 
 1. Inherit from `TimeSeries` or create new classes
-2. Use the `@plot_temporal()` decorator for time-aware methods
-3. Implement appropriate time axis configuration
-4. Add comprehensive documentation and examples
+1. Use the `@plot_temporal()` decorator for time-aware methods
+1. Implement appropriate time axis configuration
+1. Add comprehensive documentation and examples
 
 ## Dependencies
 

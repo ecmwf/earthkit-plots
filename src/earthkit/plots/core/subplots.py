@@ -14,7 +14,6 @@
 
 import warnings
 
-import matplotlib.dates as mdates
 import numpy as np
 
 from earthkit.plots.core.decorators import plot_2D, plot_3D, plot_vector
@@ -29,9 +28,6 @@ from earthkit.plots.sources import get_source
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import auto
 from earthkit.plots.utils import string_utils
-
-DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
-ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
 TARGET_DENSITY = 40
 
@@ -107,91 +103,6 @@ class Subplot:
         """
         self.figure.add_logo(logo)
 
-    def set_major_xticks(
-        self,
-        frequency=None,
-        format=None,
-        highlight=None,
-        highlight_color="red",
-        **kwargs,
-    ):
-        formats = DEFAULT_FORMATS
-        if frequency is None:
-            locator = mdates.AutoDateLocator(maxticks=30)
-        else:
-            if frequency.startswith("D"):
-                interval = frequency.lstrip("D") or 1
-                if interval is not None:
-                    interval = int(interval)
-                locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif frequency.startswith("M"):
-                interval = int(frequency.lstrip("M") or "1")
-                locator = mdates.MonthLocator(interval=interval, bymonthday=15)
-            elif frequency.startswith("Y"):
-                interval = int(frequency.lstrip("Y") or "1")
-                locator = mdates.YearLocator(interval, month=6, day=1)
-            elif frequency.startswith("H"):
-                interval = int(frequency.lstrip("H") or "1")
-                locator = mdates.HourLocator(interval=interval)
-
-        if format:
-            formats = [format] * 6
-
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
-        self.ax.xaxis.set_major_locator(locator)
-        self.ax.xaxis.set_major_formatter(formatter)
-
-        if highlight is not None:
-            dates = [mdates.num2date(i) for i in self.ax.get_xticks()]
-            for i, date in enumerate(dates):
-                highlight_this = False
-                for key, value in highlight.items():
-                    attr = getattr(date, key)
-                    attr = attr if not callable(attr) else attr()
-                    if isinstance(value, list):
-                        if attr in value:
-                            highlight_this = True
-                    else:
-                        if attr == value:
-                            highlight_this = True
-                if highlight_this:
-                    self.ax.get_xticklabels()[i].set_color(highlight_color)
-
-    def set_minor_xticks(
-        self,
-        frequency=None,
-        format=None,
-        **kwargs,
-    ):
-        formats = DEFAULT_FORMATS
-        if frequency is None:
-            locator = mdates.AutoDateLocator(maxticks=30)
-        else:
-            if frequency.startswith("D"):
-                interval = frequency.lstrip("D") or 1
-                if interval is not None:
-                    interval = int(interval)
-                locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif frequency.startswith("M"):
-                interval = int(frequency.lstrip("M") or "1")
-                locator = mdates.MonthLocator(interval=interval, bymonthday=15)
-            elif frequency.startswith("Y"):
-                locator = mdates.YearLocator()
-            elif frequency.startswith("H"):
-                interval = int(frequency.lstrip("H") or "1")
-                locator = mdates.HourLocator(interval=interval)
-
-        if format:
-            formats = [format] * 6
-
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
-        self.ax.xaxis.set_minor_locator(locator)
-        self.ax.xaxis.set_minor_formatter(formatter)
-
     def xticks(
         self,
         frequency=None,
@@ -228,135 +139,18 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to the tick locators.
         """
-        import matplotlib.ticker as ticker
+        from .ticks import set_xticks
 
-        # Set major ticks
-        if frequency is None:
-            locator = mdates.AutoDateLocator(maxticks=30)
-        else:
-            if frequency.startswith("D"):
-                interval = int(frequency.lstrip("D") or "1")
-                locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif frequency.startswith("M"):
-                interval = int(frequency.lstrip("M") or "1")
-                locator = mdates.MonthLocator(interval=interval, bymonthday=1)
-            elif frequency.startswith("Y"):
-                interval = int(frequency.lstrip("Y") or "1")
-                locator = mdates.YearLocator(interval, month=1, day=1)
-            elif frequency.startswith("H"):
-                interval = int(frequency.lstrip("H") or "1")
-                locator = mdates.HourLocator(interval=interval)
-            else:
-                # Fallback to auto locator
-                locator = mdates.AutoDateLocator(maxticks=30)
-
-        # Set major tick format
-        if format:
-            major_formats = [format] * 6
-        else:
-            major_formats = DEFAULT_FORMATS
-
-        # Handle period behavior (centered labels)
-        if period:
-            # Hide major labels by setting null formatter
-            self.ax.xaxis.set_major_locator(locator)
-            self.ax.xaxis.set_major_formatter(ticker.NullFormatter())
-
-            # Create minor locator for centered labels based on frequency
-            if frequency and frequency.startswith("D"):
-                # For days, place minor ticks at noon (12:00)
-                interval = int(frequency.lstrip("D") or "1")
-                minor_locator = mdates.HourLocator(byhour=12, interval=1)
-            elif frequency and frequency.startswith("M"):
-                # For months, place minor ticks on the 16th (middle of month)
-                interval = int(frequency.lstrip("M") or "1")
-                minor_locator = mdates.MonthLocator(interval=interval, bymonthday=16)
-            elif frequency and frequency.startswith("Y"):
-                # For years, place minor ticks in the middle of the year (July 1st)
-                interval = int(frequency.lstrip("Y") or "1")
-                minor_locator = mdates.MonthLocator(interval=1, bymonth=7, bymonthday=1)
-            elif frequency and frequency.startswith("H"):
-                # For hours, place minor ticks at 30 minutes past the hour
-                interval = int(frequency.lstrip("H") or "1")
-                minor_locator = mdates.MinuteLocator(interval=interval, byminute=30)
-            else:
-                # For other frequencies, use the same locator but with adjusted parameters
-                # This will create minor ticks that are offset from major ticks
-                minor_locator = locator
-            if interval != 1:
-                raise ValueError("Period mode is not supported for non-whole intervals")
-
-            # Set the minor locator and formatter
-            minor_formatter = mdates.ConciseDateFormatter(
-                minor_locator,
-                formats=major_formats,
-                zero_formats=ZERO_FORMATS,
-                show_offset=False,
-            )
-            self.ax.xaxis.set_minor_locator(minor_locator)
-            self.ax.xaxis.set_minor_formatter(minor_formatter)
-
-            # Override labels argument to "minor" when period=True
-            labels = "minor"
-        else:
-            # Regular behavior - labels on major ticks
-            # Only set major formatter if we want to show major labels
-            if labels in ["major", "both"]:
-                formatter = mdates.ConciseDateFormatter(
-                    locator,
-                    formats=major_formats,
-                    zero_formats=ZERO_FORMATS,
-                    show_offset=False,
-                )
-                self.ax.xaxis.set_major_locator(locator)
-                self.ax.xaxis.set_major_formatter(formatter)
-            else:
-                # Hide major labels by setting null formatter
-                self.ax.xaxis.set_major_locator(locator)
-                self.ax.xaxis.set_major_formatter(ticker.NullFormatter())
-
-        # Set minor ticks if specified
-        if minor_frequency is not None:
-            if minor_frequency.startswith("D"):
-                interval = int(minor_frequency.lstrip("D") or "1")
-                minor_locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif minor_frequency.startswith("M"):
-                interval = int(minor_frequency.lstrip("M") or "1")
-                minor_locator = mdates.MonthLocator(interval=interval, bymonthday=15)
-            elif minor_frequency.startswith("Y"):
-                interval = int(minor_frequency.lstrip("Y") or "1")
-                minor_locator = mdates.YearLocator(interval, month=6, day=1)
-            elif minor_frequency.startswith("H"):
-                interval = int(minor_frequency.lstrip("H") or "1")
-                minor_locator = mdates.HourLocator(interval=interval)
-            else:
-                # Fallback to auto locator
-                minor_locator = mdates.AutoDateLocator(maxticks=30)
-
-            # Set minor tick format - use format if minor_format is None
-            if minor_format is not None:
-                minor_formats = [minor_format] * 6
-            elif format is not None:
-                minor_formats = [format] * 6
-            else:
-                minor_formats = major_formats
-
-            # Only set minor ticks if not in period mode (to avoid conflicts)
-            if not period:
-                # Only set minor formatter if we want to show minor labels
-                if labels in ["minor", "both"]:
-                    minor_formatter = mdates.ConciseDateFormatter(
-                        minor_locator,
-                        formats=minor_formats,
-                        zero_formats=ZERO_FORMATS,
-                        show_offset=False,
-                    )
-                    self.ax.xaxis.set_minor_locator(minor_locator)
-                    self.ax.xaxis.set_minor_formatter(minor_formatter)
-                else:
-                    # Hide minor labels by setting null formatter
-                    self.ax.xaxis.set_minor_locator(minor_locator)
-                    self.ax.xaxis.set_minor_formatter(ticker.NullFormatter())
+        set_xticks(
+            self.ax,
+            frequency=frequency,
+            minor_frequency=minor_frequency,
+            format=format,
+            minor_format=minor_format,
+            period=period,
+            labels=labels,
+            **kwargs,
+        )
 
     def yticks(
         self,
@@ -390,63 +184,17 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to the tick locators.
         """
-        import matplotlib.ticker as ticker
+        from .ticks import set_yticks
 
-        # For y-axis, we'll use numeric tickers since y-axis is typically numeric
-        if frequency is not None:
-            # Parse frequency specification
-            if frequency.startswith("auto"):
-                major_locator = ticker.AutoLocator()
-            elif frequency.startswith("log"):
-                major_locator = ticker.LogLocator()
-            elif frequency.startswith("maxN"):
-                max_ticks = int(frequency.lstrip("maxN") or "10")
-                major_locator = ticker.MaxNLocator(nbins=max_ticks)
-            else:
-                # Default to auto locator
-                major_locator = ticker.AutoLocator()
-        else:
-            major_locator = ticker.AutoLocator()
-
-        # Set major ticks
-        self.ax.yaxis.set_major_locator(major_locator)
-
-        # Only set major tick format if we want to show major labels
-        if labels in ["major", "both"] and format:
-            self.ax.yaxis.set_major_formatter(ticker.FormatStrFormatter(format))
-        elif labels not in ["major", "both"]:
-            # Hide major labels by setting null formatter
-            self.ax.yaxis.set_major_formatter(ticker.NullFormatter())
-
-        # Set minor ticks if specified
-        if minor_frequency is not None:
-            if minor_frequency.startswith("auto"):
-                minor_locator = ticker.AutoMinorLocator()
-            elif minor_frequency.startswith("log"):
-                minor_locator = ticker.LogLocator(subs=np.arange(2, 10))
-            else:
-                # Default to auto minor locator
-                minor_locator = ticker.AutoMinorLocator()
-
-            self.ax.yaxis.set_minor_locator(minor_locator)
-
-            # Only set minor tick format if we want to show minor labels
-            if labels in ["minor", "both"]:
-                # Set minor tick format - use format if minor_format is None
-                if minor_format is not None:
-                    minor_format_str = minor_format
-                elif format is not None:
-                    minor_format_str = format
-                else:
-                    minor_format_str = None
-
-                if minor_format_str:
-                    self.ax.yaxis.set_minor_formatter(
-                        ticker.FormatStrFormatter(minor_format_str)
-                    )
-            else:
-                # Hide minor labels by setting null formatter
-                self.ax.yaxis.set_minor_formatter(ticker.NullFormatter())
+        set_yticks(
+            self.ax,
+            frequency=frequency,
+            minor_frequency=minor_frequency,
+            format=format,
+            minor_format=minor_format,
+            labels=labels,
+            **kwargs,
+        )
 
     @property
     def figure(self):

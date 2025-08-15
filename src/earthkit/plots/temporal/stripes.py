@@ -14,24 +14,39 @@
 
 from earthkit.plots.temporal.timeseries import TimeSeries
 
-
 DEFAULT_COLORS = [
-    '#08306b', '#08519c', '#2171b5', '#4292c6',
-    '#6baed6', '#9ecae1', '#c6dbef', '#deebf7', '#ffffff',
-    '#fee0d2', '#fcbba1', '#fc9272', '#fb6a4a',
-    '#ef3b2c', '#cb181d', '#a50f15', '#67000d',
+    "#08306b",
+    "#08519c",
+    "#2171b5",
+    "#4292c6",
+    "#6baed6",
+    "#9ecae1",
+    "#c6dbef",
+    "#deebf7",
+    "#ffffff",
+    "#fee0d2",
+    "#fcbba1",
+    "#fc9272",
+    "#fb6a4a",
+    "#ef3b2c",
+    "#cb181d",
+    "#a50f15",
+    "#67000d",
 ]
 
 
 class Stripes(TimeSeries):
     """
     A specialized Subplot class for time series plots.
-    
+
     This class inherits from Subplot and provides specialized functionality
     for plotting time series data, including automatic time axis detection
     and appropriate default sizing.
     """
-    
+
+    def __init__(self, *args, size=(8, 3), **kwargs):
+        super().__init__(*args, size=size, **kwargs)
+
     def stripes(self, *args, colors=DEFAULT_COLORS, **kwargs):
         """
         Plot climate stripes using this `Style`.
