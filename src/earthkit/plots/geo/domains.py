@@ -458,8 +458,6 @@ class Domain:
                         extra_values = [v[mask] for v in extra_values]
 
                 else:
-                    from datetime import datetime
-                    start = datetime.now()
                     # Calculate grid resolution
                     resolution_x = (x.max() - x.min()) / x.shape[1]
                     resolution_y = (y.max() - y.min()) / y.shape[0]
@@ -595,8 +593,7 @@ class Domain:
                                         v[bbox_fallback].reshape(shape)
                                         for v in extra_values
                                     ]
-                    end = datetime.now()
-                    print(f"Time taken: {end - start}")
+
         if not extra_values:
             return x, y, values
         else:
