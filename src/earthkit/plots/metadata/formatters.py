@@ -209,57 +209,32 @@ class LayerFormatter(BaseFormatter):
                     for source in self.layer.sources
                 ]
             if key == "units":
-                # Only apply style units to the axis that contains the main data
-                # For time series: y-axis (data) should get style units, x-axis (time) should not
-                # For maps: z-axis (data) should get style units, x/y axes (coordinates) should not
-                if self._axis in ["x", "y"]:
-                    # For x and y axes, check if this axis contains the main data
-                    # If it's a coordinate axis (like time, longitude), don't apply style units
-                    if self._axis == "x":
-                        # X-axis typically contains coordinates (time, longitude, etc.)
-                        # Only apply style units if this is explicitly a data axis
-                        value = [
-                            metadata.labels.extract(
-                                source,
-                                key,
-                                default=self._default,
-                                issue_warnings=self._issue_warnings,
-                                axis=self._axis,
-                            )
-                            for source in self.layer.sources
-                        ]
-                    elif self._axis == "y":
-                        # Y-axis typically contains the main data values
-                        # Apply style units if available, otherwise fall back to source metadata
-                        if value is not None:
-                            if isinstance(value, list):
-                                value = [
-                                    f"__units__{v}" if v is not None else ""
-                                    for v in value
-                                ]
-                            else:
-                                value = [
-                                    f"__units__{value}" if value is not None else ""
-                                ]
-                        else:
-                            value = [
-                                metadata.labels.extract(
-                                    source,
-                                    key,
-                                    default=self._default,
-                                    issue_warnings=self._issue_warnings,
-                                    axis=self._axis,
-                                )
-                                for source in self.layer.sources
-                            ]
-                else:
-                    # For other axes (like z), apply style units as before
+                # Use style units for the primary data axis, source units for coordinate axes
+                # Check if this axis contains the primary data using the layer's primary_axis info
+                is_primary_axis = (hasattr(self.layer, 'primary_axis') and 
+                                 self.layer.primary_axis == self._axis)
+                
+                if is_primary_axis and value is not None:
+                    # This is the primary data axis - use style units
                     if isinstance(value, list):
                         value = [
-                            f"__units__{v}" if v is not None else "" for v in value
+                            f"__units__{v}" if v is not None else ""
+                            for v in value
                         ]
                     else:
                         value = [f"__units__{value}" if value is not None else ""]
+                else:
+                    # This is a coordinate axis or no style units available - use source units
+                    value = [
+                        metadata.labels.extract(
+                            source,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
+                        )
+                        for source in self.layer.sources
+                    ]
         else:
             value = [
                 metadata.labels.extract(

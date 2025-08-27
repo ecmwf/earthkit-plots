@@ -2,6 +2,11 @@ from earthkit.plots.temporal.stripes import Stripes
 from earthkit.plots.temporal.timeseries import TimeSeries
 
 
+CLASS_KWARGS = {
+    "size",
+}
+
+
 def timeseries(
     data,
     *args,
@@ -13,7 +18,8 @@ def timeseries(
     plot="line",
     **kwargs
 ):
-    ts = TimeSeries()
+    class_kwargs = {kwarg: kwargs.pop(kwarg) for kwarg in CLASS_KWARGS if kwarg in kwargs}
+    ts = TimeSeries(**class_kwargs)
 
     getattr(ts, plot)(data, *args, **kwargs)
     ts.xlabel(xlabel)

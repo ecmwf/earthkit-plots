@@ -33,6 +33,7 @@ from cartopy.util import add_cyclic_point
 
 from earthkit.plots.bounds import coordinate_reference_systems
 from earthkit.plots.grids.utils import needs_cyclic_point
+from earthkit.plots.identifiers import identify_primary
 from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
@@ -134,8 +135,94 @@ def extract_plottables_2D(
     # Step 8: Store the layer and return the mappable
     from earthkit.plots.core.layers import Layer
 
-    subplot.layers.append(Layer(source, mappable, subplot, style))
+    # Determine primary axis for unit conversion display
+    primary_axis = _identify_primary_axis(source, source._x, source._y)
+    
+    subplot.layers.append(Layer(source, mappable, subplot, style, primary_axis=primary_axis))
     return mappable
+
+
+def _identify_primary_axis(source, x, y):
+    """
+    Identify which axis (x or y) contains the primary data for unit conversion.
+    
+    This function uses the identify_primary function from identifiers.py to determine
+    which variable contains the actual data values (as opposed to coordinate dimensions).
+    
+    Parameters
+    ----------
+    source : Source
+        The data source object.
+    x, y : str, array-like, or None
+        X and Y coordinate values or names.
+    
+    Returns
+    -------
+    str or None
+        'x', 'y', or None if no primary axis can be identified.
+    """
+    # Try to get the underlying data object for analysis
+    data = None
+    if hasattr(source, 'data') and source.data is not None:
+        data = source.data
+    elif hasattr(source, '_data') and source._data is not None:
+        data = source._data
+    
+    if data is None:
+        return None
+        
+    # Use identify_primary to find the primary variable/dimension
+    primary = identify_primary(data)
+    
+    if primary is None:
+        return None
+    
+    # Check if the primary variable/name corresponds to x or y coordinates
+    # If x or y were specified as strings, check if primary matches them
+    if isinstance(x, str) and primary == x:
+        return 'x'
+    if isinstance(y, str) and primary == y:
+        return 'y'
+    
+    # For xarray data, check if we can infer the axis from the data structure
+    if hasattr(data, 'dims'):
+        # If primary is a variable name (Dataset case), check where it maps
+        if hasattr(data, 'data_vars') and primary in data.data_vars:
+            # The primary is a data variable - we need to figure out which axis it maps to
+            # This is tricky without more context, so we'll use heuristics
+            
+            # If x and y are dimension names, check which one the primary variable uses
+            if isinstance(x, str) and isinstance(y, str):
+                var_dims = list(data[primary].dims)
+                if x in var_dims and y not in var_dims:
+                    return 'x'
+                elif y in var_dims and x not in var_dims:
+                    return 'y'
+                elif len(var_dims) == 1:
+                    # Single dimension - check if it's more likely x or y
+                    dim = var_dims[0]
+                    if dim == x:
+                        return 'x'
+                    elif dim == y:
+                        return 'y'
+            
+            # Default heuristic: if it's a 1D variable, assume it maps to y (values)
+            if len(data[primary].dims) == 1:
+                return 'y'
+        
+        # If primary is a DataArray name, assume it maps to y (the data values)
+        elif hasattr(data, 'name') and primary == data.name:
+            return 'y'
+        
+        # If primary is a dimension name (fallback case), use position heuristics
+        elif primary in data.dims:
+            dims = list(data.dims)
+            if len(dims) == 2 and dims.index(primary) == 1:
+                return 'y'
+            else:
+                return 'x'
+    
+    return None
 
 
 def _apply_coordinate_unit_conversion(source, units, x, y, method_name):
@@ -173,30 +260,30 @@ def _apply_coordinate_unit_conversion(source, units, x, y, method_name):
     if units is None:
         return x_values, y_values
 
-    # Use the source's data_dim method to identify which axis contains the data
-    if hasattr(source, "data_dim"):
-        data_axis = source.data_dim()
-        print(f"Data axis identified: {data_axis}")
-
-        if data_axis == "x":
+    # Use identify_primary to determine which axis contains the primary data
+    primary_axis = _identify_primary_axis(source, source._x, source._y)
+    
+    if primary_axis is not None:
+        # Apply unit conversion only to the primary data axis
+        if primary_axis == "x":
             # Convert x values if they have units
-            x_meta = source.x_metadata
+            x_meta = getattr(source, "x_metadata", {})
             if "units" in x_meta and x_meta["units"] != units:
                 try:
                     x_values = metadata_units.convert(x_values, x_meta["units"], units)
                 except Exception as e:
                     warnings.warn(f"Failed to convert x values: {e}")
-        elif data_axis == "y":
+        elif primary_axis == "y":
             # Convert y values if they have units
-            y_meta = source.y_metadata
+            y_meta = getattr(source, "y_metadata", {})
             if "units" in y_meta and y_meta["units"] != units:
                 try:
                     y_values = metadata_units.convert(y_values, y_meta["units"], units)
                 except Exception as e:
                     warnings.warn(f"Failed to convert y values: {e}")
     else:
-
-        # Check if x or y values have units that need conversion
+        # Fallback: Check if x or y values have units that need conversion
+        # This preserves the original behavior when primary axis cannot be identified
         x_meta = getattr(source, "x_metadata", {})
         y_meta = getattr(source, "y_metadata", {})
 
@@ -352,7 +439,10 @@ def extract_plottables_3D(
     # Step 12: Store the layer and return the mappable
     from earthkit.plots.core.layers import Layer
 
-    subplot.layers.append(Layer(source, mappable, subplot, style))
+    # For 3D plots, the primary data is typically on the z-axis
+    primary_axis = 'z'
+    
+    subplot.layers.append(Layer(source, mappable, subplot, style, primary_axis=primary_axis))
     return mappable
 
 

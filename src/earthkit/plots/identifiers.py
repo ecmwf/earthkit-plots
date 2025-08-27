@@ -181,10 +181,11 @@ def find_time(array):
 
 def identify_primary(data, exclude_dims=None):
     """
-    Identify which dimension/variable is the primary data (not coordinates or metadata).
+    Identify the primary data variable (not coordinates or metadata).
 
-    This function is useful for determining which dimension should be used for unit
-    conversion, statistical operations, or other data processing tasks.
+    This function identifies the main data variable for unit conversion and other
+    data processing tasks. For Datasets, it returns the variable name. For DataArrays,
+    it returns the DataArray name. If no variables exist, it falls back to dimensions.
 
     Parameters
     ----------
@@ -192,17 +193,31 @@ def identify_primary(data, exclude_dims=None):
         The data to analyze. Can be a DataArray, Dataset, or list of dimension names.
     exclude_dims : list, optional
         Additional dimensions to exclude from consideration as primary data.
-        Defaults to COORDINATE_DIMS.
+        Defaults to COORDINATE_DIMS. Only used for fallback dimension identification.
 
     Returns
     -------
     str or None
-        The name of the primary dimension/variable, or None if not found.
+        The name of the primary variable or dimension, or None if not found.
     """
     if exclude_dims is None:
         exclude_dims = COORDINATE_DIMS
 
-    # Handle different input types
+    # Handle xarray Dataset - return first data variable
+    if hasattr(data, "data_vars") and data.data_vars:
+        data_vars = list(data.data_vars.keys())
+        return data_vars[0]  # Return first variable
+    
+    # Handle xarray DataArray - return the DataArray name
+    if hasattr(data, "name") and data.name is not None:
+        return data.name
+    
+    # Handle xarray DataArray without a name - return None to trigger fallback
+    if hasattr(data, "dims") and not hasattr(data, "data_vars"):
+        # This is a DataArray without a name
+        return None
+    
+    # Fallback: Handle dimension-based identification for other cases
     if hasattr(data, "dims"):
         # xarray DataArray or Dataset
         dims = list(data.dims)
@@ -219,31 +234,10 @@ def identify_primary(data, exclude_dims=None):
     primary_dims = [dim for dim in dims if dim not in exclude_dims]
 
     if not primary_dims:
-        return None
+        # If no non-coordinate dims, return first dimension
+        return dims[0] if dims else None
 
-    # If multiple primary dimensions, try to identify the most likely one
-    if len(primary_dims) == 1:
-        return primary_dims[0]
-
-    # For multiple primary dimensions, use heuristics to choose the best one
-    # Priority: data variables > non-coordinate dimensions > first available
-
-    # Check if any are data variables (for xarray objects)
-    if hasattr(data, "data_vars"):
-        data_vars = list(data.data_vars.keys())
-        for dim in primary_dims:
-            if dim in data_vars:
-                return dim
-
-    # Check if any have non-numeric names (likely data, not coordinates)
-    for dim in primary_dims:
-        if not any(
-            coord_name in dim.lower()
-            for coord_name in ["x", "y", "z", "time", "lat", "lon"]
-        ):
-            return dim
-
-    # Default to first available
+    # Return first non-coordinate dimension
     return primary_dims[0]
 
 
