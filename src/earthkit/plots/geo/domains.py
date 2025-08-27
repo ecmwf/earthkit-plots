@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 
 import cartopy.crs as ccrs
 import numpy as np
@@ -459,54 +458,141 @@ class Domain:
                         extra_values = [v[mask] for v in extra_values]
 
                 else:
-                    # Gridded data: use bounding box slicing
-                    try:
-                        import scipy.ndimage as sn
-                    except ImportError:
-                        warnings.warn(
-                            "No scipy installation found; scipy is required to "
-                            "speed up plotting of smaller domains by slicing "
-                            "the input data. Consider installing scipy to speed "
-                            "up this process."
-                        )
-                    finally:
-                        bbox = np.where(
-                            (x >= crs_bounds[0])
-                            & (x <= crs_bounds[1])
-                            & (y >= crs_bounds[2])
-                            & (y <= crs_bounds[3]),
-                            True,
-                            False,
-                        )
+                    # Calculate grid resolution
+                    resolution_x = (x.max() - x.min()) / x.shape[1]
+                    resolution_y = (y.max() - y.min()) / y.shape[0]
 
-                        # Calculate grid resolution
-                        resolution_x = (x.max() - x.min()) / x.shape[1]
-                        resolution_y = (y.max() - y.min()) / y.shape[0]
-                        resolution = max(resolution_x, resolution_y)
+                    # Calculate padding (roughly 1 degree's worth)
+                    padding_cells = max(1, int(1 / max(resolution_x, resolution_y)))
 
-                        # Calculate kernel size as roughly 2 / resolution in degrees
-                        kernel_size = max(1, int(2 / resolution))
-                        kernel = np.ones((kernel_size, kernel_size), dtype="uint8")
-                        bbox = sn.morphology.binary_dilation(
-                            bbox,
-                            kernel,
-                        ).astype(bool)
+                    # Check if we need to handle longitude wrapping
+                    x_min = x.min()
+                    x_max = x.max()
 
+                    # Case 1: Data is 0-360, domain spans negative longitudes (e.g., Europe domain)
+                    if x_min >= 0 and x_max <= 360 and crs_bounds[0] < 0:
+                        # Roll data so that negative longitudes are at the end
+                        roll_amount = int((360 - abs(crs_bounds[0])) / resolution_x)
+                        # Ensure roll_amount is within reasonable bounds
+                        roll_amount = max(0, min(roll_amount, x.shape[1] - 1))
+
+                        x = np.roll(x, roll_amount, axis=1)
+                        y = np.roll(y, roll_amount, axis=1)
+                        if values is not None:
+                            values = np.roll(values, roll_amount, axis=1)
+                        if extra_values is not None:
+                            extra_values = [
+                                np.roll(v, roll_amount, axis=1) for v in extra_values
+                            ]
+
+                        # Adjust bounds to match rolled coordinates
+                        adjusted_bounds = [
+                            crs_bounds[0]
+                            + 360,  # Shift negative longitudes to positive
+                            crs_bounds[1],
+                            crs_bounds[2],
+                            crs_bounds[3],
+                        ]
+                    # Case 2: Data is -180 to 180, domain spans 0 meridian
+                    elif (
+                        x_min < 0
+                        and x_max > 0
+                        and crs_bounds[0] < 0
+                        and crs_bounds[1] > 0
+                    ):
+                        # Roll data so that the domain is continuous
+                        roll_amount = int((180 - crs_bounds[0]) / resolution_x)
+                        # Ensure roll_amount is within reasonable bounds
+                        roll_amount = max(0, min(roll_amount, x.shape[1] - 1))
+
+                        x = np.roll(x, roll_amount, axis=1)
+                        y = np.roll(y, roll_amount, axis=1)
+                        if values is not None:
+                            values = np.roll(values, roll_amount, axis=1)
+                        if extra_values is not None:
+                            extra_values = [
+                                np.roll(v, roll_amount, axis=1) for v in extra_values
+                            ]
+
+                        adjusted_bounds = crs_bounds
+                    else:
+                        adjusted_bounds = crs_bounds
+
+                    # Apply padding to the adjusted bounds
+                    padded_bounds = [
+                        adjusted_bounds[0] - padding_cells * resolution_x,
+                        adjusted_bounds[1] + padding_cells * resolution_x,
+                        adjusted_bounds[2] - padding_cells * resolution_y,
+                        adjusted_bounds[3] + padding_cells * resolution_y,
+                    ]
+
+                    # Use boolean masking instead of searchsorted for more robust handling
+                    bbox = np.where(
+                        (x >= padded_bounds[0])
+                        & (x <= padded_bounds[1])
+                        & (y >= padded_bounds[2])
+                        & (y <= padded_bounds[3]),
+                        True,
+                        False,
+                    )
+
+                    if bbox.any():
+                        # Get the shape of the valid region
                         shape = bbox[
                             np.ix_(np.any(bbox, axis=1), np.any(bbox, axis=0))
                         ].shape
 
-                        x = x[bbox].reshape(shape)
-                        y = y[bbox].reshape(shape)
-                        if values is not None:
-                            if additional_dim is not None:
-                                values = values[bbox].reshape(shape + (additional_dim,))
-                            else:
-                                values = values[bbox].reshape(shape)
-                        if extra_values is not None:
-                            extra_values = [
-                                v[bbox].reshape(shape) for v in extra_values
-                            ]
+                        if shape[0] > 0 and shape[1] > 0:
+                            x = x[bbox].reshape(shape)
+                            y = y[bbox].reshape(shape)
+                            if values is not None:
+                                if additional_dim is not None:
+                                    values = values[bbox].reshape(
+                                        shape + (additional_dim,)
+                                    )
+                                else:
+                                    values = values[bbox].reshape(shape)
+                            if extra_values is not None:
+                                extra_values = [
+                                    v[bbox].reshape(shape) for v in extra_values
+                                ]
+                        else:
+                            # Fallback: use original data if reshaping results in empty arrays
+                            pass
+                    else:
+                        # Fallback: if no data found with padding, try without padding
+                        bbox_fallback = np.where(
+                            (x >= adjusted_bounds[0])
+                            & (x <= adjusted_bounds[1])
+                            & (y >= adjusted_bounds[2])
+                            & (y <= adjusted_bounds[3]),
+                            True,
+                            False,
+                        )
+
+                        if bbox_fallback.any():
+                            shape = bbox_fallback[
+                                np.ix_(
+                                    np.any(bbox_fallback, axis=1),
+                                    np.any(bbox_fallback, axis=0),
+                                )
+                            ].shape
+
+                            if shape[0] > 0 and shape[1] > 0:
+                                x = x[bbox_fallback].reshape(shape)
+                                y = y[bbox_fallback].reshape(shape)
+                                if values is not None:
+                                    if additional_dim is not None:
+                                        values = values[bbox_fallback].reshape(
+                                            shape + (additional_dim,)
+                                        )
+                                    else:
+                                        values = values[bbox_fallback].reshape(shape)
+                                if extra_values is not None:
+                                    extra_values = [
+                                        v[bbox_fallback].reshape(shape)
+                                        for v in extra_values
+                                    ]
 
         if not extra_values:
             return x, y, values
