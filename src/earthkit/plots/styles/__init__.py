@@ -19,9 +19,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import interp1d, make_interp_spline
 
-from earthkit.plots import metadata, plottypes, styles
+from earthkit.plots import metadata, plottypes
 from earthkit.plots.schemas import schema
-from earthkit.plots.styles import auto, colors, legends, levels
+from earthkit.plots.styles import auto, colors, legends
+from earthkit.plots.styles import levels as levels_module
 from earthkit.plots.styles.colors import magics_colors_to_rgb
 
 __all__ = [
@@ -34,6 +35,9 @@ __all__ = [
     "_STYLE_KWARGS",
     "_OVERRIDE_KWARGS",
 ]
+
+# Make levels available as 'levels'
+levels = levels_module
 
 
 def linspace_datetime64(start_date, end_date, n):
@@ -122,8 +126,11 @@ class Style:
         """Create a `Style` from a dictionary."""
         style_type = kwargs.pop("type")
         if "levels" in kwargs:
-            kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
-        return getattr(styles, style_type)(**kwargs)
+            kwargs["levels"] = levels_module.Levels.from_config(kwargs["levels"])
+        import sys
+
+        current_module = sys.modules[__name__]
+        return getattr(current_module, style_type)(**kwargs)
 
     def __init__(
         self,
@@ -149,11 +156,11 @@ class Style:
             self._colors = magics_colors_to_rgb(self._colors)
 
         if isinstance(levels, dict):
-            levels = styles.levels.Levels(**levels)
+            levels = levels_module.Levels(**levels)
         self._levels = (
             levels
-            if isinstance(levels, styles.levels.Levels)
-            else styles.levels.Levels(
+            if isinstance(levels, levels_module.Levels)
+            else levels_module.Levels(
                 levels,
                 categorical=categories is not None
                 or self.__class__.__name__ == "Categorical",
@@ -288,7 +295,7 @@ class Style:
                 **self._kwargs,
             )
 
-        cmap, norm = styles.colors.cmap_and_norm(
+        cmap, norm = colors.cmap_and_norm(
             self._colors,
             levels,
             self.normalize,
@@ -860,15 +867,15 @@ class Style:
         if ticks is None and self._levels._levels is not None:
             if len(np.unique(np.ediff1d(self._levels._levels))) != 1:
                 self._legend_kwargs["ticks"] = self._levels._levels
-        return styles.legends.colorbar(*args, **kwargs)
+        return legends.colorbar(*args, **kwargs)
 
     def disjoint(self, *args, **kwargs):
         """Create a disjoint legend for this `Style`."""
-        return styles.legends.disjoint(*args, **kwargs)
+        return legends.disjoint(*args, **kwargs)
 
     def vector(self, *args, **kwargs):
         """Create a vector legend for this `Style`."""
-        return styles.legends.vector(*args, **kwargs)
+        return legends.vector(*args, **kwargs)
 
     def save_legend(
         self, data=None, label=None, filename="legend.png", transparent=True, **kwargs
@@ -1023,7 +1030,7 @@ class Contour(Style):
         """
         levels = self.levels(data)
 
-        cmap, norm = styles.colors.cmap_and_norm(
+        cmap, norm = colors.cmap_and_norm(
             self._linecolors,
             levels,
             self.normalize,

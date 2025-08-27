@@ -16,7 +16,7 @@ import cartopy.crs as ccrs
 import numpy as np
 from scipy.interpolate import griddata
 
-from earthkit.plots.geo import grids
+from earthkit.plots.grids.utils import interpolate_unstructured
 
 
 class Resample:
@@ -247,7 +247,7 @@ class Interpolate(Resample):
         else:
             target_x, target_y = x, y
 
-        return grids.interpolate_unstructured(
+        return interpolate_unstructured(
             target_x,
             target_y,
             z,

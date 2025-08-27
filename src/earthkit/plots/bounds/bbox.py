@@ -15,7 +15,11 @@
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.geo import coordinate_reference_systems, optimisers
+from earthkit.plots.bounds.coordinate_reference_systems import (
+    DEFAULT_CRS,
+    is_cylindrical,
+)
+from earthkit.plots.bounds.optimisers import Global
 
 
 class BoundingBox:
@@ -23,7 +27,7 @@ class BoundingBox:
     def from_geometry(
         cls,
         geometry,
-        source_crs=coordinate_reference_systems.DEFAULT_CRS,
+        source_crs=DEFAULT_CRS,
         target_crs=None,
     ):
         """
@@ -42,7 +46,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         try:
             geometries = list(geometry.geoms)  # get sub-geometries, if present
@@ -75,13 +79,13 @@ class BoundingBox:
 
         Parameters
         ----------
-        bbox : list or earthkit.plots.geo.bounds.BoundingBox
+        bbox : list or BoundingBox
             The bounding box around which to generate a new bounding box. If a
             list, mus
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the source bounding box.  If
             `None` (default), assumes a cylindrical lat-lon CRS, unless the
-            source bounding box is an `earthkit.plots.geo.bounds.BoundingBox`
+            source bounding box is an `BoundingBox`
             with its own CRS.
         target_crs : cartopy.crs.CRS, optional
             The coordinate reference system in which to generate a new bounding
@@ -91,7 +95,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         bounds = list(bbox)
 
@@ -99,7 +103,7 @@ class BoundingBox:
             try:
                 source_crs = bbox.crs
             except AttributeError:
-                source_crs = coordinate_reference_systems.DEFAULT_CRS
+                source_crs = DEFAULT_CRS
 
         if target_crs is None:
             return cls(*bounds, source_crs).to_optimised_bbox()
@@ -128,7 +132,7 @@ class BoundingBox:
         y_min = min(y_min, x_centre_min[1])
         y_max = max(y_max, x_centre_max[1])
 
-        if coordinate_reference_systems.is_cylindrical(target_crs):
+        if is_cylindrical(target_crs):
             if (abs(corners[2][0] - corners[3][0]) > 180) or (
                 abs(corners[0][0] - corners[1][0]) > 180
             ):
@@ -148,7 +152,7 @@ class BoundingBox:
         x_max,
         y_min,
         y_max,
-        crs=coordinate_reference_systems.DEFAULT_CRS,
+        crs=DEFAULT_CRS,
     ):
         self.x_min = x_min
         self.x_max = x_max
@@ -221,7 +225,7 @@ class BoundingBox:
         -------
         cartopy.crs.CRS
         """
-        layout = optimisers.Global(self.to_latlon_bbox())
+        layout = Global(self.to_latlon_bbox())
         while True:
             new_layout = layout.mutate()
             if new_layout == layout:
@@ -247,7 +251,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.bounds.BoundingBox
+        BoundingBox
         """
         return self.to_bbox(target_crs=ccrs.PlateCarree())
 
@@ -262,7 +266,7 @@ class BoundingBox:
 
         Returns
         -------
-        earthkit.plots.geo.BoundingBox
+        BoundingBox
         """
         return BoundingBox.from_bbox(self, target_crs=target_crs)
 

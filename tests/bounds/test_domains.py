@@ -14,7 +14,7 @@
 
 import pytest
 
-from earthkit.plots.geo import domains
+from earthkit.plots.bounds import domains
 
 
 def test_format_name_UK():
