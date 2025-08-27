@@ -36,7 +36,7 @@ __all__ = [
     "_OVERRIDE_KWARGS",
 ]
 
-# Make levels available as 'levels' for backward compatibility
+# Make levels available as 'levels'
 levels = levels_module
 
 
