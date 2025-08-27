@@ -18,8 +18,8 @@ import earthkit.data
 from earthkit.data import FieldList
 from earthkit.data.core import Base
 
-from earthkit.plots.components import layouts
-from earthkit.plots.components.figures import Figure
+from earthkit.plots.core import layouts
+from earthkit.plots.core.figures import Figure
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import iter_utils
 

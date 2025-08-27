@@ -17,8 +17,8 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
-from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
+from earthkit.plots.bounds import coordinate_reference_systems, domains, natural_earth
+from earthkit.plots.core.subplots import Subplot
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema

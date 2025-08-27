@@ -217,7 +217,7 @@ class NumpySource(SingleSource):
         if not self._crs and self.metadata("gridSpec", default=None) is not None:
             import earthkit.data
 
-            from .earthkit import EarthkitSource
+            from earthkit.plots.sources.earthkit import EarthkitSource
 
             m = self._metadata
 

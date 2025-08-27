@@ -15,7 +15,7 @@
 import yaml
 
 import earthkit.plots
-from earthkit.plots.geo.coordinate_reference_systems import parse_crs
+from earthkit.plots.bounds.coordinate_reference_systems import parse_crs
 
 
 def parse_yaml(file):

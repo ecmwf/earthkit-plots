@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from earthkit.plots.core import subplots
+from earthkit.plots.geo.maps import Map
 
 
-def test_subplots_figure_size():
-    # Test that the figure size is set correctly when creating a subplot
-    subplot = subplots.Subplot(size=[10, 5])
-    assert subplot.figure._figsize == [10, 5]
+class Tile(Map):
+    def save(self, *args, **kwargs):
+        self.ax.axis("off")
+        super().save(*args, pad_inches=0, **kwargs)

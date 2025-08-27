@@ -15,11 +15,11 @@
 import cartopy.crs as ccrs
 import pytest
 
-from earthkit.plots.geo import bounds
+from earthkit.plots.bounds.bbox import BoundingBox
 
 
 def test_BoundingBox():
-    bbox = bounds.BoundingBox(-180, 180, -90, 90, crs=ccrs.PlateCarree())
+    bbox = BoundingBox(-180, 180, -90, 90, crs=ccrs.PlateCarree())
     assert bbox.x_min == -180
     assert bbox.x_max == 180
     assert bbox.y_min == -90
@@ -28,7 +28,7 @@ def test_BoundingBox():
 
 
 def test_BoundingBox_Lambert():
-    bbox = bounds.BoundingBox(-2e6, 3e6, 3e6, 7e6, crs=ccrs.LambertAzimuthalEqualArea())
+    bbox = BoundingBox(-2e6, 3e6, 3e6, 7e6, crs=ccrs.LambertAzimuthalEqualArea())
     assert bbox.x_min == -2e6
     assert bbox.x_max == 3e6
     assert bbox.y_min == 3e6
@@ -37,12 +37,12 @@ def test_BoundingBox_Lambert():
 
 
 def test_BoundingBox_iter():
-    bbox = bounds.BoundingBox(-180, 180, -90, 90)
+    bbox = BoundingBox(-180, 180, -90, 90)
     assert list(bbox) == [-180, 180, -90, 90]
 
 
 def test_BoundingBox_nsew():
-    bbox = bounds.BoundingBox(-180, 180, -90, 90)
+    bbox = BoundingBox(-180, 180, -90, 90)
     assert bbox.west == -180
     assert bbox.east == 180
     assert bbox.south == -90
@@ -50,12 +50,12 @@ def test_BoundingBox_nsew():
 
 
 def test_BoundingBox_to_cartopy_bounds():
-    bbox = bounds.BoundingBox(-25, 40, -10, 35)
+    bbox = BoundingBox(-25, 40, -10, 35)
     assert bbox.to_cartopy_bounds() == (-25, 40, -10, 35)
 
 
 def test_BoundingBox_to_bbox():
-    bbox = bounds.BoundingBox(-25, 40, 34, 72)
+    bbox = BoundingBox(-25, 40, 34, 72)
     new_bbox = bbox.to_bbox(ccrs.LambertAzimuthalEqualArea())
     assert new_bbox.x_min == pytest.approx(-2390669)
     assert new_bbox.x_max == pytest.approx(3763307)
@@ -65,7 +65,7 @@ def test_BoundingBox_to_bbox():
 
 
 def test_BoundingBox_to_optimised_bbox_global():
-    bbox = bounds.BoundingBox(-180, 180, -90, 90, crs=ccrs.PlateCarree())
+    bbox = BoundingBox(-180, 180, -90, 90, crs=ccrs.PlateCarree())
     optimised_bbox = bbox.to_optimised_bbox()
     assert optimised_bbox.x_min == -180
     assert optimised_bbox.x_max == 180
@@ -75,7 +75,7 @@ def test_BoundingBox_to_optimised_bbox_global():
 
 
 def test_BoundingBox_to_optimised_bbox_0_360():
-    bbox = bounds.BoundingBox(0, 360, -90, 90, crs=ccrs.PlateCarree())
+    bbox = BoundingBox(0, 360, -90, 90, crs=ccrs.PlateCarree())
     optimised_bbox = bbox.to_optimised_bbox()
     assert optimised_bbox.x_min == pytest.approx(-180)
     assert optimised_bbox.x_max == pytest.approx(180)
@@ -85,7 +85,7 @@ def test_BoundingBox_to_optimised_bbox_0_360():
 
 
 def test_BoundingBox_to_optimised_bbox_europe():
-    bbox = bounds.BoundingBox(-25, 40, 34, 72)
+    bbox = BoundingBox(-25, 40, 34, 72)
     optimised_bbox = bbox.to_optimised_bbox()
 
     assert optimised_bbox.x_min == pytest.approx(-2968299)
@@ -101,7 +101,7 @@ def test_BoundingBox_to_optimised_bbox_europe():
 
 
 def test_BoundingBox_to_latlon_bbox():
-    bbox = bounds.BoundingBox(-2e6, 3e6, 3e6, 7e6, crs=ccrs.LambertAzimuthalEqualArea())
+    bbox = BoundingBox(-2e6, 3e6, 3e6, 7e6, crs=ccrs.LambertAzimuthalEqualArea())
     new_bbox = bbox.to_latlon_bbox()
     assert new_bbox.x_min == pytest.approx(-36.64, 1e-2)
     assert new_bbox.x_max == pytest.approx(52.96, 1e-2)
@@ -111,7 +111,7 @@ def test_BoundingBox_to_latlon_bbox():
 
 
 def test_BoundingBox_from_bbox_0_360():
-    bbox = bounds.BoundingBox.from_bbox((0, 360, -90, 90))
+    bbox = BoundingBox.from_bbox((0, 360, -90, 90))
     assert bbox.x_min == pytest.approx(-180)
     assert bbox.x_max == pytest.approx(180)
     assert bbox.y_min == pytest.approx(-90)
@@ -120,7 +120,7 @@ def test_BoundingBox_from_bbox_0_360():
 
 
 def test_BoundingBox_contains_point():
-    bbox = bounds.BoundingBox(-10, 10, -10, 10)
+    bbox = BoundingBox(-10, 10, -10, 10)
     assert bbox.contains_point((0, 0))
     assert bbox.contains_point((-10, 10))
     assert not bbox.contains_point((-11, 10))
@@ -128,6 +128,6 @@ def test_BoundingBox_contains_point():
 
 
 def test_BoundingBox_addition():
-    bbox_1 = bounds.BoundingBox(-10, 10, -10, 10)
-    bbox_2 = bounds.BoundingBox(0, 11, -12, 12)
+    bbox_1 = BoundingBox(-10, 10, -10, 10)
+    bbox_2 = BoundingBox(0, 11, -12, 12)
     assert list(bbox_1 + bbox_2) == [-10, 11, -12, 12]

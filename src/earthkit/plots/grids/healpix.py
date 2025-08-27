@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import cartopy.crs as ccrs
-import healpy as hp
+
 import numpy as np
 
 
@@ -25,6 +25,11 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     ax: axis to plot on
     kwargs: additional arguments to imshow
     """
+    try:
+        import healpy as hp
+    except ImportError:
+        raise ImportError("healpy is required for healpix grid cells")
+
     kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
@@ -40,6 +45,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     )
     valid = np.all(np.isfinite(latlon), axis=-1)
     points = latlon[valid].T
+
     pix = hp.ang2pix(
         hp.npix2nside(len(var)),
         theta=points[0],

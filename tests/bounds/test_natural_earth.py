@@ -15,7 +15,7 @@
 import cartopy.crs as ccrs
 import pytest
 
-from earthkit.plots.geo import natural_earth
+from earthkit.plots.bounds import natural_earth
 
 
 def test_NaturalEarthDomain_name_France():
