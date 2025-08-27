@@ -14,7 +14,6 @@
 
 import cartopy.crs as ccrs
 
-# Temporarily commented out to avoid scipy compatibility issue
 import numpy as np
 
 
