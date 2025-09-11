@@ -19,7 +19,6 @@ import numpy as np
 
 from earthkit.plots.interactive import times
 
-
 AXES = ["x", "y"]
 
 
