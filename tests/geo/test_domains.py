@@ -103,6 +103,25 @@ class TestDomainExtract:
 
         assert values_ext.shape == x_ext.shape == y_ext.shape
 
+
+    def test_extract_simple_1D_data(self):
+        """Test basic extraction of gridded data without longitude wrapping."""
+        domain = domains.Domain([-10, 10, -10, 10])
+
+        x = np.linspace(-20, 20, 41)
+        y = np.linspace(-20, 20, 41)
+        values = np.random.random((41))
+
+        x_ext, y_ext, values_ext = domain.extract(x, y, values)
+
+        assert x_ext.min() >= -11  # Domain -10 with ~1 degree padding
+        assert x_ext.max() <= 11
+        assert y_ext.min() >= -11
+        assert y_ext.max() <= 11
+
+        assert values_ext.shape == x_ext.shape == y_ext.shape
+
+
     def test_extract_longitude_wrapping_0_360_to_negative(self):
         """Test longitude wrapping when data is 0-360 and domain spans negative longitudes."""
         domain = domains.Domain([-10, 40, 35, 70])  # Europe-like domain
@@ -171,6 +190,7 @@ class TestDomainExtract:
             ((21, 21), (21, 21), (21, 21), "2D gridded data"),
             ((21, 21), (21, 21), (21, 21, 3), "2D gridded data with 3D values"),
             ((21,), (21,), (21, 21), "1D coordinates that get converted to meshgrid"),
+            ((21,), (21,), (21), "1D coordinates and data, they do not get converted to meshgrid"),
         ]
 
         for x_shape, y_shape, values_shape, description in test_cases:
@@ -190,7 +210,7 @@ class TestDomainExtract:
             assert values_ext.size > 0, f"Failed for {description}"
 
             assert x_ext.shape == y_ext.shape, f"Shape mismatch for {description}"
-            if values_ext.ndim == 2:
+            if values_ext.ndim in [1, 2]:
                 assert (
                     values_ext.shape == x_ext.shape
                 ), f"Values shape mismatch for {description}"
