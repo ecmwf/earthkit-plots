@@ -103,7 +103,6 @@ class TestDomainExtract:
 
         assert values_ext.shape == x_ext.shape == y_ext.shape
 
-
     def test_extract_simple_1D_data(self):
         """Test basic extraction of gridded data without longitude wrapping."""
         domain = domains.Domain([-10, 10, -10, 10])
@@ -120,7 +119,6 @@ class TestDomainExtract:
         assert y_ext.max() <= 11
 
         assert values_ext.shape == x_ext.shape == y_ext.shape
-
 
     def test_extract_longitude_wrapping_0_360_to_negative(self):
         """Test longitude wrapping when data is 0-360 and domain spans negative longitudes."""
@@ -190,7 +188,12 @@ class TestDomainExtract:
             ((21, 21), (21, 21), (21, 21), "2D gridded data"),
             ((21, 21), (21, 21), (21, 21, 3), "2D gridded data with 3D values"),
             ((21,), (21,), (21, 21), "1D coordinates that get converted to meshgrid"),
-            ((21,), (21,), (21), "1D coordinates and data, they do not get converted to meshgrid"),
+            (
+                (21,),
+                (21,),
+                (21),
+                "1D coordinates and data, they do not get converted to meshgrid",
+            ),
         ]
 
         for x_shape, y_shape, values_shape, description in test_cases:
