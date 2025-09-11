@@ -1,3 +1,5 @@
+import numpy as np
+import xarray as xr
 from plotly.graph_objects import Figure
 
 from earthkit.plots.interactive import (
@@ -46,3 +48,30 @@ def test_chart_title():
     chart = Chart(rows=1, columns=1)
     chart.title("Test Chart Title")
     assert chart._layout_override["title"] == "Test Chart Title"
+
+
+def test_chart_box():
+    """Test the box method of the Chart class."""
+    start = np.datetime64("2025-01-01", "ns")
+    times = np.arange(start, start + np.timedelta64(4, "D"), np.timedelta64(1, "D"))
+    eps_members = np.arange(1, 5)
+    var1_data = np.arange(16).reshape((4, 4))
+    var2_data = var1_data * 2
+    q3 = np.array([2.25, 6.25, 10.25, 14.25])
+    data = xr.Dataset(
+        {
+            "var1": (("time", "epsMember"), var1_data),
+            "var2": (("time", "epsMember"), var2_data),
+        },
+        coords={
+            "time": times,
+            "epsMember": eps_members,
+        },
+    )
+    chart = Chart()
+    chart.box(data)
+    assert all(chart.fig.data[0].x == times)
+    assert all(chart.fig.data[1].x == times)
+    assert all(chart.fig.data[6].x == times)
+    assert all(chart.fig.data[0].q3 == q3)
+    assert all(chart.fig.data[6].q3 == q3 * 2)
