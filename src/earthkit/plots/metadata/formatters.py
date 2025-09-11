@@ -207,7 +207,14 @@ class SubplotFormatter(BaseFormatter):
         f = super().convert_field
         if isinstance(value, list):
             if isinstance(conversion, str) and conversion.isnumeric():
-                return str(value[int(conversion)])
+                try:
+                    return str(value[int(conversion)])
+                except IndexError as err:
+                    error_message = (
+                        f"Layer index {conversion} in title is out of range. "
+                        f"This subplot contains {len(value)} layer{'s' if len(value) != 1 else ''}."
+                    )
+                    raise IndexError(error_message) from err
             return [f(v, conversion) for v in value]
         else:
             return f(value, conversion)

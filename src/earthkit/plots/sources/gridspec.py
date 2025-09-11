@@ -135,6 +135,10 @@ class ReducedGG(GridSpec):
 
             return {"grid": g}
 
+        grid = GridSpec._guess_grid(d)
+        if isinstance(grid, str) and RGG_PATTERN.match(grid):
+            return {"grid": grid.upper()}
+
     @staticmethod
     def type_match(data):
         try:
