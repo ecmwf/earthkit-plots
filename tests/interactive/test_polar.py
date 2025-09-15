@@ -1,6 +1,8 @@
-import pytest
 import numpy as np
+import pytest
+
 import earthkit.plots.interactive.polar as polar
+
 
 def test_circular_var_known_values():
     """Tests that circular variance is ~0 for concentrated data and ~1 for uniform data."""
@@ -48,7 +50,9 @@ def test_hybrid_vonmises_grid_peak_location():
 
     # For direction, the tolerance is the width of one angular sector.
     dir_tolerance = dirs[1] - dirs[0]
-    angular_distance = min(abs(dirs[i_dir] - expected_dir), 360 - abs(dirs[i_dir] - expected_dir))
+    angular_distance = min(
+        abs(dirs[i_dir] - expected_dir), 360 - abs(dirs[i_dir] - expected_dir)
+    )
     assert angular_distance <= dir_tolerance
 
 
