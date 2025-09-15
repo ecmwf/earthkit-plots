@@ -412,6 +412,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
+        if kwargs.get("interpolate") is None and values.ndim == 1:
+            return self.tricontourf(ax, x, y, values, *args, **kwargs)
+
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         x, y = self._xy_for_contour(x, y)
         return ax.contourf(x, y, values, *args, **kwargs)
@@ -537,6 +540,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
+        if kwargs.get("interpolate") is None and values.ndim == 1:
+            return self.tricontour(ax, x, y, values, *args, **kwargs)
+
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
         x, y = self._xy_for_contour(x, y)
