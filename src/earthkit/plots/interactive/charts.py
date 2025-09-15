@@ -14,7 +14,10 @@
 
 from plotly.subplots import make_subplots
 
-from earthkit.plots.interactive import bar, box, inputs, line
+from typing import Dict, List, Optional, Union
+import xarray as xr
+
+from earthkit.plots.interactive import bar, box, inputs, line, heat
 
 DEFAULT_LAYOUT = {
     "colorway": [
@@ -43,9 +46,7 @@ DEFAULT_LAYOUT = {
         "showgrid": True,
         "showline": True,
         "zeroline": False,
-    },
-    "height": 750,
-    "showlegend": False,
+    }
 }
 
 
@@ -247,6 +248,36 @@ class Chart:
                     self.add_trace(sub_trace, row=i + 1, col=1)
             else:
                 self.add_trace(trace)
+
+    def heatmap(self, data, **kwargs):
+        """
+        Adds one or more heatmap plots to the chart.
+        Accepts a single xarray.DataArray or an xarray.Dataset.
+        """
+        data = inputs.to_xarray(data)
+
+        # If the input is a Dataset, loop through its variables
+        if isinstance(data, xr.Dataset):
+            if self._rows is None and self._columns is None:
+                self._rows = len(data.data_vars)
+                self._columns = 1
+
+            self._subplot_titles = list(data.data_vars)
+
+            for i, var_name in enumerate(data.data_vars):
+                data_array = data[var_name]
+                trace = heat.heatmap(data_array, **kwargs)
+                self.add_trace(trace, row=i + 1, col=1)
+
+        # If the input is a single DataArray
+        elif isinstance(data, xr.DataArray):
+            trace = heat.heatmap(data, **kwargs)
+            self.add_trace(trace)
+
+        else:
+            # Handle cases where the input is not xarray-compatible
+            raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
+
 
     def title(self, title):
         """

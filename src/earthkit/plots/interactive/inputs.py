@@ -16,6 +16,7 @@ import warnings
 
 import earthkit.data
 import numpy as np
+import xarray as xr
 
 from earthkit.plots.interactive import times
 
@@ -43,7 +44,6 @@ def to_pandas(data):
 
 def to_numpy(data):
     return _earthkitify(data).to_numpy()
-
 
 def sanitise(axes=("x", "y"), multiplot=True):
     def decorator(function):
@@ -118,7 +118,6 @@ def sanitise(axes=("x", "y"), multiplot=True):
         return wrapper
 
     return decorator
-
 
 def get_xarray_kwargs(data, axes, kwargs):
     data = to_xarray(data)
