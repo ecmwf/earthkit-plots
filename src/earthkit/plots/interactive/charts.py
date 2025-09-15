@@ -12,12 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
+import xarray as xr
 from plotly.subplots import make_subplots
 
-from typing import Dict, List, Optional, Union
-import xarray as xr
-
-from earthkit.plots.interactive import bar, box, inputs, line, heat, polar
+from earthkit.plots.interactive import bar, box, heat, inputs, line, polar
 
 DEFAULT_LAYOUT = {
     "colorway": [
@@ -49,7 +48,7 @@ DEFAULT_LAYOUT = {
     },
     "polar": {
         "radialaxis": {
-             "showline": False,
+            "showline": False,
         },
         "angularaxis": {
             "showline": False,
@@ -267,7 +266,7 @@ class Chart:
         Adds a polar windrose plot to the chart.
         """
         if "specs" not in self._subplots_kwargs:
-             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+            self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 
         nested_traces = polar.windrose(*args, **kwargs)
 
@@ -281,7 +280,7 @@ class Chart:
         Adds a polar frequency plot to the chart.
         """
         if "specs" not in self._subplots_kwargs:
-             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+            self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 
         nested_traces = polar.frequency(*args, **kwargs)
 
@@ -316,7 +315,9 @@ class Chart:
 
         else:
             # Handle cases where the input is not xarray-compatible
-            raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
+            raise TypeError(
+                "Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset."
+            )
 
     def title(self, title):
         """
