@@ -17,7 +17,7 @@ from plotly.subplots import make_subplots
 from typing import Dict, List, Optional, Union
 import xarray as xr
 
-from earthkit.plots.interactive import bar, box, inputs, line, heat
+from earthkit.plots.interactive import bar, box, inputs, line, heat, polar
 
 DEFAULT_LAYOUT = {
     "colorway": [
@@ -46,7 +46,19 @@ DEFAULT_LAYOUT = {
         "showgrid": True,
         "showline": True,
         "zeroline": False,
-    }
+    },
+    "polar": {
+        "radialaxis": {
+             "showline": False,
+        },
+        "angularaxis": {
+            "showline": False,
+            "direction": "clockwise",
+            "rotation": 90,
+        },
+    },
+    "height": 750,
+    "showlegend": False,
 }
 
 
@@ -249,6 +261,34 @@ class Chart:
             else:
                 self.add_trace(trace)
 
+    @set_subplot_titles
+    def polar(self, *args, **kwargs):
+        """
+        Adds a polar windrose plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.windrose(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
+    @set_subplot_titles
+    def polar_frequency(self, *args, **kwargs):
+        """
+        Adds a polar frequency plot to the chart.
+        """
+        if "specs" not in self._subplots_kwargs:
+             self._subplots_kwargs["specs"] = [[{'type': 'polar'}]]
+
+        nested_traces = polar.frequency(*args, **kwargs)
+
+        for trace_list in nested_traces:
+            for trace in trace_list:
+                self.add_trace(trace)
+
     def heatmap(self, data, **kwargs):
         """
         Adds one or more heatmap plots to the chart.
@@ -277,7 +317,6 @@ class Chart:
         else:
             # Handle cases where the input is not xarray-compatible
             raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
-
 
     def title(self, title):
         """
