@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from matplotlib.colors import Normalize, BoundaryNorm
 import matplotlib.colors as mcolors
 import numpy as np
 from matplotlib.patches import Patch
@@ -46,6 +47,30 @@ _DISJOINT_LEGEND_LOCATIONS = {
 }
 
 
+def scale_mappable_norm(fig, mappable, ax=None, label=None, shrink=1.0, aspect=20, **kwargs):
+    # Scale norm when array is only a single point or all values in array are the same
+    arr = None
+    try:
+        arr = np.asarray(mappable.get_array())
+    except Exception:
+        pass
+
+    if arr is None or arr.size == 0 or not np.isfinite(arr).any():
+        # fallback
+        vmin, vmax = 0.0, 1.0
+    else:
+        finite = arr[np.isfinite(arr)]
+        vmin, vmax = finite.min(), finite.max()
+        if np.isclose(vmin, vmax):
+            eps = 1e-6 * (abs(vmin) if vmin != 0 else 1.0)
+            vmax = vmin + eps
+
+    new_norm = mcolors.Normalize(vmin, vmax)
+    mappable.set_norm(new_norm)
+
+    return mappable
+
+
 def colorbar(layer, *args, ax=None, color="black", **kwargs):
     """
     Produce a colorbar for a given layer.
@@ -75,6 +100,9 @@ def colorbar(layer, *args, ax=None, color="black", **kwargs):
         kwargs["ax"] = layer.axes
     else:
         kwargs["cax"] = ax
+
+    layer.mappable = scale_mappable_norm(
+        layer.fig, layer.mappable, *args, label=label, shrink=shrink, aspect=aspect, **kwargs)
 
     cbar = layer.fig.colorbar(
         layer.mappable,
@@ -215,6 +243,7 @@ def estimate_legend_cols(axes, labels, position="top"):
     total_label_width = np.sum(label_widths)
 
     # Calculate the number of columns that would fit
-    num_columns = max(1, int(available_width / total_label_width * len(labels)))
+    num_columns = max(
+        1, int(available_width / total_label_width * len(labels)))
 
     return num_columns
