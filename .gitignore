@@ -381,6 +381,7 @@ venv.bak/
 
 # mpl image tests
 mpl-results/
+tests/.earthkit-plots-test-images/
 
 # mypy
 .mypy_cache/

@@ -15,7 +15,7 @@ image-tests:
 	python -m pytest -vv -m mpl_image --test-images --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
 
 generate-test-images:
-	python -m pytest -vv -m mpl_image --mpl-generate-path=./tests/baseline-images
+	python -m pytest -vv -m mpl_image --mpl-generate-path=./tests/.earthkit-plots-test-images/baseline-images
 
 unit-tests:
 	python -m pytest -vv -m 'not notebook and not mpl_image' --cov=. --cov-report=$(COV_REPORT)
