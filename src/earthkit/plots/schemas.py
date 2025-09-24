@@ -113,7 +113,8 @@ class Schema(dict):
 
     def __setattr__(self, key, value):
         if isinstance(value, dict) and not isinstance(value, Schema):
-            value = Schema(parent=key, **value)
+            parent = f"{self._parent}.{key}" if self._parent else key
+            value = Schema(parent=parent, **value)
         try:
             self[key] = value
         except KeyError:
@@ -140,7 +141,14 @@ class Schema(dict):
         return decorator
 
     def _update_kwargs(self, kwargs, keys):
-        schema_kwargs = self._to_dict()
+        path = self._parent
+
+        schema_child = schema
+        while path:
+            schema_child = schema.get(path.split(".")[0])
+            path = ".".join(path.split(".")[1:])
+
+        schema_kwargs = schema_child._to_dict()
         if keys:
             schema_kwargs = {
                 key: schema_kwargs[key]
