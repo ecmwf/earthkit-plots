@@ -379,6 +379,8 @@ class Domain:
             source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
+        values = np.array(values) if values is not None else None
+
         assert (
             values is not None or extra_values is not None
         ), "values or extra_values must be provided"
@@ -387,10 +389,6 @@ class Domain:
         _values = values if values is not None else extra_values[0]
         if x.ndim == 1 and y.ndim == 1 and _values is not None and _values.ndim != 1:
             x, y = np.meshgrid(x, y)
-        
-        print(x.shape, y.shape, _values.shape if _values is not None else None)
-
-        values = np.array(values) if values is not None else None
 
         if values is not None and values.ndim == 3:
             additional_dim = values.shape[-1]

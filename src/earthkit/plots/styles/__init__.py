@@ -417,6 +417,7 @@ class Style:
 
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         x, y = self._xy_for_contour(x, y)
+        print('In contourf:', x.shape, y.shape, values.shape)
         return ax.contourf(x, y, values, *args, **kwargs)
 
     def quiver(self, ax, x, y, u, v, *args, **kwargs):
@@ -546,6 +547,8 @@ class Style:
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
         x, y = self._xy_for_contour(x, y)
+        print('In contour:', x.shape, y.shape, values.shape)
+        
         return ax.contour(x, y, values, *args, **kwargs)
 
     def pcolormesh(self, ax, x, y, values, *args, **kwargs):
