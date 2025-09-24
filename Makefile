@@ -33,7 +33,7 @@ check-test-images-sync:
 	fi
 
 image-tests: setup-test-images check-test-images-sync
-	python -m pytest -vv -m mpl_image --test-images --mpl --mpl-generate-summary=html --mpl-results-path=mpl-results
+	python -m pytest -vv -m mpl_image --test-images
 
 generate-test-images: setup-test-images check-test-images-sync
 	python -m pytest -vv -m mpl_image --mpl-generate-path=./tests/.earthkit-plots-test-images/baseline-images

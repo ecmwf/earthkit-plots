@@ -2,7 +2,18 @@ import shutil
 import subprocess
 import tempfile
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import pytest
+
+# Import earthkit.plots to ensure fonts and schema are properly initialized
+import earthkit.plots
+
+# Also ensure default styles are loaded
+try:
+    import earthkit_plots_default_styles  # noqa: F401
+except ImportError:
+    pass  # Default styles package not available
 
 
 def pytest_addoption(parser):
