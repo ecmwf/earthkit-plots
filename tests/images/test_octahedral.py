@@ -2,10 +2,11 @@ import earthkit.data
 import pytest
 
 import earthkit.plots
+from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_octahedral_interpolated():
     data = earthkit.data.from_source(
         "url",
@@ -25,7 +26,7 @@ def test_octahedral_interpolated():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_octahedral_point_cloud():
     data = earthkit.data.from_source(
         "url",

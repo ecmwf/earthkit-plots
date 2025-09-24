@@ -2,10 +2,10 @@ import earthkit.data
 import pytest
 
 import earthkit.plots
-
+from earthkit.plots import schema
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_temperature_pressure():
     temperature, pressure = earthkit.data.from_source(
         "sample", "era5-2t-msl-1985122512.grib"
@@ -25,7 +25,7 @@ def test_temperature_pressure():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_efi_hatched():
     from earthkit.plots.styles import Hatched
 

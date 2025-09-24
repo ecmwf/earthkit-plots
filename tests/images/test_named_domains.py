@@ -1,10 +1,11 @@
 import pytest
 
 import earthkit.plots
+from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_named_europe():
     chart = earthkit.plots.Map(domain="Europe")
     chart.coastlines()
@@ -14,7 +15,7 @@ def test_named_europe():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_named_new_zealand():
     chart = earthkit.plots.Map(domain="New Zealand")
     chart.coastlines()
@@ -24,7 +25,7 @@ def test_named_new_zealand():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_named_africa():
     chart = earthkit.plots.Map(domain="Africa")
     chart.coastlines()
