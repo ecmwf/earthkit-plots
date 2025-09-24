@@ -80,9 +80,15 @@ def format_unit_simple(unit, registry, **options):
     return latex_string
 
 
+UNIT_STR_ALIASES = {"(0 - 1)": "fraction"}
+
+
 def _pintify(unit_str):
     if unit_str is None:
         unit_str = "dimensionless"
+
+    if unit_str in UNIT_STR_ALIASES:
+        unit_str = UNIT_STR_ALIASES[unit_str]
 
     # Replace spaces with dots
     unit_str = unit_str.replace(" ", ".")
