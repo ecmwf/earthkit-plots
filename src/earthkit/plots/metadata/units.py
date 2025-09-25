@@ -80,7 +80,7 @@ def format_unit_simple(unit, registry, **options):
     return latex_string
 
 
-UNIT_STR_ALIASES = {"(0 - 1)": "fraction"}
+UNIT_STR_ALIASES = {"(0 - 1)": "percent"}
 
 
 def _pintify(unit_str):
@@ -160,6 +160,7 @@ def convert(data, source_units, target_units):
     """
     source_units = _pintify(source_units)
     target_units = _pintify(target_units)
+
     try:
         result = (data * source_units).to(target_units).magnitude
     except ValueError as err:
