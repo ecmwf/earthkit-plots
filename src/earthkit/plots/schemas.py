@@ -148,7 +148,9 @@ class Schema(dict):
             schema_child = schema.get(path.split(".")[0])
             path = ".".join(path.split(".")[1:])
 
-        schema_kwargs = schema_child._to_dict()
+        schema_kwargs = self._to_dict()
+        schema_kwargs.update(schema_child._to_dict())
+
         if keys:
             schema_kwargs = {
                 key: schema_kwargs[key]
