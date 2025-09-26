@@ -432,7 +432,6 @@ class Subplot:
         metadata=None,
         **kwargs,
     ):
-        print(1, kwargs)
         if method_name.startswith("contour"):
             regrid = True
         # Step 1: Initialize the source
@@ -445,7 +444,6 @@ class Subplot:
         style = self._configure_style(
             method_name, style, source, units, auto_style, kwargs
         )
-        print(2, kwargs)
 
         # Step 3: Process z values
         z_values = self._process_z_values(style, source, z)
@@ -496,7 +494,6 @@ class Subplot:
                     in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST
                 ):
                     kwargs["transform_first"] = False
-            print(kwargs)
             if not no_style:
                 mappable = self._plot_with_interpolation(
                     style, method_name, x_values, y_values, z_values, source.crs, kwargs
@@ -585,7 +582,6 @@ class Subplot:
         self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
     ):
         """Attempts to plot with or without interpolation as needed."""
-        print(kwargs)
         if "interpolate" not in kwargs:
             try:
                 return getattr(style, method_name)(
