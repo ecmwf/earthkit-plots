@@ -591,10 +591,11 @@ class Subplot:
                 return getattr(style, method_name)(
                     self.ax, x_values, y_values, z_values, **kwargs
                 )
-            except (ValueError, TypeError):
-                raise (
-                    f"{method_name} failed with raw data, maybe try including interpolation, "
-                    "e.g. interpolate=True"
+            except (ValueError, TypeError) as e:
+                raise type(e)(
+                    f"{method_name} failed. Consider including interpolation, "
+                    f"e.g. interpolate=True\n"
+                    f"Original error: {e}"
                 )
 
         # TODO: handle interpolate kwarg in decorator
