@@ -343,6 +343,17 @@ class Figure:
 
     @defer_until_setup
     @apply_to_subplots
+    def cities(self, *args, **kwargs):
+        """
+        Add cities to every `Map` subplot in the figure.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `Map.cities`.
+        """
+
+    @defer_until_setup
+    @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
         Add coastlines to every `Map` subplot in the figure.
