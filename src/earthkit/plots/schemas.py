@@ -184,6 +184,7 @@ class Schema(dict):
         prepend, append : list | None
             Optional extra styles (strings or dicts) to add before/after the schema.
         """
+
         def _flatten_section(section_name: str, section_value) -> dict:
             """Flatten a single top-level rc section to rcParams keys."""
             flat = {}
