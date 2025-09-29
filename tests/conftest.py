@@ -2,12 +2,9 @@ import shutil
 import subprocess
 import tempfile
 
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import pytest
 
 # Import earthkit.plots to ensure fonts and schema are properly initialized
-import earthkit.plots
 
 # Also ensure default styles are loaded
 try:
