@@ -143,13 +143,24 @@ class Schema(dict):
     def _update_kwargs(self, kwargs, keys):
         path = self._parent
 
+        global schema
+
         schema_child = schema
+        # Search for path in global schema
         while path:
-            schema_child = schema.get(path.split(".")[0])
+            sub_path = path.split(".")[0]
+
+            if sub_path not in schema_child:
+                schema_child = Schema()
+                break
+
+            schema_child = schema.get(sub_path)
             path = ".".join(path.split(".")[1:])
 
-        schema_kwargs = self._to_dict()
-        schema_kwargs.update(schema_child._to_dict())
+        # If not found, use default schema
+        schema_kwargs = schema_child._to_dict()
+        if not schema_kwargs:
+            schema_kwargs = self._to_dict()
 
         if keys:
             schema_kwargs = {
