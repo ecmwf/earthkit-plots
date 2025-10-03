@@ -957,8 +957,8 @@ class Quiver(Style):
         matplotlib colormap object. If not provided, the default colormap of the
         active `schema` will be used.
     preferred_method : str, optional
-        The preferred method for plotting the data. Must be one of `quiver` or
-        `barbs`.
+        The preferred method for plotting the data. Must be one of `quiver`, `barbs` or
+        `vector` method.
     **kwargs
         Additional keyword arguments to be passed to the `quiver`, `barbs` or
         `vector` method.
