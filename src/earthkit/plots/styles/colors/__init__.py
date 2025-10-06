@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import colorsys
+
 import matplotlib as mpl
 import numpy as np
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap
+
+from earthkit.plots.schemas import schema
+
+
+def magics_colors_to_rgb(colors):
+    """
+    Convert a list of Magics colours to RGB.
+
+    Parameters
+    ----------
+    colors : list
+        A list of Magics colours.
+
+    Returns
+    -------
+    list
+        A list of RGB colours.
+    """
+    from earthkit.plots.styles.colors.magics import NAMED_COLORS
+
+    return [NAMED_COLORS.get(color, color) for color in colors]
 
 
 def expand(colors, levels, extend_colors=0):
@@ -32,6 +55,9 @@ def expand(colors, levels, extend_colors=0):
         colormap to include under and over colours.
     """
     length = len(levels) + extend_colors
+
+    if colors is None:
+        colors = schema.default_cmap
 
     if isinstance(colors, (list, tuple)) and len(colors) == 1:
         colors *= length - 1
@@ -105,24 +131,31 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
     N = len(color_levels) + extend_colors - 1
 
     colormap = LinearSegmentedColormap.from_list
-    if len(colors) == N:
+    if colors is not None and len(colors) == N:
         colormap = ListedColormap
 
     if extend_levels:
         cmap = colormap(name="", colors=colors, N=N)
     else:
         cmap_colors = colors
+        over_color = (0, 0, 0, 0)
+        under_color = (0, 0, 0, 0)
         if extend == "both":
             cmap_colors = colors[1:-1]
+            over_color = colors[-1]
+            under_color = colors[0]
         elif extend == "min":
             cmap_colors = colors[1:]
+            under_color = colors[0]
         elif extend == "max":
             cmap_colors = colors[:-1]
-        cmap = colormap(name="", colors=cmap_colors, N=len(cmap_colors) - 1)
-        cmap.set_over(colors[-1])
-        cmap.set_under(colors[0])
+            over_color = colors[-1]
+        cmap = colormap(name="", colors=cmap_colors, N=len(color_levels) - 1)
+        cmap.set_over(over_color)
+        cmap.set_under(under_color)
 
     norm = None
+
     if normalize:
         norm = BoundaryNorm(levels, cmap.N)
 
@@ -164,3 +197,36 @@ def gradients(levels, colors, gradients, normalize, **kwargs):
         norm = BoundaryNorm(levels, cmap.N)
 
     return {**{"cmap": cmap, "norm": norm, "levels": levels}, **kwargs}
+
+
+def adjust_lightness(color, amount=0.5):
+    try:
+        c = mpl.colors.cnames[color]
+    except KeyError:  # Raised if the color name is not found in the cnames dictionary
+        c = color
+    c = colorsys.rgb_to_hls(*mpl.colors.to_rgb(c))
+    return colorsys.hls_to_rgb(c[0], (1 - amount) * c[1] + amount, c[2])
+
+
+def symmetric_from_color(color, n):
+    """Generate a symmetric list with shades of a color
+
+    color : str
+        Base color.
+    n : int
+        Total number of colors generated.
+    """
+    if not isinstance(color, str):
+        return color
+    num_colors = n // 2 + n % 2
+    amounts_lightening = np.linspace(0, 0.9, num_colors)
+    colors = [adjust_lightness(color, amount) for amount in amounts_lightening]
+
+    uneven_num_bands = n % 2
+    if uneven_num_bands == 0:
+        # Even
+        mirrored_colors = colors[::-1]
+    else:
+        mirrored_colors = colors[1:][::-1]
+    mirrored_colors.extend(colors)
+    return mirrored_colors

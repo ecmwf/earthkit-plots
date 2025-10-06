@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -67,6 +67,29 @@ def load(source, data_type=None):
 
     with open(path, "r") as f:
         return reader(f)
+
+
+def find_logo(organisation):
+    """
+    Get the logo file path for a given organisation.
+
+    Parameters
+    ----------
+    organisation : str
+        The name of the organisation (e.g., "ecmwf").
+
+    Returns
+    -------
+    str
+        The path to the logo image file.
+    """
+    data_dir = definitions.DATA_DIR / "logos"
+    logo_path = data_dir / f"{organisation}.png"
+
+    if not logo_path.exists():
+        raise DataNotFoundError(f"Logo for '{organisation}' not found at {logo_path}")
+
+    return str(logo_path)
 
 
 def remote_shp(namespace, name, url):

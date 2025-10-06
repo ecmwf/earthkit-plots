@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 
 import cartopy.crs as ccrs
 import numpy as np
+from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
 from earthkit.plots.geo.bounds import BoundingBox
@@ -39,14 +39,16 @@ NO_BBOX = [
 
 def force_minus_180_to_180(x):
     """
-    Force an array of longitudes to be in the range -180 to 180.
-
-    Parameters
-    ----------
-    x : array-like
-        The longitudes to be forced into the range -180 to 180.
+    Force an array of longitudes to lie in [-180, +180],
+    *but* preserve any original +180° values (so you don’t
+    collapse the east edge onto the west edge).
     """
-    return (x + 180) % 360 - 180
+    x = np.asarray(x)
+    x2 = (x + 180) % 360 - 180
+    # now restore +180 wherever the original was exactly +180
+    # (so that our grid retains its full span)
+    x2 = np.where(np.isclose(x, 180), 180, x2)
+    return x2
 
 
 def roll_from_0_360_to_minus_180_180(x):
@@ -55,10 +57,29 @@ def roll_from_0_360_to_minus_180_180(x):
 
     Parameters
     ----------
-    x : array-like
+    x : array-like (1D or 2D)
         The longitudes to be checked.
+
+    Returns
+    -------
+    int
+        The index at which the array crosses 180°.
     """
-    return np.argwhere(x[0] >= 180)[0][0]
+    x = np.asarray(x)
+
+    if x.ndim == 1:
+        # Handle 1D longitude array
+        idx = np.argwhere(x >= 180)
+    elif x.ndim == 2:
+        # Handle 2D longitude array (original behavior)
+        idx = np.argwhere(x[0] >= 180)
+    else:
+        raise ValueError("Input array must be 1D or 2D.")
+
+    if len(idx) == 0:
+        raise ValueError("No longitude values found greater than or equal to 180°.")
+
+    return idx[0][0]
 
 
 def roll_from_minus_180_180_to_0_360(x):
@@ -82,7 +103,9 @@ def force_0_to_360(x):
     x : array-like
         The longitudes to be forced into the range 0 to 360.
     """
-    return x % 360
+    x2 = np.asarray(x % 360)
+    x2 = np.where(np.isclose(x, 360), 360, x2)
+    return x2
 
 
 def is_latlon(data):
@@ -276,6 +299,11 @@ class Domain:
         else:
             return self._name
 
+    def __eq__(self, value):
+        if not isinstance(value, Domain):
+            return False
+        return list(self.bbox) == list(value.bbox) and self.crs == value.crs
+
     def __add__(self, second_domain):
         if isinstance(self._name, list):
             if isinstance(second_domain._name, list):
@@ -323,10 +351,15 @@ class Domain:
         return can_bbox
 
     def extract(
-        self, x, y, values=None, extra_values=None, source_crs=ccrs.PlateCarree()
+        self,
+        x,
+        y,
+        values=None,
+        extra_values=None,
+        source_crs=None,
     ):
         """
-        Slice data to fit the domain.
+        Slice data to fit the domain. Works for both gridded and unstructured data.
 
         Parameters
         ----------
@@ -341,20 +374,32 @@ class Domain:
         source_crs : cartopy.crs.CRS, optional
             The coordinate reference system of the input data.
         """
+        # If source_crs is None, assume PlateCarree
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
+        if x.ndim == 1 and y.ndim == 1:
+            x, y = np.meshgrid(x, y)
+
         values = np.array(values) if values is not None else None
+
+        if values is not None and values.ndim == 3:
+            additional_dim = values.shape[-1]
+        else:
+            additional_dim = None
+
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
-            roll_by = None
 
+            # Handle longitude wrapping
+            roll_by = None
             if crs_bounds[0] < 0:
                 if crs_bounds[0] < np.array(x).min() and (x > 180).any():
                     roll_by = roll_from_0_360_to_minus_180_180(x)
                     x = force_minus_180_to_180(x)
                     for i in range(2):
-                        if -180 > crs_bounds[i] or crs_bounds[i] > 180:
-                            crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
+                        crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
             elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
                 if crs_bounds[1] > x.max():
                     roll_by = roll_from_minus_180_180_to_0_360(x)
@@ -363,50 +408,213 @@ class Domain:
                         crs_bounds[i] = force_0_to_360(crs_bounds[i])
 
             if roll_by is not None:
-                x = np.roll(x, roll_by, axis=1)
-                y = np.roll(y, roll_by, axis=1)
-                if values is not None:
-                    values = np.roll(values, roll_by, axis=1)
-                if extra_values is not None:
-                    extra_values = [np.roll(v, roll_by, axis=1) for v in extra_values]
+                if x.ndim == 1:
+                    x = np.roll(x, roll_by)
+                    y = np.roll(y, roll_by)
+                    if values is not None:
+                        values = np.roll(values, roll_by)
+                    if extra_values is not None:
+                        extra_values = [np.roll(v, roll_by) for v in extra_values]
+                else:
+                    x = np.roll(x, roll_by, axis=1)
+                    y = np.roll(y, roll_by, axis=1)
+                    if values is not None:
+                        values = np.roll(values, roll_by, axis=1)
+                    if extra_values is not None:
+                        extra_values = [
+                            np.roll(v, roll_by, axis=1) for v in extra_values
+                        ]
 
             if self.can_bbox:
-
-                try:
-                    import scipy.ndimage as sn
-                except ImportError:
-                    warnings.warn(
-                        "No scipy installation found; scipy is required to "
-                        "speed up plotting of smaller domains by slicing "
-                        "the input data. Consider installing scipy to speed "
-                        "up this process."
+                # Determine if data is gridded or unstructured
+                if x.ndim == 1 and y.ndim == 1:
+                    # Pad the crs_bounds by 10%
+                    _crs_bounds = [
+                        crs_bounds[0] - 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[1] + 0.05 * (crs_bounds[1] - crs_bounds[0]),
+                        crs_bounds[2] - 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                        crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
+                    ]
+                    # Unstructured data: use point-in-polygon
+                    polygon = Polygon(
+                        [
+                            (_crs_bounds[0], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[2]),
+                            (_crs_bounds[1], _crs_bounds[3]),
+                            (_crs_bounds[0], _crs_bounds[3]),
+                        ]
                     )
-                finally:
-                    bbox = np.where(
-                        (x >= crs_bounds[0])
-                        & (x <= crs_bounds[1])
-                        & (y >= crs_bounds[2])
-                        & (y <= crs_bounds[3]),
-                        True,
-                        False,
+                    points = np.vstack([x, y]).T
+                    mask = np.array(
+                        [polygon.contains(Point(px, py)) for px, py in points]
                     )
 
-                    kernel = np.ones((8, 8), dtype="uint8")
-                    bbox = sn.morphology.binary_dilation(
-                        bbox,
-                        kernel,
-                    ).astype(bool)
+                    x = x[mask]
+                    y = y[mask]
 
-                    shape = bbox[
-                        np.ix_(np.any(bbox, axis=1), np.any(bbox, axis=0))
-                    ].shape
-
-                    x = x[bbox].reshape(shape)
-                    y = y[bbox].reshape(shape)
                     if values is not None:
-                        values = values[bbox].reshape(shape)
+                        values = values[mask]
                     if extra_values is not None:
-                        extra_values = [v[bbox].reshape(shape) for v in extra_values]
+                        extra_values = [v[mask] for v in extra_values]
+
+                else:
+                    # Calculate grid resolution
+                    resolution_x = (x.max() - x.min()) / x.shape[1]
+                    resolution_y = (y.max() - y.min()) / y.shape[0]
+
+                    # Calculate padding (roughly 1 degree's worth)
+                    padding_cells = max(1, int(1 / max(resolution_x, resolution_y)))
+
+                    # Check if we need to handle longitude wrapping
+                    x_min = x.min()
+                    x_max = x.max()
+
+                    # Handle longitude wrapping without disrupting grid topology
+                    crosses_meridian = False
+
+                    # Case 1: Data is 0-360, domain spans negative longitudes (e.g., Europe domain)
+                    if x_min >= 0 and x_max <= 360 and crs_bounds[0] < 0:
+                        crosses_meridian = True
+                        # Convert domain bounds to 0-360 range for comparison
+                        adjusted_bounds = [
+                            crs_bounds[0] + 360 if crs_bounds[0] < 0 else crs_bounds[0],
+                            crs_bounds[1] + 360 if crs_bounds[1] < 0 else crs_bounds[1],
+                            crs_bounds[2],
+                            crs_bounds[3],
+                        ]
+
+                    # Case 2: Data is -180 to 180, domain spans 0 meridian
+                    elif (
+                        x_min < 0
+                        and x_max > 0
+                        and crs_bounds[0] < 0
+                        and crs_bounds[1] > 0
+                    ):
+                        crosses_meridian = True
+                        adjusted_bounds = crs_bounds
+
+                    # Case 3: Domain crosses 180/-180 meridian (e.g., Pacific-centered data)
+                    elif (
+                        crs_bounds[0] > crs_bounds[1]
+                    ):  # West > East indicates meridian crossing
+                        crosses_meridian = True
+                        adjusted_bounds = crs_bounds
+
+                    else:
+                        adjusted_bounds = crs_bounds
+
+                    # Apply padding to the adjusted bounds
+                    padded_bounds = [
+                        adjusted_bounds[0] - padding_cells * resolution_x,
+                        adjusted_bounds[1] + padding_cells * resolution_x,
+                        adjusted_bounds[2] - padding_cells * resolution_y,
+                        adjusted_bounds[3] + padding_cells * resolution_y,
+                    ]
+
+                    # Create boolean mask for domain extraction
+                    if crosses_meridian and crs_bounds[0] > crs_bounds[1]:
+                        # Handle case where domain crosses 180/-180 meridian
+                        # Domain includes longitudes >= west_bound OR longitudes <= east_bound
+                        bbox = np.where(
+                            ((x >= padded_bounds[0]) | (x <= padded_bounds[1]))
+                            & (y >= padded_bounds[2])
+                            & (y <= padded_bounds[3]),
+                            True,
+                            False,
+                        )
+                    else:
+                        # Standard rectangular domain or adjusted coordinates
+                        bbox = np.where(
+                            (x >= padded_bounds[0])
+                            & (x <= padded_bounds[1])
+                            & (y >= padded_bounds[2])
+                            & (y <= padded_bounds[3]),
+                            True,
+                            False,
+                        )
+
+                    # Extract data using structured slicing to preserve grid topology
+                    if bbox.any():
+                        # Find the bounding indices that contain the domain
+                        rows_with_data = np.any(bbox, axis=1)
+                        cols_with_data = np.any(bbox, axis=0)
+
+                        row_indices = np.where(rows_with_data)[0]
+                        col_indices = np.where(cols_with_data)[0]
+
+                        if len(row_indices) > 0 and len(col_indices) > 0:
+                            # Use min/max indices to create a rectangular slice
+                            row_start, row_end = row_indices[0], row_indices[-1] + 1
+                            col_start, col_end = col_indices[0], col_indices[-1] + 1
+
+                            # Extract rectangular regions that preserve grid structure
+                            x = x[row_start:row_end, col_start:col_end]
+                            y = y[row_start:row_end, col_start:col_end]
+
+                            if values is not None:
+                                if additional_dim is not None:
+                                    values = values[
+                                        row_start:row_end, col_start:col_end, :
+                                    ]
+                                else:
+                                    values = values[
+                                        row_start:row_end, col_start:col_end
+                                    ]
+
+                            if extra_values is not None:
+                                extra_values = [
+                                    v[row_start:row_end, col_start:col_end]
+                                    for v in extra_values
+                                ]
+                    else:
+                        # Fallback: try without padding if no data found
+                        if crosses_meridian and crs_bounds[0] > crs_bounds[1]:
+                            bbox_fallback = np.where(
+                                ((x >= adjusted_bounds[0]) | (x <= adjusted_bounds[1]))
+                                & (y >= adjusted_bounds[2])
+                                & (y <= adjusted_bounds[3]),
+                                True,
+                                False,
+                            )
+                        else:
+                            bbox_fallback = np.where(
+                                (x >= adjusted_bounds[0])
+                                & (x <= adjusted_bounds[1])
+                                & (y >= adjusted_bounds[2])
+                                & (y <= adjusted_bounds[3]),
+                                True,
+                                False,
+                            )
+
+                        if bbox_fallback.any():
+                            rows_with_data = np.any(bbox_fallback, axis=1)
+                            cols_with_data = np.any(bbox_fallback, axis=0)
+
+                            row_indices = np.where(rows_with_data)[0]
+                            col_indices = np.where(cols_with_data)[0]
+
+                            if len(row_indices) > 0 and len(col_indices) > 0:
+                                row_start, row_end = row_indices[0], row_indices[-1] + 1
+                                col_start, col_end = col_indices[0], col_indices[-1] + 1
+
+                                x = x[row_start:row_end, col_start:col_end]
+                                y = y[row_start:row_end, col_start:col_end]
+
+                                if values is not None:
+                                    if additional_dim is not None:
+                                        values = values[
+                                            row_start:row_end, col_start:col_end, :
+                                        ]
+                                    else:
+                                        values = values[
+                                            row_start:row_end, col_start:col_end
+                                        ]
+
+                                if extra_values is not None:
+                                    extra_values = [
+                                        v[row_start:row_end, col_start:col_end]
+                                        for v in extra_values
+                                    ]
 
         if not extra_values:
             return x, y, values

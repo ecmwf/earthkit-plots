@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import pytest
+
 from earthkit.plots import ancillary
 
 
 def test_load_geo_domains():
     result = ancillary.load("geo/domains")
     assert isinstance(result, dict) and "domains" in result
+
+
+def test_find_logo_ecmwf():
+    result = ancillary.find_logo("ecmwf")
+    assert result.endswith("ecmwf.png")
+
+
+def test_find_logo_not_found():
+    with pytest.raises(ancillary.DataNotFoundError):
+        ancillary.find_logo("nonexistent")

@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,18 @@ from earthkit.plots.sources.tabular import TabularSource
 from earthkit.plots.sources.xarray import XarraySource
 
 
-def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwargs):
+def get_source(
+    *args,
+    data=None,
+    x=None,
+    y=None,
+    z=None,
+    u=None,
+    v=None,
+    regrid=True,
+    metadata=None,
+    **kwargs
+):
     """
     Get a Source object from the given data.
 
@@ -48,6 +59,18 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
     **kwargs
         Additional keyword arguments to pass to the Source constructor.
     """
+    cls = _get_source_class(*args, data=data)
+
+    src = cls(*args, x=x, y=y, z=z, u=u, v=v, regrid=regrid, metadata=metadata)
+
+    prev = None
+    while src is not prev:
+        prev = src
+        src = src.mutate()
+    return src
+
+
+def _get_source_class(*args, data):
     cls = NumpySource
     core_data = data
     if len(args) == 1 and core_data is None:
@@ -59,4 +82,11 @@ def get_source(*args, data=None, x=None, y=None, z=None, u=None, v=None, **kwarg
             cls = EarthkitSource
         elif core_data.__class__.__name__ in ("DataFrame", "Series"):
             cls = TabularSource
-    return cls(*args, data=data, x=x, y=y, z=z, u=u, v=v, **kwargs)
+    return cls
+
+
+def get_vector_sources(data=None, x=None, y=None, u=None, v=None, **kwargs):
+    cls = _get_source_class(data=data)
+    u = cls.extract_u(data, u=u)
+    v = cls.extract_v(data, v=v)
+    return cls(u, x=x, y=y, metadata=kwargs), cls(v, x=x, y=y, metadata=kwargs)

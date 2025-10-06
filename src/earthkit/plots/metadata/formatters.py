@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.schemas import schema
-from earthkit.plots.utils import string_utils
+from earthkit.plots.utils import iter_utils, string_utils
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,23 @@ class BaseFormatter(Formatter):
                 format_string = format_string.replace(key, replacement_key)
         return super().format(format_string, *args, **kwargs)
 
+    def format_field(self, value, format_spec):
+        """
+        Format a field value according to the format specification.
+
+        Parameters
+        ----------
+        value : object
+            The value to be formatted.
+        format_spec : str
+            The format specification.
+        """
+        if isinstance(value, str) and value.startswith("__units__"):
+            return metadata.units.format_units(
+                value.replace("__units__", ""), format_spec
+            )
+        return super().format_field(value, format_spec)
+
 
 class SourceFormatter(BaseFormatter):
     """
@@ -129,8 +146,10 @@ class LayerFormatter(BaseFormatter):
     Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
     """
 
-    def __init__(self, layer):
+    def __init__(self, layer, default=None, issue_warnings=True):
         self.layer = layer
+        self._default = default
+        self._issue_warnings = issue_warnings
 
     def format_key(self, key):
         if key in self.SUBPLOT_ATTRIBUTES:
@@ -138,12 +157,40 @@ class LayerFormatter(BaseFormatter):
         elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
             value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
             if value is None:
-                value = metadata.labels.extract(self.layer.source, key)
-                if key == "units":
-                    value = metadata.units.format_units(value)
+                value = [
+                    metadata.labels.extract(
+                        source,
+                        key,
+                        default=self._default,
+                        issue_warnings=self._issue_warnings,
+                    )
+                    for source in self.layer.sources
+                ]
+            if key == "units":
+                if isinstance(value, list):
+                    value = [f"__units__{v}" if v is not None else "" for v in value]
+                else:
+                    value = [f"__units__{value}" if value is not None else ""]
         else:
-            value = metadata.labels.extract(self.layer.source, key)
+            value = [
+                metadata.labels.extract(
+                    source,
+                    key,
+                    default=self._default,
+                    issue_warnings=self._issue_warnings,
+                )
+                for source in self.layer.sources
+            ]
+        if isinstance(value, list):
+            if len(value) == 1 or iter_utils.all_equal(value):
+                value = value[0]
+            else:
+                value = string_utils.list_to_human(value)
         return value
+
+    def format_field(self, _value, format_spec):
+        value = str(_value)
+        return super().format_field(value, format_spec)
 
 
 class SubplotFormatter(BaseFormatter):
@@ -160,7 +207,14 @@ class SubplotFormatter(BaseFormatter):
         f = super().convert_field
         if isinstance(value, list):
             if isinstance(conversion, str) and conversion.isnumeric():
-                return str(value[int(conversion)])
+                try:
+                    return str(value[int(conversion)])
+                except IndexError as err:
+                    error_message = (
+                        f"Layer index {conversion} in title is out of range. "
+                        f"This subplot contains {len(value)} layer{'s' if len(value) != 1 else ''}."
+                    )
+                    raise IndexError(error_message) from err
             return [f(v, conversion) for v in value]
         else:
             return f(value, conversion)
