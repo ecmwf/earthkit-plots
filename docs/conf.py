@@ -6,18 +6,22 @@
 
 # -- Import and path setup ---------------------------------------------------
 
+import datetime
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
+from earthkit.plots.version import __version__  # noqa: E402
+
 # -- Project information -----------------------------------------------------
 
+
 project = "earthkit-plots"
-copyright = "2023, European Centre for Medium Range Weather Forecasts"
+copyright = f"2022-{datetime.datetime.now().strftime('%Y')}, European Centre for Medium Range Weather Forecasts"
 author = "European Centre for Medium Range Weather Forecasts"
-version = "0.0.0"  # earthkit.plots.__version__
-release = "0.0.0"  # earthkit.plots.__version__
+version = __version__
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
