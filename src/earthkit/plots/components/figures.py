@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
 
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+from earthkit.plots.ancillary import find_logo
 from earthkit.plots.components.layers import LayerGroup
+from earthkit.plots.components.layouts import rows_cols
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.metadata import formatters
@@ -49,23 +53,70 @@ class Figure:
         Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
     """
 
-    def __init__(self, rows=1, columns=1, size=None, domain=None, **kwargs):
+    def __init__(
+        self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs
+    ):
         self.rows = rows
         self.columns = columns
+
+        self.fig = None
+        self.gridspec = None
 
         self._row = 0
         self._col = 0
 
-        figsize = self._parse_size(size)
-
-        self.fig = plt.figure(figsize=figsize, constrained_layout=True)
-        self.gridspec = self.fig.add_gridspec(rows, columns, **kwargs)
+        self._figsize = self._parse_size(size)
+        self._gridspec_kwargs = kwargs
 
         self._domain = domain
+        self._crs = crs
 
         self.subplots = []
         self._last_subplot_location = None
         self._isubplot = 0
+
+        self._queue = []
+        self._subplot_queue = []
+
+        self.attributions = []
+        self.logos = []
+
+        if None not in (self.rows, self.columns):
+            self._setup()
+
+    def setup(method):
+        """Decorator to set up the figure before calling a method."""
+
+        def wrapper(self, *args, **kwargs):
+            self._setup()
+            result = method(self, *args, **kwargs)
+            return result
+
+        return wrapper
+
+    def _setup(self):
+        self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
+        self.gridspec = self.fig.add_gridspec(
+            self.rows, self.columns, **self._gridspec_kwargs
+        )
+
+    def defer_until_setup(method):
+        def wrapper(self, *args, **kwargs):
+            if not self.subplots:
+                self._queue.append((method, args, kwargs))
+            else:
+                return method(self, *args, **kwargs)
+
+        return wrapper
+
+    def defer_subplot(method):
+        def wrapper(self, *args, **kwargs):
+            if self.rows is None or self.columns is None:
+                self._subplot_queue.append((method, args, kwargs))
+            else:
+                return method(self, *args, **kwargs)
+
+        return wrapper
 
     def __len__(self):
         return len(self.subplots)
@@ -99,11 +150,11 @@ class Figure:
         def wrapper(self, *args, **kwargs):
             success = False
             for subplot in self.subplots:
-                try:
-                    getattr(subplot, method.__name__)(*args, **kwargs)
-                    success = True
-                except (NotImplementedError, AttributeError):
-                    continue
+                # try:
+                getattr(subplot, method.__name__)(*args, **kwargs)
+                success = True
+            # except (NotImplementedError, AttributeError):
+            #     continue
             if not success:
                 raise NotImplementedError(
                     f"No subplots have method '{method.__name__}'"
@@ -111,10 +162,19 @@ class Figure:
 
         return wrapper
 
-    def multi_plot(method):
+    def iterate_subplots(method):
         """Decorator to iterate simultaneously over data and subplots."""
 
         def wrapper(self, data, *args, **kwargs):
+            if not hasattr(data, "__len__"):
+                data = [data]
+            if not self.subplots:
+                self.rows, self.columns = rows_cols(
+                    len(data), rows=self.rows, columns=self.columns
+                )
+                self._setup()
+                for _ in range(len(data)):
+                    self.add_map()
             for datum, subplot in zip(data, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
 
@@ -156,7 +216,8 @@ class Figure:
         self.subplots.append(subplot)
         return subplot
 
-    def add_map(self, row=None, column=None, domain=None, **kwargs):
+    @defer_subplot
+    def add_map(self, row=None, column=None, domain=None, crs=None, **kwargs):
         """
         Add a map to the figure.
 
@@ -174,8 +235,12 @@ class Figure:
         """
         if domain is None:
             domain = self._domain
+        if crs is None:
+            crs = self._crs
         row, column = self._determine_row_column(row, column)
-        subplot = Map(row=row, column=column, domain=domain, figure=self, **kwargs)
+        subplot = Map(
+            row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 
@@ -231,6 +296,7 @@ class Figure:
 
         return groups
 
+    @defer_until_setup
     @schema.legend.apply()
     def legend(self, *args, subplots=None, location=None, **kwargs):
         """
@@ -275,6 +341,18 @@ class Figure:
 
         return legends
 
+    @defer_until_setup
+    @apply_to_subplots
+    def cities(self, *args, **kwargs):
+        """
+        Add cities to every `Map` subplot in the figure.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `Map.cities`.
+        """
+
+    @defer_until_setup
     @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
@@ -285,6 +363,7 @@ class Figure:
         Accepts the same arguments as `Map.coastlines`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def countries(self, *args, **kwargs):
         """
@@ -295,6 +374,7 @@ class Figure:
         Accepts the same arguments as `Map.countries`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def urban_areas(self, *args, **kwargs):
         """
@@ -305,6 +385,7 @@ class Figure:
         Accepts the same arguments as `Map.urban_areas`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def land(self, *args, **kwargs):
         """
@@ -315,6 +396,7 @@ class Figure:
         Accepts the same arguments as `Map.land`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def borders(self, *args, **kwargs):
         """
@@ -325,6 +407,7 @@ class Figure:
         Accepts the same arguments as `Map.borders`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def standard_layers(self, *args, **kwargs):
         """
@@ -335,6 +418,7 @@ class Figure:
         Accepts the same arguments as `Map.quick_layers`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def administrative_areas(self, *args, **kwargs):
         """
@@ -345,6 +429,7 @@ class Figure:
         Accepts the same arguments as `Map.administrative_areas`.
         """
 
+    @defer_until_setup
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
         """
@@ -355,19 +440,36 @@ class Figure:
         Accepts the same arguments as `Map.stock_img`.
         """
 
-    @multi_plot
+    @iterate_subplots
     def block(self, *args, **kwargs):
         """"""
 
-    @multi_plot
+    @iterate_subplots
+    def gridpoints(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
+    def plot(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
+    def quickplot(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
+    def pcolormesh(self, *args, **kwargs):
+        """"""
+
+    @iterate_subplots
     def contourf(self, *args, **kwargs):
         """"""
 
-    @multi_plot
+    @iterate_subplots
     def contour(self, *args, **kwargs):
         """"""
 
-    def gridlines(self, *args, sharex=False, sharey=False, **kwargs):
+    @defer_until_setup
+    def gridlines(self, *args, sharex=True, sharey=True, **kwargs):
         """
         Add gridlines to every `Map` subplot in the figure.
 
@@ -387,7 +489,10 @@ class Figure:
         for subplot in self.subplots:
             if draw_labels:
                 subplot_draw_labels = [item for item in draw_labels]
-                if sharex:
+                if sharex and all(
+                    sp.domain == subplot.domain
+                    for sp in [s for s in self.subplots if s.column == subplot.column]
+                ):
                     if "top" in draw_labels and subplot.row != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "top"
@@ -398,7 +503,10 @@ class Figure:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "bottom"
                         ]
-                if sharey:
+                if sharey and all(
+                    sp.domain == subplot.domain
+                    for sp in [s for s in self.subplots if s.row == subplot.row]
+                ):
                     if "left" in draw_labels and subplot.column != 0:
                         subplot_draw_labels = [
                             loc for loc in subplot_draw_labels if loc != "left"
@@ -413,7 +521,7 @@ class Figure:
                 subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
 
-    @schema.title.apply()
+    @schema.suptitle.apply()
     def title(self, label=None, unique=True, grouped=True, y=None, **kwargs):
         """
         Add a top-level title to the chart.
@@ -448,8 +556,64 @@ class Figure:
             label = self._default_title_template
         label = self.format_string(label, unique, grouped)
 
+        if y is None:
+            y = self._get_suptitle_y()
+
+        result = self.fig.suptitle(label, y=y, **kwargs)
+        self.draw()
+        return result
+
+    def draw(self):
+        """
+        Draw the figure and all its subplots.
+        """
         self.fig.canvas.draw()
-        return self.fig.suptitle(label, y=y, **kwargs)
+        for subplot in self.subplots:
+            for layer in subplot.layers:
+                layer.reset_facecolors()
+
+    def _get_suptitle_y(self):
+        self.draw()
+        max_title_top = 0
+        renderer = self.fig.canvas.get_renderer()
+        inv_transform = self.fig.transFigure.inverted()
+
+        for ax in self.fig.axes:
+            # Check if the subplot has a title
+            title = ax.get_title()
+
+            if title:  # If there is a title, we need to handle the title object itself
+                title_obj = ax.title
+                title_bbox = title_obj.get_window_extent(renderer)
+                # Convert from display coords to figure-relative coords
+                bbox_fig = inv_transform.transform(title_bbox)
+                max_title_top = max(max_title_top, bbox_fig[1][1])
+            else:  # No title, check for other elements
+                if ax.xaxis.label.get_text():
+                    title_obj = ax.xaxis.label
+                elif ax.yaxis.label.get_text():
+                    title_obj = ax.yaxis.label
+                else:
+                    labels = ax.get_xticklabels()
+                    if labels:
+                        ticklabel_bbox = labels[0].get_window_extent(renderer)
+                        ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
+                        max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
+
+                # If we found a title-like object, handle its bbox
+                if "title_obj" in locals():
+                    title_bbox = title_obj.get_window_extent(renderer)
+                    bbox_fig = inv_transform.transform(title_bbox)
+                    max_title_top = max(max_title_top, bbox_fig[1][1])
+                    # Clean up any previous title_obj variable that was used
+                    del title_obj
+                else:
+                    # Fallback to checking the axis position
+                    max_title_top = max(max_title_top, ax.get_position().ymax)
+
+        # Set the suptitle just above the highest title
+        # Adjust the offset as needed
+        return max_title_top + 0.05
 
     def format_string(self, string, unique=True, grouped=True):
         if not grouped:
@@ -468,8 +632,55 @@ class Figure:
     def _default_title_template(self):
         return self.subplots[0]._default_title_template
 
+    def _release_queue(self):
+        if self._subplot_queue:
+            self.rows, self.columns = rows_cols(
+                len(self._subplot_queue), rows=self.rows, columns=self.columns
+            )
+            self._setup()
+        for item in self._subplot_queue:
+            method, args, kwargs = item
+            method(self, *args, **kwargs)
+        for queued_method, queued_args, queued_kwargs in self._queue:
+            queued_method(self, *queued_args, **queued_kwargs)
+        if self.attributions:
+            attribution_text = "; ".join(self.attributions)
+            x = 0.5 if not self.logos else 0.05
+            y = -0.02
+            ha = "center" if not self.logos else "left"
+
+            self.fig.text(
+                x,
+                y,
+                attribution_text,
+                ha=ha,
+                va="top",
+                fontsize=9,
+                color="gray",
+                wrap=True,
+            )
+        if self.logos:
+            # Place each logo horizontally, bottom-right, with some spacing
+            logo_width = 0.12  # fraction of figure width
+            logo_height = 0.05  # fraction of figure height
+            spacing = 0.01  # horizontal spacing
+            # Start from right, go left
+            for i, image_file in enumerate(reversed(self.logos)):
+                if not os.path.exists(image_file):
+                    image_file = find_logo(image_file)
+                logo = mpimg.imread(image_file)
+                left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
+                bottom = -0.05  # 0.01 margin from bottom
+                ax_logo = self.fig.add_axes(
+                    [left, bottom, logo_width, logo_height], zorder=100
+                )
+                ax_logo.imshow(logo)
+                ax_logo.axis("off")
+        return self
+
     def show(self, *args, **kwargs):
         """Display the figure."""
+        self._release_queue()
         return plt.show(*args, **kwargs)
 
     def save(self, *args, bbox_inches="tight", **kwargs):
@@ -485,6 +696,73 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to matplotlib.pyplot.savefig.
         """
+        self._release_queue()
         return plt.savefig(
-            *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
+            *args,
+            bbox_inches=bbox_inches,
+            dpi=kwargs.pop("dpi", schema.figure.dpi),
+            **kwargs,
         )
+
+    def resize(self):
+        self._release_queue()
+        return resize_figure_to_fit_axes(self.fig)
+
+    def add_attribution(self, attribution):
+        """
+        Add an attribution to the figure.
+
+        Parameters
+        ----------
+        attribution : str
+            The attribution text to add to the figure.
+        """
+        if attribution not in self.attributions:
+            self.attributions.append(attribution)
+
+    def add_logo(self, logo):
+        """
+        Add a logo to the figure.
+
+        Parameters
+        ----------
+        logo : str
+            Either the name of a built-in logo, or a path to the logo image file to add to the figure.
+        """
+        if logo not in self.logos:
+            self.logos.append(logo)
+
+
+def resize_figure_to_fit_axes(fig):
+    """
+    Adjust the size of a Matplotlib figure so that it fits its axes perfectly.
+
+    Parameters:
+    - fig: A Matplotlib Figure object.
+    """
+    # Get the current size of the figure and its DPI
+    current_size = fig.get_size_inches()
+
+    # Initialize variables to find the min/max extents of all axes
+    min_left = 1.0
+    max_right = 0.0
+    min_bottom = 1.0
+    max_top = 0.0
+
+    # Loop through all axes to find the outer bounds
+    for ax in fig.axes:
+        bbox = ax.get_position()
+        min_left = min(min_left, bbox.x0)
+        max_right = max(max_right, bbox.x1)
+        min_bottom = min(min_bottom, bbox.y0)
+        max_top = max(max_top, bbox.y1)
+
+    # Calculate new figure size
+    new_width = (max_right - min_left) * current_size[0]
+    new_height = (max_top - min_bottom) * current_size[1]
+
+    # Resize figure
+    fig.set_size_inches(new_width, new_height)
+    fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+    return fig

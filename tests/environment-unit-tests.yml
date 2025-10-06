@@ -1,0 +1,24 @@
+channels:
+- conda-forge
+- nodefaults
+dependencies:
+- make
+- mypy
+- myst-parser
+- pre-commit
+- pydata-sphinx-theme
+- pytest
+- cftime
+- pytest-cov
+# DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
+- earthkit-data
+- matplotlib
+- pandas
+- cartopy
+- pint
+- pyyaml
+- numpy
+- plotly
+- pip:
+  - adjustText
+  - earthkit-plots-default-styles>=0.1.2

@@ -1,4 +1,4 @@
-# Copyright 2024, European Centre for Medium Range Weather Forecasts.
+# Copyright 2024-, European Centre for Medium Range Weather Forecasts.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -42,6 +42,9 @@ def guess_style(data, units=None, **kwargs):
         data, the data will be converted to the target units and the style
         will be adjusted accordingly.
     """
+    if units is None:
+        units = data.units
+
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
@@ -75,7 +78,6 @@ def guess_style(data, units=None, **kwargs):
         break
     else:
         return styles.DEFAULT_STYLE
-
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:
@@ -95,6 +97,10 @@ def guess_style(data, units=None, **kwargs):
                 break
         else:
             # No style matching units found; return default
-            return styles.DEFAULT_STYLE
+            for _, style in style_config["styles"].items():
+                if "units" not in style:
+                    break
+            else:
+                return styles.DEFAULT_STYLE
 
     return styles.Style.from_dict({**style, **kwargs})

@@ -6,18 +6,22 @@
 
 # -- Import and path setup ---------------------------------------------------
 
+import datetime
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
+from earthkit.plots.version import __version__  # noqa: E402
+
 # -- Project information -----------------------------------------------------
 
+
 project = "earthkit-plots"
-copyright = "2023, European Centre for Medium Range Weather Forecasts"
+copyright = f"2022-{datetime.datetime.now().strftime('%Y')}, European Centre for Medium Range Weather Forecasts"
 author = "European Centre for Medium Range Weather Forecasts"
-version = "0.0.0"  # earthkit.plots.__version__
-release = "0.0.0"  # earthkit.plots.__version__
+version = __version__
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -57,6 +61,10 @@ autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
 autoapi_add_toctree_entry = True
 
+nbsphinx_thumbnails = {
+    "examples/examples/string-formatting-units": "_static/string-formatting-units.png",
+}
+
 # napoleon configuration
 # napoleon_google_docstring = False
 # napoleon_numpy_docstring = True
@@ -77,6 +85,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # a list of builtin themes.
 #
 html_theme = "sphinx_rtd_theme"
+html_logo = "https://raw.githubusercontent.com/ecmwf/logos/refs/heads/main/logos/earthkit/earthkit-plots-dark.svg"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
