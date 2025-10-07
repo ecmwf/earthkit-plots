@@ -459,7 +459,7 @@ class Style:
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
-    
+
     def streamplot(self, ax, x, y, u, v, *args, **kwargs):
         """
         Plot streamlines using this `Style`.

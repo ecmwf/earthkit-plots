@@ -1119,7 +1119,7 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.quiver`.
         """
-        
+
     @plot_vector()
     def streamplot(self, *args, **kwargs):
         """
