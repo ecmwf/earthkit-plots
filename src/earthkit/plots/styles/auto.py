@@ -15,6 +15,7 @@
 import glob
 import os
 from pathlib import Path
+from typing import Any, Iterable, Sequence
 
 import yaml
 
@@ -22,6 +23,25 @@ from earthkit.plots import styles
 from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.metadata.units import are_equal
 from earthkit.plots.schemas import schema
+
+METADATA = dict[str, Any | Sequence[Any]]
+
+
+def criteria_matches(data, criteria: METADATA) -> bool:
+    """Test if the metadata matches the criteria."""
+    for key, value in criteria.items():
+        metadata_value = data.metadata(key, None)
+        if metadata_value is None:
+            break
+
+        if all(map(lambda x: isinstance(x, Iterable), (metadata_value, value))):
+            if set(value) != set(metadata_value):
+                break
+        elif value != metadata_value:
+            break
+    else:
+        return True
+    return False
 
 
 def guess_style(data, units=None, **kwargs):
@@ -65,19 +85,12 @@ def guess_style(data, units=None, **kwargs):
         else:
             continue
 
-        for criteria in config["criteria"]:
-            for key, value in criteria.items():
-                if data.metadata(key, default=None) == value:
-                    identity = config["id"]
-                    break
-            else:
-                continue
+        if any(criteria_matches(data, c) for c in config["criteria"]):
+            identity = config["id"]
             break
-        else:
-            continue
-        break
     else:
         return styles.DEFAULT_STYLE
+
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
             with open(fname, "r") as f:
