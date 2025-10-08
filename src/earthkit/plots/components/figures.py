@@ -560,7 +560,6 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        # self.draw()
         return result
 
     def draw(self):
