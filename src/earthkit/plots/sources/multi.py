@@ -80,3 +80,6 @@ class MultiSource:
         if isinstance(d, SingleSource):
             return d
         return get_source(d, **self._kwargs)
+
+    def mutate(self):
+        return self
