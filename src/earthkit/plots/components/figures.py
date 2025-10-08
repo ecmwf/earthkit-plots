@@ -593,9 +593,8 @@ class Figure:
                 title_fontsize = first_ax.title.get_fontsize()
             else:
                 title_fontsize = default_title_fontsize
-        except (IndexError, TypeError):
+        except IndexError:
             # IndexError: self.fig.axes is empty
-            # TypeError: self.fig.axes[0] is not a valid Axes object
             # NOTE: We are unlikely to get here, but it's good to be defensive.
             title_fontsize = default_title_fontsize
 
