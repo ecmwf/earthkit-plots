@@ -585,18 +585,23 @@ class Figure:
         fig_height = self.fig.get_size_inches()[1]
 
         # Get the default title font size (or use a reasonable default)
+        default_title_fontsize = 12
         try:
             # Try to get font size from the first subplot's title
             first_ax = self.fig.axes[0]
             if first_ax.get_title():
                 title_fontsize = first_ax.title.get_fontsize()
             else:
-                title_fontsize = 12
-        except AttributeError:
-            title_fontsize = 12
+                title_fontsize = default_title_fontsize
+        except (IndexError, TypeError):
+            # IndexError: self.fig.axes is empty
+            # TypeError: self.fig.axes[0] is not a valid Axes object
+            # NOTE: We are unlikely to get here, but it's good to be defensive.
+            title_fontsize = default_title_fontsize
 
-        # Convert font size to figure-relative units
-        title_height_fig = (title_fontsize / 72.0) / fig_height
+        # Convert font size to figure-relative units using actual figure DPI
+        fig_dpi = self.fig.get_dpi()
+        title_height_fig = (title_fontsize / fig_dpi) / fig_height
 
         # Add some padding above the title
         title_padding = 0.15  # 15% of figure height
