@@ -33,3 +33,23 @@ def test_BaseFormatter_convert_field_capitalize():
 def test_BaseFormatter_convert_field_title():
     formatter = formatters.BaseFormatter()
     assert formatter.convert_field("this is a test", "t") == "This Is A Test"
+
+
+def test_BaseFormatter_location_city():
+    """Test formatting location as city only."""
+    from earthkit.plots.metadata.labels import LocationInfo
+
+    formatter = formatters.BaseFormatter()
+    location = LocationInfo(city="London", country="United Kingdom")
+
+    assert formatter.format_field(location, "%c") == "London"
+
+
+def test_BaseFormatter_location_country():
+    """Test formatting location as country only."""
+    from earthkit.plots.metadata.labels import LocationInfo
+
+    formatter = formatters.BaseFormatter()
+    location = LocationInfo(city="London", country="United Kingdom")
+
+    assert formatter.format_field(location, "%C") == "United Kingdom"

@@ -59,13 +59,47 @@ class XarraySource(SingleSource):
             elif len(dataarray.data_vars) == 1:
                 dataarray = dataarray[list(dataarray.data_vars)[0]]
             else:
-                raise ValueError(
-                    "Multiple variables found in the xarray Dataset. Please specify a variable name with the 'z' parameter."
-                )
+                # Find the variable with coordinate dimensions
+                key_var = self._find_key_variable(dataarray)
+                if key_var is not None:
+                    dataarray = dataarray[key_var]
+                else:
+                    raise ValueError(
+                        "Multiple variables found in the xarray Dataset. Please specify a variable name with the 'z' parameter."
+                    )
         super().__init__(dataarray, x=x, y=y, z=z, **kwargs)
         self._data = dataarray
 
         self._x_values, self._y_values, self._z_values = self._infer_xyz()
+
+    def _find_key_variable(self, dataset):
+        """
+        Find the variable that has coordinate dimensions (the main data variable).
+
+        Parameters
+        ----------
+        dataset : xr.Dataset
+            The xarray Dataset to analyze
+
+        Returns
+        -------
+        str or None
+            The name of the key variable, or None if multiple variables have coordinate dimensions
+        """
+        variables_with_coords = []
+
+        for var_name, var in dataset.data_vars.items():
+            # Check if this variable has any coordinate dimensions
+            if any(dim in dataset.coords for dim in var.dims):
+                variables_with_coords.append(var_name)
+
+        # If exactly one variable has coordinate dimensions, that's our key variable
+        if len(variables_with_coords) == 1:
+            return variables_with_coords[0]
+
+        # If multiple variables have coordinate dimensions, we can't auto-select
+        # If no variables have coordinate dimensions, we also can't auto-select
+        return None
 
     def _infer_xyz(self):
         """Infers x, y, and z values based on xarray input dimensions and provided names."""
@@ -200,8 +234,6 @@ class XarraySource(SingleSource):
         # Case 3: Only y is provided
         elif self._y is not None:
             y_values = self._get_coordinate_or_variable_values(self._y)
-            # If y is a dimension name, x should be the variable values
-            # If y is a variable name, x should be the dimension values
             if self._y in data_dims:
                 # y is a dimension name, so x should be the variable values
                 x_values = self._data.values

@@ -478,3 +478,81 @@ def test_xarray_source_2d_edge_cases():
     assert np.array_equal(source.z_values, np.array([[1, 2, 3], [4, 5, 6]]))
     assert source._x == "dim1"
     assert source._y == "dim2"
+
+
+def test_xarray_dataset_key_variable_selection():
+    """Test automatic selection of key variable from Dataset with coordinate dimensions."""
+    # Create a dataset similar to the user's example
+    import pandas as pd
+
+    # Create time coordinate
+    times = pd.date_range("2025-08-20", "2025-08-23T23:00:00", freq="h")
+
+    # Create dataset with one variable having coordinate dimensions and others not
+    data = xr.Dataset(
+        {
+            "t2m": (["valid_time"], np.random.randn(96)),  # Has coordinate dimension
+            "latitude": 45.0,  # No coordinate dimensions
+            "longitude": -120.0,  # No coordinate dimensions
+        },
+        coords={"valid_time": times},
+    )
+
+    # Should automatically select 't2m' as the key variable
+    source = XarraySource(data)
+
+    # Verify the correct variable was selected
+    assert source._data.name == "t2m"
+    assert np.array_equal(
+        source.y_values, data["t2m"].values
+    )  # 1D data goes to y_values
+    assert source.x_values is not None  # Should have time values
+    assert source.z_values is None  # 1D data, no z dimension
+    assert source._x == "valid_time"  # Should identify the time dimension as x
+    assert source._y == "t2m"  # Should identify the data variable as y
+    assert source._z is None  # No z dimension for 1D data
+
+
+def test_xarray_dataset_multiple_coordinate_variables():
+    """Test error when multiple variables have coordinate dimensions."""
+    import pandas as pd
+
+    times = pd.date_range("2025-08-20", "2025-08-23T23:00:00", freq="h")
+
+    # Create dataset with multiple variables having coordinate dimensions
+    data = xr.Dataset(
+        {
+            "t2m": (["valid_time"], np.random.randn(96)),  # Has coordinate dimension
+            "rh": (
+                ["valid_time"],
+                np.random.randn(96),
+            ),  # Also has coordinate dimension
+            "latitude": 45.0,  # No coordinate dimensions
+            "longitude": -120.0,  # No coordinate dimensions
+        },
+        coords={"valid_time": times},
+    )
+
+    # Should raise an error since multiple variables have coordinate dimensions
+    with pytest.raises(
+        ValueError, match="Multiple variables found in the xarray Dataset"
+    ):
+        XarraySource(data)
+
+
+def test_xarray_dataset_no_coordinate_variables():
+    """Test error when no variables have coordinate dimensions."""
+    # Create dataset with no variables having coordinate dimensions
+    data = xr.Dataset(
+        {
+            "latitude": 45.0,
+            "longitude": -120.0,
+            "elevation": 100.0,
+        }
+    )
+
+    # Should raise an error since no variables have coordinate dimensions
+    with pytest.raises(
+        ValueError, match="Multiple variables found in the xarray Dataset"
+    ):
+        XarraySource(data)
