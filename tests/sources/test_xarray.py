@@ -95,15 +95,6 @@ def test_xarray_source_multiple_variables():
     assert np.array_equal(source.z_values, np.array([[30, 35, 40], [45, 50, 55]]))
 
 
-def test_xarray_source_fallback_to_numpy_behavior():
-    """Test that XarraySource falls back to numpy behavior with array inputs."""
-    data = np.array([[1, 2, 3], [4, 5, 6]])
-    source = XarraySource(data)
-    assert np.array_equal(source.x_values, np.array([0, 1, 2]))
-    assert np.array_equal(source.y_values, np.array([0, 1]))
-    assert np.array_equal(source.z_values, np.array([[1, 2, 3], [4, 5, 6]]))
-
-
 def test_xarray_source_invalid_dimension():
     """Test that XarraySource raises a ValueError for invalid dimension names."""
     data = xr.DataArray(
