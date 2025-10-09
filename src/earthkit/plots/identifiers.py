@@ -180,13 +180,11 @@ def group_vectors(data) -> list:
     unique_values = set(iter_utils.flatten(arg.metadata("param") for arg in data))
     leftover_values = unique_values.copy()
 
-    vectors = []
+    grouped_data = []
     for check in VECTOR_CHECKS:
         if pair := check(unique_values):
             leftover_values.difference_update(pair)
-            vectors.append(data.sel(param=pair))
+            grouped_data.append(data.sel(param=pair))
 
-    grouped_data = [data.sel(param=val) for val in leftover_values]
-    # Add vectors at the end # TODO better fix for z fighting
-    grouped_data.extend(vectors)
+    grouped_data.extend(data.sel(param=val) for val in leftover_values)
     return grouped_data

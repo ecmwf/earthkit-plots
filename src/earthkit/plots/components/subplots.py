@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import warnings
 
 import matplotlib.dates as mdates
@@ -38,6 +39,16 @@ DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
 TARGET_DENSITY = 40
+
+LAYER_ZORDERS = {
+    "contourf": 1,
+    "pcolormesh": 1,
+    "scatter": 2,
+    "contour": 3,
+    "quiver": 3,
+    "barbs": 3,
+    "streamplot": 3,
+}
 
 
 class Subplot:
@@ -191,6 +202,7 @@ class Subplot:
 
     def plot_2D(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -218,6 +230,7 @@ class Subplot:
 
     def plot_box(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
                 source = get_source(data=data, x=x, y=y, z=z)
                 kwargs = {**self._plot_kwargs(source), **kwargs}
@@ -252,6 +265,7 @@ class Subplot:
 
     def plot_3D(method_name=None, extract_domain=False):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -282,6 +296,7 @@ class Subplot:
 
     def plot_vector(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -790,6 +805,8 @@ class Subplot:
                 method = self.grid_cells
         else:
             method = getattr(self, style._preferred_method)
+        zorder = LAYER_ZORDERS.get(method.__name__, 10)
+        kwargs.setdefault("zorder", zorder)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
     def hsv_composite(self, *args):
