@@ -460,6 +460,27 @@ class Style:
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
 
+    def streamplot(self, ax, x, y, u, v, *args, **kwargs):
+        """
+        Plot streamlines using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        u : numpy.ndarray
+            The u-component of the data to be plotted.
+        v : numpy.ndarray
+            The v-component of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.streamplot`.
+        """
+        return ax.streamplot(x, y, u, v, *args, **kwargs)
+
     def tricontour(self, ax, x, y, values, *args, **kwargs):
         """
         Plot triangulated contour lines using this `Style`.
