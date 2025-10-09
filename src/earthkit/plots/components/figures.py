@@ -593,7 +593,7 @@ class Figure:
                 title_fontsize = first_ax.title.get_fontsize()
         except IndexError:
             # IndexError: self.fig.axes is empty
-            # NOTE: We are unlikely to get here, but it's good to be defensive.
+            pass
 
         # Convert font size to figure-relative units using actual figure DPI
         fig_dpi = self.fig.get_dpi()
