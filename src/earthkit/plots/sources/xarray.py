@@ -76,7 +76,6 @@ class XarraySource(SingleSource):
 
     def _implicit_xyz(self):
         """Default identification of x, y and z when self._x, self._y and self._z are all None."""
-        # Get the data shape and dimensions
         data_shape = self._data.shape
         data_dims = list(self._data.dims)
 
@@ -85,9 +84,8 @@ class XarraySource(SingleSource):
             # Data is dimensionless 1D array - use as y_values with index as x_values
             x_values = np.arange(data_shape[0])
             y_values = self._data.values
-            z_values = None  # No z values for 1D data
-            # Set implicit coordinate names
-            self._x = None  # Index array, no name
+            z_values = None
+            self._x = None
             self._y = self._data.name if hasattr(self._data, "name") else None
             self._z = None
             return x_values, y_values, z_values
@@ -98,8 +96,7 @@ class XarraySource(SingleSource):
             # The dimension's values become x_values, variable values become y_values
             x_values = self._data[dim_name].values
             y_values = self._data.values
-            z_values = None  # No z values for 1D data
-            # Set implicit coordinate names
+            z_values = None
             self._x = dim_name
             self._y = self._data.name if hasattr(self._data, "name") else None
             self._z = None
@@ -117,14 +114,10 @@ class XarraySource(SingleSource):
             if y_dim is None:
                 y_dim = data_dims[1]
 
-            # Get coordinate values for x and y
             x_values = self._data[x_dim].values
             y_values = self._data[y_dim].values
-
-            # The variable values are the z_values
             z_values = self._data.values
 
-            # Set implicit coordinate names
             self._x = x_dim
             self._y = y_dim
             self._z = self._data.name if hasattr(self._data, "name") else None
@@ -132,13 +125,11 @@ class XarraySource(SingleSource):
 
         # Case 4: Higher dimensional data (3D+)
         else:
-            # Find x dimension and values
             x_dim = find_x(self._data.dims)
             x_values = (
                 self._data[x_dim].values if x_dim else np.arange(self._data.shape[-1])
             )
 
-            # Find y dimension and values
             y_dim = find_y(self._data.dims)
             y_values = (
                 self._data[y_dim].values if y_dim else np.arange(self._data.shape[0])
@@ -149,12 +140,10 @@ class XarraySource(SingleSource):
             if isinstance(self._data, xr.DataArray):
                 z_values = self._data.values
             else:
-                # This case should not occur due to __init__ logic, but handle gracefully
                 raise ValueError(
                     "Cannot determine z values for Dataset without explicit variable selection."
                 )
 
-            # Set implicit coordinate names
             self._x = x_dim
             self._y = y_dim
             self._z = self._data.name if hasattr(self._data, "name") else None
@@ -164,15 +153,12 @@ class XarraySource(SingleSource):
         """Handle explicit x, y, z values when any of self._x, self._y, self._z are not None."""
         data_shape = self._data.shape
 
-        # Handle 1D data with explicit x and y arguments
         if len(data_shape) == 1:
             return self._explicit_xyz_1d()
 
-        # Handle 2D data with explicit x and y arguments
         elif len(data_shape) == 2:
             return self._explicit_xyz_2d()
 
-        # Handle higher dimensional data
         else:
             return self._explicit_xyz_nd()
 
@@ -184,13 +170,11 @@ class XarraySource(SingleSource):
         if self._x is not None and self._y is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
             y_values = self._get_coordinate_or_variable_values(self._y)
-            z_values = None  # No z values for 1D data
+            z_values = None
 
         # Case 2: Only x is provided
         elif self._x is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
-            # If x is a dimension name, y should be the variable values
-            # If x is a variable name, y should be the dimension values
             if self._x in data_dims:
                 # x is a dimension name, so y should be the variable values
                 y_values = self._data.values
