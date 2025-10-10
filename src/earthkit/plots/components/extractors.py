@@ -26,7 +26,7 @@ The module is organized into three main categories:
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 from cartopy.util import add_cyclic_point
@@ -42,10 +42,10 @@ from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
 def extract_plottables_2D(
     subplot: Any,
     method_name: str,
-    args: Tuple[Any, ...],
-    x: Optional[Union[str, np.ndarray, List[float]]] = None,
-    y: Optional[Union[str, np.ndarray, List[float]]] = None,
-    z: Optional[Union[str, np.ndarray, List[float]]] = None,
+    args: tuple[Any, ...],
+    x: Optional[Union[str, np.ndarray, list[float]]] = None,
+    y: Optional[Union[str, np.ndarray, list[float]]] = None,
+    z: Optional[Union[str, np.ndarray, list[float]]] = None,
     style: Optional[Style] = None,
     no_style: bool = False,
     units: Optional[str] = None,
@@ -55,7 +55,7 @@ def extract_plottables_2D(
     source_units: Optional[str] = None,
     auto_style: bool = False,
     regrid: bool = False,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[dict[str, Any]] = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -324,10 +324,10 @@ def _apply_coordinate_unit_conversion(source, units, xunits, yunits, x, y, metho
 def extract_plottables_3D(
     subplot: Any,
     method_name: str,
-    args: Tuple[Any, ...],
-    x: Optional[Union[str, np.ndarray, List[float]]] = None,
-    y: Optional[Union[str, np.ndarray, List[float]]] = None,
-    z: Optional[Union[str, np.ndarray, List[float]]] = None,
+    args: tuple[Any, ...],
+    x: Optional[Union[str, np.ndarray, list[float]]] = None,
+    y: Optional[Union[str, np.ndarray, list[float]]] = None,
+    z: Optional[Union[str, np.ndarray, list[float]]] = None,
     style: Optional[Style] = None,
     no_style: bool = False,
     units: Optional[str] = None,
@@ -338,7 +338,7 @@ def extract_plottables_3D(
     extract_domain: bool = False,
     auto_style: bool = False,
     regrid: bool = False,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: Optional[dict[str, Any]] = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -487,15 +487,15 @@ def extract_plottables_3D(
 
 def extract_plottables_envelope(
     subplot: Any,
-    data: Optional[Union[np.ndarray, List[float]]] = None,
-    x: Optional[Union[str, np.ndarray, List[float]]] = None,
-    y: Optional[Union[str, np.ndarray, List[float]]] = None,
-    z: Optional[Union[str, np.ndarray, List[float]]] = None,
+    data: Optional[Union[np.ndarray, list[float]]] = None,
+    x: Optional[Union[str, np.ndarray, list[float]]] = None,
+    y: Optional[Union[str, np.ndarray, list[float]]] = None,
+    z: Optional[Union[str, np.ndarray, list[float]]] = None,
     every: Optional[int] = None,
     source_units: Optional[str] = None,
     extract_domain: bool = False,
     **kwargs: Any,
-) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
     """
     Extract data for envelope plotting methods (e.g., fill_between).
 
@@ -578,7 +578,7 @@ def configure_style(
     source: Any,
     units: Optional[str],
     auto_style: bool,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> Style:
     """
     Configure the plotting style based on method name and data characteristics.
@@ -635,7 +635,7 @@ def configure_style(
 
 
 def process_z_values(
-    style: Style, source: Any, z: Optional[Union[str, np.ndarray, List[float]]]
+    style: Style, source: Any, z: Optional[Union[str, np.ndarray, list[float]]]
 ) -> Optional[np.ndarray]:
     """
     Process z values by converting units and applying scale factors.
@@ -674,7 +674,7 @@ def apply_sampling(
     y_values: np.ndarray,
     z_values: Optional[np.ndarray],
     every: Optional[int],
-) -> Tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
     """
     Apply sampling to x, y, and z values if a sampling interval is specified.
 
@@ -726,7 +726,7 @@ def _handle_specialized_grids(
     z_values: np.ndarray,
     style: Style,
     method_name: str,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> Optional[Any]:
     """
     Handle plotting for specialized grid types like healpix and octahedral.
@@ -779,7 +779,7 @@ def plot_healpix(
     source: Any,
     z_values: np.ndarray,
     style: Style,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> Any:
     """
     Handle plotting for HEALPix grid data.
@@ -826,7 +826,7 @@ def plot_octahedral(
     source: Any,
     z_values: np.ndarray,
     style: Style,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> Any:
     """
     Handle plotting for octahedral grid data.
@@ -872,7 +872,7 @@ def _handle_cyclic_points(
     x_values: np.ndarray,
     y_values: np.ndarray,
     z_values: np.ndarray,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Handle cyclic point wrapping for contour plots.
 
@@ -913,7 +913,7 @@ def _handle_cyclic_points(
     return x_values, y_values, z_values
 
 
-def _handle_transform_settings(subplot: Any, kwargs: Dict[str, Any]) -> Dict[str, Any]:
+def _handle_transform_settings(subplot: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
     """
     Handle coordinate transformation settings for the plotting method.
 
@@ -951,7 +951,7 @@ def plot_with_interpolation(
     y_values: np.ndarray,
     z_values: np.ndarray,
     source_crs: Any,
-    kwargs: Dict[str, Any],
+    kwargs: dict[str, Any],
 ) -> Any:
     """
     Attempt to plot with or without interpolation as needed.
