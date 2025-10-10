@@ -967,11 +967,29 @@ class Categorical(Style):
 
 
 class Quiver(Style):
-    """A style for plotting vector data."""
+    """A style for plotting vector data.
 
-    def __init__(self, *args, colors=None, **kwargs):
+    Parameters
+    ----------
+    colors : str or list or matplotlib.colors.Colormap, optional
+        The colors to be used in this `Style`. This can be a named matplotlib
+        colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
+        three (four)-element lists of RGB(A) values), or a pre-defined
+        matplotlib colormap object. If not provided, the default colormap of the
+        active `schema` will be used.
+    preferred_method : str, optional
+        The preferred method for plotting the data. Must be one of `quiver`, `barbs` or
+        `vector` method.
+    **kwargs
+        Additional keyword arguments to be passed to the `quiver`, `barbs` or
+        `vector` method.
+    """
+
+    def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
         kwargs["legend_style"] = "vector"
-        super().__init__(*args, colors=colors, **kwargs)
+        super().__init__(
+            *args, colors=colors, preferred_method=preferred_method, **kwargs
+        )
 
 
 class Contour(Style):
