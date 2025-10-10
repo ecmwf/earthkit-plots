@@ -139,34 +139,47 @@ def extract_plottables_2D(
 
     # Determine primary axis for unit conversion display
     primary_axis = _identify_primary_axis(source, source._x, source._y)
-    
+
     # Store axis-specific units for formatter
     axis_units = {}
     if xunits is not None:
-        axis_units['x'] = xunits
+        axis_units["x"] = xunits
     if yunits is not None:
-        axis_units['y'] = yunits
-    if units is not None and primary_axis is not None and primary_axis not in axis_units:
+        axis_units["y"] = yunits
+    if (
+        units is not None
+        and primary_axis is not None
+        and primary_axis not in axis_units
+    ):
         axis_units[primary_axis] = units
-    
-    subplot.layers.append(Layer(source, mappable, subplot, style, primary_axis=primary_axis, axis_units=axis_units))
+
+    subplot.layers.append(
+        Layer(
+            source,
+            mappable,
+            subplot,
+            style,
+            primary_axis=primary_axis,
+            axis_units=axis_units,
+        )
+    )
     return mappable
 
 
 def _identify_primary_axis(source, x, y):
     """
     Identify which axis (x or y) contains the primary data for unit conversion.
-    
+
     This function uses the identify_primary function from identifiers.py to determine
     which variable contains the actual data values (as opposed to coordinate dimensions).
-    
+
     Parameters
     ----------
     source : Source
         The data source object.
     x, y : str, array-like, or None
         X and Y coordinate values or names.
-    
+
     Returns
     -------
     str or None
@@ -174,65 +187,65 @@ def _identify_primary_axis(source, x, y):
     """
     # Try to get the underlying data object for analysis
     data = None
-    if hasattr(source, 'data') and source.data is not None:
+    if hasattr(source, "data") and source.data is not None:
         data = source.data
-    elif hasattr(source, '_data') and source._data is not None:
+    elif hasattr(source, "_data") and source._data is not None:
         data = source._data
-    
+
     if data is None:
         return None
-        
+
     # Use identify_primary to find the primary variable/dimension
     primary = identify_primary(data)
-    
+
     if primary is None:
         return None
-    
+
     # Check if the primary variable/name corresponds to x or y coordinates
     # If x or y were specified as strings, check if primary matches them
     if isinstance(x, str) and primary == x:
-        return 'x'
+        return "x"
     if isinstance(y, str) and primary == y:
-        return 'y'
-    
+        return "y"
+
     # For xarray data, check if we can infer the axis from the data structure
-    if hasattr(data, 'dims'):
+    if hasattr(data, "dims"):
         # If primary is a variable name (Dataset case), check where it maps
-        if hasattr(data, 'data_vars') and primary in data.data_vars:
+        if hasattr(data, "data_vars") and primary in data.data_vars:
             # The primary is a data variable - we need to figure out which axis it maps to
             # This is tricky without more context, so we'll use heuristics
-            
+
             # If x and y are dimension names, check which one the primary variable uses
             if isinstance(x, str) and isinstance(y, str):
                 var_dims = list(data[primary].dims)
                 if x in var_dims and y not in var_dims:
-                    return 'x'
+                    return "x"
                 elif y in var_dims and x not in var_dims:
-                    return 'y'
+                    return "y"
                 elif len(var_dims) == 1:
                     # Single dimension - check if it's more likely x or y
                     dim = var_dims[0]
                     if dim == x:
-                        return 'x'
+                        return "x"
                     elif dim == y:
-                        return 'y'
-            
+                        return "y"
+
             # Default heuristic: if it's a 1D variable, assume it maps to y (values)
             if len(data[primary].dims) == 1:
-                return 'y'
-        
+                return "y"
+
         # If primary is a DataArray name, assume it maps to y (the data values)
-        elif hasattr(data, 'name') and primary == data.name:
-            return 'y'
-        
+        elif hasattr(data, "name") and primary == data.name:
+            return "y"
+
         # If primary is a dimension name (fallback case), use position heuristics
         elif primary in data.dims:
             dims = list(data.dims)
             if len(dims) == 2 and dims.index(primary) == 1:
-                return 'y'
+                return "y"
             else:
-                return 'x'
-    
+                return "x"
+
     return None
 
 
@@ -274,7 +287,7 @@ def _apply_coordinate_unit_conversion(source, units, xunits, yunits, x, y, metho
     # Determine target units for each axis
     target_x_units = xunits
     target_y_units = yunits
-    
+
     # If axis-specific units not provided, use general units for primary axis only
     if target_x_units is None and target_y_units is None and units is not None:
         primary_axis = _identify_primary_axis(source, source._x, source._y)
@@ -288,16 +301,20 @@ def _apply_coordinate_unit_conversion(source, units, xunits, yunits, x, y, metho
         x_meta = getattr(source, "x_metadata", {})
         if "units" in x_meta and x_meta["units"] != target_x_units:
             try:
-                x_values = metadata_units.convert(x_values, x_meta["units"], target_x_units)
+                x_values = metadata_units.convert(
+                    x_values, x_meta["units"], target_x_units
+                )
             except Exception as e:
                 warnings.warn(f"Failed to convert x values to {target_x_units}: {e}")
 
-    # Apply y-axis unit conversion  
+    # Apply y-axis unit conversion
     if target_y_units is not None:
         y_meta = getattr(source, "y_metadata", {})
         if "units" in y_meta and y_meta["units"] != target_y_units:
             try:
-                y_values = metadata_units.convert(y_values, y_meta["units"], target_y_units)
+                y_values = metadata_units.convert(
+                    y_values, y_meta["units"], target_y_units
+                )
             except Exception as e:
                 warnings.warn(f"Failed to convert y values to {target_y_units}: {e}")
 
@@ -444,18 +461,27 @@ def extract_plottables_3D(
     from earthkit.plots.components.layers import Layer
 
     # For 3D plots, the primary data is typically on the z-axis
-    primary_axis = 'z'
-    
+    primary_axis = "z"
+
     # Store axis-specific units for formatter
     axis_units = {}
     if xunits is not None:
-        axis_units['x'] = xunits
+        axis_units["x"] = xunits
     if yunits is not None:
-        axis_units['y'] = yunits
-    if units is not None and 'z' not in axis_units:
-        axis_units['z'] = units
-    
-    subplot.layers.append(Layer(source, mappable, subplot, style, primary_axis=primary_axis, axis_units=axis_units))
+        axis_units["y"] = yunits
+    if units is not None and "z" not in axis_units:
+        axis_units["z"] = units
+
+    subplot.layers.append(
+        Layer(
+            source,
+            mappable,
+            subplot,
+            style,
+            primary_axis=primary_axis,
+            axis_units=axis_units,
+        )
+    )
     return mappable
 
 

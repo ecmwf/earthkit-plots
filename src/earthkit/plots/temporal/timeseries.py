@@ -48,9 +48,9 @@ class TimeSeries(Subplot):
             "We welcome feedback and bug reports on GitHub issues: "
             "https://github.com/ecmwf/earthkit-plots/issues",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
-        
+
         # Set default size if not provided
         if "size" not in kwargs:
             kwargs["size"] = (8, 4)

@@ -20,30 +20,33 @@ including support for datetime axes with period mode for centered labels.
 
 import re
 from calendar import month_abbr, month_name
-import matplotlib as mpl
-
 from datetime import date
 
+import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.ticker as ticker
 from dateutil.relativedelta import relativedelta
-from dateutil.rrule import MONTHLY
-from earthkit.plots.temporal.anchors import AnchoredYearLocator, AnchoredMonthLocator, AnchoredDayLocator
+
+from earthkit.plots.temporal.anchors import (
+    AnchoredDayLocator,
+    AnchoredMonthLocator,
+    AnchoredYearLocator,
+)
 
 # Default datetime formats for different tick levels
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
-TIME_PREFIX_YEAR = "Y"      # Yearly frequency
-TIME_PREFIX_WY = "WY"       # Water year frequency
-TIME_PREFIX_QUARTER = "Q"   # Quarterly frequency
-TIME_PREFIX_SEASON = "SEAS" # Seasonal frequency
-TIME_PREFIX_MONTH = "M"     # Monthly frequency
-TIME_PREFIX_WEEK = "W"      # Weekly frequency
-TIME_PREFIX_DAY = "D"       # Daily frequency
-TIME_PREFIX_HOUR = "H"      # Hourly frequency
-TIME_PREFIX_MINUTE = "m"    # Minutely frequency
-TIME_PREFIX_SECOND = "S"    # Secondly frequency
+TIME_PREFIX_YEAR = "Y"  # Yearly frequency
+TIME_PREFIX_WY = "WY"  # Water year frequency
+TIME_PREFIX_QUARTER = "Q"  # Quarterly frequency
+TIME_PREFIX_SEASON = "SEAS"  # Seasonal frequency
+TIME_PREFIX_MONTH = "M"  # Monthly frequency
+TIME_PREFIX_WEEK = "W"  # Weekly frequency
+TIME_PREFIX_DAY = "D"  # Daily frequency
+TIME_PREFIX_HOUR = "H"  # Hourly frequency
+TIME_PREFIX_MINUTE = "m"  # Minutely frequency
+TIME_PREFIX_SECOND = "S"  # Secondly frequency
 
 TIME_PREFIXES = (
     TIME_PREFIX_YEAR,
@@ -58,11 +61,11 @@ TIME_PREFIXES = (
     TIME_PREFIX_SECOND,
 )
 
-SEASON_ANCHOR_MONTH = 12          # DJF anchor (Dec). Can be overridden via kwargs.
-SEASON_NAME_HEMI = "north"        # or "south"
-SEASON_MONTH_SEP = ", "           # used for %b / %B lists
+SEASON_ANCHOR_MONTH = 12  # DJF anchor (Dec). Can be overridden via kwargs.
+SEASON_NAME_HEMI = "north"  # or "south"
+SEASON_MONTH_SEP = ", "  # used for %b / %B lists
 
-_MONTH_INITIAL = ["", "J","F","M","A","M","J","J","A","S","O","N","D"]
+_MONTH_INITIAL = ["", "J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"]
 
 
 _SEASON_TOKEN_RE = re.compile(r"\{season(?::\s*(%[bBcCsSN]))?\}")
@@ -76,6 +79,7 @@ _DAY_SPEC_RE = re.compile(
     $""",
     re.VERBOSE | re.IGNORECASE,
 )
+
 
 def _parse_daily_with_anchor_and_offset(spec: str):
     """
@@ -122,7 +126,6 @@ def _parse_daily_with_anchor_and_offset(spec: str):
     return step, anchor_date, rd
 
 
-
 def _enable_minor_grid(ax, axis: str, alpha_scale: float = 0.5):
     """
     Turn on the minor grid using the same color/linestyle/linewidth as the
@@ -136,24 +139,31 @@ def _enable_minor_grid(ax, axis: str, alpha_scale: float = 0.5):
 
     # Defaults from rcParams
     color = mpl.rcParams.get("grid.color", "0.8")
-    ls    = mpl.rcParams.get("grid.linestyle", "-")
-    lw    = mpl.rcParams.get("grid.linewidth", 0.8)
-    a     = mpl.rcParams.get("grid.alpha", 1.0)
+    ls = mpl.rcParams.get("grid.linestyle", "-")
+    lw = mpl.rcParams.get("grid.linewidth", 0.8)
+    a = mpl.rcParams.get("grid.alpha", 1.0)
 
     # If major gridlines exist and were styled explicitly, copy from one
     for ln in major_lines:
         if ln.get_visible():
             color = ln.get_color() or color
-            ls    = ln.get_linestyle() or ls
-            lw    = ln.get_linewidth() or lw
-            a     = ln.get_alpha() if ln.get_alpha() is not None else a
+            ls = ln.get_linestyle() or ls
+            lw = ln.get_linewidth() or lw
+            a = ln.get_alpha() if ln.get_alpha() is not None else a
             break
 
     minor_alpha = (a or 1.0) * alpha_scale
 
     # Enable minor grid with copied style but reduced alpha
-    ax.grid(True, which="minor", axis=axis, color=color, linestyle=ls, linewidth=lw, alpha=minor_alpha)
-
+    ax.grid(
+        True,
+        which="minor",
+        axis=axis,
+        color=color,
+        linestyle=ls,
+        linewidth=lw,
+        alpha=minor_alpha,
+    )
 
 
 def _season_triad_months(dt, anchor_month=SEASON_ANCHOR_MONTH):
@@ -178,10 +188,15 @@ def _season_name(dt, hemi=SEASON_NAME_HEMI):
     south = ["Summer", "Autumn", "Winter", "Spring"]
     return (north if hemi == "north" else south)[index]
 
-def _expand_season_placeholders(dt, fmt, *,
-                                 code_anchor=SEASON_ANCHOR_MONTH,
-                                 hemi=SEASON_NAME_HEMI,
-                                 sep=SEASON_MONTH_SEP):
+
+def _expand_season_placeholders(
+    dt,
+    fmt,
+    *,
+    code_anchor=SEASON_ANCHOR_MONTH,
+    hemi=SEASON_NAME_HEMI,
+    sep=SEASON_MONTH_SEP,
+):
     """Replace {season} or {season:%x} with the correct string for dt, then return new fmt."""
     months = _season_triad_months(dt, anchor_month=code_anchor)
 
@@ -208,8 +223,15 @@ def _expand_season_placeholders(dt, fmt, *,
 
 
 class SeasonStrftimeFormatter(ticker.Formatter):
-    def __init__(self, fmt, *, season_anchor=SEASON_ANCHOR_MONTH,
-                 season_hemi=SEASON_NAME_HEMI, season_sep=SEASON_MONTH_SEP, tz=None):
+    def __init__(
+        self,
+        fmt,
+        *,
+        season_anchor=SEASON_ANCHOR_MONTH,
+        season_hemi=SEASON_NAME_HEMI,
+        season_sep=SEASON_MONTH_SEP,
+        tz=None,
+    ):
         self.fmt = fmt
         self.season_anchor = season_anchor
         self.season_hemi = season_hemi
@@ -220,13 +242,13 @@ class SeasonStrftimeFormatter(ticker.Formatter):
         dt = mdates.num2date(x, tz=self.tz)
         # Expand {season:%x}, then run the rest through strftime for %Y etc.
         expanded = _expand_season_placeholders(
-            dt, self.fmt,
+            dt,
+            self.fmt,
             code_anchor=self.season_anchor,
             hemi=self.season_hemi,
-            sep=self.season_sep
+            sep=self.season_sep,
         )
         return dt.strftime(expanded)
-
 
 
 def set_ticks(
@@ -242,7 +264,7 @@ def set_ticks(
 ):
     """
     Set axis tick locations and formatting for either x or y axis.
-    
+
     Parameters
     ----------
     ax : matplotlib.axes.Axes
@@ -274,52 +296,81 @@ def set_ticks(
     """
     if axis not in ["x", "y"]:
         raise ValueError("axis must be 'x' or 'y'")
-    
+
     # Get the appropriate axis object
     axis_obj = ax.xaxis if axis == "x" else ax.yaxis
-    
+
     # Check if this is a time axis by looking at the data type
     is_time_axis = False
     if axis == "x":
         # Check if x-axis has datetime data
         try:
-            x_data = ax.get_xlim()
-            if hasattr(ax, 'get_xdata') and len(ax.get_xdata()) > 0:
-                x_data = ax.get_xdata()
+            if hasattr(ax, "get_xdata") and len(ax.get_xdata()) > 0:
+                ax.get_xdata()  # Check if data exists
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(frequency.upper().startswith(p) for p in TIME_PREFIXES):
+            if frequency and any(
+                frequency.upper().startswith(p) for p in TIME_PREFIXES
+            ):
                 is_time_axis = True
-        except:
+        except (AttributeError, TypeError, ValueError):
             pass
     else:  # y-axis
         # Check if y-axis has datetime data
         try:
-            y_data = ax.get_ylim()
-            if hasattr(ax, 'get_ydata') and len(ax.get_ydata()) > 0:
-                y_data = ax.get_ydata()
+            ax.get_ylim()
+            if hasattr(ax, "get_ydata") and len(ax.get_ydata()) > 0:
+                ax.get_ydata()
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(frequency.upper().startswith(p) for p in TIME_PREFIXES):
+            if frequency and any(
+                frequency.upper().startswith(p) for p in TIME_PREFIXES
+            ):
                 is_time_axis = True
-        except:
+        except (AttributeError, TypeError, ValueError):
             pass
-    
+
     if is_time_axis:
         # Handle time axis
-        _set_time_ticks(ax, axis_obj, frequency, minor_frequency, format, 
-                        minor_format, period, labels, **kwargs)
+        _set_time_ticks(
+            ax,
+            axis_obj,
+            frequency,
+            minor_frequency,
+            format,
+            minor_format,
+            period,
+            labels,
+            **kwargs,
+        )
     else:
         # Handle numeric axis
-        _set_numeric_ticks(ax, axis_obj, frequency, minor_frequency, format, 
-                          minor_format, labels, **kwargs)
+        _set_numeric_ticks(
+            ax,
+            axis_obj,
+            frequency,
+            minor_frequency,
+            format,
+            minor_format,
+            labels,
+            **kwargs,
+        )
 
 
-def _set_time_ticks(ax, axis_obj, frequency, minor_frequency, format, 
-                    minor_format, period, labels, **kwargs):
+def _set_time_ticks(
+    ax,
+    axis_obj,
+    frequency,
+    minor_frequency,
+    format,
+    minor_format,
+    period,
+    labels,
+    **kwargs,
+):
     """Helper function to set time-based ticks."""
 
     season_anchor = kwargs.pop("season_anchor", SEASON_ANCHOR_MONTH)
-    season_hemi   = kwargs.pop("season_hemi",   SEASON_NAME_HEMI)
-    season_sep    = kwargs.pop("season_sep",    SEASON_MONTH_SEP)
+    season_hemi = kwargs.pop("season_hemi", SEASON_NAME_HEMI)
+    season_sep = kwargs.pop("season_sep", SEASON_MONTH_SEP)
 
     # Set major ticks
     if frequency is None:
@@ -344,15 +395,17 @@ def _set_time_ticks(ax, axis_obj, frequency, minor_frequency, format,
         if format and _SEASON_TOKEN_RE.search(format):
             axis_obj.set_minor_locator(minor_locator)
             axis_obj.set_minor_formatter(
-                SeasonStrftimeFormatter(format,
-                                        season_anchor=season_anchor,
-                                        season_hemi=season_hemi,
-                                        season_sep=season_sep)
+                SeasonStrftimeFormatter(
+                    format,
+                    season_anchor=season_anchor,
+                    season_hemi=season_hemi,
+                    season_sep=season_sep,
+                )
             )
         else:
             minor_formatter = mdates.ConciseDateFormatter(
                 minor_locator,
-                formats=[format]*6 if format else DEFAULT_FORMATS,
+                formats=[format] * 6 if format else DEFAULT_FORMATS,
                 zero_formats=ZERO_FORMATS,
                 show_offset=False,
             )
@@ -366,16 +419,17 @@ def _set_time_ticks(ax, axis_obj, frequency, minor_frequency, format,
                 # NEW: use our season-aware formatter
                 axis_obj.set_major_locator(locator)
                 axis_obj.set_major_formatter(
-                    SeasonStrftimeFormatter(format,
-                                            season_anchor=season_anchor,
-                                            season_hemi=season_hemi,
-                                            season_sep=season_sep,
-                                            )
+                    SeasonStrftimeFormatter(
+                        format,
+                        season_anchor=season_anchor,
+                        season_hemi=season_hemi,
+                        season_sep=season_sep,
+                    )
                 )
             else:
                 formatter = mdates.ConciseDateFormatter(
                     locator,
-                    formats=[format]*6 if format else DEFAULT_FORMATS,
+                    formats=[format] * 6 if format else DEFAULT_FORMATS,
                     zero_formats=ZERO_FORMATS,
                     show_offset=False,
                 )
@@ -387,7 +441,9 @@ def _set_time_ticks(ax, axis_obj, frequency, minor_frequency, format,
     # Set minor ticks if specified
     if minor_frequency is not None:
         minor_locator = _get_time_locator(minor_frequency)
-        _enable_minor_grid(ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25)
+        _enable_minor_grid(
+            ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25
+        )
 
         # Set minor tick format - use format if minor_format is None
         if minor_format is not None:
@@ -428,6 +484,7 @@ _YEAR_SPEC_RE = re.compile(
     re.VERBOSE | re.IGNORECASE,
 )
 
+
 def _parse_yearly_with_anchor_and_offset(spec: str):
     """
     Returns (step:int, anchor_year:int|None, offset:relativedelta|None).
@@ -442,14 +499,14 @@ def _parse_yearly_with_anchor_and_offset(spec: str):
     anchor = m.group("anchor")
     mm = m.group("mm")
     dd = m.group("dd")
-    off_str = (m.group("offset") or "")
+    off_str = m.group("offset") or ""
 
     # Base offset from -MM / -DD sugar (from Jan 1 boundary)
     base_rd = relativedelta()
     if mm:
         base_rd += relativedelta(months=int(mm) - 1)  # Jan→+0M, Jun→+5M
     if dd:
-        base_rd += relativedelta(days=int(dd) - 1)    # Day-of-month (1-based)
+        base_rd += relativedelta(days=int(dd) - 1)  # Day-of-month (1-based)
 
     # Parse +... tokens
     token_re = re.compile(r"([+\-]\d+(?:\.\d+)?)([YMWdhms])")
@@ -463,13 +520,13 @@ def _parse_yearly_with_anchor_and_offset(spec: str):
         if unit in "YM":
             mag = int(round(mag))
         delta = {
-            "Y": relativedelta(years=sign*int(mag)),
-            "M": relativedelta(months=sign*int(mag)),
-            "W": relativedelta(weeks=sign*mag),
-            "d": relativedelta(days=sign*mag),
-            "h": relativedelta(hours=sign*mag),
-            "m": relativedelta(minutes=sign*mag),
-            "s": relativedelta(seconds=sign*mag),
+            "Y": relativedelta(years=sign * int(mag)),
+            "M": relativedelta(months=sign * int(mag)),
+            "W": relativedelta(weeks=sign * mag),
+            "d": relativedelta(days=sign * mag),
+            "h": relativedelta(hours=sign * mag),
+            "m": relativedelta(minutes=sign * mag),
+            "s": relativedelta(seconds=sign * mag),
         }[unit]
         rd += delta
 
@@ -496,7 +553,6 @@ def _parse_month_anchor_token(token: str) -> int:
     raise ValueError(f"Unrecognised month anchor '{token}'. Try Jan/January/1/01.")
 
 
-
 def _get_time_locator(frequency):
     f = frequency
     F = f.upper()
@@ -512,7 +568,7 @@ def _get_time_locator(frequency):
         s = f.strip()
         at = s.find("@")
         main = s if at == -1 else s[:at]
-        anchor = None if at == -1 else s[at+1:].strip()
+        anchor = None if at == -1 else s[at + 1 :].strip()
 
         interval = int(main[1:] or "1")
 
@@ -527,12 +583,15 @@ def _get_time_locator(frequency):
         if anchor_year is None and rd is None:
             return mdates.YearLocator(base=step)
         else:
-            return AnchoredYearLocator(base=step, anchor_year=anchor_year or 2000, offset=rd)
-
+            return AnchoredYearLocator(
+                base=step, anchor_year=anchor_year or 2000, offset=rd
+            )
 
     elif F.startswith("W"):
         interval = int(f[1:] or "1")
-        return mdates.WeekdayLocator(byweekday=mdates.MO, interval=interval)  # or expose start day
+        return mdates.WeekdayLocator(
+            byweekday=mdates.MO, interval=interval
+        )  # or expose start day
 
     elif F.startswith("H"):
         interval = int(f[1:] or "1")
@@ -573,11 +632,15 @@ def _get_period_minor_locator(frequency):
 
     elif F.startswith("W"):
         interval = int(f[1:] or "1")
-        return mdates.WeekdayLocator(byweekday=mdates.TH, interval=interval)  # or expose start day
+        return mdates.WeekdayLocator(
+            byweekday=mdates.TH, interval=interval
+        )  # or expose start day
 
     elif F.startswith("SEAS"):
         interval = int(f[4:] or "1")
-        return mdates.MonthLocator(bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16)
+        return mdates.MonthLocator(
+            bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16
+        )
 
     elif F.startswith("S"):  # seconds
         interval = int(f[1:] or "1")
@@ -588,8 +651,9 @@ def _get_period_minor_locator(frequency):
         return _get_time_locator(frequency)
 
 
-def _set_numeric_ticks(ax, axis_obj, frequency, minor_frequency, format, 
-                       minor_format, labels, **kwargs):
+def _set_numeric_ticks(
+    ax, axis_obj, frequency, minor_frequency, format, minor_format, labels, **kwargs
+):
     """Helper function to set numeric ticks."""
     # For numeric axis, we'll use numeric tickers
     if frequency is not None:
@@ -623,7 +687,9 @@ def _set_numeric_ticks(ax, axis_obj, frequency, minor_frequency, format,
             minor_locator = ticker.AutoMinorLocator()
 
         axis_obj.set_minor_locator(minor_locator)
-        _enable_minor_grid(ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25)
+        _enable_minor_grid(
+            ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25
+        )
 
         # Only set minor tick format if we want to show minor labels
         if labels in ["minor", "both"]:
@@ -656,7 +722,7 @@ def set_xticks(
 ):
     """
     Set x-axis tick locations and formatting.
-    
+
     Parameters
     ----------
     ax : matplotlib.axes.Axes
@@ -683,8 +749,17 @@ def set_xticks(
     **kwargs
         Additional keyword arguments to pass to the tick locators.
     """
-    set_ticks(ax, "x", frequency, minor_frequency, format, minor_format, 
-              period, labels, **kwargs)
+    set_ticks(
+        ax,
+        "x",
+        frequency,
+        minor_frequency,
+        format,
+        minor_format,
+        period,
+        labels,
+        **kwargs,
+    )
 
 
 def set_yticks(
@@ -698,7 +773,7 @@ def set_yticks(
 ):
     """
     Set y-axis tick locations and formatting.
-    
+
     Parameters
     ----------
     ax : matplotlib.axes.Axes
@@ -721,5 +796,13 @@ def set_yticks(
     **kwargs
         Additional keyword arguments to pass to the tick locators.
     """
-    set_ticks(ax, "y", frequency, minor_frequency, format, minor_format, 
-              labels=labels, **kwargs)
+    set_ticks(
+        ax,
+        "y",
+        frequency,
+        minor_frequency,
+        format,
+        minor_format,
+        labels=labels,
+        **kwargs,
+    )

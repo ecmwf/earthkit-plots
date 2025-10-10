@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import math
-from datetime import datetime, timedelta, date
+from datetime import date, datetime, timedelta
 
 import matplotlib.dates as mdates
 
@@ -23,6 +23,7 @@ class AnchoredYearLocator(mdates.DateLocator):
     Yearly ticks every `base` years, aligned so that `anchor_year` is included.
     Ticks are placed at Jan 1 00:00 plus an optional relativedelta `offset`.
     """
+
     def __init__(self, base=1, anchor_year=2000, offset=None, tz=None):
         super().__init__()
         if base < 1:
@@ -95,7 +96,6 @@ class AnchoredMonthLocator(mdates.DateLocator):
             vmin, vmax = vmax, vmin
 
         dt_min = mdates.num2date(vmin, tz=self.tz)
-        dt_max = mdates.num2date(vmax, tz=self.tz)
 
         # Month indices from "epoch": i = year*12 + (month-1)
         i_min = dt_min.year * 12 + (dt_min.month - 1)

@@ -14,7 +14,6 @@
 
 from earthkit.plots.temporal.timeseries import TimeSeries
 
-
 CLASS_KWARGS = {
     "size",
 }
@@ -106,14 +105,18 @@ def timeseries(
     Basic time series plot:
     >>> import numpy as np
     >>> import pandas as pd
-    >>> times = pd.date_range('2020-01-01', periods=100, freq='D')
+    >>> times = pd.date_range("2020-01-01", periods=100, freq="D")
     >>> values = np.random.randn(100).cumsum()
     >>> ts = timeseries(values, x=times)
     >>> ts.show()
 
     With custom title and axis labels:
-    >>> ts = timeseries(data, title="Temperature over time",
-    ...                 xlabel="Date", ylabel="Temperature (°C)")
+    >>> ts = timeseries(
+    ...     data,
+    ...     title="Temperature over time",
+    ...     xlabel="Date",
+    ...     ylabel="Temperature (°C)",
+    ... )
 
     With custom tick formatting:
     >>> ts = timeseries(data, xticks="M3", yticks="auto")
@@ -124,7 +127,9 @@ def timeseries(
     Custom figure size:
     >>> ts = timeseries(data, size=(12, 6))
     """
-    class_kwargs = {kwarg: kwargs.pop(kwarg) for kwarg in CLASS_KWARGS if kwarg in kwargs}
+    class_kwargs = {
+        kwarg: kwargs.pop(kwarg) for kwarg in CLASS_KWARGS if kwarg in kwargs
+    }
     ts = TimeSeries(**class_kwargs)
 
     getattr(ts, plot)(data, *args, **kwargs)
