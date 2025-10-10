@@ -52,6 +52,31 @@ def linspace_datetime64(start_date, end_date, n):
     return np.linspace(0, 1, n) * (end_date - start_date) + start_date
 
 
+def _validate_projection_for_tricontour(ccrs) -> bool:
+    """
+    Validate that the projection is suitable for tricontour plotting.
+
+    Banned list established from iterative search.
+    """
+    if ccrs is None:
+        return True
+
+    bad_list = [
+        "TransverseMercator",
+        "Sinusoidal",
+        "Robinson",
+        "Hammer",
+        "EqualEarth",
+        "LambertAzimuthalEqualArea",
+    ]
+    if any(proj in str(ccrs.__class__.__name__) for proj in bad_list):
+        raise ValueError(
+            f"Projection {ccrs} is not suitable for tricontour plotting. "
+            "Please use a different projection."
+        )
+    return True
+
+
 class Style:
     """
     A style for plotting data.
@@ -387,6 +412,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
+        if values.ndim == 1:
+            return self.tricontourf(ax, x, y, values, *args, **kwargs)
+
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
         x, y = self._xy_for_contour(x, y)
         return ax.contourf(x, y, values, *args, **kwargs)
@@ -432,6 +460,49 @@ class Style:
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
 
+    def streamplot(self, ax, x, y, u, v, *args, **kwargs):
+        """
+        Plot streamlines using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        u : numpy.ndarray
+            The u-component of the data to be plotted.
+        v : numpy.ndarray
+            The v-component of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.streamplot`.
+        """
+        return ax.streamplot(x, y, u, v, *args, **kwargs)
+
+    def tricontour(self, ax, x, y, values, *args, **kwargs):
+        """
+        Plot triangulated contour lines using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        values : numpy.ndarray
+            The values of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.tricontour`.
+        """
+        kwargs = {**self.to_contour_kwargs(values), **kwargs}
+        kwargs.pop("labels", None)
+        _validate_projection_for_tricontour(kwargs.get("transform", None))
+        return ax.tricontour(x, y, values, *args, **kwargs)
+
     def tricontourf(self, ax, x, y, values, *args, **kwargs):
         """
         Plot triangulated shaded contours using this `Style`.
@@ -450,6 +521,7 @@ class Style:
             Any additional arguments accepted by `matplotlib.axes.Axes.tricontourf`.
         """
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
+        _validate_projection_for_tricontour(kwargs.get("transform", None))
         return ax.tricontourf(x, y, values, *args, **kwargs)
 
     def tripcolor(self, ax, x, y, values, *args, **kwargs):
@@ -489,6 +561,9 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
+        if values.ndim == 1:
+            return self.tricontour(ax, x, y, values, *args, **kwargs)
+
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
         kwargs.pop("labels", None)
         x, y = self._xy_for_contour(x, y)
@@ -892,11 +967,29 @@ class Categorical(Style):
 
 
 class Quiver(Style):
-    """A style for plotting vector data."""
+    """A style for plotting vector data.
 
-    def __init__(self, *args, colors=None, **kwargs):
+    Parameters
+    ----------
+    colors : str or list or matplotlib.colors.Colormap, optional
+        The colors to be used in this `Style`. This can be a named matplotlib
+        colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
+        three (four)-element lists of RGB(A) values), or a pre-defined
+        matplotlib colormap object. If not provided, the default colormap of the
+        active `schema` will be used.
+    preferred_method : str, optional
+        The preferred method for plotting the data. Must be one of `quiver`, `barbs` or
+        `vector` method.
+    **kwargs
+        Additional keyword arguments to be passed to the `quiver`, `barbs` or
+        `vector` method.
+    """
+
+    def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
         kwargs["legend_style"] = "vector"
-        super().__init__(*args, colors=colors, **kwargs)
+        super().__init__(
+            *args, colors=colors, preferred_method=preferred_method, **kwargs
+        )
 
 
 class Contour(Style):
@@ -1171,15 +1264,17 @@ _OVERRIDE_KWARGS = ["labels"]
 
 def compare_attributes(self, other, keys):
     def is_equal(x, y):
+        is_x_arr = isinstance(x, np.ndarray)
+        is_y_arr = isinstance(y, np.ndarray)
+
         # Check if both are numpy arrays
-        if isinstance(x, np.ndarray) and isinstance(y, np.ndarray):
+        if is_x_arr and is_y_arr:
             return np.array_equal(x, y)
         # If one is an array and the other isn't, they are not equal
-        elif isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
+        if is_x_arr != is_y_arr:
             return False
         # Default to standard equality check for non-array types
-        else:
-            return x == y
+        return x == y
 
     # Use the is_equal function for each key in your check
     try:

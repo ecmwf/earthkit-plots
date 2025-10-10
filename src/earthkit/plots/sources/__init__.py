@@ -15,6 +15,7 @@
 import earthkit.data as ek_data
 
 from earthkit.plots.sources.earthkit import EarthkitSource
+from earthkit.plots.sources.multi import MultiSource
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.sources.xarray import XarraySource
 
@@ -79,6 +80,8 @@ def _get_source_class(*args, data):
             cls = XarraySource
         elif isinstance(core_data, ek_data.core.Base):
             cls = EarthkitSource
+        elif isinstance(core_data, (list, tuple)):
+            cls = MultiSource
     return cls
 
 

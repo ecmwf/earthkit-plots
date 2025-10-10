@@ -78,7 +78,12 @@ class EarthkitSource(SingleSource):
         else:
             # Default to the main data values for z
             z_values = self.data.to_numpy(flatten=False)
-        if self.gridspec is not None and self.regrid:
+
+        if (
+            self.gridspec is not None
+            and self.regrid
+            and self.gridspec.to_dict() is not None
+        ):
             if _NO_EARTHKIT_REGRID:
                 raise ImportError(
                     f"earthkit-regrid is required for plotting data on a"
@@ -86,14 +91,18 @@ class EarthkitSource(SingleSource):
                 )
 
             x_values, y_values = get_points(schema.interpolate_target_resolution)
-            # start = datetime.now()
-            z_values = earthkit.regrid.interpolate(
-                z_values,
-                self.gridspec.to_dict(),
-                {"grid": [schema.interpolate_target_resolution] * 2},
-            )
-            # print(f"Regridding took {(datetime.now() - start).total_seconds()} seconds")
 
+            def interpolate(v):
+                return earthkit.regrid.interpolate(
+                    v,
+                    self.gridspec.to_dict(),
+                    {"grid": [schema.interpolate_target_resolution] * 2},
+                )
+
+            if z_values.ndim == 2:  # In case of FieldList
+                z_values = np.array([interpolate(z) for z in z_values])
+            else:
+                z_values = interpolate(z_values)
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")

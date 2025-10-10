@@ -12,10 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import re
 
+import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
+from earthkit.plots.ancillary import find_logo
 from earthkit.plots.components.layers import LayerGroup
 from earthkit.plots.components.layouts import rows_cols
 from earthkit.plots.components.maps import Map
@@ -74,6 +77,9 @@ class Figure:
 
         self._queue = []
         self._subplot_queue = []
+
+        self.attributions = []
+        self.logos = []
 
         if None not in (self.rows, self.columns):
             self._setup()
@@ -337,6 +343,17 @@ class Figure:
 
     @defer_until_setup
     @apply_to_subplots
+    def cities(self, *args, **kwargs):
+        """
+        Add cities to every `Map` subplot in the figure.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `Map.cities`.
+        """
+
+    @defer_until_setup
+    @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
         Add coastlines to every `Map` subplot in the figure.
@@ -543,7 +560,6 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        self.draw()
         return result
 
     def draw(self):
@@ -556,47 +572,39 @@ class Figure:
                 layer.reset_facecolors()
 
     def _get_suptitle_y(self):
-        self.draw()
-        max_title_top = 0
-        renderer = self.fig.canvas.get_renderer()
-        inv_transform = self.fig.transFigure.inverted()
+        """
+        Calculate suptitle y position  by using the axis positions and estimated
+        title heights.
+        """
+        if not self.subplots:
+            return 0.95  # Default fallback
 
-        for ax in self.fig.axes:
-            # Check if the subplot has a title
-            title = ax.get_title()
+        # Find the highest subplot position
+        max_ax_top = max(ax.get_position().y1 for ax in self.fig.axes)
 
-            if title:  # If there is a title, we need to handle the title object itself
-                title_obj = ax.title
-                title_bbox = title_obj.get_window_extent(renderer)
-                # Convert from display coords to figure-relative coords
-                bbox_fig = inv_transform.transform(title_bbox)
-                max_title_top = max(max_title_top, bbox_fig[1][1])
-            else:  # No title, check for other elements
-                if ax.xaxis.label.get_text():
-                    title_obj = ax.xaxis.label
-                elif ax.yaxis.label.get_text():
-                    title_obj = ax.yaxis.label
-                else:
-                    labels = ax.get_xticklabels()
-                    if labels:
-                        ticklabel_bbox = labels[0].get_window_extent(renderer)
-                        ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
-                        max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
+        fig_height = self.fig.get_size_inches()[1]
 
-                # If we found a title-like object, handle its bbox
-                if "title_obj" in locals():
-                    title_bbox = title_obj.get_window_extent(renderer)
-                    bbox_fig = inv_transform.transform(title_bbox)
-                    max_title_top = max(max_title_top, bbox_fig[1][1])
-                    # Clean up any previous title_obj variable that was used
-                    del title_obj
-                else:
-                    # Fallback to checking the axis position
-                    max_title_top = max(max_title_top, ax.get_position().ymax)
+        # Get the default title font size (or use a reasonable default)
+        title_fontsize = 12
+        try:
+            # Try to get font size from the first subplot's title
+            first_ax = self.fig.axes[0]
+            if first_ax.get_title():
+                title_fontsize = first_ax.title.get_fontsize()
+        except IndexError:
+            # IndexError: self.fig.axes is empty
+            pass
 
-        # Set the suptitle just above the highest title
-        # Adjust the offset as needed
-        return max_title_top + 0.05
+        # Convert font size to figure-relative units using actual figure DPI
+        fig_dpi = self.fig.get_dpi()
+        title_height_fig = (title_fontsize / fig_dpi) / fig_height
+
+        # Add some padding above the title
+        title_padding = 0.15  # 15% of figure height
+
+        suptitle_y = max_ax_top + title_height_fig + title_padding
+
+        return suptitle_y
 
     def format_string(self, string, unique=True, grouped=True):
         if not grouped:
@@ -626,6 +634,39 @@ class Figure:
             method(self, *args, **kwargs)
         for queued_method, queued_args, queued_kwargs in self._queue:
             queued_method(self, *queued_args, **queued_kwargs)
+        if self.attributions:
+            attribution_text = "; ".join(self.attributions)
+            x = 0.5 if not self.logos else 0.05
+            y = -0.02
+            ha = "center" if not self.logos else "left"
+
+            self.fig.text(
+                x,
+                y,
+                attribution_text,
+                ha=ha,
+                va="top",
+                fontsize=9,
+                color="gray",
+                wrap=True,
+            )
+        if self.logos:
+            # Place each logo horizontally, bottom-right, with some spacing
+            logo_width = 0.12  # fraction of figure width
+            logo_height = 0.05  # fraction of figure height
+            spacing = 0.01  # horizontal spacing
+            # Start from right, go left
+            for i, image_file in enumerate(reversed(self.logos)):
+                if not os.path.exists(image_file):
+                    image_file = find_logo(image_file)
+                logo = mpimg.imread(image_file)
+                left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
+                bottom = -0.05  # 0.01 margin from bottom
+                ax_logo = self.fig.add_axes(
+                    [left, bottom, logo_width, logo_height], zorder=100
+                )
+                ax_logo.imshow(logo)
+                ax_logo.axis("off")
         return self
 
     def show(self, *args, **kwargs):
@@ -648,12 +689,39 @@ class Figure:
         """
         self._release_queue()
         return plt.savefig(
-            *args, bbox_inches=bbox_inches, dpi=schema.figure.dpi, **kwargs
+            *args,
+            bbox_inches=bbox_inches,
+            dpi=kwargs.pop("dpi", schema.figure.dpi),
+            **kwargs,
         )
 
     def resize(self):
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
+
+    def add_attribution(self, attribution):
+        """
+        Add an attribution to the figure.
+
+        Parameters
+        ----------
+        attribution : str
+            The attribution text to add to the figure.
+        """
+        if attribution not in self.attributions:
+            self.attributions.append(attribution)
+
+    def add_logo(self, logo):
+        """
+        Add a logo to the figure.
+
+        Parameters
+        ----------
+        logo : str
+            Either the name of a built-in logo, or a path to the logo image file to add to the figure.
+        """
+        if logo not in self.logos:
+            self.logos.append(logo)
 
 
 def resize_figure_to_fit_axes(fig):

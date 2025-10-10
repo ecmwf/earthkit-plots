@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
   "earthkit-data",
-  "earthkit-plots-default-styles>=0.1.0",
+  "earthkit-plots-default-styles>=0.1.2",
   "cartopy>=0.22.0",
   "pint",
   "matplotlib",
@@ -42,6 +42,9 @@ license = {text = "Apache License Version 2.0"}
 name = "earthkit-plots"
 readme = "README.md"
 requires-python = ">=3.8"
+optional-dependencies.healpix = [
+  "healpy"
+]
 optional-dependencies.test = [
   "nbconvert",
   "nbformat",

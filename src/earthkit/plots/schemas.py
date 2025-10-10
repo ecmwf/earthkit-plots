@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -132,6 +133,7 @@ class Schema(dict):
 
     def apply(self, *keys):
         def decorator(function):
+            @functools.wraps(function)
             def wrapper(*args, **kwargs):
                 return function(*args, **self._update_kwargs(kwargs, keys))
 
