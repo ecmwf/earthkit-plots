@@ -32,7 +32,7 @@ jobs:
     if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
     uses: ecmwf/downstream-ci/.github/workflows/downstream-ci.yml@add-earthkit-plots-2
     with:
-      earthkit-data: ecmwf/earthkit-data@${{ github.event.pull_request.head.sha || github.sha }}
+      earthkit-plots: ecmwf/earthkit-plots@${{ github.event.pull_request.head.sha || github.sha }}
       codecov_upload: true
       python_qa: false
     secrets: inherit
@@ -43,5 +43,5 @@ jobs:
     if: ${{ !github.event.pull_request.head.repo.fork && github.event.action != 'labeled' || github.event.label.name == 'approved-for-ci' }}
     uses: ecmwf/downstream-ci/.github/workflows/downstream-ci-hpc.yml@add-earthkit-plots-2
     with:
-      earthkit-data: ecmwf/earthkit-data@${{ github.event.pull_request.head.sha || github.sha }}
+      earthkit-plots: ecmwf/earthkit-plots@${{ github.event.pull_request.head.sha || github.sha }}
     secrets: inherit
