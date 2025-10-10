@@ -6,7 +6,7 @@ earthkit-data
 pyyaml
 pytest
 pytest-cov
-pyest-mpl
+pytest-mpl
 cftime
 earthkit-regrid
 healpy
