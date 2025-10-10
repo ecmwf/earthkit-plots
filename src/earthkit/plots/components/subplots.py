@@ -340,7 +340,7 @@ class Subplot:
                     multi_source,
                     units,
                     auto_style,
-                    kwargs,
+                    {**kwargs, "colors": colors},
                 )
                 m = getattr(style, method_name or method.__name__)
 
