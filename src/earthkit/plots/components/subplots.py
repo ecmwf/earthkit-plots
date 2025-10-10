@@ -32,7 +32,7 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.multi import MultiSource
 from earthkit.plots.sources.numpy import NumpySource
-from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
+from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -540,11 +540,7 @@ class Subplot:
             return style
         style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
         # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
-        style_class = (
-            Contour
-            if method_name.startswith("contour")
-            else (Quiver if method_name in ["quiver", "barbs"] else Style)
-        )
+        style_class = get_style_class(method_name)
         style = (
             style_class(**{**style_kwargs, "units": units})
             if not auto_style
