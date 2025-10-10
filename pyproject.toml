@@ -44,6 +44,8 @@ readme = "README.md"
 requires-python = ">=3.8"
 optional-dependencies.geocoding = [
   "reverse-geocode"
+optional-dependencies.healpix = [
+  "healpy"
 ]
 optional-dependencies.test = [
   "nbconvert",

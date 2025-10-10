@@ -1153,6 +1153,34 @@ class Subplot:
             Additional keyword arguments to pass to `matplotlib.pyplot.quiver`.
         """
 
+    @plot_vector()
+    def streamplot(self, *args, **kwargs):
+        """
+        Plot streamlines on the Subplot.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, u, and v must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        u : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The u values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        v : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The v values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the stream plot. If None, a Style is automatically
+            generated based on the data.
+        **kwargs
+            Additional keyword arguments to pass to `matplotlib.pyplot.streamplot`.
+        """
+
     @schema.barbs.apply()
     @plot_vector()
     def barbs(self, *args, **kwargs):
