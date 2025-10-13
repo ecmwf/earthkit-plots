@@ -21,23 +21,10 @@ Core Components
    :undoc-members:
    :show-inheritance:
 
-Plotting Functions
+Quickplot
 -----------------
 
 .. automodule:: earthkit.plots.quickplot
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: earthkit.plots.shortcuts
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Data Sources
-------------
-
-.. automodule:: earthkit.plots.sources.xarray
    :members:
    :undoc-members:
    :show-inheritance:
