@@ -379,6 +379,10 @@ venv.bak/
 # mkdocs documentation
 /site
 
+# mpl image tests
+mpl-results/
+tests/.earthkit-plots-test-images/
+
 # mypy
 .mypy_cache/
 .dmypy.json
