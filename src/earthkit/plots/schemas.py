@@ -114,7 +114,8 @@ class Schema(dict):
 
     def __setattr__(self, key, value):
         if isinstance(value, dict) and not isinstance(value, Schema):
-            value = Schema(parent=key, **value)
+            parent = f"{self._parent}.{key}" if self._parent else key
+            value = Schema(parent=parent, **value)
         try:
             self[key] = value
         except KeyError:
@@ -142,7 +143,31 @@ class Schema(dict):
         return decorator
 
     def _update_kwargs(self, kwargs, keys):
+        path = self._parent
+
+        global schema
+
+        schema_child = schema
+        # Search for path in global schema
+        while path:
+            sub_path = path.split(".")[0]
+
+            if sub_path not in schema_child:
+                schema_child = Schema()
+                break
+
+            schema_child = schema_child.get(sub_path)
+            path = ".".join(path.split(".")[1:])
+
+        # Build kwargs with correct hierarchy:
+        # 1. Start with init schema (values set at decorator initialisation)
+        # 2. Override with global schema if found (specific schema values)
+        # 3. Override with passed kwargs (highest priority)
         schema_kwargs = self._to_dict()
+        global_kwargs = schema_child._to_dict()
+        if global_kwargs:
+            schema_kwargs = recursive_dict_update(schema_kwargs, global_kwargs)
+
         if keys:
             schema_kwargs = {
                 key: schema_kwargs[key]
