@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import re
+import warnings
 from abc import ABCMeta, abstractmethod
 
 HEALPIX_PATTERN = re.compile(r"^[Hh]\d+$")
@@ -68,7 +69,12 @@ class GridSpec(metaclass=ABCMeta):
             return data.get("gridType")
 
         data = GridSpec._first(data)
-        gs = data.metadata("gridSpec", default=None)
+
+        # ecCodes does not yet support the gridSpec key and prints a warning
+        # when accessing it, so we suppress warnings here
+        with warnings.catch_warnings():
+            gs = data.metadata("gridSpec", default=None)
+
         if gs:
             grid = gs.get("grid")
             if grid:
@@ -84,7 +90,11 @@ class GridSpec(metaclass=ABCMeta):
             return x
 
         # try gridSpec metadata key
-        gs = data.metadata("gridSpec", default=None)
+        # ecCodes does not yet support the gridSpec key and prints a warning
+        # when accessing it, so we suppress warnings here
+        with warnings.catch_warnings():
+            gs = data.metadata("gridSpec", default=None)
+
         if gs:
             return _get_first(gs)
 
