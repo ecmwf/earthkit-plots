@@ -154,13 +154,17 @@ class Schema(dict):
                 schema_child = Schema()
                 break
 
-            schema_child = schema.get(sub_path)
+            schema_child = schema_child.get(sub_path)
             path = ".".join(path.split(".")[1:])
 
-        # If not found, use default schema
-        schema_kwargs = schema_child._to_dict()
-        if not schema_kwargs:
-            schema_kwargs = self._to_dict()
+        # Build kwargs with correct hierarchy:
+        # 1. Start with init schema (values set at decorator initialisation)
+        # 2. Override with global schema if found (specific schema values)
+        # 3. Override with passed kwargs (highest priority)
+        schema_kwargs = self._to_dict()
+        global_kwargs = schema_child._to_dict()
+        if global_kwargs:
+            schema_kwargs = recursive_dict_update(schema_kwargs, global_kwargs)
 
         if keys:
             schema_kwargs = {
