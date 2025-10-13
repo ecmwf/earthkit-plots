@@ -4,6 +4,15 @@ xarray
 pandas
 earthkit-data
 pyyaml
-# for testing
 pytest
 pytest-cov
+pytest-mpl
+cftime
+earthkit-regrid
+healpy
+matplotlib
+cartopy
+pint
+pyyaml
+adjustText
+earthkit-plots-default-styles>=0.1.0
