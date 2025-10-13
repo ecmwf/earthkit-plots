@@ -43,11 +43,11 @@ class Map(Subplot):
         The Figure to which the subplot belongs.
     domain : str, tuple, list or Domain, optional
         The domain of the map. Can be a string, a tuple or a list of
-        coordinates, or a Domain object. This is used to set the extent and
+        coordinates, or a :class:`earthkit.plots.geo.domains.Domain` object. This is used to set the extent and
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
-        domain or set to PlateCarree.
+        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
     **kwargs
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """

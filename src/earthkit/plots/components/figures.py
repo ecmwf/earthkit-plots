@@ -50,6 +50,9 @@ class Figure:
     domain : earthkit.geo.Domain, optional
         The domain of the data being plotted. This is used to set the extent
         and projection of the map.
+    crs : cartopy.crs.CRS, optional
+        The CRS of the map. If not provided, it will be inferred from the
+        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
     kwargs : dict, optional
         Additional keyword arguments to pass to :class:`matplotlib.gridspec.GridSpec`.
     """
