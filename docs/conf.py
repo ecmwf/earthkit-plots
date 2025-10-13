@@ -78,6 +78,9 @@ intersphinx_mapping = {
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
     "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
+    "earthkit": ("https://earthkit.readthedocs.io/en/latest/", None),
+    "earthkit-data": ("https://earthkit-data.readthedocs.io/en/latest/", None),
+    "earthkit-regrid": ("https://earthkit-regrid.readthedocs.io/en/latest/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
