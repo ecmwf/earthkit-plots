@@ -16,7 +16,6 @@ from pathlib import Path
 
 ROOT_DIR = Path(__file__).parents[3]
 DATA_DIR = Path(__file__).parents[0] / "data"
-TESTS_DIR = ROOT_DIR / "tests"
 GEO_DIR = DATA_DIR / "geo"
 STATIC_DIR = DATA_DIR / "static"
 FONTS_DIR = STATIC_DIR / "fonts"

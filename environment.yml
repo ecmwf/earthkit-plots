@@ -8,6 +8,7 @@ dependencies:
 - pre-commit
 - pydata-sphinx-theme
 - pytest
+- pytest-mpl
 - pytest-cov
 # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
 - earthkit-data

@@ -32,12 +32,35 @@ This will create a new conda environment called "earthkit-plots" with all the de
 Run unit tests
 ---------------
 
-To run the test suite, you can use the following command:
+To run the core test suite, you can use the following command:
 
 .. code-block:: shell
 
-    pytest
+    make unit-tests
 
+In addition to the core unit tests, the test suite also includes image tests. These tests are used to ensure that a set of pre-defined plots have not changed in an unintended way. To run these tests, you can use the following command:
+
+.. code-block:: shell
+
+    make image-tests
+
+If your changes have affected any of the baseline images and you want to update them, you can use the following command:
+
+.. code-block:: shell
+
+    make generate-test-images
+
+You will need to manually upload the generated images to the `earthkit-plots-test-images`_ repository, which will then be used by the CI pipeline to run the image tests against. To do this, you can use the following commands (replace ``<branch-name>`` with the name of the branch you want to create):
+
+.. code-block:: shell
+
+    cd tests/.earthkit-plots-test-images
+    git checkout -b <branch-name>
+    git add .
+    git commit -m "Update baseline images"
+    git push
+
+You will then need to create a pull request against the `earthkit-plots-test-images`_ repository with your changes, to be release alongside the new version of earthkit-plots.
 
 Build documentation
 -------------------

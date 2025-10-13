@@ -8,10 +8,13 @@ dependencies:
 - pre-commit
 - pydata-sphinx-theme
 - pytest
+- pyest-mpl
 - cftime
 - pytest-cov
 # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
 - earthkit-data
+- earthkit-regrid
+- healpy
 - matplotlib
 - pandas
 - cartopy
