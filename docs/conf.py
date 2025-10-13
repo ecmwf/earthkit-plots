@@ -34,7 +34,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
-    "autoapi.extension",
+    # "autoapi.extension",  # Temporarily disabled due to compatibility issues
 ]
 
 # autodoc configuration
@@ -69,6 +69,15 @@ nbsphinx_thumbnails = {
 # napoleon_google_docstring = False
 # napoleon_numpy_docstring = True
 # napoleon_preprocess_types = True
+
+# intersphinx configuration
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

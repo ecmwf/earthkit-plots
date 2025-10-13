@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
@@ -47,7 +49,7 @@ class Map(Subplot):
         The CRS of the map. If not provided, it will be inferred from the
         domain or set to PlateCarree.
     **kwargs
-        Additional keyword arguments to pass to the matplotlib Axes object.
+        Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
 
     def __init__(self, *args, domain=None, crs=None, **kwargs):
@@ -79,7 +81,7 @@ class Map(Subplot):
 
     @property
     def crs(self):
-        """The CRS of the map."""
+        """The coordinate reference system of the map."""
         if self._crs is not None:
             return self._crs
         elif self.domain is not None:
@@ -89,7 +91,7 @@ class Map(Subplot):
 
     @property
     def crs_name(self):
-        """The human-readable name of the CRS of the map."""
+        """The human-readable name of the coordinate reference system of the map."""
         class_name = self.crs.__class__.__name__
         return CRS_NAMES.get(
             class_name,
@@ -114,13 +116,8 @@ class Map(Subplot):
         return name
 
     @property
-    def fig(self):
-        """The matplotlib Figure object to which the subplot belongs."""
-        return self.figure.fig
-
-    @property
     def ax(self):
-        """The matplotlib Axes object of the subplot."""
+        """The :class:`matplotlib.axes.Axes` object of the subplot."""
         if self._ax is None:
             self._ax = self.figure.fig.add_subplot(
                 self.figure.gridspec[self.row, self.column],
@@ -153,7 +150,7 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
         popped_kwargs = []
         for key in ["style", "levels", "units", "colors"]:
@@ -163,15 +160,47 @@ class Map(Subplot):
         return self.scatter(*args, **kwargs)
 
     def gridpoints(self, *args, **kwargs):
+        """
+        Plot grid point centroids on the map.
+
+        Deprecated: Use :meth:`grid_points` instead.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot grid_points.
+        x : str, optional
+            The name of the x-coordinate variable in the data source.
+        y : str, optional
+            The name of the y-coordinate variable in the data source.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+        """
         import warnings
 
         warnings.warn(
-            "gridpoints is deprecated and will be removed in a future release. "
+            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. "
             "Please use grid_points instead."
         )
         return self.grid_points(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
+        """
+        Plot labels on the map.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot labels.
+        label : str, optional
+            The label to plot.
+        x : str, optional
+            The name of the x-coordinate variable in the data source.
+        y : str, optional
+            The name of the y-coordinate variable in the data source.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
+        """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
         crs = source.crs or ccrs.PlateCarree()
@@ -191,8 +220,10 @@ class Map(Subplot):
             The name of the x-coordinate variable in the data source.
         y : str, optional
             The name of the y-coordinate variable in the data source.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
         return self.scatter(*args, **kwargs)
 
@@ -257,7 +288,29 @@ class Map(Subplot):
         min_resolution="low",
         line=False,
     ):
+        """
+        Decorate a method to add a natural earth layer to the map.
+
+        Parameters
+        ----------
+        category : str
+            The category of the natural earth layer.
+        name : str
+            The name of the natural earth layer.
+        default_attribute : str, optional
+            The attribute of the natural earth layer to use as the default label.
+        default_label : str, optional
+            The label to use for the natural earth layer.
+        max_resolution : str, optional
+            The maximum resolution of the natural earth layer.
+        min_resolution : str, optional
+            The minimum resolution of the natural earth layer.
+        line : bool, optional
+            Whether to plot the natural earth layer as a line.
+        """
+
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
