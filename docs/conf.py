@@ -77,6 +77,7 @@ intersphinx_mapping = {
     "matplotlib": ("https://matplotlib.org/stable/", None),
     "xarray": ("https://docs.xarray.dev/en/stable/", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
+    "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.
