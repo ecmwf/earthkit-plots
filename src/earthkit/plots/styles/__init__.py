@@ -1310,6 +1310,6 @@ def get_style_class(method: str) -> type[Style]:
         return Quiver
     elif method in ["barbs"]:
         return Vector
-    elif method.startswith("contour"):
+    elif method in ["contour", "contourf"]:
         return Contour
     return Style
