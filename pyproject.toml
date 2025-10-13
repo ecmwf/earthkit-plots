@@ -49,6 +49,7 @@ optional-dependencies.test = [
   "nbconvert",
   "nbformat",
   "pytest",
+  "pytest-mpl",
   "pytest-cov",
   "pytest-forked",
   "pytest-timeout"
