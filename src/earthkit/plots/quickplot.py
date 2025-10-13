@@ -20,6 +20,7 @@ from earthkit.data.core import Base
 
 from earthkit.plots.components import layouts
 from earthkit.plots.components.figures import Figure
+from earthkit.plots.identifiers import group_vectors
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import iter_utils
 
@@ -35,6 +36,7 @@ def quickplot(
     groupby=None,
     units=None,
     subplot_titles=None,
+    combine_vectors=True,
     **kwargs,
 ):
     """
@@ -59,6 +61,8 @@ def quickplot(
         Dimension along which to group the data.
     units : string or list, optional
         Units to convert the data to.
+    combine_vectors : bool, optional
+        Whether to combine vector components (u, v), and use vector based plotting, i.e. `quiver`.
     **kwargs : dict
         Additional arguments for the plot method(s).
 
@@ -107,7 +111,13 @@ def quickplot(
     for i, (group_val, group_args) in enumerate(grouped_data.items()):
         subplot = figure.add_map(domain=domain, crs=crs)
 
+        if combine_vectors:
+            group_args = group_vectors(group_args)
+
         if isinstance(group_args, FieldList):
+            group_args = list(group_args)
+
+        if isinstance(group_args, (list, tuple)):
             for j, (arg, method) in enumerate(zip(group_args, methods)):
                 unit = units[j]
                 try:

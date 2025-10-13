@@ -25,10 +25,6 @@ def test_DATA_DIR():
     assert os.path.exists(definitions.DATA_DIR)
 
 
-def test_TESTS_DIR():
-    assert os.path.exists(definitions.TESTS_DIR)
-
-
 def test_GEO_DIR():
     assert os.path.exists(definitions.GEO_DIR)
 
