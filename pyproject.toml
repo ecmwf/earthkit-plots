@@ -42,10 +42,14 @@ license = {text = "Apache License Version 2.0"}
 name = "earthkit-plots"
 readme = "README.md"
 requires-python = ">=3.8"
+optional-dependencies.healpix = [
+  "healpy"
+]
 optional-dependencies.test = [
   "nbconvert",
   "nbformat",
   "pytest",
+  "pytest-mpl",
   "pytest-cov",
   "pytest-forked",
   "pytest-timeout"

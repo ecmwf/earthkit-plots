@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import warnings
 
 import matplotlib.dates as mdates
@@ -29,6 +30,7 @@ from earthkit.plots.metadata.formatters import (
 from earthkit.plots.resample import Interpolate, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
+from earthkit.plots.sources.multi import MultiSource
 from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
 from earthkit.plots.utils import string_utils
@@ -37,6 +39,16 @@ DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
 TARGET_DENSITY = 40
+
+LAYER_ZORDERS = {
+    "contourf": 1,
+    "pcolormesh": 1,
+    "scatter": 2,
+    "contour": 3,
+    "quiver": 3,
+    "barbs": 3,
+    "streamplot": 3,
+}
 
 
 class Subplot:
@@ -190,6 +202,7 @@ class Subplot:
 
     def plot_2D(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -217,6 +230,7 @@ class Subplot:
 
     def plot_box(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
                 source = get_source(data=data, x=x, y=y, z=z)
                 kwargs = {**self._plot_kwargs(source), **kwargs}
@@ -251,6 +265,7 @@ class Subplot:
 
     def plot_3D(method_name=None, extract_domain=False):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -281,6 +296,7 @@ class Subplot:
 
     def plot_vector(method_name=None):
         def decorator(method):
+            @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
@@ -291,10 +307,14 @@ class Subplot:
                 colors=False,
                 style=None,
                 units=None,
+                auto_style=False,
                 source_units=None,
                 resample=Regrid(40),
                 **kwargs,
             ):
+                u_source = None
+                v_source = None
+
                 if not args:
                     u_source = get_source(u, x=x, y=y, units=source_units)
                     v_source = get_source(v, x=x, y=y, units=source_units)
@@ -306,14 +326,20 @@ class Subplot:
                     u_source = get_source(args[0], x=x, y=y, units=source_units)
                     v_source = get_source(args[1], x=x, y=y, units=source_units)
 
+                assert (
+                    u_source is not None and v_source is not None
+                ), "Could not determine vector components from input arguments"
+
                 kwargs = {**self._plot_kwargs(u_source), **kwargs}
+
+                multi_source = MultiSource([u_source, v_source])
 
                 style = self._configure_style(
                     method_name or method.__name__,
                     style,
-                    u_source,
+                    multi_source,
                     units,
-                    False,
+                    auto_style,
                     kwargs,
                 )
                 m = getattr(style, method_name or method.__name__)
@@ -779,6 +805,8 @@ class Subplot:
                 method = self.grid_cells
         else:
             method = getattr(self, style._preferred_method)
+        zorder = LAYER_ZORDERS.get(method.__name__, 10)
+        kwargs.setdefault("zorder", zorder)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
     def hsv_composite(self, *args):
@@ -1118,6 +1146,34 @@ class Subplot:
             generated based on the data.
         **kwargs
             Additional keyword arguments to pass to `matplotlib.pyplot.quiver`.
+        """
+
+    @plot_vector()
+    def streamplot(self, *args, **kwargs):
+        """
+        Plot streamlines on the Subplot.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, u, and v must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        u : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The u values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        v : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The v values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the stream plot. If None, a Style is automatically
+            generated based on the data.
+        **kwargs
+            Additional keyword arguments to pass to `matplotlib.pyplot.streamplot`.
         """
 
     @schema.barbs.apply()

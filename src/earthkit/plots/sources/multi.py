@@ -17,8 +17,7 @@ from functools import cached_property
 import earthkit.data
 import numpy as np
 
-from earthkit.plots.sources.earthkit import EarthkitSource
-from earthkit.plots.sources.numpy import NumpySource
+from earthkit.plots.sources.single import SingleSource
 
 
 class MultiSource:
@@ -32,33 +31,55 @@ class MultiSource:
             self._data = earthkit.data.from_object(self._data)
         return self._data
 
+    @property
     def x_values(self):
         return [source.x_values for source in self]
 
+    @property
     def y_values(self):
         return [source.y_values for source in self]
 
+    @property
     def z_values(self):
         return [source.z_values for source in self]
 
+    @property
     def crs(self):
         return [source.crs for source in self]
 
     def metadata(self, key, default=None):
-        return [source.metadata(key, default) for source in self]
+        return list(set([source.metadata(key, default) for source in self]))
 
+    @property
     def u_values(self):
         return [source.u_values for source in self]
 
+    @property
     def v_values(self):
         return [source.v_values for source in self]
 
+    @property
+    def units(self):
+        """Returns the units of the data, if specified in metadata."""
+        result = self.metadata("units")
+        if isinstance(result, list):
+            result = result[0]
+        return result
+
     def __iter__(self):
-        if isinstance(self.data, (list, np.ndarray)):
-            yield NumpySource(self.data, **self._kwargs)
-        else:
-            for field in self.data:
-                yield EarthkitSource(field, **self._kwargs)
+        for i in range(len(self)):
+            yield self[i]
+
+    def __len__(self):
+        return len(self.data)
 
     def __getitem__(self, index):
-        return EarthkitSource(self.data[index], **self._kwargs)
+        from earthkit.plots.sources import get_source
+
+        d = self.data[index]
+        if isinstance(d, SingleSource):
+            return d
+        return get_source(d, **self._kwargs)
+
+    def mutate(self):
+        return self

@@ -80,9 +80,15 @@ def format_unit_simple(unit, registry, **options):
     return latex_string
 
 
+UNIT_STR_ALIASES = {"(0 - 1)": "percent"}
+
+
 def _pintify(unit_str):
     if unit_str is None:
         unit_str = "dimensionless"
+
+    if unit_str in UNIT_STR_ALIASES:
+        unit_str = UNIT_STR_ALIASES[unit_str]
 
     # Replace spaces with dots
     unit_str = unit_str.replace(" ", ".")
@@ -154,6 +160,7 @@ def convert(data, source_units, target_units):
     """
     source_units = _pintify(source_units)
     target_units = _pintify(target_units)
+
     try:
         result = (data * source_units).to(target_units).magnitude
     except ValueError as err:

@@ -92,11 +92,17 @@ class EarthkitSource(SingleSource):
 
             x_values, y_values = get_points(schema.interpolate_target_resolution)
 
-            z_values = earthkit.regrid.interpolate(
-                z_values,
-                self.gridspec.to_dict(),
-                {"grid": [schema.interpolate_target_resolution] * 2},
-            )
+            def interpolate(v):
+                return earthkit.regrid.interpolate(
+                    v,
+                    self.gridspec.to_dict(),
+                    {"grid": [schema.interpolate_target_resolution] * 2},
+                )
+
+            if z_values.ndim == 2:  # In case of FieldList
+                z_values = np.array([interpolate(z) for z in z_values])
+            else:
+                z_values = interpolate(z_values)
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")

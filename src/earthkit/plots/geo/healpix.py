@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import cartopy.crs as ccrs
-import healpy as hp
 import numpy as np
 
 
@@ -25,6 +24,12 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     ax: axis to plot on
     kwargs: additional arguments to imshow
     """
+    try:
+        import healpy as hp  # noqa: F401
+    except ImportError as e:
+        raise ImportError(
+            "The healpix plotting backend requires the healpy package."
+        ) from e
     kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()

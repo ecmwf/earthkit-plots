@@ -412,7 +412,7 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
-        if values.ndim == 1:
+        if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontourf(ax, x, y, values, *args, **kwargs)
 
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
@@ -459,6 +459,27 @@ class Style:
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
         return ax.barbs(x, y, u, v, *args, **kwargs)
+
+    def streamplot(self, ax, x, y, u, v, *args, **kwargs):
+        """
+        Plot streamlines using this `Style`.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot the data.
+        x : numpy.ndarray
+            The x coordinates of the data to be plotted.
+        y : numpy.ndarray
+            The y coordinates of the data to be plotted.
+        u : numpy.ndarray
+            The u-component of the data to be plotted.
+        v : numpy.ndarray
+            The v-component of the data to be plotted.
+        **kwargs
+            Any additional arguments accepted by `matplotlib.axes.Axes.streamplot`.
+        """
+        return ax.streamplot(x, y, u, v, *args, **kwargs)
 
     def tricontour(self, ax, x, y, values, *args, **kwargs):
         """
@@ -540,7 +561,7 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
-        if values.ndim == 1:
+        if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontour(ax, x, y, values, *args, **kwargs)
 
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
@@ -946,11 +967,29 @@ class Categorical(Style):
 
 
 class Quiver(Style):
-    """A style for plotting vector data."""
+    """A style for plotting vector data.
 
-    def __init__(self, *args, colors=None, **kwargs):
+    Parameters
+    ----------
+    colors : str or list or matplotlib.colors.Colormap, optional
+        The colors to be used in this `Style`. This can be a named matplotlib
+        colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
+        three (four)-element lists of RGB(A) values), or a pre-defined
+        matplotlib colormap object. If not provided, the default colormap of the
+        active `schema` will be used.
+    preferred_method : str, optional
+        The preferred method for plotting the data. Must be one of `quiver`, `barbs` or
+        `vector` method.
+    **kwargs
+        Additional keyword arguments to be passed to the `quiver`, `barbs` or
+        `vector` method.
+    """
+
+    def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
         kwargs["legend_style"] = "vector"
-        super().__init__(*args, colors=colors, **kwargs)
+        super().__init__(
+            *args, colors=colors, preferred_method=preferred_method, **kwargs
+        )
 
 
 class Contour(Style):
