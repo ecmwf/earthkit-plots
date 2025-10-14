@@ -6,18 +6,22 @@
 
 # -- Import and path setup ---------------------------------------------------
 
+import datetime
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
+from earthkit.plots.version import __version__  # noqa: E402
+
 # -- Project information -----------------------------------------------------
 
+
 project = "earthkit-plots"
-copyright = "2023, European Centre for Medium Range Weather Forecasts"
+copyright = f"2022-{datetime.datetime.now().strftime('%Y')}, European Centre for Medium Range Weather Forecasts"
 author = "European Centre for Medium Range Weather Forecasts"
-version = "0.0.0"  # earthkit.plots.__version__
-release = "0.0.0"  # earthkit.plots.__version__
+version = __version__
+release = __version__
 
 # -- General configuration ---------------------------------------------------
 
@@ -30,6 +34,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
     "autoapi.extension",
 ]
 
@@ -57,6 +62,12 @@ autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
 autoapi_add_toctree_entry = True
 
+# GitHub links configuration
+extlinks = {
+    "pr": ("https://github.com/ecmwf/earthkit-plots/pull/%s", "PR #%s"),
+    "issue": ("https://github.com/ecmwf/earthkit-plots/issues/%s", "Issue #%s"),
+}
+
 nbsphinx_thumbnails = {
     "examples/examples/string-formatting-units": "_static/string-formatting-units.png",
 }
@@ -65,6 +76,19 @@ nbsphinx_thumbnails = {
 # napoleon_google_docstring = False
 # napoleon_numpy_docstring = True
 # napoleon_preprocess_types = True
+
+# intersphinx configuration
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
+    "earthkit": ("https://earthkit.readthedocs.io/en/latest/", None),
+    "earthkit-data": ("https://earthkit-data.readthedocs.io/en/latest/", None),
+    "earthkit-regrid": ("https://earthkit-regrid.readthedocs.io/en/latest/", None),
+}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

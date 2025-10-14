@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import os
 import re
 
@@ -49,8 +50,11 @@ class Figure:
     domain : earthkit.geo.Domain, optional
         The domain of the data being plotted. This is used to set the extent
         and projection of the map.
+    crs : cartopy.crs.CRS, optional
+        The CRS of the map. If not provided, it will be inferred from the
+        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
     kwargs : dict, optional
-        Additional keyword arguments to pass to matplotlib.gridspec.GridSpec.
+        Additional keyword arguments to pass to :class:`matplotlib.gridspec.GridSpec`.
     """
 
     def __init__(
@@ -84,23 +88,17 @@ class Figure:
         if None not in (self.rows, self.columns):
             self._setup()
 
-    def setup(method):
-        """Decorator to set up the figure before calling a method."""
-
-        def wrapper(self, *args, **kwargs):
-            self._setup()
-            result = method(self, *args, **kwargs)
-            return result
-
-        return wrapper
-
     def _setup(self):
+        """Set up the figure the first time it is needed."""
         self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
         self.gridspec = self.fig.add_gridspec(
             self.rows, self.columns, **self._gridspec_kwargs
         )
 
-    def defer_until_setup(method):
+    def _defer_until_setup(method):
+        """Decorator to defer calling a method until the figure is setup."""
+
+        @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             if not self.subplots:
                 self._queue.append((method, args, kwargs))
@@ -109,7 +107,10 @@ class Figure:
 
         return wrapper
 
-    def defer_subplot(method):
+    def _defer_subplot(method):
+        """Decorator to defer calling a method until the subplots are setup."""
+
+        @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             if self.rows is None or self.columns is None:
                 self._subplot_queue.append((method, args, kwargs))
@@ -125,6 +126,7 @@ class Figure:
         return self.subplots[i]
 
     def _parse_size(self, size):
+        """Parse the size of the figure."""
         if size is not None:
             figsize = []
             for length in size:
@@ -147,6 +149,7 @@ class Figure:
     def apply_to_subplots(method):
         """Decorator to apply a method to all subplots in the figure."""
 
+        @functools.wraps(method)
         def wrapper(self, *args, **kwargs):
             success = False
             for subplot in self.subplots:
@@ -165,6 +168,7 @@ class Figure:
     def iterate_subplots(method):
         """Decorator to iterate simultaneously over data and subplots."""
 
+        @functools.wraps(method)
         def wrapper(self, data, *args, **kwargs):
             if not hasattr(data, "__len__"):
                 data = [data]
@@ -181,6 +185,7 @@ class Figure:
         return wrapper
 
     def _determine_row_column(self, row, column):
+        """Determine the row and column of the next subplot."""
         if row is not None and column is not None:
             pass
         else:
@@ -209,14 +214,14 @@ class Figure:
         column : int, optional
             The column in which to place the subplot.
         kwargs : dict, optional
-            Additional keyword arguments to pass to the Subplot constructor.
+            Additional keyword arguments to pass to the :class:`Subplot` constructor.
         """
         row, column = self._determine_row_column(row, column)
         subplot = Subplot(row=row, column=column, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
-    @defer_subplot
+    @_defer_subplot
     def add_map(self, row=None, column=None, domain=None, crs=None, **kwargs):
         """
         Add a map to the figure.
@@ -230,8 +235,11 @@ class Figure:
         domain : earthkit.geo.Domain, optional
             The domain of the data being plotted. This is used to set the extent
             and projection of the map.
+        crs : cartopy.crs.CRS, optional
+            The CRS of the map. If not provided, it will be inferred from the
+            domain or set to PlateCarree (regular lat-lon).
         kwargs : dict, optional
-            Additional keyword arguments to pass to the Map constructor.
+            Additional keyword arguments to pass to the :class:`Map` constructor.
         """
         if domain is None:
             domain = self._domain
@@ -262,8 +270,7 @@ class Figure:
             If False, each format key will evaluate to a list of values found
             across subplots/layers.
         kwargs : dict, optional
-            Additional keyword arguments to pass to the matplotlib.pyplot.title
-            method.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.title`.
         """
         return [subplot.title(*args, **kwargs) for subplot in self.subplots]
 
@@ -296,7 +303,7 @@ class Figure:
 
         return groups
 
-    @defer_until_setup
+    @_defer_until_setup
     @schema.legend.apply()
     def legend(self, *args, subplots=None, location=None, **kwargs):
         """
@@ -341,7 +348,18 @@ class Figure:
 
         return legends
 
-    @defer_until_setup
+    @_defer_until_setup
+    @apply_to_subplots
+    def cities(self, *args, **kwargs):
+        """
+        Add cities to every `Map` subplot in the figure.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `Map.cities`.
+        """
+
+    @_defer_until_setup
     @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
@@ -352,7 +370,7 @@ class Figure:
         Accepts the same arguments as `Map.coastlines`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def countries(self, *args, **kwargs):
         """
@@ -363,7 +381,7 @@ class Figure:
         Accepts the same arguments as `Map.countries`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def urban_areas(self, *args, **kwargs):
         """
@@ -374,7 +392,7 @@ class Figure:
         Accepts the same arguments as `Map.urban_areas`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def land(self, *args, **kwargs):
         """
@@ -385,7 +403,7 @@ class Figure:
         Accepts the same arguments as `Map.land`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def borders(self, *args, **kwargs):
         """
@@ -396,7 +414,7 @@ class Figure:
         Accepts the same arguments as `Map.borders`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def standard_layers(self, *args, **kwargs):
         """
@@ -407,7 +425,7 @@ class Figure:
         Accepts the same arguments as `Map.quick_layers`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def administrative_areas(self, *args, **kwargs):
         """
@@ -418,7 +436,7 @@ class Figure:
         Accepts the same arguments as `Map.administrative_areas`.
         """
 
-    @defer_until_setup
+    @_defer_until_setup
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
         """
@@ -431,11 +449,54 @@ class Figure:
 
     @iterate_subplots
     def block(self, *args, **kwargs):
-        """"""
+        """
+        Plot a pcolormesh on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the pcolormesh. If None, a Style is automatically
+            generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+        """
 
     @iterate_subplots
     def gridpoints(self, *args, **kwargs):
-        """"""
+        """
+        Plot grid point centroids on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot grid_points.
+        x : str, optional
+            The name of the x-coordinate variable in the data source.
+        y : str, optional
+            The name of the y-coordinate variable in the data source.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+        """
 
     @iterate_subplots
     def plot(self, *args, **kwargs):
@@ -447,20 +508,110 @@ class Figure:
 
     @iterate_subplots
     def pcolormesh(self, *args, **kwargs):
-        """"""
+        """
+        Plot a pcolormesh on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the pcolormesh. If None, a Style is automatically
+            generated based on the data.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+        """
 
     @iterate_subplots
     def contourf(self, *args, **kwargs):
-        """"""
+        """
+        Plot a filled contour plot on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the filled contour plot. If None, a Style is
+            automatically generated based on the data.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
+        """
 
     @iterate_subplots
     def contour(self, *args, **kwargs):
-        """"""
+        """
+        Plot a line contour plot on every subplot in the figure.
 
-    @defer_until_setup
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the filled contour plot. If None, a Style is
+            automatically generated based on the data.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
+        """
+
+    @_defer_until_setup
     def gridlines(self, *args, sharex=True, sharey=True, **kwargs):
         """
-        Add gridlines to every `Map` subplot in the figure.
+        Add gridlines to every :class:`Map` subplot in the figure.
 
         Parameters
         ----------
@@ -470,7 +621,7 @@ class Figure:
             If True, only the leftmost column of subplots will have y-axis
             gridlines.
         kwargs : dict, optional
-            Additional keyword arguments to pass to the `Map.gridlines` method.
+            Additional keyword arguments to pass to the :meth:`Map.gridlines` method.
         """
         draw_labels = kwargs.pop("draw_labels", ["left", "bottom"])
         if draw_labels is True:
@@ -537,9 +688,7 @@ class Figure:
             layers - e.g. `"{variable} at {time}"` might be evaluated to
             `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
         kwargs : dict, optional
-            Keyword argument to matplotlib.pyplot.suptitle (see
-            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.suptitle.html#matplotlib-pyplot-suptitle
-            ).
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.suptitle`.
         """
         if label is None:
             label = self._default_title_template
@@ -549,12 +698,14 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        self.draw()
         return result
 
     def draw(self):
         """
         Draw the figure and all its subplots.
+
+        This calls :meth:`matplotlib.backend_bases.FigureCanvasBase.draw` to render
+        the figure and then resets face colors for all layers.
         """
         self.fig.canvas.draw()
         for subplot in self.subplots:
@@ -562,49 +713,71 @@ class Figure:
                 layer.reset_facecolors()
 
     def _get_suptitle_y(self):
-        self.draw()
-        max_title_top = 0
-        renderer = self.fig.canvas.get_renderer()
-        inv_transform = self.fig.transFigure.inverted()
+        """
+        Calculate suptitle y position by using the axis positions and estimated
+        title heights.
 
-        for ax in self.fig.axes:
-            # Check if the subplot has a title
-            title = ax.get_title()
+        This method uses :meth:`matplotlib.axes.Axes.get_position` to determine
+        the position of axes and calculates an appropriate y position for the
+        suptitle based on the highest subplot and estimated title height.
 
-            if title:  # If there is a title, we need to handle the title object itself
-                title_obj = ax.title
-                title_bbox = title_obj.get_window_extent(renderer)
-                # Convert from display coords to figure-relative coords
-                bbox_fig = inv_transform.transform(title_bbox)
-                max_title_top = max(max_title_top, bbox_fig[1][1])
-            else:  # No title, check for other elements
-                if ax.xaxis.label.get_text():
-                    title_obj = ax.xaxis.label
-                elif ax.yaxis.label.get_text():
-                    title_obj = ax.yaxis.label
-                else:
-                    labels = ax.get_xticklabels()
-                    if labels:
-                        ticklabel_bbox = labels[0].get_window_extent(renderer)
-                        ticklabel_fig_coords = inv_transform.transform(ticklabel_bbox)
-                        max_title_top = max(max_title_top, ticklabel_fig_coords[1, 1])
+        Returns
+        -------
+        float
+            The y position for the suptitle in figure coordinates.
+        """
+        if not self.subplots:
+            return 0.95  # Default fallback
 
-                # If we found a title-like object, handle its bbox
-                if "title_obj" in locals():
-                    title_bbox = title_obj.get_window_extent(renderer)
-                    bbox_fig = inv_transform.transform(title_bbox)
-                    max_title_top = max(max_title_top, bbox_fig[1][1])
-                    # Clean up any previous title_obj variable that was used
-                    del title_obj
-                else:
-                    # Fallback to checking the axis position
-                    max_title_top = max(max_title_top, ax.get_position().ymax)
+        # Find the highest subplot position
+        max_ax_top = max(ax.get_position().y1 for ax in self.fig.axes)
 
-        # Set the suptitle just above the highest title
-        # Adjust the offset as needed
-        return max_title_top + 0.05
+        fig_height = self.fig.get_size_inches()[1]
+
+        # Get the default title font size (or use a reasonable default)
+        title_fontsize = 12
+        try:
+            # Try to get font size from the first subplot's title
+            first_ax = self.fig.axes[0]
+            if first_ax.get_title():
+                title_fontsize = first_ax.title.get_fontsize()
+        except IndexError:
+            # IndexError: self.fig.axes is empty
+            pass
+
+        # Convert font size to figure-relative units using actual figure DPI
+        fig_dpi = self.fig.get_dpi()
+        title_height_fig = (title_fontsize / fig_dpi) / fig_height
+
+        # Add some padding above the title
+        title_padding = 0.15  # 15% of figure height
+
+        suptitle_y = max_ax_top + title_height_fig + title_padding
+
+        return suptitle_y
 
     def format_string(self, string, unique=True, grouped=True):
+        """
+        Format a string with the subplot titles.
+
+        Parameters
+        ----------
+        string : str
+            The string to format.
+        unique : bool, optional
+            If True, format keys which are uniform across subplots/layers will
+            produce a single result. For example, if all data layers have the
+            same `variable_name`, only one variable name will appear in the
+            title.
+        grouped : bool, optional
+            If True, a single title will be generated to represent all data
+            layers, with each format key evaluating to a list where layers
+            differ - e.g. `"{variable} at {time}"` might be evaluated to
+            `"temperature and wind at 2023-01-01 00:00".
+            If False, the title will be duplicated by the number of subplots/
+            layers - e.g. `"{variable} at {time}"` might be evaluated to
+            `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
+        """
         if not grouped:
             results = [
                 subplot.format_string(string, unique, grouped)
@@ -668,7 +841,11 @@ class Figure:
         return self
 
     def show(self, *args, **kwargs):
-        """Display the figure."""
+        """
+        Display the figure.
+
+        This calls :func:`matplotlib.pyplot.show` to display the figure.
+        """
         self._release_queue()
         return plt.show(*args, **kwargs)
 
@@ -683,7 +860,7 @@ class Figure:
         bbox_inches : str, optional
             The bounding box in inches to use when saving the figure.
         kwargs : dict, optional
-            Additional keyword arguments to pass to matplotlib.pyplot.savefig.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.savefig`.
         """
         self._release_queue()
         return plt.savefig(
@@ -693,7 +870,8 @@ class Figure:
             **kwargs,
         )
 
-    def resize(self):
+    def _resize(self):
+        """Resize the figure to fit its axes."""
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
 
@@ -726,8 +904,18 @@ def resize_figure_to_fit_axes(fig):
     """
     Adjust the size of a Matplotlib figure so that it fits its axes perfectly.
 
-    Parameters:
-    - fig: A Matplotlib Figure object.
+    This function calculates the bounding box of all axes in the figure and
+    resizes the figure to fit them exactly, removing any extra whitespace.
+
+    Parameters
+    ----------
+    fig : :class:`matplotlib.figure.Figure`
+        A Matplotlib Figure object to resize.
+
+    Returns
+    -------
+    :class:`matplotlib.figure.Figure`
+        The resized figure object.
     """
     # Get the current size of the figure and its DPI
     current_size = fig.get_size_inches()

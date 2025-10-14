@@ -13,6 +13,8 @@
 # limitations under the License.
 
 import earthkit.data
+import numpy as np
+import pytest
 import xarray as xr
 
 from earthkit.plots.identifiers import (
@@ -23,6 +25,7 @@ from earthkit.plots.identifiers import (
     find_uv_pair,
     find_x,
     find_y,
+    group_vectors,
     is_regular_latlon,
     xarray_variable_name,
 )
@@ -125,3 +128,60 @@ def test_xarray_variable_name():
 
     dataset["temperature"].attrs = {}  # Remove attributes
     assert xarray_variable_name(dataset, "temperature") == "temperature"
+
+
+def uv_xr_dataset():
+    return xr.Dataset(
+        {
+            "10u": (("latitude", "longitude"), [[1, 2], [3, 4]]),
+            "10v": (("latitude", "longitude"), [[5, 6], [7, 8]]),
+            "temperature": (("latitude", "longitude"), [[9, 10], [11, 12]]),
+        },
+        coords={"latitude": [0, 1], "longitude": [0, 1]},
+    )
+
+
+def uv_ekd_dataset():
+    def make_field(name):
+        return earthkit.data.ArrayField(
+            np.random.rand(1, 10),
+            metadata={"param": name, "shortName": name},
+        )
+
+    return earthkit.data.FieldList.from_fields(
+        [make_field("10u"), make_field("10v"), make_field("temperature")]
+    )
+
+
+def parse_into_fieldlist(*args):
+    from earthkit.data.core import Base
+
+    field_list = []
+    for arg in args:
+        if isinstance(arg, earthkit.data.FieldList):
+            field_list.extend(list(arg))
+        else:
+            if not isinstance(arg, Base):
+                arg = earthkit.data.from_object(arg)
+            field_list.append(arg)
+    return earthkit.data.FieldList.from_fields(field_list)
+
+
+@pytest.mark.parametrize(
+    "array_func",
+    [
+        # uv_xr_dataset, # metadata on param works but selecting on param does not
+        uv_ekd_dataset,
+    ],
+)
+def test_group_vectors(array_func):
+    fieldlist = parse_into_fieldlist(array_func())  # To mimic quickplot behaviour
+
+    grouped_data = group_vectors(fieldlist)
+    assert len(grouped_data) == 2, f"Expected 2 groups, got {len(grouped_data)}"
+
+    expected_variables = {("10u", "10v"), ("temperature",)}
+
+    for data in grouped_data:
+        variables = tuple(sorted(var.metadata("param") for var in data))
+        assert variables in expected_variables, f"Unexpected variables: {variables}"

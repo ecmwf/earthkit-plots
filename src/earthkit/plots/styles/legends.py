@@ -163,7 +163,15 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
     return legend
 
 
-def vector(layer, *args, vector_reference=16, **kwargs):
+def vector(layer, *args, **kwargs):
+    uses_cbar = getattr(layer.mappable, "_colorbar", True)
+    cbar = None
+    if uses_cbar:
+        cbar = colorbar(layer, *args, **kwargs)
+    return cbar
+
+
+def quiverkey(layer, *args, vector_reference=16, **kwargs):
     layer.axes[-1].quiverkey(
         layer.mappable,
         1,
@@ -171,11 +179,7 @@ def vector(layer, *args, vector_reference=16, **kwargs):
         vector_reference,
         label=f"{vector_reference} {layer.style.units or '$m s^{-1}$'}",
     )
-    uses_cbar = getattr(layer.mappable, "_colorbar", True)
-    cbar = None
-    if uses_cbar:
-        cbar = colorbar(layer, *args, **kwargs)
-    return cbar
+    return vector(layer, *args, **kwargs)
 
 
 def estimate_legend_cols(axes, labels, position="top"):
