@@ -78,7 +78,7 @@ Or even more simply:
    :caption: Documentation
 
    user-guide
-   _api/index
+   api
    development
 
 .. toctree::

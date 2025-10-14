@@ -67,7 +67,7 @@ class Subplot:
     figure : Figure, optional
         The Figure to which the subplot belongs.
     **kwargs
-        Additional keyword arguments to pass to the matplotlib Axes constructor.
+        Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` constructor.
     """
 
     def __init__(self, row=0, column=0, figure=None, size=None, **kwargs):
@@ -92,6 +92,7 @@ class Subplot:
 
     @property
     def crs(self):
+        """The Coordinate Reference System of the subplot."""
         return None
 
     def add_attribution(self, attribution):
@@ -124,6 +125,22 @@ class Subplot:
         highlight_color="red",
         **kwargs,
     ):
+        """
+        Set the major xticks of the subplot.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            The frequency of the xticks.
+        format : str, optional
+            The format of the xticks. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
+        highlight : dict, optional
+            A dictionary of highlight conditions. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
+        highlight_color : str, optional
+            The color of the highlighted xticks.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
+        """
         formats = DEFAULT_FORMATS
         if frequency is None:
             locator = mdates.AutoDateLocator(maxticks=30)
@@ -173,6 +190,18 @@ class Subplot:
         format=None,
         **kwargs,
     ):
+        """
+        Set the minor xticks of the subplot.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            The frequency of the xticks.
+        format : str, optional
+            The format of the xticks. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
+        **kwargs : dict, optional
+            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
+        """
         formats = DEFAULT_FORMATS
         if frequency is None:
             locator = mdates.AutoDateLocator(maxticks=30)
@@ -676,6 +705,7 @@ class Subplot:
 
     @property
     def figure(self):
+        """The :class:`earthkit.plots.components.figures.Figure` object."""
         from earthkit.plots.components.figures import Figure
 
         if self._figure is None:
@@ -685,12 +715,12 @@ class Subplot:
 
     @property
     def fig(self):
-        """The underlying matplotlib Figure object."""
+        """The underlying :class:`matplotlib.figure.Figure` object."""
         return self.figure.fig
 
     @property
     def ax(self):
-        """The underlying matplotlib Axes object."""
+        """The underlying :class:`matplotlib.axes.Axes` object."""
         if self._ax is None:
             subspec = self.figure.gridspec[self.row, self.column]
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
@@ -728,9 +758,21 @@ class Subplot:
         return kwargs
 
     def coastlines(self, *args, **kwargs):
+        """
+        Plot coastlines on the Subplot.
+
+        NOTE: This method is not implemented on Subplots, but may be available
+        on subclasses such as :class:`earthkit.plots.components.maps.Map`.
+        """
         raise NotImplementedError
 
     def gridlines(self, *args, **kwargs):
+        """
+        Plot gridlines on the Subplot.
+
+        NOTE: This method is not implemented on Subplots, but may be available
+        on subclasses such as :class:`earthkit.plots.components.maps.Map`.
+        """
         raise NotImplementedError
 
     @plot_2D()
@@ -756,11 +798,25 @@ class Subplot:
             The Style to use for the line. If None, a Style is automatically
             generated based on the data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.plot`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
         """
 
     @schema.envelope.apply()
     def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
+        """
+        Plot an envelope on the Subplot.
+
+        Parameters
+        ----------
+        data_1 : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot the envelope.
+        data_2 : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot the envelope.
+        alpha : float, optional
+            The alpha value of the envelope.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
+        """
         x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
         x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
         kwargs.pop("x")
@@ -769,12 +825,38 @@ class Subplot:
         return mappable
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
+        """
+        Plot labels on the Subplot.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot the labels.
+        label : str, optional
+            The label to plot.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
+        """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
         for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), **kwargs)
 
     def plot(self, data, style=None, units=None, **kwargs):
+        """
+        Plot a line on the Subplot.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot the data.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the data.
+        units : str, optional
+            The units to use for the data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
+        """
         warnings.warn("`plot` is deprecated. Use `quickplot` instead.")
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `plot`.")
@@ -790,6 +872,23 @@ class Subplot:
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
     def quickplot(self, data, style=None, units=None, **kwargs):
+        """
+        Generate a convenient plot from the given data with optional grouping.
+
+        Parameters
+        ----------
+        *args : list
+            The data to be plotted. Can be a single xarray or earthkit data object,
+            or separate x, y, z, u, v arguments.
+        methods : string or list, optional
+            The plot method(s) to apply.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the data.
+        units : string or list, optional
+            Units to convert the data to.
+        **kwargs : dict
+            Additional arguments for the plot method(s).
+        """
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
         source = get_source(data)
@@ -806,6 +905,15 @@ class Subplot:
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
     def hsv_composite(self, *args):
+        """
+        Plot an HSV composite on the Subplot.
+
+        Parameters
+        ----------
+        *args : xarray.DataArray or earthkit.data.core.Base
+            The data sources for the H, S, and V channels. If a single argument
+            is provided, it is assumed to be a tuple of (H, S, V).
+        """
         import xarray as xr
 
         if len(args) == 1:
@@ -855,6 +963,15 @@ class Subplot:
         return result
 
     def rgb_composite(self, *args):
+        """
+        Plot an RGB composite on the Subplot.
+
+        Parameters
+        ----------
+        *args : xarray.DataArray or earthkit.data.core.Base
+            The data sources for the R, G, and B channels. If a single argument
+            is provided, it is assumed to be a tuple of (R, G, B).
+        """
         import xarray as xr
 
         if len(args) == 1:
@@ -921,9 +1038,11 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the bar chart. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
 
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.bar`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.bar`.
         """
 
     @schema.scatter.apply()
@@ -945,8 +1064,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the scatter plot. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.scatter`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
     @plot_3D(extract_domain=True)
@@ -970,6 +1091,8 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         interpolate: earthkit.plots.resample.Interpolate, dict, optional
             A :class:`plots.resample.Interpolate` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
@@ -978,7 +1101,7 @@ class Subplot:
             If not provided and the data is unstructured, an `Interpolate` class is created
             by detecting the resolution of the data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.pcolormesh`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
         """
 
     @schema.contour.apply()
@@ -1003,8 +1126,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the contour plot. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.contour`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contour`.
         """
 
     @schema.contourf.apply()
@@ -1029,6 +1154,8 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         interpolate: earthkit.plots.resample.Interpolate, dict, optional
             A :class:`plots.resample.Interpolate` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
@@ -1037,7 +1164,7 @@ class Subplot:
             If not provided and the data is unstructured, an `Interpolate` class is created
             by detecting the resolution of the data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.contourf`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
 
     @plot_3D()
@@ -1061,8 +1188,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the tripcolor plot. If None, a Style is
             automatically generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.tripcolor`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
         """
 
     @plot_3D()
@@ -1086,8 +1215,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the tricontour plot. If None, a Style is
             automatically generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.tricontour`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
         """
 
     @plot_3D()
@@ -1111,8 +1242,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled tricontour plot. If None, a Style is
             automatically generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.tricontourf`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontourf`.
         """
 
     @schema.quiver.apply()
@@ -1140,8 +1273,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the quiver plot. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.quiver`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.quiver`.
         """
 
     @plot_vector()
@@ -1168,8 +1303,10 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the stream plot. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.streamplot`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.streamplot`.
         """
 
     @schema.barbs.apply()
@@ -1197,11 +1334,27 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the wind barbs. If None, a Style is automatically
             generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.barbs`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.barbs`.
         """
 
     def block(self, *args, **kwargs):
+        """
+        Plot a pcolormesh on the Subplot.
+
+        Deprecated: Use :meth:`pcolormesh` or :meth:`grid_cells` instead.
+
+        Parameters
+        ----------
+        *args : xarray.DataArray or earthkit.data.core.Base
+            The data source for which to plot the block.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        **kwargs
+            Additional keyword arguments to pass to :meth:`pcolormesh`.
+        """
         import warnings
 
         warnings.warn(
@@ -1225,9 +1378,9 @@ class Subplot:
             provided, a single legend is created based on that Style.
         location : str or tuple, optional
             The location of the legend(s). Must be a valid matplotlib location
-            (see https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.legend.html).
+            (see :func:`matplotlib.pyplot.legend`).
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.legend`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
         """
         legends = []
         if style is not None:
@@ -1265,7 +1418,7 @@ class Subplot:
         capitalize : bool, optional
             Whether to capitalize the first letter of the title. Default is True.
         **kwargs
-            Additional keyword arguments to pass to `matplotlib.pyplot.title`.
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.title`.
         """
         if label is None:
             label = self._default_title_template
@@ -1308,9 +1461,7 @@ class Subplot:
             layers - e.g. `"{variable} at {time}"` might be evaluated to
             `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
         kwargs : dict, optional
-            Keyword argument to matplotlib.pyplot.suptitle (see
-            https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.suptitle.html#matplotlib-pyplot-suptitle
-            ).
+            Keyword argument to :func:`matplotlib.pyplot.suptitle`.
         """
         return self.figure.title(*args, **kwargs)
 
