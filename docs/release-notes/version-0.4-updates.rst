@@ -1,6 +1,15 @@
 Version 0.4 Updates
 /////////////////////////
 
+Version 0.4.1
+===============
+
+Bug fixes
+++++++++++++++++++
+
+ - Made the default behaviour of quickplot to **not** combine vector components by default. This is to avoid unforeseen
+   issues with some data sources. This will be addressed in release 0.6.
+
 Version 0.4.0
 ===============
 
