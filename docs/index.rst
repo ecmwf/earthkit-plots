@@ -39,6 +39,25 @@ Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
 
 **Quick start**
 
+**earthkit-plots** provides a high level api to quickly visualise data.
+
+.. code-block:: python
+
+    chart = earthkit.plots.Map(domain="Europe")
+
+    chart.quickplot(temperature, units="celsius")
+
+    chart.legend(location="bottom")
+
+    chart.coastlines()
+    chart.title()
+    chart.gridlines()
+
+    chart.show()
+
+
+Or even more simply:
+
 .. code-block:: python
 
     earthkit.plots.quickplot(data, domain="Europe", units="celsius")
@@ -59,7 +78,7 @@ Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
    :caption: Documentation
 
    user-guide
-   _api/index
+   api
    development
 
 .. toctree::

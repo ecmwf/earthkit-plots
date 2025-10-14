@@ -12,3 +12,11 @@ pandas
 tqdm
 xarray
 filelock
+
+# Additional dependencies for project examples and notebooks
+earthkit
+matplotlib
+cartopy
+numpy
+nbconvert
+nbformat
