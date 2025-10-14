@@ -72,7 +72,7 @@ class GridSpec(metaclass=ABCMeta):
         # ecCodes does not yet support the gridSpec key and prints a warning
         # when accessing it. We only try to get it for a non-GRIB field
         gs = None
-        if not hasattr(data, "handle"):
+        if hasattr(data, "_metadata") and data._metadata.data_format() != "grib":
             gs = data.metadata("gridSpec", default=None)
 
         if gs:
@@ -93,7 +93,7 @@ class GridSpec(metaclass=ABCMeta):
         # ecCodes does not yet support the gridSpec key and prints a warning
         # when accessing it. We only try to get it for a non-GRIB field
         gs = None
-        if not hasattr(data, "handle"):
+        if hasattr(data, "_metadata") and data._metadata.data_format() != "grib":
             gs = data.metadata("gridSpec", default=None)
 
         if gs:
