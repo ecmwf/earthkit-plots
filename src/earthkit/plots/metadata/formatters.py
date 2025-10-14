@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import itertools
 import logging
 from string import Formatter
 from zoneinfo import ZoneInfo
@@ -491,19 +490,36 @@ class TimeFormatter:
     @property
     def lead_time(self):
         """The lead time of the data, i.e. the time between the base and valid times."""
-        if len(self.base_time) == 1 and len(self.valid_time) > 1:
-            times = itertools.product(self.base_time, self.valid_time)
-        elif len(self.base_time) == len(self.valid_time):
-            times = zip(self.base_time, self.valid_time)
+        lead_times = []
+        for time in self.times:
+            btime = self._named_time(time, "base_time")
+            vtime = self._named_time(time, "valid_time")
+            if btime is not None and vtime is not None:
+                lead_time_hours = int((vtime - btime).total_seconds() / 3600)
+                lead_times.append(lead_time_hours)
+            else:
+                lead_times.append(None)
+
+        if len(lead_times) > 1:
+            non_none_values = [x for x in lead_times if x is not None]
+
+            if non_none_values:
+                # Create result list preserving None values and unique non-None values
+                result = []
+                seen_values = set()
+                for _, value in enumerate(lead_times):
+                    if value is None:
+                        result.append(None)
+                    elif value not in seen_values:
+                        result.append(value)
+                        seen_values.add(value)
+            else:
+                # All values are None
+                result = lead_times
         else:
-            times = [
-                (
-                    self._named_time(time, "base_time"),
-                    self._named_time(time, "valid_time"),
-                )
-                for time in self.times
-            ]
-        return [int((vtime - btime).total_seconds() / 3600) for btime, vtime in times]
+            result = lead_times
+
+        return result
 
 
 def format_month(data):

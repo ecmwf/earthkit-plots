@@ -95,6 +95,14 @@ class Layer:
             return self.style.legend(self, *args, **kwargs)
 
     def format_string(self, string, **kwargs):
+        """
+        Format a string with the layer's metadata.
+
+        Parameters
+        ----------
+        string : str
+            The string to be formatted. Can contain placeholders for the layer's metadata in the form of `{key}`.
+        """
         return LayerFormatter(self, **kwargs).format(string)
 
     @property

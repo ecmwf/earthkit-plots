@@ -68,7 +68,13 @@ class GridSpec(metaclass=ABCMeta):
             return data.get("gridType")
 
         data = GridSpec._first(data)
-        gs = data.metadata("gridSpec", default=None)
+
+        # ecCodes does not yet support the gridSpec key and prints a warning
+        # when accessing it. We only try to get it for a non-GRIB field
+        gs = None
+        if hasattr(data, "_metadata") and data._metadata.data_format() != "grib":
+            gs = data.metadata("gridSpec", default=None)
+
         if gs:
             grid = gs.get("grid")
             if grid:
@@ -84,7 +90,12 @@ class GridSpec(metaclass=ABCMeta):
             return x
 
         # try gridSpec metadata key
-        gs = data.metadata("gridSpec", default=None)
+        # ecCodes does not yet support the gridSpec key and prints a warning
+        # when accessing it. We only try to get it for a non-GRIB field
+        gs = None
+        if hasattr(data, "_metadata") and data._metadata.data_format() != "grib":
+            gs = data.metadata("gridSpec", default=None)
+
         if gs:
             return _get_first(gs)
 

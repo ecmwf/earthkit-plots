@@ -412,7 +412,7 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
-        if values.ndim == 1:
+        if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontourf(ax, x, y, values, *args, **kwargs)
 
         kwargs = {**self.to_contourf_kwargs(values), **kwargs}
@@ -561,7 +561,7 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
-        if values.ndim == 1:
+        if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontour(ax, x, y, values, *args, **kwargs)
 
         kwargs = {**self.to_contour_kwargs(values), **kwargs}
@@ -891,6 +891,10 @@ class Style:
         """Create a vector legend for this `Style`."""
         return styles.legends.vector(*args, **kwargs)
 
+    def quiverkey(self, *args, **kwargs):
+        """Create a quiverkey legend for this `Style`."""
+        return styles.legends.quiverkey(*args, **kwargs)
+
     def save_legend(
         self, data=None, label=None, filename="legend.png", transparent=True, **kwargs
     ):
@@ -966,12 +970,32 @@ class Categorical(Style):
         super().__init__(*args, **kwargs)
 
 
-class Quiver(Style):
-    """A style for plotting vector data."""
+class Vector(Style):
+    """A style for plotting vector data.
+
+    Parameters
+    ----------
+    colors : str or list or matplotlib.colors.Colormap, optional
+        The colors to be used in this `Style`. This can be a named matplotlib
+        colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
+        three (four)-element lists of RGB(A) values), or a pre-defined
+        matplotlib colormap object. If not provided, the default colormap of the
+        active `schema` will be used.
+    **kwargs
+        Additional keyword arguments to be passed to the vector methods.
+    """
 
     def __init__(self, *args, colors=None, **kwargs):
-        kwargs["legend_style"] = "vector"
+        kwargs.setdefault("legend_style", "vector")
         super().__init__(*args, colors=colors, **kwargs)
+
+
+class Quiver(Vector):
+    def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
+        kwargs.setdefault("legend_style", "quiverkey")
+        super().__init__(
+            *args, colors=colors, preferred_method=preferred_method, **kwargs
+        )
 
 
 class Contour(Style):
@@ -1235,7 +1259,7 @@ class Hatched(Contour):
 
 DEFAULT_STYLE = Style()
 
-DEFAULT_QUIVER_STYLE = Quiver()
+DEFAULT_VECTOR_STYLE = Vector()
 
 _STYLE_KWARGS = list(
     set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
@@ -1266,3 +1290,26 @@ def compare_attributes(self, other, keys):
         )
     except ValueError:
         return False
+
+
+def get_style_class(method: str) -> type[Style]:
+    """
+    Get the `Style` class for a given plotting method.
+
+    Parameters
+    ----------
+    method : str
+        The plotting method for which to get the `Style` class for.
+
+    Returns
+    -------
+    type[Style]
+        The default `Style` class for the given plotting method.
+    """
+    if method in ["quiver"]:
+        return Quiver
+    elif method in ["barbs"]:
+        return Vector
+    elif method in ["contour", "contourf"]:
+        return Contour
+    return Style
