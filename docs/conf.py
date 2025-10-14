@@ -34,6 +34,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.extlinks",
     "autoapi.extension",
 ]
 
@@ -60,6 +61,12 @@ autoapi_options = [
 autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
 autoapi_add_toctree_entry = True
+
+# GitHub links configuration
+extlinks = {
+    "pr": ("https://github.com/ecmwf/earthkit-plots/pull/%s", "PR #%s"),
+    "issue": ("https://github.com/ecmwf/earthkit-plots/issues/%s", "Issue #%s"),
+}
 
 nbsphinx_thumbnails = {
     "examples/examples/string-formatting-units": "_static/string-formatting-units.png",
