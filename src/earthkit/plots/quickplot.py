@@ -36,7 +36,7 @@ def quickplot(
     groupby=None,
     units=None,
     subplot_titles=None,
-    combine_vectors=True,
+    combine_vectors=False,
     **kwargs,
 ):
     """
@@ -63,6 +63,7 @@ def quickplot(
         Units to convert the data to.
     combine_vectors : bool, optional
         Whether to combine vector components (u, v), and use vector based plotting, i.e. `quiver`.
+        NOTE: This is experimental and seems to have issues with some data sources. This will be addressed in release 0.6.
     **kwargs : dict
         Additional arguments for the plot method(s).
 
