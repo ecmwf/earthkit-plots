@@ -14,7 +14,8 @@ xarray
 filelock
 
 # Additional dependencies for project examples and notebooks
-earthkit
+earthkit-plots
+earthkit-data
 matplotlib
 cartopy
 numpy
