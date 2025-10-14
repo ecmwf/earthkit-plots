@@ -33,15 +33,21 @@ class Layer:
         The subplot on which this layer is plotted.
     style : earthkit.plots.styles.Style, optional
         The style to be applied to this layer.
+    primary_axis : str, optional
+        Which axis ('x', 'y', or 'z') contains the primary data for unit conversion.
     """
 
-    def __init__(self, sources, mappable, subplot, style=None):
+    def __init__(
+        self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None
+    ):
         if not isinstance(sources, (list, tuple)):
             sources = [sources]
         self.sources = sources
         self.mappable = mappable
         self.subplot = subplot
         self.style = style
+        self.primary_axis = primary_axis
+        self.axis_units = axis_units or {}
         self._magnitude = None
 
         if hasattr(mappable, "get_facecolor"):

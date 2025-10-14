@@ -24,6 +24,7 @@ from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import FONTS_DIR
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
+from earthkit.plots.shortcuts import timeseries
 from earthkit.plots.styles import Style
 
 try:
@@ -43,6 +44,7 @@ __all__ = [
     "schema",
     "styles",
     "quickplot",
+    "timeseries",
 ]
 
 
