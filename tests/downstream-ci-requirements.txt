@@ -15,4 +15,4 @@ cartopy
 pint
 pyyaml
 adjustText
-earthkit-plots-default-styles>=0.1.0
+earthkit-plots-default-styles>=0.1.3
