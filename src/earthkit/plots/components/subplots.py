@@ -34,7 +34,6 @@ from earthkit.plots.resample import Interpolate, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.multi import MultiSource
-from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
@@ -1398,8 +1397,7 @@ class Subplot:
 
     grid_cells = pcolormesh
 
-    @schema.legend.apply()
-    def legend(self, style=None, location=None, **kwargs):
+    def legend(self, label=None, *args, **kwargs):
         """
         Add a legend to the Subplot.
 
@@ -1415,23 +1413,7 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
         """
-        legends = []
-        if style is not None:
-            dummy = [[1, 2], [3, 4]]
-            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
-            layer = Layer(NumpySource(), mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
-            legends.append(legend)
-        else:
-            for i, layer in enumerate(self.distinct_legend_layers):
-                if isinstance(location, (list, tuple)):
-                    loc = location[i]
-                else:
-                    loc = location
-                if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
-                legends.append(legend)
-        return legends
+        self.ax.legend(*args, **kwargs)
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
