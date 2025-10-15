@@ -1068,17 +1068,20 @@ class Contour(Style):
         """
         levels = self.levels(data)
 
-        cmap, norm = styles.colors.cmap_and_norm(
-            self._linecolors,
-            levels,
-            self.normalize,
-            self.extend,
-        )
+        if len(levels) > 1:
+            cmap, norm = styles.colors.cmap_and_norm(
+                self._linecolors,
+                levels,
+                self.normalize,
+                self.extend,
+            )
 
-        return {
-            **{"cmap": cmap, "norm": norm, "levels": levels},
-            **self._kwargs,
-        }
+            return {
+                **{"cmap": cmap, "norm": norm, "levels": levels},
+                **self._kwargs,
+            }
+        else:
+            return {"levels": levels, "colors": self._linecolors, **self._kwargs}
 
     def contourf(self, ax, x, y, values, *args, **kwargs):
         """

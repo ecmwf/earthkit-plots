@@ -97,6 +97,48 @@ VARIABLE_NAME_PREFERENCE = [
     "short_name",
 ]
 
+# Dimensions that are typically NOT primary data (coordinates, metadata, etc.)
+COORDINATE_DIMS = [
+    "x",
+    "y",
+    "z",
+    "X",
+    "Y",
+    "Z",
+    "longitude",
+    "long",
+    "lon",
+    "latitude",
+    "lat",
+    "time",
+    "valid_time",
+    "t",
+    "date",
+    "dayofyear",
+    "month",
+    "year",
+    "level",
+    "height",
+    "depth",
+    "pressure",
+    "altitude",
+    "ensemble",
+    "member",
+    "realization",
+    "forecast_time",
+    "forecast_period",
+    "lead_time",
+    "step",
+    "step_type",
+    "step_units",
+    "grid_type",
+    "grid_name",
+    "projection_x_coordinate",
+    "projection_y_coordinate",
+    "xc",
+    "yc",
+]
+
 
 def find(array, identity):
     if array.__class__.__name__ == "DataArray":
@@ -138,6 +180,68 @@ def find_longitude(array):
 
 def find_time(array):
     return find(array, TIME)
+
+
+def identify_primary(data, exclude_dims=None):
+    """
+    Identify the primary data variable (not coordinates or metadata).
+
+    This function identifies the main data variable for unit conversion and other
+    data processing tasks. For Datasets, it returns the variable name. For DataArrays,
+    it returns the DataArray name. If no variables exist, it falls back to dimensions.
+
+    Parameters
+    ----------
+    data : xarray.DataArray, xarray.Dataset, or list
+        The data to analyze. Can be a DataArray, Dataset, or list of dimension names.
+    exclude_dims : list, optional
+        Additional dimensions to exclude from consideration as primary data.
+        Defaults to COORDINATE_DIMS. Only used for fallback dimension identification.
+
+    Returns
+    -------
+    str or None
+        The name of the primary variable or dimension, or None if not found.
+    """
+    if exclude_dims is None:
+        exclude_dims = COORDINATE_DIMS
+
+    # Handle xarray Dataset - return first data variable
+    if hasattr(data, "data_vars") and data.data_vars:
+        data_vars = list(data.data_vars.keys())
+        return data_vars[0]  # Return first variable
+
+    # Handle xarray DataArray - return the DataArray name
+    if hasattr(data, "name") and data.name is not None:
+        return data.name
+
+    # Handle xarray DataArray without a name - return None to trigger fallback
+    if hasattr(data, "dims") and not hasattr(data, "data_vars"):
+        # This is a DataArray without a name
+        return None
+
+    # Fallback: Handle dimension-based identification for other cases
+    if hasattr(data, "dims"):
+        # xarray DataArray or Dataset
+        dims = list(data.dims)
+    elif hasattr(data, "coords"):
+        # xarray object with coords
+        dims = list(data.coords.keys())
+    elif isinstance(data, (list, tuple)):
+        # List of dimension names
+        dims = list(data)
+    else:
+        return None
+
+    # Filter out coordinate/metadata dimensions
+    primary_dims = [dim for dim in dims if dim not in exclude_dims]
+
+    if not primary_dims:
+        # If no non-coordinate dims, return first dimension
+        return dims[0] if dims else None
+
+    # Return first non-coordinate dimension
+    return primary_dims[0]
 
 
 def is_regular_latlon(data):

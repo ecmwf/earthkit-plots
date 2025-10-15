@@ -60,7 +60,13 @@ autoapi_options = [
 ]
 autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
-autoapi_add_toctree_entry = True
+autoapi_add_toctree_entry = False
+
+# GitHub links configuration
+extlinks = {
+    "pr": ("https://github.com/ecmwf/earthkit-plots/pull/%s", "PR #%s"),
+    "issue": ("https://github.com/ecmwf/earthkit-plots/issues/%s", "Issue #%s"),
+}
 
 # GitHub links configuration
 extlinks = {
