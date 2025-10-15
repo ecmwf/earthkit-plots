@@ -413,9 +413,8 @@ def extract_plottables_3D(
 
     if not mappable:
         # Step 6: Process x, y values and apply sampling
-        x_values, y_values = _apply_coordinate_unit_conversion(
-            source, style.units, xunits, yunits, x, y, method_name
-        )
+        # For 3D plots, use source coordinates directly (no coordinate unit conversion)
+        x_values, y_values = source.x_values, source.y_values
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
         )
@@ -665,6 +664,7 @@ def process_z_values(
         return None
 
     # Convert units and apply scale factors
+    print(style.units)
     z_values = style.convert_units(source.z_values, source.units)
     return style.apply_scale_factor(z_values)
 
