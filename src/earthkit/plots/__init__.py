@@ -26,6 +26,7 @@ from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.shortcuts import timeseries
 from earthkit.plots.styles import Style
+from earthkit.plots.temporal.timeseries import TimeSeries
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -45,6 +46,7 @@ __all__ = [
     "styles",
     "quickplot",
     "timeseries",
+    "TimeSeries",
 ]
 
 
