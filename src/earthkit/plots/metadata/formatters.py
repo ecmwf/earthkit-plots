@@ -495,6 +495,10 @@ class TimeFormatter:
         for time in self.times:
             btime = self._named_time(time, "base_time")
             vtime = self._named_time(time, "valid_time")
+            if isinstance(btime, (list, tuple)):
+                btime = btime[0]
+            if isinstance(vtime, (list, tuple)):
+                vtime = vtime[0]
             if btime is not None and vtime is not None:
                 lead_time_hours = int((vtime - btime).total_seconds() / 3600)
                 lead_times.append(lead_time_hours)

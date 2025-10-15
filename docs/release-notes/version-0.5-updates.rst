@@ -1,6 +1,14 @@
 Version 0.5 Updates
 ///////////////////
 
+Version 0.5.1
+===============
+
+Bug fixes
+++++++++++++++++++
+
+ - Fixed a bug where the lead_time formatter was not working correctly with multiple time values (:pr:`134`).
+
 Version 0.5.0
 =============
 
