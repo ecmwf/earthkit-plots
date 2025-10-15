@@ -56,6 +56,7 @@ def extract_plottables_2D(
     auto_style: bool = False,
     regrid: bool = False,
     metadata: Optional[dict[str, Any]] = None,
+    label: Optional[str] = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -90,6 +91,8 @@ def extract_plottables_2D(
         Whether to enable regridding for the data source.
     metadata : dict, optional
         Additional metadata for the data source.
+    label : str, optional
+        The label to use for the legend.
     **kwargs
         Additional keyword arguments passed to the plotting method.
 
@@ -153,16 +156,25 @@ def extract_plottables_2D(
     ):
         axis_units[primary_axis] = units
 
-    subplot.layers.append(
-        Layer(
-            source,
-            mappable,
-            subplot,
-            style,
-            primary_axis=primary_axis,
-            axis_units=axis_units,
-        )
+    layer = Layer(
+        source,
+        mappable,
+        subplot,
+        style,
+        primary_axis=primary_axis,
+        axis_units=axis_units,
     )
+
+    if label is not None:
+        label = layer.format_string(label)
+        if isinstance(mappable, list):
+            for mappable in mappable:
+                mappable.set_label(label)
+        else:
+            mappable.set_label(label)
+
+    subplot.layers.append(layer)
+
     return mappable
 
 
