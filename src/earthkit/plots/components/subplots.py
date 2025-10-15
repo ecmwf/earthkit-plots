@@ -34,7 +34,6 @@ from earthkit.plots.resample import Interpolate, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.multi import MultiSource
-from earthkit.plots.sources.numpy import NumpySource
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
