@@ -676,7 +676,6 @@ def process_z_values(
         return None
 
     # Convert units and apply scale factors
-    print(style.units)
     z_values = style.convert_units(source.z_values, source.units)
     return style.apply_scale_factor(z_values)
 
