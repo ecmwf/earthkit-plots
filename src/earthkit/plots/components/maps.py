@@ -742,6 +742,44 @@ class Map(Subplot):
             )
         return results
 
+    @schema.legend.apply()
+    def legend(self, style=None, location=None, **kwargs):
+        """
+        Add a legend to the Subplot.
+
+        Parameters
+        ----------
+        style : Style, optional
+            The Style to use for the legend. If None (default), a legend is
+            created for each Layer with a unique Style. If a single Style is
+            provided, a single legend is created based on that Style.
+        location : str or tuple, optional
+            The location of the legend(s). Must be a valid matplotlib location
+            (see :func:`matplotlib.pyplot.legend`).
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
+        """
+        from earthkit.plots.components.layers import Layer
+        from earthkit.plots.sources import NumpySource
+
+        legends = []
+        if style is not None:
+            dummy = [[1, 2], [3, 4]]
+            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            layer = Layer(NumpySource(), mappable, self, style)
+            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
+            legends.append(legend)
+        else:
+            for i, layer in enumerate(self.distinct_legend_layers):
+                if isinstance(location, (list, tuple)):
+                    loc = location[i]
+                else:
+                    loc = location
+                if layer.style is not None:
+                    legend = layer.style.legend(layer, location=loc, **kwargs)
+                legends.append(legend)
+        return legends
+
     @schema.gridlines.apply()
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
         """
