@@ -267,14 +267,15 @@ class LayerFormatter(BaseFormatter):
                 if axis_specific_units is not None:
                     value = [f"__units__{axis_specific_units}"]
                 else:
-                    # Fall back to original logic: style units for primary axis, source units for others
+                    # For legend formatting (when axis is None) or primary axis, prioritize style units
                     is_primary_axis = (
                         hasattr(self.layer, "primary_axis")
                         and self.layer.primary_axis == self._axis
                     )
+                    is_legend_formatting = self._axis is None
 
-                    if is_primary_axis and value is not None:
-                        # This is the primary data axis - use style units
+                    if (is_primary_axis or is_legend_formatting) and value is not None:
+                        # This is the primary data axis or legend formatting - use style units
                         if isinstance(value, list):
                             value = [
                                 f"__units__{v}" if v is not None else "" for v in value
