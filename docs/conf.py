@@ -60,7 +60,7 @@ autoapi_options = [
 ]
 autoapi_root = "_api"
 autoapi_member_order = "alphabetical"
-autoapi_add_toctree_entry = True
+autoapi_add_toctree_entry = False
 
 # GitHub links configuration
 extlinks = {
