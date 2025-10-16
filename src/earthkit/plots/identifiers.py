@@ -72,12 +72,14 @@ UV_PAIRS = list(zip(U, V))
 LATITUDE = [
     "latitude",
     "lat",
+    "nav_lat",
 ]
 
 LONGITUDE = [
     "longitude",
     "long",
     "lon",
+    "nav_lon",
 ]
 
 TIME = [
