@@ -82,6 +82,7 @@ def quickplot(
             if not isinstance(arg, Base):
                 arg = earthkit.data.from_object(arg)
             field_list.append(arg)
+
     args = FieldList.from_fields(field_list)
 
     if subplot_titles is None and groupby:
@@ -93,7 +94,7 @@ def quickplot(
         grouped_data = {val: args.sel(**{groupby: val}) for val in unique_values}
 
     elif mode == "subplots":
-        grouped_data = {i: field for i, field in enumerate(args)}
+        grouped_data = {i: FieldList.from_fields(field) for i, field in enumerate(args)}
     else:
         grouped_data = {None: args}
 
@@ -116,8 +117,11 @@ def quickplot(
             group_args = group_vectors(group_args)
 
         if isinstance(group_args, FieldList):
-            group_args = list(group_args)
-
+            if len(group_args) == 1: # Case of single element fieldlist
+                group_args = group_args[0]
+            else:
+                group_args = list(iter(group_args))
+            
         if isinstance(group_args, (list, tuple)):
             for j, (arg, method) in enumerate(zip(group_args, methods)):
                 unit = units[j]
