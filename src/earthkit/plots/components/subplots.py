@@ -1395,6 +1395,83 @@ class Subplot:
         )
         return self.pcolormesh(*args, **kwargs)
 
+    def spaghetti(
+        self,
+        data_list,
+        *args,
+        level=None,
+        color="#0673e0",
+        highlight=None,
+        highlight_kwargs=None,
+        **kwargs,
+    ):
+        """
+        Plot spaghetti contours for ensemble data with optional highlighting.
+
+        This method plots contour lines for each member in an ensemble dataset,
+        with the ability to highlight specific members based on metadata criteria.
+
+        Parameters
+        ----------
+        data_list : earthkit.data.core.Base, xarray.DataArray, or list
+            The ensemble data to plot. Can be an earthkit data object, xarray DataArray,
+            or a list of data objects that can be iterated over.
+        *args
+            Positional arguments passed to the contour method.
+        level : float, optional
+            Single contour level to plot. If provided, overrides any levels in kwargs.
+        color : str or list, default "#0673e0"
+            Color for normal ensemble members.
+        highlight : dict, optional
+            Dictionary with metadata criteria to select members for highlighting.
+            For example, {'dataType': 'cf'} to highlight control forecast.
+        highlight_kwargs : dict, optional
+            Dictionary with keyword arguments to pass to the contour method for highlighted members.
+        **kwargs
+            Additional keyword arguments passed to matplotlib.pyplot.contour.
+            Common parameters include:
+            - levels : list or array-like - contour levels to plot
+            - linewidths : float or list - line widths for contours
+            - labels : bool - whether to show contour labels
+            - alpha : float - transparency level
+        """
+        import earthkit.data
+
+        # Convert to earthkit data if needed, keeping reference to original for sel operations
+        original_data = data_list
+        if not isinstance(data_list, earthkit.data.core.Base):
+            data_list = earthkit.data.from_object(data_list)
+
+        # Set up contour parameters
+        if level is not None:
+            kwargs["levels"] = [level]
+        if color is not None:
+            kwargs["linecolors"] = [color]
+        kwargs.setdefault("labels", False)
+        kwargs.setdefault("linewidths", 0.25)
+
+        # Plot all ensemble members
+        for data in data_list:
+            self.contour(data, *args, **kwargs)
+
+        # Plot highlighted members if specified
+        if highlight is not None:
+            # Use original data for sel operations to preserve xarray functionality
+            if hasattr(original_data, "sel"):
+                highlighted_data = original_data.sel(**highlight)
+            else:
+                highlighted_data = data_list.sel(**highlight)
+
+            if highlighted_data is not None and bool(highlighted_data):
+                # Create highlight-specific kwargs
+                highlight_kwargs = highlight_kwargs or dict()
+                color = highlight_kwargs.pop("color", "red")
+                highlight_kwargs.setdefault("linecolors", color)
+                highlight_kwargs.setdefault("linewidths", 1.5)
+                highlight_kwargs = {**kwargs, **highlight_kwargs}
+
+                self.contour(highlighted_data, *args, **highlight_kwargs)
+
     grid_cells = pcolormesh
 
     def legend(self, label=None, *args, **kwargs):
