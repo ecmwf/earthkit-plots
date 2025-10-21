@@ -200,13 +200,19 @@ class XarraySource(SingleSource):
         """Handle explicit x, y arguments for 1D data."""
         data_dims = list(self._data.dims)
 
-        # Case 1: Both x and y are provided
-        if self._x is not None and self._y is not None:
+        # Case 1: x,y and z are all provided
+        if self._x is not None and self._y is not None and self._z is not None:
+            x_values = self._get_coordinate_or_variable_values(self._x)
+            y_values = self._get_coordinate_or_variable_values(self._y)
+            z_values = self._get_coordinate_or_variable_values(self._z)
+
+        # Case 2: Both x and y are provided
+        elif self._x is not None and self._y is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
             y_values = self._get_coordinate_or_variable_values(self._y)
             z_values = None
 
-        # Case 2: Only x is provided
+        # Case 3: Only x is provided (and possibly z, which is ignored)
         elif self._x is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
             if self._x in data_dims:
@@ -231,7 +237,7 @@ class XarraySource(SingleSource):
             if y_name is not None:
                 self._y = y_name
 
-        # Case 3: Only y is provided
+        # Case 4: Only y is provided (and possibly z, which is ignored)
         elif self._y is not None:
             y_values = self._get_coordinate_or_variable_values(self._y)
             if self._y in data_dims:
@@ -256,7 +262,7 @@ class XarraySource(SingleSource):
             if x_name is not None:
                 self._x = x_name
 
-        # Case 4: Only z is provided (unusual for 1D, but handle gracefully)
+        # Case 5: Only z is provided (unusual for 1D, but handle gracefully)
         elif self._z is not None:
             z_values = self._get_coordinate_or_variable_values(self._z)
             # For 1D data, if only z is provided, we need to infer x and y
