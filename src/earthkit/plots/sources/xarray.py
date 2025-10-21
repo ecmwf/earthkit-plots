@@ -183,14 +183,30 @@ class XarraySource(SingleSource):
             self._z = self._data.name if hasattr(self._data, "name") else None
             return x_values, y_values, z_values
 
+    def real_dim_of_data(self):
+        dim = 0
+        data_dims = list(self._data.dims)
+        if len(data_dims) == 1:
+            data_dim = data_dims[0]
+            if self._x in self._data.coords:
+                if data_dim in self._data.coords[self._x].dims:
+                    dim += 1
+            if self._y in self._data.coords:
+                if data_dim in self._data.coords[self._y].dims:
+                    dim += 1
+        else:
+            dim = len(data_dims)
+        return dim
+
     def _explicit_xyz(self):
         """Handle explicit x, y, z values when any of self._x, self._y, self._z are not None."""
-        data_shape = self._data.shape
+        # data_shape = self._data.shape
+        data_dim = self.real_dim_of_data()
 
-        if len(data_shape) == 1:
+        if data_dim == 1:
             return self._explicit_xyz_1d()
 
-        elif len(data_shape) == 2:
+        elif data_dim == 2:
             return self._explicit_xyz_2d()
 
         else:
@@ -204,7 +220,8 @@ class XarraySource(SingleSource):
         if self._x is not None and self._y is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
             y_values = self._get_coordinate_or_variable_values(self._y)
-            z_values = self._data.values
+            # z_values = self._data.values
+            z_values = None
 
         # Case 2: Only x is provided
         elif self._x is not None:
