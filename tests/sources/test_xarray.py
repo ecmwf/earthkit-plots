@@ -251,6 +251,22 @@ def test_xarray_source_1d_explicit_both():
     assert np.array_equal(source.y_values, np.array([10, 20, 30]))
     assert source.z_values is None
 
+def test_xarray_source_1d_explicit_all():
+    """Test XarraySource with 1D data and explicit x, y and z coordinates."""
+    data = xr.DataArray(
+        np.array([10, 20, 30]),
+        dims=["bananas"],
+        coords={
+            "bananas": [0, 1, 2],
+            "apples": ("bananas", [4,5,6]),
+        },
+        name="onions",
+    )
+    source = XarraySource(data, x="bananas", y="onions", z="apples")
+    assert np.array_equal(source.x_values, np.array([0, 1, 2]))
+    assert np.array_equal(source.y_values, np.array([10, 20, 30]))
+    assert np.array_equal(source.z_values, np.array([4,5,6]))
+
 
 def test_xarray_source_explicit_2d_all_coords():
     """Test XarraySource with 2D data and all coordinates explicitly specified."""
