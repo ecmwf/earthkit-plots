@@ -204,7 +204,7 @@ class XarraySource(SingleSource):
         if self._x is not None and self._y is not None:
             x_values = self._get_coordinate_or_variable_values(self._x)
             y_values = self._get_coordinate_or_variable_values(self._y)
-            z_values = None
+            z_values = self._data.values
 
         # Case 2: Only x is provided
         elif self._x is not None:
