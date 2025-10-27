@@ -53,6 +53,12 @@ class XarraySource(SingleSource):
     def __init__(self, dataarray, x=None, y=None, z=None, **kwargs):
         dataarray = dataarray.squeeze()
         self._xarray_source = dataarray
+
+        # Track whether x, y, z were explicitly provided by the user
+        self._explicit_x = x is not None
+        self._explicit_y = y is not None
+        self._explicit_z = z is not None
+
         if isinstance(dataarray, xr.Dataset):
             if z is not None:
                 dataarray = dataarray[z]
@@ -103,7 +109,8 @@ class XarraySource(SingleSource):
 
     def _infer_xyz(self):
         """Infers x, y, and z values based on xarray input dimensions and provided names."""
-        if self._x is not None or self._y is not None or self._z is not None:
+        # Only use explicit path if user actually provided x, y, or z
+        if self._explicit_x or self._explicit_y or self._explicit_z:
             return self._explicit_xyz()
         else:
             return self._implicit_xyz()
@@ -124,9 +131,39 @@ class XarraySource(SingleSource):
             self._z = None
             return x_values, y_values, z_values
 
-        # Case 2: 1D data with one dimension (e.g., time series)
+        # Case 2: 1D data with one dimension (e.g., time series or point data)
         elif len(data_shape) == 1 and len(data_dims) == 1:
             dim_name = data_dims[0]
+
+            # Check if there are x and y coordinates in the coords (e.g., latitude/longitude for point data)
+            coord_names = list(self._data.coords.keys())
+            x_coord = find_x(coord_names)
+            y_coord = find_y(coord_names)
+
+            # If we found both x and y coordinates (and they're not the dimension itself),
+            # check if they have the same shape as the data (point data case)
+            if x_coord and y_coord and x_coord != dim_name and y_coord != dim_name:
+                x_coord_data = self._data.coords[x_coord]
+                y_coord_data = self._data.coords[y_coord]
+
+                # Check if the coordinates have the same shape as the data variable
+                # This distinguishes point data from scalar location metadata
+                if (
+                    hasattr(x_coord_data, "shape")
+                    and hasattr(y_coord_data, "shape")
+                    and x_coord_data.shape == data_shape
+                    and y_coord_data.shape == data_shape
+                ):
+                    # Point data case: use coordinates for x/y and data values for z
+                    x_values = x_coord_data.values
+                    y_values = y_coord_data.values
+                    z_values = self._data.values
+                    self._x = x_coord
+                    self._y = y_coord
+                    self._z = self._data.name if hasattr(self._data, "name") else None
+                    return x_values, y_values, z_values
+
+            # Otherwise, treat as time series or simple 1D data
             # The dimension's values become x_values, variable values become y_values
             x_values = self._data[dim_name].values
             y_values = self._data.values
