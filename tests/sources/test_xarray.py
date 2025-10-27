@@ -556,3 +556,58 @@ def test_xarray_dataset_no_coordinate_variables():
         ValueError, match="Multiple variables found in the xarray Dataset"
     ):
         XarraySource(data)
+
+
+def test_xarray_source_1d_point_data_with_lat_lon():
+    """Test XarraySource with 1D point data that has latitude and longitude coordinates."""
+    # Example: temperature measurements at different lat/lon points
+    data = xr.DataArray(
+        np.array([20, 25, 30, 22]),
+        dims=["point"],
+        coords={
+            "point": [0, 1, 2, 3],
+            "latitude": ("point", [10.0, 20.0, 30.0, 40.0]),
+            "longitude": ("point", [5.0, 15.0, 25.0, 35.0]),
+        },
+        name="temperature",
+    )
+
+    source = XarraySource(data)
+
+    # Should detect longitude as x, latitude as y, and temperature as z
+    assert np.array_equal(source.x_values, np.array([5.0, 15.0, 25.0, 35.0]))
+    assert np.array_equal(source.y_values, np.array([10.0, 20.0, 30.0, 40.0]))
+    assert np.array_equal(source.z_values, np.array([20, 25, 30, 22]))
+    assert source._x == "longitude"
+    assert source._y == "latitude"
+    assert source._z == "temperature"
+
+
+def test_xarray_source_1d_time_series_with_scalar_lat_lon():
+    """Test XarraySource with 1D time series data that has scalar latitude/longitude metadata."""
+    # Example: temperature time series at a single location (lat/lon are scalars)
+    import pandas as pd
+
+    times = pd.date_range("2025-08-20", "2025-08-23T23:00:00", freq="h")
+
+    data = xr.DataArray(
+        np.random.randn(96),
+        dims=["valid_time"],
+        coords={
+            "valid_time": times,
+            "latitude": 45.0,  # Scalar latitude
+            "longitude": -120.0,  # Scalar longitude
+        },
+        name="t2m",
+    )
+
+    source = XarraySource(data)
+
+    # Should treat as time series: x=valid_time, y=t2m values, z=None
+    # Should NOT use the scalar lat/lon as x/y
+    assert len(source.x_values) == 96
+    assert len(source.y_values) == 96
+    assert source.z_values is None
+    assert source._x == "valid_time"
+    assert source._y == "t2m"
+    assert source._z is None
