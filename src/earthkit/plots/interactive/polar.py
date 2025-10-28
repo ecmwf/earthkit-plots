@@ -19,7 +19,7 @@ def vonmises_kde(data: np.ndarray, kappa: float, n_bins: int = 360):
     kde = np.exp(kappa * np.cos(x[:, None] - data[None, :])).sum(1) / (
         2 * np.pi * scipy.special.i0(kappa)
     )
-    kde /= np.trapz(kde, x=bins)
+    kde /= np.trapezoid(kde, x=bins)
     return bins, kde
 
 
