@@ -1,6 +1,15 @@
 Version 0.5 Updates
 ///////////////////
 
+Version 0.5.2
+=============
+
+Bug fixes
+++++++++++++++++++
+
+- Fixed a bug where automatic detection of x, y and z values with xarray objects was treating 1D data as time series data by default (:pr:`139`).
+  This was caused by a flaw in the logic that was introduced in version 0.5.0 to support time series data.
+
 Version 0.5.1
 ===============
 
