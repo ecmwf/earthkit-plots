@@ -91,10 +91,6 @@ class MirRegridExecutor:
         )
         r = regrid(array, in_grid=in_grid, out_grid=out_grid, **_kwargs)
         v = r[0]
-
-        import numpy as np
-
-        v = np.array(v, copy=True)
         return v
 
 
