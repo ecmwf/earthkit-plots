@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from functools import cached_property
 
 import cartopy.crs as ccrs
@@ -21,11 +22,7 @@ from earthkit.plots.identifiers import U, V
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources.single import SingleSource
 
-_NO_EARTHKIT_REGRID = False
-try:
-    import earthkit.regrid
-except ImportError:
-    _NO_EARTHKIT_REGRID = True
+LOG = logging.getLogger(__name__)
 
 
 VARIABLE_KEYS = [
@@ -79,12 +76,10 @@ class EarthkitSource(SingleSource):
             # Default to the main data values for z
             z_values = self.data.to_numpy(flatten=False)
 
-        if (
-            self.gridspec is not None
-            and self.regrid
-            and self.gridspec.to_dict() is not None
-        ):
-            if _NO_EARTHKIT_REGRID:
+        if self.gridspec is not None and self.regrid and self.gridspec is not None:
+            from earthkit.plots.geo.regrid import can_regrid
+
+            if not can_regrid():
                 raise ImportError(
                     f"earthkit-regrid is required for plotting data on a"
                     f"'{self.gridspec.__class__.__name__}' grid"
@@ -92,20 +87,24 @@ class EarthkitSource(SingleSource):
 
             x_values, y_values = get_points(schema.interpolate_target_resolution)
 
-            def interpolate(v):
-                return earthkit.regrid.interpolate(
+            from earthkit.plots.geo.regrid import regrid
+
+            def _regrid(v):
+                return regrid(
                     v,
-                    self.gridspec.to_dict(),
+                    self.gridspec,
                     {"grid": [schema.interpolate_target_resolution] * 2},
                 )
 
             if z_values.ndim == 2:  # In case of FieldList
-                z_values = np.array([interpolate(z) for z in z_values])
+                z_values = np.array([_regrid(z) for z in z_values])
             else:
-                z_values = interpolate(z_values)
+                z_values = _regrid(z_values)
+
         else:
             x_values = self._extract_coord_values(self._x, axis="x")
             y_values = self._extract_coord_values(self._y, axis="y")
+
         return x_values, y_values, z_values
 
     def _extract_coord_values(self, coord, axis):

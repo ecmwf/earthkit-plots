@@ -12,16 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from functools import cached_property
+
 import earthkit.data
 import numpy as np
-
-from earthkit.plots.sources import gridspec
-
-_NO_EARTHKIT_REGRID = False
-try:
-    import earthkit.regrid
-except ImportError:
-    _NO_EARTHKIT_REGRID = True
 
 
 class SingleSource:
@@ -76,7 +70,6 @@ class SingleSource:
 
         self._earthkit_data = None
 
-        self._gridspec = None
         self.regrid = regrid
 
         # Automatically interpret *args based on length
@@ -103,7 +96,7 @@ class SingleSource:
         # Infer x, y, z values from provided args and attributes
         self._x_values, self._y_values, self._z_values = self._infer_xyz()
 
-    @property
+    @cached_property
     def gridspec(self):
         """
         The gridspec of the data.
@@ -112,9 +105,9 @@ class SingleSource:
         required for regridding more complex grid types like reduced Gaussian
         grids.
         """
-        if self._gridspec is None:
-            self._gridspec = gridspec.GridSpec.from_data(self.data)
-        return self._gridspec
+        from earthkit.plots.sources.gridspec import get_grid_spec
+
+        return get_grid_spec(self.data)
 
     def _infer_xyz(self):
         """Infers x, y, and z values based on args and provided x, y, and z attributes."""

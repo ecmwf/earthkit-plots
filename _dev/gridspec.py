@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import re
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
-
-LOG = logging.getLogger(__name__)
 
 HEALPIX_PATTERN = re.compile(r"^[Hh]\d+$")
 RGG_PATTERN = re.compile(r"^[OoNn]\d+$")
@@ -25,7 +21,7 @@ RGG_PATTERN = re.compile(r"^[OoNn]\d+$")
 # TODO: refactor this when the gridSpec is implemented in earthkit
 
 
-class LegacyGridSpec(metaclass=ABCMeta):
+class GridSpec(metaclass=ABCMeta):
     """
     A specification of a grid used in a Source.
 
@@ -48,7 +44,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
             The data object containing the grid metadata.
         """
         d = cls._first(data)
-        for gs in LEGACY_GRIDSPECS:
+        for gs in GRIDSPECS:
             if gs.type_match(d):
                 return gs(d)
 
@@ -127,7 +123,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
         return self.NAME
 
 
-class ReducedGG(LegacyGridSpec):
+class ReducedGG(GridSpec):
     """A reduced Gaussian grid specification."""
 
     GRIDSPEC_KEYS = ["grid"]
@@ -169,7 +165,7 @@ class ReducedGG(LegacyGridSpec):
         return False
 
 
-class HEALPix(LegacyGridSpec):
+class HEALPix(GridSpec):
     """A HEALPix grid specification."""
 
     GRIDSPEC_KEYS = ["grid", "ordering"]
@@ -205,98 +201,4 @@ class HEALPix(LegacyGridSpec):
         return False
 
 
-LEGACY_GRIDSPECS = [HEALPix, ReducedGG]
-
-
-class GridSpec:
-    """
-    A specification of a grid used in a Source.
-
-    Parameters
-    ----------
-    data : earthkit.plots.sources.Source
-        The data object containing the grid metadata.
-    """
-
-    staticmethod
-
-    def from_data(data):
-        def _get_one(d_data, keys):
-            for key in keys:
-                value = d_data.get(key)
-                if value is not None:
-                    return value
-            return None
-
-        gs = None
-
-        if isinstance(data, dict):
-            gs = _get_one(data, ["grid_spec", "gridSpec"])
-        else:
-            data = GridSpec._first(data)
-
-            if hasattr(data, "grid_spec"):
-                gs = data.grid_spec
-            else:
-                md = data.metadata()
-                if hasattr(md, "grid_spec"):
-                    gs = md.grid_spec
-                else:
-                    gs = md.geography.grid_spec()
-
-                if gs is None:
-                    try:
-                        gs = _get_one(md, ["grid_spec", "gridSpec"])
-                    except Exception:
-                        pass
-
-        if gs is not None:
-            from eckit.geo import Grid
-
-            # TODO: converting legacy earthki-data gridspec object to dict
-            if not isinstance(gs, dict):
-                if hasattr(gs, "_d"):
-                    gs = dict(**gs._d)
-                    # remove unsupported keys
-                    for k in [
-                        "j_points_consecutive",
-                        "i_scans_negatively",
-                        "j_scans_positively",
-                        "type",
-                    ]:
-                        gs.pop(k, None)
-            LOG.debug("Creating Grid from gridspec:", type(gs))
-            return Grid(gs)
-
-        return None
-
-    @staticmethod
-    def _first(data):
-        if hasattr(data, "__len__"):
-            return data[0]
-        return data
-
-
-class GridSpecAccessor:
-    # from Python 3,12 onwards, cached_property is not thread safe.
-    # Consider making this call thread safe if needed in future.
-    @cached_property
-    def has_eckit_grid(self):
-        try:
-            from earthkit.data.core.geography import Geography
-
-            if hasattr(Geography, "grid_spec"):
-                from eckit.geo import Grid  # noqa: F401
-
-                return True
-        except Exception:
-            return False
-
-    def __call__(self, data):
-        if self.has_eckit_grid:
-            return GridSpec.from_data(data)
-        else:
-            return LegacyGridSpec.from_data(data)
-
-
-get_grid_spec = GridSpecAccessor()
+GRIDSPECS = [HEALPix, ReducedGG]
