@@ -94,8 +94,8 @@ class MirRegridExecutor:
         return v
 
 
-class Regridder:
-    # from Python 3,12 onwards, cached_property is not thread safe.
+class Regrid:
+    # from Python 3.12 onwards, cached_property is not thread safe.
     # Consider making this call thread safe if needed in future.
     @cached_property
     def executor(self):
@@ -114,19 +114,19 @@ class Regridder:
         return self.executor.regrid(array, in_grid, out_grid)
 
 
-REGRIDDER = Regridder()
+REGRID = Regrid()
 
 
 def can_regrid():
-    r = REGRIDDER.executor is not None
+    r = REGRID.executor is not None
     return r is not None
 
 
 def has_subarea_support():
-    r = REGRIDDER.executor
+    r = REGRID.executor
     if r is not None:
         return r.subarea_support
     return False
 
 
-regrid = REGRIDDER
+regrid = REGRID

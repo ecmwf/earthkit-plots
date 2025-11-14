@@ -278,10 +278,10 @@ class GridSpec:
 
 
 class GridSpecAccessor:
-    # from Python 3,12 onwards, cached_property is not thread safe.
+    # from Python 3.12 onwards, cached_property is not thread safe.
     # Consider making this call thread safe if needed in future.
     @cached_property
-    def has_eckit_grid(self):
+    def has_grid(self):
         try:
             from earthkit.data.core.geography import Geography
 
@@ -293,7 +293,7 @@ class GridSpecAccessor:
             return False
 
     def __call__(self, data):
-        if self.has_eckit_grid:
+        if self.has_grid:
             return GridSpec.from_data(data)
         else:
             return LegacyGridSpec.from_data(data)
