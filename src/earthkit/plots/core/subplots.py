@@ -19,15 +19,14 @@ import matplotlib.dates as mdates
 import numpy as np
 
 from earthkit.plots import identifiers
-from earthkit.plots.components.extractors import (
-    extract_plottables_2D,
-    extract_plottables_3D,
-    extract_plottables_envelope,
+from earthkit.plots.core.extractors import (
+    extract_plottables_1d,
+    extract_plottables_2d,
 )
-from earthkit.plots.components.layers import Layer
+from earthkit.plots.core.layers import Layer
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
-    SourceFormatter,
+    DimensionSetFormatter,
     SubplotFormatter,
 )
 from earthkit.plots.resample import Interpolate, Regrid
@@ -324,20 +323,23 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None):
+    def plot_1d(method_name=None):
+        """Decorator for 1D plotting methods (line, scatter)."""
         def decorator(method):
             @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
-                x=None,
-                y=None,
+                x="auto",
+                y="auto",
                 z=None,
                 style=None,
                 every=None,
                 **kwargs,
             ):
-                return self._extract_plottables_2D(
+                # Get processed data and kwargs from extract_plottables_1d
+                x_values, y_values, z_values, plot_kwargs = extract_plottables_1d(
+                    self,
                     method_name or method.__name__,
                     args=args,
                     x=x,
@@ -348,9 +350,60 @@ class Subplot:
                     **kwargs,
                 )
 
+                # Extract metadata (keys starting with _) for layer creation
+                dimension_set = plot_kwargs.pop('_dimension_set')
+                plot_style = plot_kwargs.pop('_style')
+                primary_axis = plot_kwargs.pop('_primary_axis')
+                units = plot_kwargs.pop('_units')
+                xunits = plot_kwargs.pop('_xunits')
+                yunits = plot_kwargs.pop('_yunits')
+                label = plot_kwargs.pop('_label')
+
+                # Call matplotlib method directly
+                mpl_method = getattr(self.ax, method_name or method.__name__)
+                if z_values is not None:
+                    # For scatter with color
+                    mappable = mpl_method(x_values, y_values, c=z_values, **plot_kwargs)
+                else:
+                    mappable = mpl_method(x_values, y_values, **plot_kwargs)
+
+                # Create and store layer
+                from earthkit.plots.core.layers import Layer
+                axis_units = {}
+                if xunits is not None:
+                    axis_units["x"] = xunits
+                if yunits is not None:
+                    axis_units["y"] = yunits
+                if units is not None and primary_axis not in axis_units:
+                    axis_units[primary_axis] = units
+
+                layer = Layer(
+                    dimension_set=dimension_set,
+                    mappable=mappable,
+                    subplot=self,
+                    style=plot_style,
+                    axis_units=axis_units,
+                )
+
+                # Handle label for legend
+                if label is not None:
+                    formatted_label = layer.format_string(label)
+                    if isinstance(mappable, list):
+                        for m in mappable:
+                            m.set_label(formatted_label)
+                    else:
+                        mappable.set_label(formatted_label)
+
+                self.layers.append(layer)
+
+                return mappable
+
             return wrapper
 
         return decorator
+
+    # Alias for backward compatibility
+    plot_2D = plot_1d
 
     def plot_box(method_name=None):
         def decorator(method):
@@ -387,21 +440,24 @@ class Subplot:
 
         return decorator
 
-    def plot_3D(method_name=None, extract_domain=False):
+    def plot_2d(method_name=None, extract_domain=False):
+        """Decorator for 2D plotting methods (contour, pcolormesh)."""
         def decorator(method):
             @functools.wraps(method)
             def wrapper(
                 self,
                 *args,
-                x=None,
-                y=None,
-                z=None,
+                x="auto",
+                y="auto",
+                z="auto",
                 style=None,
                 every=None,
                 auto_style=False,
                 **kwargs,
             ):
-                return self._extract_plottables(
+                # Get processed data and kwargs from extract_plottables_2d
+                x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
+                    self,
                     method_name or method.__name__,
                     args=args,
                     x=x,
@@ -414,9 +470,69 @@ class Subplot:
                     **kwargs,
                 )
 
+                # Extract metadata (keys starting with _) for layer creation
+                dimension_set = plot_kwargs.pop('_dimension_set')
+                plot_style = plot_kwargs.pop('_style')
+                primary_axis = plot_kwargs.pop('_primary_axis')
+                units = plot_kwargs.pop('_units')
+                xunits = plot_kwargs.pop('_xunits')
+                yunits = plot_kwargs.pop('_yunits')
+                is_specialized = plot_kwargs.pop('_is_specialized')
+                actual_method_name = plot_kwargs.pop('_method_name')
+                no_style = plot_kwargs.pop('_no_style')
+
+                # Handle specialized grids (healpix, octahedral)
+                if is_specialized:
+                    from earthkit.plots.core.extractors import _handle_specialized_grids_dimension_set
+                    mappable = _handle_specialized_grids_dimension_set(
+                        self, dimension_set, z_values, plot_style, actual_method_name, plot_kwargs
+                    )
+                else:
+                    # Handle interpolation if requested
+                    if not no_style and 'interpolate' in plot_kwargs:
+                        from earthkit.plots.core.extractors import plot_with_interpolation
+                        mappable = plot_with_interpolation(
+                            self,
+                            plot_style,
+                            actual_method_name,
+                            x_values,
+                            y_values,
+                            z_values,
+                            getattr(self, 'crs', None),
+                            plot_kwargs,
+                        )
+                    else:
+                        # Call matplotlib method directly
+                        mpl_method = getattr(self.ax, method_name or method.__name__)
+                        mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
+
+                # Create and store layer
+                from earthkit.plots.core.layers import Layer
+                axis_units = {}
+                if xunits is not None:
+                    axis_units["x"] = xunits
+                if yunits is not None:
+                    axis_units["y"] = yunits
+                if units is not None and primary_axis not in axis_units:
+                    axis_units[primary_axis] = units
+
+                layer = Layer(
+                    dimension_set=dimension_set,
+                    mappable=mappable,
+                    subplot=self,
+                    style=plot_style,
+                    axis_units=axis_units,
+                )
+                self.layers.append(layer)
+
+                return mappable
+
             return wrapper
 
         return decorator
+
+    # Alias for backward compatibility
+    plot_3D = plot_2d
 
     def plot_vector(method_name=None):
         def decorator(method):
@@ -686,28 +802,6 @@ class Subplot:
             self.ax, x_values, y_values, z_values, **kwargs
         )
 
-    def _extract_plottables_envelope(
-        self,
-        data=None,
-        x=None,
-        y=None,
-        z=None,
-        every=None,
-        source_units=None,
-        extract_domain=False,
-        **kwargs,
-    ):
-        return extract_plottables_envelope(
-            self,
-            data=data,
-            x=x,
-            y=y,
-            z=z,
-            every=every,
-            source_units=source_units,
-            extract_domain=extract_domain,
-            **kwargs,
-        )
 
     @property
     def figure(self):
@@ -807,11 +901,11 @@ class Subplot:
         """
         raise NotImplementedError
 
-    @plot_2D()
+    @plot_1d()
     def quantiles(self, *args, **kwargs):
         pass
 
-    @plot_2D()
+    @plot_1d()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -833,29 +927,6 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
         """
 
-    @schema.envelope.apply()
-    def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
-        """
-        Plot an envelope on the Subplot.
-
-        Parameters
-        ----------
-        data_1 : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot the envelope.
-        data_2 : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot the envelope.
-        alpha : float, optional
-            The alpha value of the envelope.
-        **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
-        """
-        x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
-        x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
-        kwargs.pop("x")
-        mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
-        return mappable
-
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """
         Plot labels on the Subplot.
@@ -870,7 +941,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
         """
         source = get_source(data=data, x=x, y=y)
-        labels = SourceFormatter(source).format(label)
+        labels = DimensionSetFormatter(source).format(label)
         for label, x, y in zip(labels, source.x_values, source.y_values):
             self.ax.annotate(label, (x, y), **kwargs)
 
@@ -1052,7 +1123,7 @@ class Subplot:
 
         return result
 
-    @plot_2D()
+    @plot_1d()
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
@@ -1078,7 +1149,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D()
+    @plot_1d()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
@@ -1102,7 +1173,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
-    @plot_3D(extract_domain=True)
+    @plot_2d(extract_domain=True)
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
@@ -1137,7 +1208,7 @@ class Subplot:
         """
 
     @schema.contour.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2d(extract_domain=True)
     def contour(self, *args, **kwargs):
         """
         Plot a contour plot on the Subplot.
@@ -1165,7 +1236,7 @@ class Subplot:
         """
 
     @schema.contourf.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2d(extract_domain=True)
     def contourf(self, *args, **kwargs):
         """
         Plot a filled contour plot on the Subplot.
@@ -1199,7 +1270,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
 
-    @plot_3D()
+    @plot_2d()
     def tripcolor(self, *args, **kwargs):
         """
         Plot a tripcolor plot on the Subplot.
@@ -1226,7 +1297,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
         """
 
-    @plot_3D()
+    @plot_2d()
     def tricontour(self, *args, **kwargs):
         """
         Plot a tricontour plot on the Subplot.
@@ -1253,7 +1324,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
         """
 
-    @plot_3D()
+    @plot_2d()
     def tricontourf(self, *args, **kwargs):
         """
         Plot a filled tricontour plot on the Subplot.

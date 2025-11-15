@@ -17,22 +17,22 @@ from typing import Callable
 from earthkit.plots.utils import iter_utils
 
 X = [
-    "x",
-    "X",
-    "xc",
     "projection_x_coordinate",
+    "xc",
     "longitude",
     "long",
     "lon",
+    "X",
+    "x",
 ]
 
 Y = [
-    "y",
-    "Y",
-    "yc",
     "projection_y_coordinate",
+    "yc",
     "latitude",
     "lat",
+    "Y",
+    "y",
 ]
 
 U = [
@@ -180,6 +180,67 @@ def find_longitude(array):
 
 def find_time(array):
     return find(array, TIME)
+
+def find_geographic_coords(data):
+    """
+    Find geographic x (longitude) and y (latitude) coordinates.
+    
+    Searches for coordinate/dimension names in priority order. If geographic
+    coordinates cannot be found, returns (None, None) to allow fallback to
+    standard 2D Cartesian behavior.
+    
+    Parameters
+    ----------
+    data : xarray.DataArray or xarray.Dataset
+        The data to search for geographic coordinates.
+    
+    Returns
+    -------
+    tuple of (str or None, str or None)
+        (x_coord_name, y_coord_name) if found, otherwise (None, None)
+    """
+    X_GEOGRAPHIC = [
+        "projection_x_coordinate",
+        "xc",
+        "longitude",
+        "long",
+        "lon",
+        "X",
+        "x",
+    ]
+    
+    Y_GEOGRAPHIC = [
+        "projection_y_coordinate",
+        "yc",
+        "latitude",
+        "lat",
+        "Y",
+        "y",
+    ]
+    
+    def find_coord_or_dim(data, candidates):
+        """Find first matching coordinate or dimension from candidates list."""
+        # Get available coords and dims
+        coords = list(data.coords.keys()) if hasattr(data, 'coords') else []
+        dims = list(data.dims) if hasattr(data, 'dims') else []
+        
+        for candidate in candidates:
+            # Check coords first (prefer coords over dims if both exist)
+            if candidate in coords:
+                coord = data.coords[candidate]
+                # Validate coord has data
+                if coord.size > 0:
+                    return candidate
+            # Then check dims
+            elif candidate in dims:
+                return candidate
+        
+        return None
+    
+    x_name = find_coord_or_dim(data, X_GEOGRAPHIC)
+    y_name = find_coord_or_dim(data, Y_GEOGRAPHIC)
+    
+    return x_name, y_name
 
 
 def identify_primary(data, exclude_dims=None):

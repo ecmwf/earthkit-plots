@@ -50,7 +50,7 @@ def get_location(data):
 
     Parameters
     ----------
-    data : earthkit.plots.sources.Source
+    data : earthkit.plots.sources.core.DimensionSet or legacy Source
         The data source containing coordinate information.
 
     Returns
@@ -65,23 +65,40 @@ def get_location(data):
             "The reverse-geocode package is required to get the location."
         )
 
+    # Import here to avoid circular imports
+    from earthkit.plots.sources.core import DimensionSet
+
     # Extract coordinates from the data source
     # Try different ways to get lat/lon based on data source type
     lat, lon = None, None
 
     # Method 1: Try metadata access
     try:
-        lat = data.metadata("latitude")
-        lon = data.metadata("longitude")
+        if isinstance(data, DimensionSet):
+            lat = data.metadata("latitude")
+            lon = data.metadata("longitude")
+        else:
+            lat = data.metadata("latitude")
+            lon = data.metadata("longitude")
     except (AttributeError, KeyError, ValueError, TypeError):
         pass
 
     # Method 2: Try coordinate values (take first/mean if arrays)
     if lat is None or lon is None:
         try:
-            if hasattr(data, "y_values") and hasattr(data, "x_values"):
+            if isinstance(data, DimensionSet):
+                # For DimensionSet, extract from x and y dimensions
+                y_vals = data.y.values
+                x_vals = data.x.values
+            elif hasattr(data, "y_values") and hasattr(data, "x_values"):
+                # Legacy source objects
                 y_vals = data.y_values
                 x_vals = data.x_values
+            else:
+                y_vals = None
+                x_vals = None
+
+            if y_vals is not None and x_vals is not None:
                 if isinstance(y_vals, np.ndarray):
                     lat = (
                         float(np.mean(y_vals))
@@ -175,9 +192,36 @@ MAGIC_KEYS = {
         "function": format_month,
     },
     "values": {
-        "function": lambda data: data.values,
+        "function": lambda data: _extract_values(data),
     },
 }
+
+
+def _extract_values(data):
+    """
+    Extract values from a data object.
+
+    Parameters
+    ----------
+    data : DimensionSet, DimensionInfo, or legacy Source
+        The data object to extract values from.
+
+    Returns
+    -------
+    np.ndarray
+        The values array.
+    """
+    # Import here to avoid circular imports
+    from earthkit.plots.sources.core import DimensionSet, DimensionInfo
+
+    if isinstance(data, DimensionSet):
+        return data.primary_dimension.values
+    elif isinstance(data, DimensionInfo):
+        return data.values
+    elif hasattr(data, "values"):
+        return data.values
+    else:
+        raise ValueError(f"Cannot extract values from {type(data)}")
 
 #: Nice names for coordinate reference systems.
 CRS_NAMES = {
@@ -209,40 +253,100 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
 
     Parameters
     ----------
-    data : earthkit.plots.sources.Source
-        The data source to extract the label from.
+    data : earthkit.plots.sources.core.DimensionSet or earthkit.plots.sources.core.DimensionInfo
+        The data source to extract the label from. Can be a DimensionSet (for global metadata)
+        or a DimensionInfo (for dimension-specific metadata).
     attr : str
         The attribute to extract.
     default : str, optional
         The default label to use if the attribute is not found.
     axis : str, optional
-        The axis to extract the label from. If None, the label will be extracted
-        from the general metadata of the data.
+        The axis to extract the label from ('x', 'y', or 'z'). If None and data is a DimensionSet,
+        the label will be extracted from the primary dimension for data values or global metadata.
     """
+    # Import here to avoid circular imports
+    from earthkit.plots.sources.core import DimensionSet, DimensionInfo
+
     if attr in TIME_KEYS:
-        handler = TimeFormatter(data.datetime())
+        # Handle datetime keys
+        if isinstance(data, DimensionSet):
+            datetime_dict = data.datetime()
+        elif isinstance(data, DimensionInfo):
+            # DimensionInfo doesn't have datetime, fallback to empty
+            datetime_dict = {"base_time": None, "valid_time": None}
+        else:
+            # Legacy support
+            datetime_dict = data.datetime() if hasattr(data, "datetime") else {}
+
+        handler = TimeFormatter(datetime_dict)
         label = getattr(handler, attr)
         if len(label) == 1:
             label = label[0]
 
     else:
-        if axis is not None:
-            metadata = getattr(data, f"{axis}_metadata")
-
-            def search(x, default):
-                return metadata.get(x, default)
-
-        elif hasattr(data, "metadata"):
-            search = data.metadata
+        # Determine which object to search for metadata
+        if isinstance(data, DimensionSet):
+            if axis is not None:
+                # Extract from specific dimension
+                dim_info = getattr(data, axis, None)
+                if dim_info is None:
+                    if issue_warnings:
+                        warnings.warn(f'Axis "{axis}" not found in DimensionSet.')
+                    return default
+                search_obj = dim_info
+            else:
+                # No axis specified - use primary dimension for data-related attrs, global for others
+                search_obj = data
+        elif isinstance(data, DimensionInfo):
+            # Direct DimensionInfo access
+            search_obj = data
         else:
-            data_key = [
-                key
-                for key in data.attrs["reduce_attrs"]
-                if "reduce_dims" in data.attrs["reduce_attrs"][key]
-            ][0]
+            # Legacy support for old source objects
+            search_obj = data
 
+        # Set up search function based on object type
+        if isinstance(search_obj, DimensionInfo):
+            # DimensionInfo: check direct attributes first, then metadata
             def search(x, default):
-                return data.attrs["reduce_attrs"][data_key].get(x, default)
+                # Check direct attributes (units, long_name, etc.)
+                if hasattr(search_obj, x):
+                    val = getattr(search_obj, x)
+                    if val is not None:
+                        return val
+                # Fallback to metadata dict
+                return search_obj.metadata(x) if search_obj.metadata(x) is not None else default
+        elif isinstance(search_obj, DimensionSet):
+            # DimensionSet: check primary dimension first for certain keys, then global metadata
+            def search(x, default):
+                # For variable-related keys, check primary dimension
+                if x in ["variable_name", "short_name", "long_name", "standard_name", "name", "units"]:
+                    try:
+                        primary = search_obj.primary_dimension
+                        if hasattr(primary, x):
+                            val = getattr(primary, x)
+                            if val is not None:
+                                return val
+                        val = primary.metadata(x)
+                        if val is not None:
+                            return val
+                    except (AttributeError, ValueError):
+                        pass
+                # Fallback to global metadata
+                return search_obj.metadata(x) if search_obj.metadata(x) is not None else default
+        elif hasattr(search_obj, "metadata"):
+            # Legacy source with metadata method
+            search = search_obj.metadata
+        else:
+            # Last resort: attrs-based search (for xarray-like objects)
+            def search(x, default):
+                if hasattr(search_obj, "attrs") and "reduce_attrs" in search_obj.attrs:
+                    data_key = [
+                        key
+                        for key in search_obj.attrs["reduce_attrs"]
+                        if "reduce_dims" in search_obj.attrs["reduce_attrs"][key]
+                    ][0]
+                    return search_obj.attrs["reduce_attrs"][data_key].get(x, default)
+                return default
 
         candidates = [attr]
         remove_underscores = False
@@ -253,6 +357,7 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
                 candidates = MAGIC_KEYS[attr]["preference"] + candidates
                 remove_underscores = MAGIC_KEYS[attr].get("remove_underscores", False)
 
+        label = None
         for item in candidates:
             label = search(item, default=None)
             if label is not None:
@@ -261,7 +366,7 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
             if issue_warnings:
                 warnings.warn(f'No key "{attr}" found in layer metadata.')
 
-        if remove_underscores:
+        if remove_underscores and label is not None:
             if isinstance(label, (list, tuple)):
                 label = [
                     lab.replace("_", " ") if isinstance(lab, str) else lab

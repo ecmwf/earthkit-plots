@@ -12,10 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
-
 from earthkit.plots import metadata
 from earthkit.plots.metadata.formatters import LayerFormatter
+from earthkit.plots.sources.core import DimensionSet
 from earthkit.plots.utils import string_utils
 
 
@@ -25,8 +24,8 @@ class Layer:
 
     Parameters
     ----------
-    source : earthkit.maps.sources.Source
-        The source of the data to be plotted.
+    dimension_set : earthkit.plots.sources.core.DimensionSet
+        The dimension set containing x, y, and optionally z data for plotting.
     mappable : matplotlib object
         The object that is plotted on the axes.
     subplot : earthkit.plots.components.subplots.Subplot
@@ -35,14 +34,18 @@ class Layer:
         The style to be applied to this layer.
     primary_axis : str, optional
         Which axis ('x', 'y', or 'z') contains the primary data for unit conversion.
+    axis_units : dict, optional
+        Dictionary mapping axis names to their units for display purposes.
     """
 
     def __init__(
-        self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None
+        self, dimension_set, mappable, subplot, style=None, primary_axis=None, axis_units=None
     ):
-        if not isinstance(sources, (list, tuple)):
-            sources = [sources]
-        self.sources = sources
+        if not isinstance(dimension_set, DimensionSet):
+            raise TypeError(
+                f"dimension_set must be a DimensionSet, got {type(dimension_set)}"
+            )
+        self.dimension_set = dimension_set
         self.mappable = mappable
         self.subplot = subplot
         self.style = style
@@ -64,13 +67,16 @@ class Layer:
 
     @property
     def magnitude(self):
-        if self._magnitude is None:
-            if len(self.sources) != 2:
-                raise ValueError("Magnitude can only be calculated for vector data.")
-            self._magnitude = np.sqrt(
-                self.sources[0].values ** 2 + self.sources[1].values ** 2
-            )
-        return self._magnitude
+        """
+        Calculate magnitude for vector data.
+
+        Note: This is a placeholder for future vector data support.
+        Currently raises an error as vector data handling needs to be implemented.
+        """
+        raise NotImplementedError(
+            "Vector data (magnitude calculation) is not yet supported with DimensionSet. "
+            "This will be added in a future update."
+        )
 
     @property
     def fig(self):
@@ -107,9 +113,17 @@ class Layer:
 
     @property
     def _default_title_template(self):
-        if all(
-            source.metadata("type", default="an") == "an" for source in self.sources
-        ):
+        """
+        Get the default title template based on data type (analysis vs forecast).
+
+        Returns
+        -------
+        str
+            The appropriate title template string.
+        """
+        # Check if this is analysis data (type="an") or forecast
+        data_type = self.dimension_set.metadata("type")
+        if data_type == "an":
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE
