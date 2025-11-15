@@ -213,22 +213,22 @@ class BaseFormatter(Formatter):
             return str(value)
 
 
-class SourceFormatter(BaseFormatter):
+class DimensionSetFormatter(BaseFormatter):
     """
-    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
+    Formatter for earthkit-plots DimensionSet objects, enabling convenient titles and labels.
     """
 
-    def __init__(self, source, axis=None):
-        self.source = source
+    def __init__(self, dimension_set, axis=None):
+        self.dimension_set = dimension_set
         self._axis = axis
 
     def format_key(self, key):
-        return [metadata.labels.extract(self.source, key, axis=self._axis)[0]]
+        return [metadata.labels.extract(self.dimension_set, key, axis=self._axis)[0]]
 
 
 class LayerFormatter(BaseFormatter):
     """
-    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Layers`, enabling convenient titles and labels.
     """
 
     def __init__(self, layer, default=None, issue_warnings=True, axis=None):
@@ -243,16 +243,13 @@ class LayerFormatter(BaseFormatter):
         elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
             value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
             if value is None:
-                value = [
-                    metadata.labels.extract(
-                        source,
-                        key,
-                        default=self._default,
-                        issue_warnings=self._issue_warnings,
-                        axis=self._axis,
-                    )
-                    for source in self.layer.sources
-                ]
+                value = metadata.labels.extract(
+                    self.layer.dimension_set,
+                    key,
+                    default=self._default,
+                    issue_warnings=self._issue_warnings,
+                    axis=self._axis,
+                )
             if key == "units":
                 # Check if we have axis-specific units defined
                 axis_specific_units = None
@@ -265,7 +262,7 @@ class LayerFormatter(BaseFormatter):
 
                 # Use axis-specific units if available
                 if axis_specific_units is not None:
-                    value = [f"__units__{axis_specific_units}"]
+                    value = f"__units__{axis_specific_units}"
                 else:
                     # For legend formatting (when axis is None) or primary axis, prioritize style units
                     is_primary_axis = (
@@ -276,40 +273,24 @@ class LayerFormatter(BaseFormatter):
 
                     if (is_primary_axis or is_legend_formatting) and value is not None:
                         # This is the primary data axis or legend formatting - use style units
-                        if isinstance(value, list):
-                            value = [
-                                f"__units__{v}" if v is not None else "" for v in value
-                            ]
-                        else:
-                            value = [f"__units__{value}" if value is not None else ""]
+                        value = f"__units__{value}" if value is not None else ""
                     else:
-                        # This is a coordinate axis or no style units available - use source units
-                        value = [
-                            metadata.labels.extract(
-                                source,
-                                key,
-                                default=self._default,
-                                issue_warnings=self._issue_warnings,
-                                axis=self._axis,
-                            )
-                            for source in self.layer.sources
-                        ]
+                        # This is a coordinate axis or no style units available - use dimension units
+                        value = metadata.labels.extract(
+                            self.layer.dimension_set,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
+                        )
         else:
-            value = [
-                metadata.labels.extract(
-                    source,
-                    key,
-                    default=self._default,
-                    issue_warnings=self._issue_warnings,
-                    axis=self._axis,
-                )
-                for source in self.layer.sources
-            ]
-        if isinstance(value, list):
-            if len(value) == 1 or iter_utils.all_equal(value):
-                value = value[0]
-            else:
-                value = string_utils.list_to_human(value)
+            value = metadata.labels.extract(
+                self.layer.dimension_set,
+                key,
+                default=self._default,
+                issue_warnings=self._issue_warnings,
+                axis=self._axis,
+            )
         return value
 
     def format_field(self, _value, format_spec):
@@ -319,12 +300,35 @@ class LayerFormatter(BaseFormatter):
 
 class SubplotFormatter(BaseFormatter):
     """
-    Formatter of earthkit-plots `Subplots`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Subplots`, enabling convenient titles and labels.
+
+    This formatter works with Subplot objects that contain multiple layers.
+    It aggregates formatting information from all layers in the subplot,
+    with options to show unique values or all values.
     """
 
-    def __init__(self, subplot, unique=True, axis=None):
+    def __init__(self, subplot, unique=True, default=None, issue_warnings=True, axis=None):
+        """
+        Initialize a SubplotFormatter.
+
+        Parameters
+        ----------
+        subplot : Subplot
+            The subplot to format.
+        unique : bool, optional
+            If True, only unique values are shown when multiple layers have the same
+            metadata value. Default is True.
+        default : str, optional
+            Default value to use when metadata is not found.
+        issue_warnings : bool, optional
+            If True, issue warnings when metadata keys are not found. Default is True.
+        axis : str, optional
+            Specific axis to extract metadata from ('x', 'y', or 'z').
+        """
         self.subplot = subplot
         self.unique = unique
+        self._default = default
+        self._issue_warnings = issue_warnings
         self._layer_index = None
         self._axis = axis
 
@@ -345,16 +349,33 @@ class SubplotFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
+        """
+        Format a key by extracting values from all layers in the subplot.
+
+        For subplot-level attributes (domain, crs), returns a single value.
+        For layer-level attributes, returns a list of values from all layers.
+        """
         if key in self.SUBPLOT_ATTRIBUTES:
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
             values = [
-                LayerFormatter(layer, axis=self._axis).format_key(key)
+                LayerFormatter(
+                    layer,
+                    default=self._default,
+                    issue_warnings=self._issue_warnings,
+                    axis=self._axis
+                ).format_key(key)
                 for layer in self.subplot.layers
             ]
         return values
 
     def format_field(self, value, format_spec):
+        """
+        Format a field value, with special handling for lists of layer values.
+
+        If unique=True, duplicate values are removed. Multiple values are
+        converted to human-readable strings (e.g., "value1, value2 and value3").
+        """
         f = super().format_field
         if isinstance(value, list):
             values = [f(v, format_spec) for v in value]

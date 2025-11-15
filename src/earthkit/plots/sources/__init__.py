@@ -12,81 +12,226 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import earthkit.data as ek_data
+from typing import Any, Optional, Union
+import numpy as np
 
-from earthkit.plots.sources.earthkit import EarthkitSource
-from earthkit.plots.sources.multi import MultiSource
-from earthkit.plots.sources.numpy import NumpySource
-from earthkit.plots.sources.xarray import XarraySource
+from earthkit.plots.sources import core, extractors, identifiers
+from earthkit.plots.sources.core import DimensionSet, PlotContext, PlotType
 
 
-def get_source(
-    *args,
-    data=None,
-    x=None,
-    y=None,
-    z=None,
-    u=None,
-    v=None,
-    regrid=True,
-    metadata=None,
-    **kwargs
-):
+def get_dimension_set(
+    *args: Any,
+    x: Optional[Union[str, np.ndarray]] = "auto",
+    y: Optional[Union[str, np.ndarray]] = "auto",
+    z: Optional[Union[str, np.ndarray]] = "auto",
+    plot_type: Optional[Union[str, PlotType]] = None,
+    crs: Optional[str] = None,
+    metadata: Optional[dict] = None,
+    **kwargs: Any,
+) -> DimensionSet:
     """
-    Get a Source object from the given data.
+    Create a DimensionSet from various data types.
+
+    This is the main entry point for converting user data into the internal
+    DimensionSet representation used throughout earthkit-plots. The plot_type
+    is typically provided by plotting function decorators (e.g., @plot_1d, @plot_2d).
 
     Parameters
     ----------
-    *args
-        The positional arguments to pass to the Source constructor.
-    data : numpy.ndarray, xarray.DataArray, earthkit.data.core.Base, optional
-        The data to be plotted.
-    x : numpy.ndarray or str, optional
-        The x-coordinates of the data. If a string, it is assumed to be the name
-        of the x-coordinate variable in data.
-    y : numpy.ndarray or str, optional
-        The y-coordinates of the data. If a string, it is assumed to be the name
-        of the y-coordinate variable in data.
-    z : numpy.ndarray or str, optional
-        The z-coordinates of the data. If a string, it is assumed to be the name
-        of the z-coordinate variable in data.
-    u : numpy.ndarray or str, optional
-        The u-component of the data. If a string, it is assumed to be the name
-        of the u-component variable in data.
-    v : numpy.ndarray or str, optional
-        The v-component of the data. If a string, it is assumed to be the name
-        of the v-component variable in data.
-    **kwargs
-        Additional keyword arguments to pass to the Source constructor.
+    *args : Any
+        Positional arguments containing the data. Can be:
+        - xarray DataArray/Dataset
+        - pandas Series/DataFrame
+        - numpy arrays (can provide 2-3 arrays for x, y, z)
+        - earthkit-data FieldList
+        - Other array-like objects
+    x, y, z : str, array-like, or "auto", optional
+        Dimension/coordinate specifications:
+        - "auto" (default): Infer from data structure
+        - str: Name of coordinate/dimension/variable
+        - array-like: Explicit coordinate values
+        - None: Don't extract that dimension
+    plot_type : str or PlotType, optional
+        The type of plot to create. Typically provided by decorator:
+        - "cartesian_1d"/PlotType.CARTESIAN_1D: line plots, scatter (no z)
+        - "cartesian_2d"/PlotType.CARTESIAN_2D: contour, pcolormesh (has z)
+        - "geographic_1d"/PlotType.GEOGRAPHIC_1D: map scatter (no z)
+        - "geographic_2d"/PlotType.GEOGRAPHIC_2D: map contour (has z)
+        If None, will be inferred from data and crs.
+    crs : str, optional
+        Coordinate reference system for geographic plots.
+    metadata : dict, optional
+        Additional metadata to attach to the DimensionSet.
+    **kwargs : Any
+        Additional keyword arguments (currently unused, reserved for future use).
+
+    Returns
+    -------
+    DimensionSet
+        The extracted dimension set ready for plotting.
+
+    Raises
+    ------
+    ValueError
+        If data type is not recognized or dimensions cannot be extracted.
+
+    Examples
+    --------
+    >>> import xarray as xr
+    >>> data = xr.DataArray([[1, 2], [3, 4]], coords={'x': [0, 1], 'y': [0, 1]})
+    >>> # Typically plot_type comes from decorator, but can be explicit:
+    >>> dim_set = get_dimension_set(data, plot_type="cartesian_2d")
+    >>> dim_set.x.values
+    array([0, 1])
     """
-    cls = _get_source_class(*args, data=data)
+    # Step 1: Get the data object
+    if len(args) == 0:
+        raise ValueError("No data provided to get_dimension_set()")
+    elif len(args) == 1:
+        data = args[0]
+    else:
+        # Multiple args - treat as x, y, z arrays for numpy
+        data = args
 
-    src = cls(*args, x=x, y=y, z=z, u=u, v=v, regrid=regrid, metadata=metadata)
+    # Step 2: Convert plot_type string to enum if needed
+    if plot_type is None:
+        plot_type = _infer_plot_type(data, x, y, z, crs)
+    elif isinstance(plot_type, str):
+        plot_type = PlotType(plot_type)
 
-    prev = None
-    while src is not prev:
-        prev = src
-        src = src.mutate()
-    return src
+    # Step 3: Create plot context
+    plot_context = PlotContext(plot_type=plot_type, crs=crs)
+
+    # Step 4: Select appropriate extractor based on data type
+    extractor = _get_extractor_for_data(data)
+
+    # Step 5: Handle multiple numpy arrays case
+    if isinstance(data, (tuple, list)) and all(isinstance(d, np.ndarray) for d in data):
+        # Multiple numpy arrays provided as positional args
+        if len(data) == 2:
+            x, y = data
+            z = None
+        elif len(data) == 3:
+            x, y, z = data
+        else:
+            raise ValueError(f"Expected 2 or 3 numpy arrays, got {len(data)}")
+        data = y if z is None else z  # Use the data array as the primary data
+
+    # Step 6: Extract dimensions
+    dimension_set = extractor.extract_dimensions(
+        data=data,
+        plot_context=plot_context,
+        x=x,
+        y=y,
+        z=z,
+        metadata=metadata,
+    )
+
+    return dimension_set
 
 
-def _get_source_class(*args, data):
-    cls = NumpySource
-    core_data = data
-    if len(args) == 1 and core_data is None:
-        core_data = args[0]
-    if core_data is not None:
-        if core_data.__class__.__name__ in ("Dataset", "DataArray"):
-            cls = XarraySource
-        elif isinstance(core_data, ek_data.core.Base):
-            cls = EarthkitSource
-        elif isinstance(core_data, (list, tuple)):
-            cls = MultiSource
-    return cls
+def _infer_plot_type(
+    data: Any,
+    x: Any,
+    y: Any,
+    z: Any,
+    crs: Optional[str],
+) -> PlotType:
+    """
+    Infer the plot type from the data and arguments.
+
+    This is a fallback when plot_type is not provided by decorator.
+
+    Parameters
+    ----------
+    data : Any
+        The data object.
+    x, y, z : Any
+        The dimension specifications.
+    crs : str, optional
+        Coordinate reference system.
+
+    Returns
+    -------
+    PlotType
+        The inferred plot type.
+    """
+    # If CRS is specified, assume geographic
+    is_geographic = crs is not None
+
+    # Check if we have z data (2D plot) or not (1D plot)
+    has_z = z is not None and z != "auto"
+
+    # For data types that we can inspect
+    if not has_z:
+        if hasattr(data, 'ndim'):
+            # numpy array or similar
+            has_z = data.ndim == 2
+        elif hasattr(data, 'dims'):
+            # xarray
+            has_z = len(data.dims) >= 2
+
+    # Determine plot type
+    if is_geographic:
+        return PlotType.GEOGRAPHIC_2D if has_z else PlotType.GEOGRAPHIC_1D
+    else:
+        return PlotType.CARTESIAN_2D if has_z else PlotType.CARTESIAN_1D
 
 
-def get_vector_sources(data=None, x=None, y=None, u=None, v=None, **kwargs):
-    cls = _get_source_class(data=data)
-    u = cls.extract_u(data, u=u)
-    v = cls.extract_v(data, v=v)
-    return cls(u, x=x, y=y, metadata=kwargs), cls(v, x=x, y=y, metadata=kwargs)
+def _get_extractor_for_data(data: Any):
+    """
+    Get the appropriate extractor for the given data type.
+
+    Parameters
+    ----------
+    data : Any
+        The data object.
+
+    Returns
+    -------
+    DataExtractor
+        The appropriate extractor instance.
+
+    Raises
+    ------
+    ValueError
+        If data type is not recognized.
+    """
+    import pandas as pd
+    import xarray as xr
+
+    # Check for xarray
+    if isinstance(data, (xr.DataArray, xr.Dataset)):
+        from earthkit.plots.sources.extractors.xarray import XarrayExtractor
+        return XarrayExtractor()
+
+    # Check for pandas
+    if isinstance(data, (pd.Series, pd.DataFrame)):
+        from earthkit.plots.sources.extractors.pandas import PandasExtractor
+        return PandasExtractor()
+
+    # Check for numpy
+    if isinstance(data, np.ndarray):
+        from earthkit.plots.sources.extractors.numpy import NumpyExtractor
+        return NumpyExtractor()
+
+    # Check for earthkit-data
+    try:
+        import earthkit.data
+        if isinstance(data, earthkit.data.core.Base):
+            from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
+            return EarthkitExtractor()
+    except ImportError:
+        pass
+
+    # Check for tuple/list of arrays (numpy case)
+    if isinstance(data, (tuple, list)) and len(data) > 0:
+        if all(isinstance(d, np.ndarray) for d in data):
+            from earthkit.plots.sources.extractors.numpy import NumpyExtractor
+            return NumpyExtractor()
+
+    raise ValueError(
+        f"Unsupported data type: {type(data)}. "
+        "Supported types: xarray.DataArray, xarray.Dataset, pandas.Series, "
+        "pandas.DataFrame, numpy.ndarray, earthkit.data FieldList"
+    )
