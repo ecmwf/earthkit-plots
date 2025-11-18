@@ -218,8 +218,10 @@ class GridSpec:
         The data object containing the grid metadata.
     """
 
-    staticmethod
+    def __init__(self, grid):
+        self._grid = grid
 
+    @staticmethod
     def from_data(data):
         def _get_one(d_data, keys):
             for key in keys:
@@ -266,7 +268,7 @@ class GridSpec:
                     ]:
                         gs.pop(k, None)
             LOG.debug("Creating Grid from gridspec:", type(gs))
-            return Grid(gs)
+            return GridSpec(Grid(gs))
 
         return None
 
@@ -275,6 +277,21 @@ class GridSpec:
         if hasattr(data, "__len__"):
             return data[0]
         return data
+
+    def to_dict(self):
+        return self._grid.spec
+
+    @property
+    def name(self):
+        # TODO: refactor this
+        grid = self.to_dict().get("grid")
+        if grid:
+            if isinstance(grid, str):
+                if HEALPIX_PATTERN.match(grid):
+                    return "healpix"
+                if RGG_PATTERN.match(grid):
+                    return "reduced_gg"
+        return "unknown"
 
 
 class GridSpecAccessor:
