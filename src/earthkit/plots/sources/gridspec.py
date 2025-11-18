@@ -253,7 +253,7 @@ class GridSpec:
         if gs is not None:
             from eckit.geo import Grid
 
-            # TODO: converting legacy earthki-data gridspec object to dict
+            # TODO: converting legacy earthkit-data gridspec object to dict
             if not isinstance(gs, dict):
                 if hasattr(gs, "_d"):
                     gs = dict(**gs._d)
