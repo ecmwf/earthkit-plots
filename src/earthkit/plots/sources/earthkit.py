@@ -96,6 +96,8 @@ class EarthkitSource(SingleSource):
                     {"grid": [schema.interpolate_target_resolution] * 2},
                 )
 
+            # TODO: handle Field/FieldList case properly here. Currently it fails if the input
+            # is a single Field with 2D data.
             if z_values.ndim == 2:  # In case of FieldList
                 z_values = np.array([_regrid(z) for z in z_values])
             else:

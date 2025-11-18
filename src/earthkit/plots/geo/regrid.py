@@ -48,6 +48,7 @@ class LegacyRegridExecutor:
         in_grid = _convert_spec(in_grid)
         out_grid = _convert_spec(out_grid)
 
+        print(f"Regrid specs: in_grid={in_grid}, out_grid={out_grid}")
         LOG.debug(
             "Regridding using precomputed regridder, in_grid=",
             in_grid,
@@ -69,7 +70,11 @@ class MirRegridExecutor:
         try:
             from earthkit.regrid.array import regrid  # noqa: F401
 
-            return True
+            try:
+                import mir  # noqa: F401
+            except Exception:
+                LOG.debug("mir package not available for MirRegridExecutor")
+                return False
         except ImportError:
             return False
 
@@ -102,7 +107,6 @@ class Regrid:
         for r in [MirRegridExecutor, LegacyRegridExecutor]:
             if r.is_valid():
                 return r
-
         return None
 
     def __call__(self, array, in_grid, out_grid):

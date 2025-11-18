@@ -40,7 +40,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
     @classmethod
     def from_data(cls, data):
         """
-        Identify and create a GridSpec object from the given data.
+        Identify and create a LegacyGridSpec object from the given data.
 
         Parameters
         ----------
@@ -71,7 +71,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
 
             return data.get("gridType")
 
-        data = GridSpec._first(data)
+        data = LegacyGridSpec._first(data)
 
         # ecCodes does not yet support the gridSpec key and prints a warning
         # when accessing it. We only try to get it for a non-GRIB field
@@ -150,14 +150,14 @@ class ReducedGG(LegacyGridSpec):
 
             return {"grid": g}
 
-        grid = GridSpec._guess_grid(d)
+        grid = LegacyGridSpec._guess_grid(d)
         if isinstance(grid, str) and RGG_PATTERN.match(grid):
             return {"grid": grid.upper()}
 
     @staticmethod
     def type_match(data):
         try:
-            grid = GridSpec._guess_grid(data)
+            grid = LegacyGridSpec._guess_grid(data)
             if isinstance(grid, str):
                 if grid == "reduced_gg":
                     return True
@@ -194,7 +194,7 @@ class HEALPix(LegacyGridSpec):
     @staticmethod
     def type_match(data):
         try:
-            grid = GridSpec._guess_grid(data)
+            grid = LegacyGridSpec._guess_grid(data)
             if isinstance(grid, str):
                 if grid == "healpix":
                     return True
@@ -279,12 +279,24 @@ class GridSpec:
         return data
 
     def to_dict(self):
+        # TODO: refactor this
+        # This is a temporary solution because the order/ordering default
+        # is "nested" in eckit.geo.Grid but it is "ring" in the matrix interface of
+        # earthkit-regrid.
+        if self.name == "healpix":
+            spec = self._grid.spec.copy()
+            if any(k in spec for k in ("ordering", "order")):
+                return spec
+            else:
+                spec["order"] = "nested"
+                return spec
+
         return self._grid.spec
 
     @property
     def name(self):
         # TODO: refactor this
-        grid = self.to_dict().get("grid")
+        grid = self._grid.spec.get("grid")
         if grid:
             if isinstance(grid, str):
                 if HEALPIX_PATTERN.match(grid):
