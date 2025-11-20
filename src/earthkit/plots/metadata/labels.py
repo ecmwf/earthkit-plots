@@ -38,6 +38,80 @@ class LocationInfo:
             return "Unknown location"
 
 
+def _split_camel_case(name):
+    """
+    Split a CamelCase string into separate words.
+
+    Examples:
+        LambertAzimuthalEqualArea -> Lambert Azimuthal Equal Area
+        PlateCarree -> Plate Carree
+        NorthPolarStereo -> North Polar Stereo
+
+    Parameters
+    ----------
+    name : str
+        The CamelCase string to split.
+
+    Returns
+    -------
+    str
+        The string with spaces inserted between words.
+    """
+    import re
+    # Insert space before uppercase letters that follow lowercase letters or numbers
+    result = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', name)
+    # Insert space before uppercase letters that are followed by lowercase letters
+    # (handles sequences like "EqualArea" in "LambertAzimuthalEqualArea")
+    result = re.sub(r'([A-Z]+)([A-Z][a-z])', r'\1 \2', result)
+    return result
+
+
+def get_grid(data):
+    """
+    Get a human-readable grid description from a DimensionSet.
+
+    The grid name is determined using the following priority:
+    1. If dimension_set.grid is not None, use grid.LONG_NAME
+    2. If grid is None but dimension_set.crs is not None (and not PlateCarree),
+       split the CamelCase CRS class name (e.g., LambertAzimuthalEqualArea -> Lambert Azimuthal Equal Area)
+    3. If both grid and crs are None, or crs is PlateCarree, fall back to "Regular latitude-longitude"
+
+    Parameters
+    ----------
+    data : earthkit.plots.sources.core.DimensionSet
+        The data source containing grid and CRS information.
+
+    Returns
+    -------
+    str
+        A human-readable grid description.
+    """
+    # Import here to avoid circular imports
+    from earthkit.plots.sources.core import DimensionSet
+    import cartopy.crs as ccrs
+
+    if not isinstance(data, DimensionSet):
+        # For non-DimensionSet objects, return default
+        return "Regular latitude-longitude"
+
+    # Case 1: Grid is explicitly defined
+    if data.grid is not None and hasattr(data.grid, 'LONG_NAME'):
+        return data.grid.LONG_NAME
+
+    # Case 2: No grid, but CRS is defined
+    if data.crs is not None:
+        # Check if it's PlateCarree (which is equivalent to regular lat-lon)
+        if isinstance(data.crs, ccrs.PlateCarree):
+            return "Regular latitude-longitude"
+
+        # Otherwise, format the CRS class name
+        crs_class_name = data.crs.__class__.__name__
+        return _split_camel_case(crs_class_name)
+
+    # Case 3: Neither grid nor CRS defined
+    return "Regular latitude-longitude"
+
+
 def get_location(data):
     """
     Get the nearest city name using reverse geocoding with fallback logic.
@@ -179,6 +253,9 @@ MAGIC_KEYS = {
     "location": {
         "function": get_location,
     },
+    "grid": {
+        "function": get_grid,
+    },
     "ensemble_member": {
         "preference": [
             "ensemble_member",
@@ -195,6 +272,27 @@ MAGIC_KEYS = {
         "function": lambda data: _extract_values(data),
     },
 }
+
+
+def _is_none_or_all_none(value):
+    """
+    Check if a value is None or a list/tuple of all Nones.
+
+    Parameters
+    ----------
+    value : any
+        The value to check.
+
+    Returns
+    -------
+    bool
+        True if value is None or a list/tuple containing only None values.
+    """
+    if value is None:
+        return True
+    if isinstance(value, (list, tuple)):
+        return all(v is None for v in value)
+    return False
 
 
 def _extract_values(data):
@@ -360,7 +458,7 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         label = None
         for item in candidates:
             label = search(item, default=None)
-            if label is not None:
+            if not _is_none_or_all_none(label):
                 break
         else:
             if issue_warnings:
@@ -374,6 +472,17 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
                 ]
             elif isinstance(label, str):
                 label = label.replace("_", " ")
+
+        # Mark units for formatting by the Formatter's format_field method
+        # This allows format specs like {units:R} to be handled correctly
+        if attr == "units" and not _is_none_or_all_none(label):
+            if isinstance(label, (list, tuple)):
+                label = [
+                    f"__units__{lab}" if lab is not None else lab
+                    for lab in label
+                ]
+            elif isinstance(label, str):
+                label = f"__units__{label}"
 
     if label is None:
         label = default

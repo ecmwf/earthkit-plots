@@ -52,7 +52,9 @@ class NumpyExtractor(DataExtractor):
         x: Optional[Union[np.ndarray, list]] = "auto",
         y: Optional[Union[np.ndarray, list]] = "auto",
         z: Optional[Union[np.ndarray, list]] = "auto",
+        crs: Optional[Any] = "auto",
         metadata: Optional[dict] = None,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions from numpy array(s).
@@ -63,6 +65,7 @@ class NumpyExtractor(DataExtractor):
             x: x dimension array ("auto" to infer, None to skip extraction)
             y: y dimension array ("auto" to infer, None to skip extraction)
             z: z dimension array ("auto" to infer, None to skip extraction, not used for 1D plots)
+            crs: Coordinate Reference System ("auto" to infer, None for Cartesian, or explicit CRS)
             metadata: Optional metadata dict with structure:
                 {
                     'units': 'K',  # Global metadata
@@ -81,12 +84,16 @@ class NumpyExtractor(DataExtractor):
             MissingDimensionError: If no data provided at all
         """
         # Convert "auto" to None for backward compatibility with existing logic
-        if x == "auto":
+        if isinstance(x, str) and x == "auto":
             x = None
-        if y == "auto":
+        if isinstance(y, str) and y == "auto":
             y = None
-        if z == "auto":
+        if isinstance(z, str) and z == "auto":
             z = None
+
+        # Handle CRS - numpy arrays have no inherent CRS, so "auto" means None
+        if crs == "auto":
+            crs = None
 
         # Check that at least something was provided
         if data is None and x is None and y is None and z is None:
@@ -137,18 +144,20 @@ class NumpyExtractor(DataExtractor):
                 x=x,
                 y=y,
                 z=z,
+                crs=crs,
                 x_metadata=x_metadata,
                 y_metadata=y_metadata,
                 z_metadata=z_metadata,
                 original_data=original_data,
                 user_metadata=global_metadata,
+                regrid=regrid,
             )
-        
+
         # Infer and resolve based on what's provided
         if plot_context.is_1d:
-            return self._extract_1d(data, x, y, x_metadata, y_metadata, original_data, global_metadata)
+            return self._extract_1d(data, x, y, crs, x_metadata, y_metadata, original_data, global_metadata, regrid)
         else:  # 2D plots
-            return self._extract_2d(data, plot_context, x, y, z, x_metadata, y_metadata, z_metadata, original_data, global_metadata)
+            return self._extract_2d(data, plot_context, x, y, z, crs, x_metadata, y_metadata, z_metadata, original_data, global_metadata, regrid)
     
     def extract_metadata(
         self,
@@ -192,10 +201,12 @@ class NumpyExtractor(DataExtractor):
         data: Optional[np.ndarray],
         x: Optional[np.ndarray],
         y: Optional[np.ndarray],
+        crs: Optional[Any],
         x_metadata: dict,
         y_metadata: dict,
         original_data: np.ndarray,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions for 1D plots.
@@ -221,20 +232,20 @@ class NumpyExtractor(DataExtractor):
         if data is not None and x is None and y is None:
             x_dim = create_index_dimension(len(data), name="x", axis="X", original_data=original_data, extractor=self)
             y_dim = self._create_dimension_info("y", data, DimensionSource.VARIABLE, y_metadata, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 2: Only x provided → x is x, generate y
         if x is not None and data is None and y is None:
             x_dim = self._create_dimension_info("x", x, DimensionSource.USER_SPECIFIED, x_metadata, axis="X", original_data=original_data)
             y_dim = create_index_dimension(len(x), name="y", axis="Y", original_data=original_data, extractor=self)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 3: Only y provided → y is y, generate x
         if y is not None and data is None and x is None:
             x_dim = create_index_dimension(len(y), name="x", axis="X", original_data=original_data, extractor=self)
             y_dim = self._create_dimension_info("y", y, DimensionSource.USER_SPECIFIED, y_metadata, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 4: data + x provided → data is y, use x
         if data is not None and x is not None and y is None:
             if len(x) != len(data):
@@ -243,8 +254,8 @@ class NumpyExtractor(DataExtractor):
                 )
             x_dim = self._create_dimension_info("x", x, DimensionSource.USER_SPECIFIED, x_metadata, axis="X", original_data=original_data)
             y_dim = self._create_dimension_info("y", data, DimensionSource.VARIABLE, y_metadata, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 5: data + y provided → data is x, use y
         if data is not None and y is not None and x is None:
             if len(y) != len(data):
@@ -253,8 +264,8 @@ class NumpyExtractor(DataExtractor):
                 )
             x_dim = self._create_dimension_info("x", data, DimensionSource.VARIABLE, x_metadata, axis="X", original_data=original_data)
             y_dim = self._create_dimension_info("y", y, DimensionSource.USER_SPECIFIED, y_metadata, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 6: x + y provided (no data) → use both directly
         if x is not None and y is not None and data is None:
             if len(x) != len(y):
@@ -263,7 +274,7 @@ class NumpyExtractor(DataExtractor):
                 )
             x_dim = self._create_dimension_info("x", x, DimensionSource.USER_SPECIFIED, x_metadata, axis="X", original_data=original_data)
             y_dim = self._create_dimension_info("y", y, DimensionSource.USER_SPECIFIED, y_metadata, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
         
         # Case 7: All three provided → ambiguous
         if data is not None and x is not None and y is not None:
@@ -282,11 +293,13 @@ class NumpyExtractor(DataExtractor):
         x: Optional[np.ndarray],
         y: Optional[np.ndarray],
         z: Optional[np.ndarray],
+        crs: Optional[Any],
         x_metadata: dict,
         y_metadata: dict,
         z_metadata: dict,
         original_data: np.ndarray,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions for 2D plots.
@@ -349,7 +362,7 @@ class NumpyExtractor(DataExtractor):
             y_dim = create_index_dimension(z_array.shape[0], name="y", axis="Y", original_data=original_data, extractor=self)
         
         # Validate and handle flexible dimension matching
-        return self._create_dimension_set_2d_flexible(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+        return self._create_dimension_set_2d_flexible(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid)
     
     def _create_dimension_set_2d_flexible(
         self,
@@ -357,8 +370,10 @@ class NumpyExtractor(DataExtractor):
         y_dim: DimensionInfo,
         z_dim: DimensionInfo,
         plot_context: PlotContext,
+        crs: Optional[Any],
         original_data: np.ndarray,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Create a 2D dimension set with flexible dimension matching.
@@ -400,7 +415,7 @@ class NumpyExtractor(DataExtractor):
                 )
         
         # Create the dimension set (it will do its own validation too)
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _validate_and_wrap(
         self,
@@ -408,11 +423,13 @@ class NumpyExtractor(DataExtractor):
         x: np.ndarray,
         y: np.ndarray,
         z: Optional[np.ndarray],
+        crs: Optional[Any],
         x_metadata: dict,
         y_metadata: dict,
         z_metadata: dict,
         original_data: np.ndarray,
         user_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Validate and wrap user-provided arrays when all dimensions are specified.
@@ -420,14 +437,14 @@ class NumpyExtractor(DataExtractor):
         x_dim = self._create_dimension_info("x", x, DimensionSource.USER_SPECIFIED, x_metadata, axis="X", original_data=original_data)
         y_dim = self._create_dimension_info("y", y, DimensionSource.USER_SPECIFIED, y_metadata, axis="Y", original_data=original_data)
         z_dim = None
-        
+
         if z is not None:
             z_dim = self._create_dimension_info("z", z, DimensionSource.USER_SPECIFIED, z_metadata, original_data=original_data)
-        
+
         if plot_context.is_2d and z_dim is not None:
-            return self._create_dimension_set_2d_flexible(x_dim, y_dim, z_dim, plot_context, original_data, user_metadata)
+            return self._create_dimension_set_2d_flexible(x_dim, y_dim, z_dim, plot_context, crs, original_data, user_metadata, regrid)
         else:
-            return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, user_metadata)
+            return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, user_metadata, regrid=regrid)
     
     def _ensure_array(self, data: Union[np.ndarray, list, Any], name: str) -> np.ndarray:
         """
@@ -466,7 +483,7 @@ class NumpyExtractor(DataExtractor):
     ) -> DimensionInfo:
         """
         Create a DimensionInfo object with metadata.
-        
+
         Args:
             name: Dimension name
             values: Data array
@@ -474,15 +491,15 @@ class NumpyExtractor(DataExtractor):
             metadata: Metadata dict (may contain units, long_name, etc.)
             axis: Axis type ('X', 'Y', 'Z', 'T')
             original_data: Reference to original data
-        
+
         Returns:
             DimensionInfo object
         """
         return DimensionInfo(
             name=name,
-            values=values,
+            _values=values,
             source=source,
-            units=metadata.get('units'),
+            _source_units=metadata.get('units'),
             long_name=metadata.get('long_name'),
             standard_name=metadata.get('standard_name'),
             axis=axis,

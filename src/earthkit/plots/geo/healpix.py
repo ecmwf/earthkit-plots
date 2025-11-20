@@ -57,5 +57,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
 
     if style is not None:
         kwargs = {**kwargs, **style.to_pcolormesh_kwargs(res)}
+        
+    kwargs.pop("_label", None)
 
     return ax.imshow(res, extent=xlims + ylims, origin="lower", **kwargs)

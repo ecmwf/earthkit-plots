@@ -32,11 +32,94 @@ import numpy as np
 from cartopy.util import add_cyclic_point
 
 from earthkit.plots.geo import coordinate_reference_systems
-from earthkit.plots.geo.grids import needs_cyclic_point
 from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_dimension_set
 from earthkit.plots.sources.core import DimensionSet, PlotType
-from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
+from earthkit.plots.styles import Style, Contour
+
+
+# Keys that should NOT be included in Style objects
+# These are data/coordinate parameters or meta parameters
+NON_STYLE_KEYS = {
+    'data', 'x', 'y', 'z',           # Data/coordinate parameters
+    'regrid', 'every', 'interpolate', # Data processing parameters
+    'auto_style', 'no_style',         # Meta parameters
+    'extract_domain',                 # Domain extraction parameter
+    'label',                          # Legend parameter (not style-specific)
+    'transform',                      # Cartopy CRS transform (plot-specific, not style)
+    'missing_values',                 # Missing values parameter (earthkit-specific, not matplotlib)
+}
+
+
+def _ensure_style_from_kwargs(
+    style: Optional[Style],
+    kwargs: dict[str, Any],
+) -> tuple[Optional[Style], dict[str, Any]]:
+    """
+    Ensure a Style object exists by creating or merging with kwargs as needed.
+
+    This handles three cases:
+    1. Style provided, no style kwargs: Return style as-is
+    2. Style provided + style kwargs: Create new Style merging both
+    3. No style, has style kwargs: Create new Style from kwargs
+
+    Parameters
+    ----------
+    style : Style or None
+        The existing style object (if any).
+    kwargs : dict
+        All keyword arguments passed to the plotting function.
+
+    Returns
+    -------
+    tuple[Style or None, dict]
+        A tuple of (style_object, remaining_kwargs).
+        The style_object may be None if no style could be created.
+        remaining_kwargs contains only non-style parameters.
+    """
+    # Separate style-relevant kwargs from others
+    style_kwargs = {}
+    remaining_kwargs = {}
+
+    for key, value in kwargs.items():
+        if key in NON_STYLE_KEYS:
+            remaining_kwargs[key] = value
+        else:
+            style_kwargs[key] = value
+
+    # Map common aliases
+    if 'cmap' in style_kwargs:
+        style_kwargs['colors'] = style_kwargs.pop('cmap')
+
+    # Case 1: Style with no extra style kwargs - return as-is
+    if style is not None and not style_kwargs:
+        return style, remaining_kwargs
+
+    # Case 2: Style + kwargs - create new merged style
+    if style is not None and style_kwargs:
+        # Start with existing style's parameters
+        merged_params = {
+            'colors': style_kwargs.pop('colors', style._colors),
+            'levels': style_kwargs.pop('levels', style._levels),
+            'units': style_kwargs.pop('units', style._units),
+            'units_label': style_kwargs.pop('units_label', style._units_label),
+            'scale_factor': style_kwargs.pop('scale_factor', style.scale_factor),
+            'normalize': style_kwargs.pop('normalize', style._normalize),
+            'anomaly': style_kwargs.pop('anomaly', style.anomaly),
+        }
+        # Merge remaining style kwargs with existing style's kwargs
+        merged_kwargs = {**style._kwargs, **style_kwargs}
+
+        new_style = Style(**merged_params, **merged_kwargs)
+        return new_style, remaining_kwargs
+
+    # Case 3: No style, but has style kwargs - create new style
+    if style is None and style_kwargs:
+        new_style = Style(**style_kwargs)
+        return new_style, remaining_kwargs
+
+    # Case 4: No style, no style kwargs - return None
+    return None, remaining_kwargs
 
 
 def extract_plottables_1d(
@@ -55,6 +138,7 @@ def extract_plottables_1d(
     auto_style: bool = False,
     metadata: Optional[dict[str, Any]] = None,
     label: Optional[str] = None,
+    regrid: str = "auto",
     **kwargs: Any,
 ) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray], dict]:
     """
@@ -112,17 +196,34 @@ def extract_plottables_1d(
     plot_type = _infer_plot_type_from_subplot(subplot, is_1d=True)
 
     # Step 2: Create DimensionSet
+    # For geographic plots, let the extractor determine the data's native CRS
+    # (we'll use the subplot's CRS as the target projection, but need data's CRS for transform)
     dimension_set = get_dimension_set(
         *args,
         x=x,
         y=y,
         z=z,
         plot_type=plot_type,
-        crs=getattr(subplot, 'crs', None),
+        crs="auto",  # Let extractor determine data's CRS
         metadata=metadata,
+        regrid=regrid,
     )
 
+    # Step 2.5: Allow subplot to react to first data being plotted (e.g., infer CRS for maps)
+    if hasattr(subplot, '_on_first_data_plot'):
+        subplot._on_first_data_plot(dimension_set)
+
     kwargs.update(subplot._plot_kwargs())
+
+    # Step 2.6: For geographic plots, set transform to data's CRS
+    if plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}:
+        # Use the data's CRS for the transform (tells cartopy what CRS the data is in)
+        import cartopy.crs as ccrs
+        data_crs = dimension_set.crs if dimension_set.crs is not None else ccrs.PlateCarree()
+        kwargs['transform'] = data_crs
+
+    # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
+    style, kwargs = _ensure_style_from_kwargs(style, kwargs)
 
     # Step 3: Configure the plotting style
     style = _configure_style_from_dimension_set(
@@ -130,12 +231,27 @@ def extract_plottables_1d(
     )
 
     # Step 4: Set target units on dimensions for automatic conversion
-    if xunits is not None:
-        dimension_set.x.set_target_units(xunits)
-    if yunits is not None or units is not None:
+    # Priority: explicit parameter > style units > no conversion
+    target_units = units
+    target_xunits = xunits
+    target_yunits = yunits
+
+    if style is not None:
+        if target_units is None and hasattr(style, '_units'):
+            target_units = style._units
+        # Note: Style doesn't currently have xunits/yunits, but we keep this for future compatibility
+        # if target_xunits is None and hasattr(style, '_xunits'):
+        #     target_xunits = style._xunits
+        # if target_yunits is None and hasattr(style, '_yunits'):
+        #     target_yunits = style._yunits
+
+    if target_xunits is not None:
+        dimension_set.x.set_target_units(target_xunits)
+    if target_yunits is not None or target_units is not None:
         # For 1D plots, y is the primary data dimension
-        target_units = yunits or units
-        dimension_set.y.set_target_units(target_units)
+        # Priority: yunits > units > style units
+        y_target_units = target_yunits or target_units
+        dimension_set.y.set_target_units(y_target_units)
 
     # Step 5: Extract values (with automatic unit conversion via .values property)
     x_values = dimension_set.x.values
@@ -156,8 +272,15 @@ def extract_plottables_1d(
     # Step 8: Get matplotlib kwargs from style
     if not no_style and style is not None:
         # For 1D plots, we use y_values as the data for style processing
-        style_kwargs = style.to_matplotlib_kwargs(y_values)
+        try:
+            style_kwargs = getattr(style, f"to_{method_name}_kwargs")(y_values)
+        except Exception:
+            style_kwargs = style.to_matplotlib_kwargs(y_values)
         kwargs = {**style_kwargs, **kwargs}
+
+    # Step 8.5: Remove earthkit-specific parameters that shouldn't reach matplotlib
+    # These were already filtered from Style but may still be in remaining kwargs
+    kwargs.pop('missing_values', None)
 
     # Step 9: Add metadata to kwargs for layer creation
     kwargs['_dimension_set'] = dimension_set
@@ -234,31 +357,19 @@ def _configure_style_from_dimension_set(
     Style
         A configured style object.
     """
+    # If a style is provided, use it
     if style is not None:
         return style
 
-    # Extract style-specific keyword arguments
-    style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+    # For 1D plots without explicit style, create a default Style object
+    # so that legend() can work properly
+    if dimension_set.plot_context and dimension_set.plot_context.is_1d:
+        from earthkit.plots.styles import Style
+        return Style()
 
-    # Determine the appropriate style class based on method name
-    if method_name.startswith("contour"):
-        style_class = Contour
-    elif method_name in ["quiver", "barbs"]:
-        style_class = Quiver
-    else:
-        style_class = Style
-
-    # Get units from dimension set if not specified
-    if units is None:
-        units = dimension_set.primary_dimension.units
-
-    # Create the style instance
-    if not auto_style:
-        style = style_class(**{**style_kwargs, "units": units})
-    else:
-        style = auto.guess_style(dimension_set, units=units)
-
-    return style
+    # For 2D plots, return None and let matplotlib use its defaults
+    # In the future, auto_style could be implemented here to create smart defaults
+    return None
 
 
 def _is_specialized_grid(dimension_set: DimensionSet) -> bool:
@@ -275,8 +386,8 @@ def _is_specialized_grid(dimension_set: DimensionSet) -> bool:
     bool
         True if the dimension set represents a specialized grid (healpix, octahedral), False otherwise.
     """
-    grid_type = dimension_set.metadata("grid_type")
-    return grid_type in ("healpix", "octahedral")
+    grid_type = dimension_set._extractor.extract_grid(dimension_set._original_data)
+    return grid_type is not None
 
 
 def _handle_specialized_grids_dimension_set(
@@ -290,7 +401,8 @@ def _handle_specialized_grids_dimension_set(
     """
     Handle specialized grid types (healpix, octahedral) for DimensionSet.
 
-    This is the DimensionSet-aware version of _handle_specialized_grids().
+    This function identifies specialized grid types and delegates plotting
+    to the appropriate GridIdentifier.grid_cells() method.
 
     Parameters
     ----------
@@ -312,17 +424,15 @@ def _handle_specialized_grids_dimension_set(
     Any
         The mappable object if specialized grid was handled, None otherwise.
     """
-    # Check for specialized grid types in metadata
-    grid_type = dimension_set.metadata("grid_type")
+    # Try to get the GridIdentifier from the extractor
+    if dimension_set._extractor and dimension_set._original_data is not None:
+        grid_identifier = dimension_set._extractor.extract_grid(dimension_set._original_data)
 
-    if grid_type == "healpix":
-        return plot_healpix(
-            subplot, dimension_set, z_values, style, method_name, kwargs
-        )
-    elif grid_type == "octahedral":
-        return plot_octahedral(
-            subplot, dimension_set, z_values, style, method_name, kwargs
-        )
+        if grid_identifier is not None and hasattr(grid_identifier, 'grid_cells'):
+            # Delegate to the GridIdentifier's grid_cells method
+            return grid_identifier.grid_cells(
+                subplot, dimension_set, z_values, style, method_name, kwargs
+            )
 
     return None
 
@@ -343,6 +453,8 @@ def extract_plottables_2d(
     extract_domain: bool = False,
     auto_style: bool = False,
     metadata: Optional[dict[str, Any]] = None,
+    label: Optional[str] = None,
+    regrid: str = "auto",
     **kwargs: Any,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
     """
@@ -357,7 +469,7 @@ def extract_plottables_2d(
     subplot : Subplot
         The subplot instance to plot on.
     method_name : str
-        The name of the plotting method (e.g., 'contourf', 'pcolormesh').
+        The name of the plotting method (e.g., 'contourf', 'pcolormesh', 'grid_cells').
     args : tuple
         Positional arguments passed to the plotting method.
     x, y, z : str, array-like, or "auto", optional
@@ -379,6 +491,10 @@ def extract_plottables_2d(
         Whether to automatically guess the appropriate style.
     metadata : dict, optional
         Additional metadata for the dimension set.
+    label : str, optional
+        The label to use for the legend.
+    regrid : str, optional
+        Regridding parameter. For grid_cells method, this should not be used.
     **kwargs
         Additional keyword arguments passed to the plotting method.
 
@@ -401,31 +517,83 @@ def extract_plottables_2d(
     plot_type = _infer_plot_type_from_subplot(subplot, is_1d=False)
 
     # Step 2: Create DimensionSet
+    # For geographic plots, let the extractor determine the data's native CRS
+    # (we'll use the subplot's CRS as the target projection, but need data's CRS for transform)
+    # For grid_cells, disable regridding to preserve native grid cells
+    effective_regrid = False if method_name == "grid_cells" else regrid
+
     dimension_set = get_dimension_set(
         *args,
         x=x,
         y=y,
         z=z,
         plot_type=plot_type,
-        crs=getattr(subplot, 'crs', None),
+        crs="auto",  # Let extractor determine data's CRS
         metadata=metadata,
+        regrid=effective_regrid,
     )
+
+    # Step 2.5: Allow subplot to react to first data being plotted (e.g., infer CRS for maps)
+    if hasattr(subplot, '_on_first_data_plot'):
+        subplot._on_first_data_plot(dimension_set)
 
     kwargs.update(subplot._plot_kwargs())
 
+    # Step 2.6: For geographic plots, set transform to data's CRS
+    if plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}:
+        # Use the data's CRS for the transform (tells cartopy what CRS the data is in)
+        import cartopy.crs as ccrs
+        data_crs = dimension_set.crs if dimension_set.crs is not None else ccrs.PlateCarree()
+        kwargs['transform'] = data_crs
+
+    # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
+    style, kwargs = _ensure_style_from_kwargs(style, kwargs)
+
+    # Step 2.8: Special handling for grid_cells method
+    # Try to identify specialized grids and get their grid_cells method
+    grid_cells_callable = None
+    effective_method_name = method_name
+
+    if method_name == "grid_cells":
+        # Try to get the GridIdentifier from the extractor
+        if dimension_set._extractor and dimension_set._original_data is not None:
+            grid_identifier = dimension_set._extractor.extract_grid(dimension_set._original_data)
+
+            if grid_identifier is not None and hasattr(grid_identifier, 'grid_cells'):
+                # Found a specialized grid with grid_cells method
+                grid_cells_callable = grid_identifier.grid_cells
+
+        # Fall back to pcolormesh for the extraction process
+        # (we'll use grid_cells_callable later if it exists)
+        effective_method_name = "pcolormesh"
+
     # Step 3: Configure the plotting style
     style = _configure_style_from_dimension_set(
-        method_name, style, dimension_set, units, auto_style, kwargs
+        effective_method_name, style, dimension_set, units, auto_style, kwargs
     )
 
     # Step 4: Set target units on dimensions for automatic conversion
-    if xunits is not None:
-        dimension_set.x.set_target_units(xunits)
-    if yunits is not None:
-        dimension_set.y.set_target_units(yunits)
-    if units is not None:
+    # Priority: explicit parameter > style units > no conversion
+    target_units = units
+    target_xunits = xunits
+    target_yunits = yunits
+
+    if style is not None:
+        if target_units is None and hasattr(style, '_units'):
+            target_units = style._units
+        # Note: Style doesn't currently have xunits/yunits, but we keep this for future compatibility
+        # if target_xunits is None and hasattr(style, '_xunits'):
+        #     target_xunits = style._xunits
+        # if target_yunits is None and hasattr(style, '_yunits'):
+        #     target_yunits = style._yunits
+
+    if target_xunits is not None:
+        dimension_set.x.set_target_units(target_xunits)
+    if target_yunits is not None:
+        dimension_set.y.set_target_units(target_yunits)
+    if target_units is not None:
         # For 2D plots, z is the primary data dimension
-        dimension_set.z.set_target_units(units)
+        dimension_set.z.set_target_units(target_units)
 
     # Step 5: Extract values (with automatic unit conversion via .values property)
     x_values = dimension_set.x.values
@@ -436,7 +604,11 @@ def extract_plottables_2d(
     # Mark if this is a specialized grid that will need special handling
     is_specialized = _is_specialized_grid(dimension_set)
 
-    if not is_specialized:
+    # For scatter, we always need standard processing (no specialized grid rendering)
+    # (scatter doesn't use the specialized grid rendering paths)
+    do_standard_processing = not is_specialized or method_name == 'scatter'
+
+    if do_standard_processing:
         # Step 7: Apply sampling if specified
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
@@ -446,28 +618,61 @@ def extract_plottables_2d(
         if no_style and z_values is None:
             z_values = kwargs.pop("c", None)
 
-        # Step 9: Extract data within domain boundaries if requested
+    # Step 9: Domain extraction - applies to ALL methods except grid_cells
+    # This must happen outside do_standard_processing so specialized grids get domain extraction too
+    if method_name != 'grid_cells':
+        # Step 9a: Remove cyclic point before domain extraction if it was added
+        # Domain extraction needs data without cyclic points to correctly handle dateline crossing
+        cyclic_point_was_added = dimension_set._has_cyclic_point
+        if cyclic_point_was_added and subplot.domain and extract_domain and not no_style:
+            # Remove the cyclic point temporarily for domain extraction
+            if x_values.ndim == 1:
+                x_values = x_values[:-1]
+                if z_values is not None:
+                    z_values = z_values[:-1] if z_values.ndim == 1 else z_values[:, :-1]
+            else:
+                x_values = x_values[:, :-1]
+                y_values = y_values[:, :-1]
+                if z_values is not None:
+                    z_values = z_values[:, :-1]
+
+        # Step 9b: Extract data within domain boundaries if requested
         if subplot.domain and extract_domain and not no_style:
             x_values, y_values, z_values = subplot.domain.extract(
-                x_values, y_values, z_values, source_crs=getattr(subplot, 'crs', None)
+                x_values, y_values, z_values, source_crs=dimension_set.crs
             )
 
-        # Step 10: Handle cyclic point wrapping for contour plots
+    if do_standard_processing:
+        # Step 11: Handle cyclic point wrapping for contour plots
+        # Always add cyclic point for contour plots after domain extraction
         if method_name.startswith("contour"):
             x_values, y_values, z_values = _handle_cyclic_points(
                 x_values, y_values, z_values
             )
 
-        # Step 11: Handle coordinate transformation settings
+        # Step 12: Handle coordinate transformation settings
         kwargs = _handle_transform_settings(subplot, kwargs)
 
-    # Step 12: Get matplotlib kwargs from style
+        # Step 13: Handle meshgrid for geographic 2D plots with 1D coordinates
+        # For maps, cartopy expects 2D coordinate arrays
+        is_geographic = plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}
+        if is_geographic and x_values.ndim == 1 and y_values.ndim == 1:
+            x_values, y_values = np.meshgrid(x_values, y_values)
+
+    # Step 14: Get matplotlib kwargs from style
     if not no_style and style is not None:
         # For 2D plots, we use z_values as the data for style processing
-        style_kwargs = style.to_matplotlib_kwargs(z_values)
+        try:
+            style_kwargs = getattr(style, f"to_{method_name}_kwargs")(z_values)
+        except Exception:
+            style_kwargs = style.to_matplotlib_kwargs(z_values)
         kwargs = {**style_kwargs, **kwargs}
 
-    # Step 13: Add metadata to kwargs for layer creation
+    # Step 14.5: Remove earthkit-specific parameters that shouldn't reach matplotlib
+    # These were already filtered from Style but may still be in remaining kwargs
+    kwargs.pop('missing_values', None)
+
+    # Step 15: Add metadata to kwargs for layer creation
     kwargs['_dimension_set'] = dimension_set
     kwargs['_style'] = style
     kwargs['_primary_axis'] = 'z'  # For 2D plots, z is the data axis
@@ -477,6 +682,9 @@ def extract_plottables_2d(
     kwargs['_is_specialized'] = is_specialized
     kwargs['_method_name'] = method_name
     kwargs['_no_style'] = no_style
+    kwargs['_label'] = label
+    if method_name == "grid_cells":
+        kwargs['_grid_cells_callable'] = grid_cells_callable  # For grid_cells method
 
     return x_values, y_values, z_values, kwargs
 
@@ -541,115 +749,6 @@ def apply_sampling(
 # =============================================================================
 
 
-def plot_healpix(
-    subplot: Any,
-    dimension_set: Union[Any, DimensionSet],
-    z_values: np.ndarray,
-    style: Style,
-    method_name: str,
-    kwargs: dict[str, Any],
-) -> Any:
-    """
-    Handle plotting for HEALPix grid data.
-
-    HEALPix (Hierarchical Equal Area isoLatitude Pixelization) grids require
-    special handling due to their unique coordinate system and pixel structure.
-
-    Parameters
-    ----------
-    subplot : Subplot
-        The subplot instance to plot on.
-    dimension_set : DimensionSet or legacy source
-        The dimension set or data source object.
-    z_values : array-like
-        The z values to plot.
-    style : Style
-        The style object for plotting.
-    method_name : str
-        The plotting method name (unused, for compatibility).
-    kwargs : dict
-        Keyword arguments for plotting.
-
-    Returns
-    -------
-    Any
-        The matplotlib mappable object.
-
-    Examples
-    --------
-    >>> mappable = plot_healpix(subplot, dimension_set, z_values, style, "pcolormesh", {})
-    """
-    from earthkit.plots.geo import healpix
-
-    # Determine if the grid uses nested ordering
-    nest = dimension_set.metadata("orderingConvention") == "nested"
-
-    # Set the coordinate transformation
-    kwargs["transform"] = subplot.crs
-
-    # Use the HEALPix-specific plotting function
-    return healpix.nnshow(z_values, ax=subplot.ax, nest=nest, style=style, **kwargs)
-
-
-def plot_octahedral(
-    subplot: Any,
-    dimension_set: Union[Any, DimensionSet],
-    z_values: np.ndarray,
-    style: Style,
-    method_name: str,
-    kwargs: dict[str, Any],
-) -> Any:
-    """
-    Handle plotting for octahedral grid data.
-
-    Octahedral grids are used for certain types of global atmospheric models
-    and require specialized plotting functions.
-
-    Parameters
-    ----------
-    subplot : Subplot
-        The subplot instance to plot on.
-    dimension_set : DimensionSet or legacy source
-        The dimension set or data source object.
-    z_values : array-like
-        The z values to plot.
-    style : Style
-        The style object for plotting.
-    method_name : str
-        The plotting method name (unused, for compatibility).
-    kwargs : dict
-        Keyword arguments for plotting.
-
-    Returns
-    -------
-    Any
-        The matplotlib mappable object.
-
-    Examples
-    --------
-    >>> mappable = plot_octahedral(subplot, dimension_set, z_values, style, "pcolormesh", {})
-    """
-    from earthkit.plots.geo import octahedral
-
-    # Extract x and y values from dimension set
-    if isinstance(dimension_set, DimensionSet):
-        x_values = dimension_set.x.values
-        y_values = dimension_set.y.values
-    else:
-        # Legacy source compatibility
-        x_values = dimension_set.x_values
-        y_values = dimension_set.y_values
-
-    return octahedral.plot_octahedral_grid(
-        x_values,
-        y_values,
-        z_values,
-        subplot.ax,
-        style=style,
-        **kwargs,
-    )
-
-
 def _handle_cyclic_points(
     x_values: np.ndarray,
     y_values: np.ndarray,
@@ -675,17 +774,28 @@ def _handle_cyclic_points(
     --------
     >>> x_cyclic, y_cyclic, z_cyclic = _handle_cyclic_points(x, y, z)
     """
-    if not needs_cyclic_point(x_values):
-        return x_values, y_values, z_values
-
     # Handle 2D coordinate arrays
     n_x = None
     if len(x_values.shape) != 1:
         n_x = x_values.shape[0]
         x_values = x_values[0]
 
-    # Add cyclic points
-    z_values, x_values = add_cyclic_point(z_values, coord=x_values)
+    # Try to add cyclic points using cartopy's function
+    # If it fails (e.g., due to floating point precision issues with regridded data),
+    # manually add the cyclic point
+    try:
+        z_values, x_values = add_cyclic_point(z_values, coord=x_values)
+    except ValueError:
+        # Manually add cyclic point
+        # Calculate the expected spacing
+        delta_x = x_values[1] - x_values[0]
+        # Add one more point at the end
+        x_values = np.concatenate([x_values, [x_values[-1] + delta_x]])
+        # Add the first column of z to the end
+        if z_values.ndim == 2:
+            z_values = np.concatenate([z_values, z_values[:, 0:1]], axis=1)
+        else:
+            z_values = np.concatenate([z_values, z_values[0:1]])
 
     # Restore 2D structure if needed
     if n_x:

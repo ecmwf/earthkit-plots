@@ -52,7 +52,9 @@ class PandasExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]] = "auto",
         y: Optional[Union[str, np.ndarray]] = "auto",
         z: Optional[Union[str, np.ndarray]] = "auto",
+        crs: Optional[Any] = "auto",
         metadata: Optional[dict] = None,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions from pandas Series or DataFrame.
@@ -63,6 +65,7 @@ class PandasExtractor(DataExtractor):
             x: x dimension selector ("auto" to infer, None to skip extraction, or index/column name or array)
             y: y dimension selector ("auto" to infer, None to skip extraction, or column name or array)
             z: z dimension selector ("auto" to infer, None to skip extraction, or column name or array)
+            crs: Coordinate Reference System ("auto" to infer, None for Cartesian, or explicit CRS)
             metadata: Optional user-provided metadata (takes precedence)
 
         Returns:
@@ -82,6 +85,10 @@ class PandasExtractor(DataExtractor):
         if z == "auto":
             z = None
 
+        # Handle CRS - pandas objects have no inherent CRS, so "auto" means None
+        if crs == "auto":
+            crs = None
+
         # Store original data for metadata extraction
         original_data = data
 
@@ -94,14 +101,14 @@ class PandasExtractor(DataExtractor):
         # Early exit: all required dimensions specified with arrays (not selectors)
         if self._all_arrays_specified(plot_context, x, y, z):
             return self._validate_and_wrap_arrays(
-                data, plot_context, x, y, z, original_data, global_metadata
+                data, plot_context, x, y, z, crs, original_data, global_metadata, regrid
             )
-        
+
         # Infer and resolve based on plot type
         if plot_context.is_1d:
-            return self._extract_1d(data, plot_context, x, y, original_data, global_metadata)
+            return self._extract_1d(data, plot_context, x, y, crs, original_data, global_metadata, regrid)
         else:  # 2D plots
-            return self._extract_2d(data, plot_context, x, y, z, original_data, global_metadata)
+            return self._extract_2d(data, plot_context, x, y, z, crs, original_data, global_metadata, regrid)
     
     def extract_metadata(
         self,
@@ -179,8 +186,10 @@ class PandasExtractor(DataExtractor):
         plot_context: PlotContext,
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: Union[pd.Series, pd.DataFrame],
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions for 1D plots.
@@ -194,32 +203,34 @@ class PandasExtractor(DataExtractor):
         
         # Handle Series
         if isinstance(data, pd.Series):
-            return self._extract_1d_series(data, x_spec, y_spec, original_data, global_metadata)
-        
+            return self._extract_1d_series(data, x_spec, y_spec, crs, original_data, global_metadata, regrid)
+
         # Handle DataFrame
-        return self._extract_1d_dataframe(data, x_spec, y_spec, original_data, global_metadata)
+        return self._extract_1d_dataframe(data, x_spec, y_spec, crs, original_data, global_metadata, regrid)
     
     def _extract_1d_series(
         self,
         data: pd.Series,
         x_spec: Optional[Union[str, np.ndarray]],
         y_spec: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: pd.Series,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """Extract dimensions from a Series for 1D plots."""
         plot_context = PlotContext(PlotType.CARTESIAN_1D)
-        
+
         # Infer defaults: index → x, values → y
         default_x_name = data.index.name or "index"
         default_y_name = data.name or "values"
-        
+
         # Case 1: Neither specified - use defaults
         if x_spec is None and y_spec is None:
             x_dim = self._create_dimension_from_index(data, original_data, axis="X")
             y_dim = self._create_dimension_from_series_values(data, original_data, axis="Y")
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 2: Only x specified
         if x_spec is not None and y_spec is None:
             # If they specified the values as x, swap
@@ -229,30 +240,32 @@ class PandasExtractor(DataExtractor):
             else:
                 x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
                 y_dim = self._create_dimension_from_series_values(data, original_data, axis="Y")
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 3: Only y specified
         if y_spec is not None and x_spec is None:
             x_dim = self._create_dimension_from_index(data, original_data, axis="X")
             y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 4: Both specified
         x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
         y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-        return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
+        return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _extract_1d_dataframe(
         self,
         data: pd.DataFrame,
         x_spec: Optional[Union[str, np.ndarray]],
         y_spec: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: pd.DataFrame,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """Extract dimensions from a DataFrame for 1D plots."""
         plot_context = PlotContext(PlotType.CARTESIAN_1D)
-        
+
         # For now, require y to be specified if DataFrame has multiple columns
         if y_spec is None and len(data.columns) > 1:
             raise AmbiguousDimensionError(
@@ -260,20 +273,20 @@ class PandasExtractor(DataExtractor):
                 f"Please specify which column to use for y. "
                 f"(Multi-layer support coming soon)"
             )
-        
+
         # Infer defaults: index → x, first/specified column → y
         default_x_name = data.index.name or "index"
         if y_spec is None:
             default_y_name = data.columns[0]
         else:
             default_y_name = y_spec if isinstance(y_spec, str) else None
-        
+
         # Case 1: Neither specified - use defaults
         if x_spec is None and y_spec is None:
             x_dim = self._create_dimension_from_index(data, original_data, axis="X")
             y_dim = self._create_dimension_from_column(data, data.columns[0], original_data, axis="Y")
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 2: Only x specified
         if x_spec is not None and y_spec is None:
             # Check if x_spec is a column name (meaning they want to swap)
@@ -291,18 +304,18 @@ class PandasExtractor(DataExtractor):
             else:
                 x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
                 y_dim = self._create_dimension_from_column(data, data.columns[0], original_data, axis="Y")
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 3: Only y specified
         if y_spec is not None and x_spec is None:
             x_dim = self._create_dimension_from_index(data, original_data, axis="X")
             y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 4: Both specified - could be two columns plotted against each other
         x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
         y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-        return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
+        return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _extract_2d(
         self,
@@ -311,12 +324,14 @@ class PandasExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: Union[pd.Series, pd.DataFrame],
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions for 2D plots.
-        
+
         Supports:
         - DataFrames as gridded data (values → z, index → y, columns → x)
         - DataFrames with lat/lon columns as point data (for geospatial)
@@ -325,13 +340,13 @@ class PandasExtractor(DataExtractor):
             raise InvalidSpecificationError(
                 "Cannot create 2D plot from Series. Use a DataFrame instead."
             )
-        
+
         # Check if this is geospatial point data
         if plot_context.is_geospatial:
-            return self._extract_2d_geospatial(data, x, y, z, original_data, global_metadata)
-        
+            return self._extract_2d_geospatial(data, x, y, z, crs, original_data, global_metadata, regrid)
+
         # Otherwise, treat DataFrame as gridded data
-        return self._extract_2d_gridded(data, plot_context, x, y, z, original_data, global_metadata)
+        return self._extract_2d_gridded(data, plot_context, x, y, z, crs, original_data, global_metadata, regrid)
     
     def _extract_2d_geospatial(
         self,
@@ -339,39 +354,41 @@ class PandasExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: pd.DataFrame,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """Extract dimensions for geospatial 2D plots (point data)."""
         plot_context = PlotContext(PlotType.GEOSPATIAL_2D)
-        
+
         # Try to find geographic coordinates in columns
         lon_col, lat_col = find_geographic_coords(data)
-        
+
         if lon_col is None or lat_col is None:
             raise MissingDimensionError(
                 f"Could not find latitude/longitude columns in DataFrame. "
                 f"Available columns: {list(data.columns)}. "
                 f"Please specify x and y explicitly."
             )
-        
+
         # Resolve specifications
         x_spec = self._resolve_selector(data, x, "x") if x is not None else None
         y_spec = self._resolve_selector(data, y, "y") if y is not None else None
         z_spec = self._resolve_selector(data, z, "z") if z is not None else None
-        
+
         # Determine x (longitude)
         if x_spec is not None:
             x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
         else:
             x_dim = self._create_dimension_from_column(data, lon_col, original_data, axis="X")
-        
+
         # Determine y (latitude)
         if y_spec is not None:
             y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
         else:
             y_dim = self._create_dimension_from_column(data, lat_col, original_data, axis="Y")
-        
+
         # Determine z (values)
         if z_spec is None:
             # Need to pick a column for z - exclude lat/lon
@@ -389,8 +406,8 @@ class PandasExtractor(DataExtractor):
             z_dim = self._create_dimension_from_column(data, value_cols[0], original_data)
         else:
             z_dim = self._resolve_to_dimension_info(data, z_spec, "z", original_data=original_data)
-        
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _extract_2d_gridded(
         self,
@@ -399,32 +416,34 @@ class PandasExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: pd.DataFrame,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """Extract dimensions for 2D gridded plots (DataFrame as matrix)."""
         # Resolve specifications
         x_spec = self._resolve_selector(data, x, "x") if x is not None else None
         y_spec = self._resolve_selector(data, y, "y") if y is not None else None
         z_spec = self._resolve_selector(data, z, "z") if z is not None else None
-        
+
         # Default: columns → x, index → y, values → z
         if x_spec is None:
             x_dim = self._create_dimension_from_columns(data, original_data, axis="X")
         else:
             x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
-        
+
         if y_spec is None:
             y_dim = self._create_dimension_from_index(data, original_data, axis="Y")
         else:
             y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-        
+
         if z_spec is None:
             z_dim = self._create_dimension_from_dataframe_values(data, original_data)
         else:
             z_dim = self._resolve_to_dimension_info(data, z_spec, "z", original_data=original_data)
-        
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _resolve_selector(
         self,
@@ -473,7 +492,7 @@ class PandasExtractor(DataExtractor):
         if isinstance(spec, np.ndarray):
             return DimensionInfo(
                 name=axis_name,
-                values=spec,
+                _values=spec,
                 source=DimensionSource.USER_SPECIFIED,
                 axis=axis,
                 _original_data=original_data or data,
@@ -512,7 +531,7 @@ class PandasExtractor(DataExtractor):
         
         return DimensionInfo(
             name=index_name,
-            values=data.index.values,
+            _values=data.index.values,
             source=DimensionSource.DIMENSION,
             axis=axis,
             _metadata=metadata,
@@ -537,7 +556,7 @@ class PandasExtractor(DataExtractor):
         
         return DimensionInfo(
             name=column_name,
-            values=column.values,
+            _values=column.values,
             source=DimensionSource.VARIABLE,
             axis=axis,
             _metadata=metadata,
@@ -558,7 +577,7 @@ class PandasExtractor(DataExtractor):
         
         return DimensionInfo(
             name="columns",
-            values=data.columns.values,
+            _values=data.columns.values,
             source=DimensionSource.DIMENSION,
             axis=axis,
             _metadata=metadata,
@@ -582,7 +601,7 @@ class PandasExtractor(DataExtractor):
         
         return DimensionInfo(
             name=series_name,
-            values=data.values,
+            _values=data.values,
             source=DimensionSource.VARIABLE,
             axis=axis,
             _metadata=metadata,
@@ -602,7 +621,7 @@ class PandasExtractor(DataExtractor):
         
         return DimensionInfo(
             name="values",
-            values=data.values,
+            _values=data.values,
             source=DimensionSource.VARIABLE,
             _metadata=metadata,
             _original_data=original_data,
@@ -633,36 +652,38 @@ class PandasExtractor(DataExtractor):
         x: np.ndarray,
         y: np.ndarray,
         z: Optional[np.ndarray],
+        crs: Optional[Any],
         original_data: Union[pd.Series, pd.DataFrame],
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """Wrap user-provided arrays when all dimensions are specified as arrays."""
         x_dim = DimensionInfo(
             name="x",
-            values=np.asarray(x),
+            _values=np.asarray(x),
             source=DimensionSource.USER_SPECIFIED,
             axis="X",
             _original_data=original_data,
             _extractor=self,
         )
-        
+
         y_dim = DimensionInfo(
             name="y",
-            values=np.asarray(y),
+            _values=np.asarray(y),
             source=DimensionSource.USER_SPECIFIED,
             axis="Y",
             _original_data=original_data,
             _extractor=self,
         )
-        
+
         z_dim = None
         if z is not None:
             z_dim = DimensionInfo(
                 name="z",
-                values=np.asarray(z),
+                _values=np.asarray(z),
                 source=DimensionSource.USER_SPECIFIED,
                 _original_data=original_data,
                 _extractor=self,
             )
-        
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)

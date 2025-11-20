@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 from earthkit.plots.ancillary import find_logo
 from earthkit.plots.core.layers import LayerGroup
 from earthkit.plots.core.layouts import rows_cols
-from earthkit.plots.core.maps import Map
+# from earthkit.plots.core.maps import Map
 from earthkit.plots.core.subplots import Subplot
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema

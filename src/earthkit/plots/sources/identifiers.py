@@ -18,21 +18,21 @@ from earthkit.plots.utils import iter_utils
 
 X = [
     "projection_x_coordinate",
+    "x",
+    "X",
     "xc",
     "longitude",
     "long",
     "lon",
-    "X",
-    "x",
 ]
 
 Y = [
     "projection_y_coordinate",
+    "y",
+    "Y",
     "yc",
     "latitude",
     "lat",
-    "Y",
-    "y",
 ]
 
 U = [
@@ -200,22 +200,22 @@ def find_geographic_coords(data):
         (x_coord_name, y_coord_name) if found, otherwise (None, None)
     """
     X_GEOGRAPHIC = [
-        "projection_x_coordinate",
+        "x",
+        "X",
         "xc",
+        "projection_x_coordinate",
         "longitude",
         "long",
         "lon",
-        "X",
-        "x",
     ]
     
     Y_GEOGRAPHIC = [
-        "projection_y_coordinate",
+        "y",
+        "Y",
         "yc",
+        "projection_y_coordinate",
         "latitude",
         "lat",
-        "Y",
-        "y",
     ]
     
     def find_coord_or_dim(data, candidates):
