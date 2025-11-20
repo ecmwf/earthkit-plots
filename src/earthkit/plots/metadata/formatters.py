@@ -229,6 +229,15 @@ class DimensionSetFormatter(BaseFormatter):
 class LayerFormatter(BaseFormatter):
     """
     Formatter of earthkit-plots `Layers`, enabling convenient titles and labels.
+
+    Supports dot notation for accessing dimensional metadata:
+    - {x.units}: Extract units from x dimension
+    - {y.variable_name}: Extract variable name from y dimension
+    - {z.long_name}: Extract long name from z dimension
+
+    Magic keys and existing functionality are preserved:
+    - {units}: Extract units using current logic (from style or primary dimension)
+    - {variable_name}: Extract variable name using magic key logic
     """
 
     def __init__(self, layer, default=None, issue_warnings=True, axis=None):
@@ -237,7 +246,47 @@ class LayerFormatter(BaseFormatter):
         self._issue_warnings = issue_warnings
         self._axis = axis
 
+    def format_keys(self, format_string, kwargs):
+        """
+        Format keys in a format string, with special handling for dimensional metadata.
+
+        Overrides BaseFormatter.format_keys to handle dimensional dot notation
+        (e.g., x.units, y.variable_name) before the base class tries to interpret
+        them as numpy methods.
+        """
+        keys = [i[1] for i in self.parse(format_string) if i[1] is not None]
+        for key in keys:
+            # Check if this is dimensional dot notation (x.attr, y.attr, z.attr)
+            if "." in key:
+                parts = key.split(".", 1)
+                if len(parts) == 2:
+                    dimension_name, attribute = parts
+                    if dimension_name in ["x", "y", "z"]:
+                        # This is dimensional metadata - handle it directly
+                        result = self._extract_from_dimension(dimension_name, attribute)
+                        if not isinstance(result, (list, tuple, np.ndarray)):
+                            result = [result]
+                        kwargs[key] = result
+                        continue
+
+            # Otherwise, use the standard logic from BaseFormatter
+            main_key, *methods = key.split(".")
+            result = self.format_key(main_key)
+            for method in methods:
+                if method in SPECIAL_METHODS:
+                    result = SPECIAL_METHODS[method](result)
+                else:
+                    result = getattr(np, method)(result)
+                if not isinstance(result, (list, tuple, np.ndarray)):
+                    result = [result]
+            kwargs[key] = result
+        return kwargs
+
     def format_key(self, key):
+        # Note: This method now only handles non-dotted keys
+        # Dotted keys are handled in format_keys() above
+
+        # Original logic for non-dotted keys
         if key in self.SUBPLOT_ATTRIBUTES:
             value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
         elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
@@ -291,6 +340,52 @@ class LayerFormatter(BaseFormatter):
                 issue_warnings=self._issue_warnings,
                 axis=self._axis,
             )
+        return value
+
+    def _extract_from_dimension(self, dimension_name, attribute):
+        """
+        Extract metadata from a specific dimension using dot notation.
+
+        Parameters
+        ----------
+        dimension_name : str
+            The dimension name ('x', 'y', or 'z')
+        attribute : str
+            The attribute to extract (e.g., 'units', 'variable_name', 'long_name')
+
+        Returns
+        -------
+        value
+            The extracted metadata value
+
+        Raises
+        ------
+        ValueError
+            If the specified dimension does not exist in the layer's dimension set
+        """
+        # Get the dimension from the layer's dimension set
+        dimension = getattr(self.layer.dimension_set, dimension_name, None)
+
+        if dimension is None:
+            # Raise a clear error when dimension doesn't exist
+            available_dims = ["x", "y"]
+            if self.layer.dimension_set.z is not None:
+                available_dims.append("z")
+            raise ValueError(
+                f"Dimension '{dimension_name}' not found in layer. "
+                f"Available dimensions: {', '.join(available_dims)}. "
+                f"Cannot extract attribute '{attribute}'."
+            )
+
+        # Use the same extraction logic as for regular keys, but on the specific dimension
+        value = metadata.labels.extract(
+            dimension,
+            attribute,
+            default=self._default,
+            issue_warnings=self._issue_warnings,
+            axis=None,  # We're already targeting a specific dimension
+        )
+
         return value
 
     def format_field(self, _value, format_spec):
@@ -348,6 +443,48 @@ class SubplotFormatter(BaseFormatter):
         else:
             return f(value, conversion)
 
+    def format_keys(self, format_string, kwargs):
+        """
+        Format keys in a format string, with special handling for dimensional metadata.
+
+        Overrides BaseFormatter.format_keys to handle dimensional dot notation
+        (e.g., x.units, y.variable_name) by delegating to LayerFormatter which
+        has the logic to extract from specific dimensions.
+        """
+        keys = [i[1] for i in self.parse(format_string) if i[1] is not None]
+        for key in keys:
+            # Check if this is dimensional dot notation (x.attr, y.attr, z.attr)
+            if "." in key:
+                parts = key.split(".", 1)
+                if len(parts) == 2:
+                    dimension_name, attribute = parts
+                    if dimension_name in ["x", "y", "z"]:
+                        # This is dimensional metadata - delegate to LayerFormatter for each layer
+                        values = [
+                            LayerFormatter(
+                                layer,
+                                default=self._default,
+                                issue_warnings=self._issue_warnings,
+                                axis=self._axis
+                            )._extract_from_dimension(dimension_name, attribute)
+                            for layer in self.subplot.layers
+                        ]
+                        kwargs[key] = values
+                        continue
+
+            # Otherwise, use the standard logic from BaseFormatter
+            main_key, *methods = key.split(".")
+            result = self.format_key(main_key)
+            for method in methods:
+                if method in SPECIAL_METHODS:
+                    result = SPECIAL_METHODS[method](result)
+                else:
+                    result = getattr(np, method)(result)
+                if not isinstance(result, (list, tuple, np.ndarray)):
+                    result = [result]
+            kwargs[key] = result
+        return kwargs
+
     def format_key(self, key):
         """
         Format a key by extracting values from all layers in the subplot.
@@ -378,7 +515,21 @@ class SubplotFormatter(BaseFormatter):
         """
         f = super().format_field
         if isinstance(value, list):
-            values = [f(v, format_spec) for v in value]
+            # Flatten nested lists by taking the first element of any list items
+            # This handles cases where metadata extraction returns lists (e.g., time arrays)
+            flattened_values = []
+            for v in value:
+                if isinstance(v, (list, tuple, np.ndarray)):
+                    # Take the middle element for time-like arrays to be most representative
+                    if len(v) > 0:
+                        middle_idx = len(v) // 2
+                        flattened_values.append(v[middle_idx])
+                    else:
+                        flattened_values.append(None)
+                else:
+                    flattened_values.append(v)
+
+            values = [f(v, format_spec) for v in flattened_values]
             if self._layer_index is not None:
                 value = values[self._layer_index]
                 self._layer_index = None

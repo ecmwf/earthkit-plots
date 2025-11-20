@@ -18,7 +18,6 @@ import warnings
 import matplotlib.dates as mdates
 import numpy as np
 
-from earthkit.plots import identifiers
 from earthkit.plots.core.extractors import (
     extract_plottables_1d,
     extract_plottables_2d,
@@ -29,11 +28,8 @@ from earthkit.plots.metadata.formatters import (
     DimensionSetFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Interpolate, Regrid
+from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source, get_vector_sources
-from earthkit.plots.sources.multi import MultiSource
-from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
@@ -325,6 +321,9 @@ class Subplot:
 
     def plot_1d(method_name=None):
         """Decorator for 1D plotting methods (line, scatter)."""
+        # Sentinel value to distinguish "not provided" from "explicitly None"
+        _LABEL_AUTO = object()
+
         def decorator(method):
             @functools.wraps(method)
             def wrapper(
@@ -335,8 +334,12 @@ class Subplot:
                 z=None,
                 style=None,
                 every=None,
+                label=_LABEL_AUTO,
                 **kwargs,
             ):
+                # Convert sentinel to None for extract_plottables_1d
+                label_for_extraction = None if label is _LABEL_AUTO else label
+
                 # Get processed data and kwargs from extract_plottables_1d
                 x_values, y_values, z_values, plot_kwargs = extract_plottables_1d(
                     self,
@@ -347,6 +350,7 @@ class Subplot:
                     z=z,
                     style=style,
                     every=every,
+                    label=label_for_extraction,
                     **kwargs,
                 )
 
@@ -357,7 +361,7 @@ class Subplot:
                 units = plot_kwargs.pop('_units')
                 xunits = plot_kwargs.pop('_xunits')
                 yunits = plot_kwargs.pop('_yunits')
-                label = plot_kwargs.pop('_label')
+                plot_kwargs.pop('_label')  # Discard, we use our own label handling
 
                 # Call matplotlib method directly
                 mpl_method = getattr(self.ax, method_name or method.__name__)
@@ -386,8 +390,26 @@ class Subplot:
                 )
 
                 # Handle label for legend
-                if label is not None:
-                    formatted_label = layer.format_string(label)
+                # Distinguish between:
+                # - label not provided (_LABEL_AUTO) → use default "{variable_name}"
+                # - label=None explicitly → don't show in legend (set to special marker)
+                # - label="something" → use that label
+                if label is _LABEL_AUTO:
+                    # Default: use variable name
+                    label_to_use = "{variable_name}"
+                elif label is None:
+                    # Explicitly None: mark as excluded from legend
+                    label_to_use = "_no_legend_"
+                else:
+                    # User-provided label
+                    label_to_use = label
+
+                # Store the label from plot time for later use by legend()
+                layer._plot_label = label_to_use
+
+                # Set label on mappable (unless excluded)
+                if label_to_use != "_no_legend_":
+                    formatted_label = layer.format_string(label_to_use)
                     if isinstance(mappable, list):
                         for m in mappable:
                             m.set_label(formatted_label)
@@ -402,46 +424,11 @@ class Subplot:
 
         return decorator
 
-    # Alias for backward compatibility
-    plot_2D = plot_1d
-
-    def plot_box(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
-                source = get_source(data=data, x=x, y=y, z=z)
-                kwargs = {**self._plot_kwargs(source), **kwargs}
-                m = getattr(self.ax, method_name or method.__name__)
-                if source.extract_x() in identifiers.TIME:
-                    positions = mdates.date2num(source.x_values)
-                else:
-                    positions = source.x_values
-                widths = min(0.5, np.diff(positions).min() * 0.7)
-                mappable = m(
-                    source.z_values, positions=positions, widths=widths, **kwargs
-                )
-                self.layers.append(Layer(source, mappable, self, style))
-                if isinstance(source._x, str):
-                    if source._x in identifiers.TIME:
-                        locator = mdates.AutoDateLocator(maxticks=30)
-                        formatter = mdates.ConciseDateFormatter(
-                            locator,
-                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
-                        )
-                        self.ax.xaxis.set_major_locator(locator)
-                        self.ax.xaxis.set_major_formatter(formatter)
-                    else:
-                        self.ax.set_xlabel(source._x)
-                if isinstance(source._z, str):
-                    self.ax.set_ylabel(source._z)
-                return mappable
-
-            return wrapper
-
-        return decorator
-
     def plot_2d(method_name=None, extract_domain=False):
         """Decorator for 2D plotting methods (contour, pcolormesh)."""
+        # Sentinel value to distinguish "not provided" from "explicitly None"
+        _LABEL_AUTO = object()
+
         def decorator(method):
             @functools.wraps(method)
             def wrapper(
@@ -450,11 +437,15 @@ class Subplot:
                 x="auto",
                 y="auto",
                 z="auto",
+                regrid="auto",
                 style=None,
                 every=None,
                 auto_style=False,
+                label=_LABEL_AUTO,
                 **kwargs,
             ):
+                # Convert sentinel to None for extract_plottables_2d
+                label_for_extraction = None if label is _LABEL_AUTO else label
                 # Get processed data and kwargs from extract_plottables_2d
                 x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
                     self,
@@ -467,6 +458,8 @@ class Subplot:
                     every=every,
                     auto_style=auto_style,
                     extract_domain=extract_domain,
+                    regrid=regrid,
+                    label=label_for_extraction,
                     **kwargs,
                 )
 
@@ -480,9 +473,10 @@ class Subplot:
                 is_specialized = plot_kwargs.pop('_is_specialized')
                 actual_method_name = plot_kwargs.pop('_method_name')
                 no_style = plot_kwargs.pop('_no_style')
+                plot_label = plot_kwargs.pop('_label')
 
                 # Handle specialized grids (healpix, octahedral)
-                if is_specialized:
+                if is_specialized and not regrid:
                     from earthkit.plots.core.extractors import _handle_specialized_grids_dimension_set
                     mappable = _handle_specialized_grids_dimension_set(
                         self, dimension_set, z_values, plot_style, actual_method_name, plot_kwargs
@@ -502,9 +496,20 @@ class Subplot:
                             plot_kwargs,
                         )
                     else:
+                        import cartopy.crs as ccrs
                         # Call matplotlib method directly
                         mpl_method = getattr(self.ax, method_name or method.__name__)
-                        mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
+
+                        # For scatter, handle z_values specially
+                        if actual_method_name == 'scatter':
+                            if z_values is not None:
+                                # Colored scatter - pass z as 'c' parameter
+                                mappable = mpl_method(x_values, y_values, c=z_values, **plot_kwargs)
+                            else:
+                                # Uncolored scatter - no color parameter
+                                mappable = mpl_method(x_values, y_values, **plot_kwargs)
+                        else:
+                            mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
 
                 # Create and store layer
                 from earthkit.plots.core.layers import Layer
@@ -523,6 +528,25 @@ class Subplot:
                     style=plot_style,
                     axis_units=axis_units,
                 )
+
+                # Handle label for legend
+                # Distinguish between:
+                # - label not provided (_LABEL_AUTO) → use default "{variable_name} ({units})"
+                # - label=None explicitly → don't show in legend (set to special marker)
+                # - label="something" → use that label
+                if label is _LABEL_AUTO:
+                    # Default: use variable name with units
+                    label_to_use = "{variable_name} ({units})"
+                elif label is None:
+                    # Explicitly None: mark as excluded from legend
+                    label_to_use = "_no_legend_"
+                else:
+                    # User-provided label
+                    label_to_use = label
+
+                # Store the label from plot time for later use by legend()
+                layer._plot_label = label_to_use
+
                 self.layers.append(layer)
 
                 return mappable
@@ -531,8 +555,171 @@ class Subplot:
 
         return decorator
 
-    # Alias for backward compatibility
-    plot_3D = plot_2d
+    def plot_1d_or_2d(method_name=None):
+        """
+        Decorator for plotting methods that can handle both 1D and 2D data (e.g., scatter).
+
+        Tries 2D extraction first (to get x, y, z). If that fails with MissingDimensionError,
+        falls back to 1D extraction (to get x, y without z).
+
+        This allows scatter to work with:
+        - 2D/spatial data: data(points) with lat(points), lon(points) → x=lon, y=lat, z=values
+        - 1D/time series: data(time) → x=time, y=values, z=None
+        """
+        # Sentinel value to distinguish "not provided" from "explicitly None"
+        _LABEL_AUTO = object()
+
+        def decorator(method):
+            @functools.wraps(method)
+            def wrapper(
+                self,
+                *args,
+                x="auto",
+                y="auto",
+                z="auto",
+                regrid="auto",
+                style=None,
+                every=None,
+                auto_style=False,
+                label=_LABEL_AUTO,
+                **kwargs,
+            ):
+                from earthkit.plots.sources.extractors.exceptions import MissingDimensionError, IncompatibleDimensionsError
+
+                # Try 2D extraction first (for spatial scatter, even with z=None for grid_points)
+                # This handles geographic data with lat/lon coordinates
+                use_1d = False
+
+                # Convert sentinel to None for extraction functions
+                label_for_extraction = None if label is _LABEL_AUTO else label
+
+                try:
+                    x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
+                        self,
+                        method_name or method.__name__,
+                        args=args,
+                        x=x,
+                        y=y,
+                        z=z,
+                        style=style,
+                        every=every,
+                        auto_style=auto_style,
+                        extract_domain=True,  # Always extract domain for scatter
+                        regrid=regrid,
+                        label=label_for_extraction,
+                        **kwargs,
+                    )
+
+                    # Extract metadata for layer creation
+                    dimension_set = plot_kwargs.pop('_dimension_set')
+                    plot_style = plot_kwargs.pop('_style')
+                    primary_axis = plot_kwargs.pop('_primary_axis')
+                    units = plot_kwargs.pop('_units')
+                    xunits = plot_kwargs.pop('_xunits')
+                    yunits = plot_kwargs.pop('_yunits')
+                    # Pop 2D-specific keys that won't be used
+                    plot_kwargs.pop('_is_specialized', None)
+                    plot_kwargs.pop('_method_name', None)
+                    plot_kwargs.pop('_no_style', None)
+                    # Discard _label - we use the label parameter from the decorator
+                    plot_kwargs.pop('_label', None)
+
+                except (MissingDimensionError, IncompatibleDimensionsError):
+                    # Fall back to 1D extraction (for time series scatter)
+                    use_1d = True
+
+                if use_1d:
+                    # Fall back to 1D extraction (for time series scatter)
+                    x_values, y_values, z_values, plot_kwargs = extract_plottables_1d(
+                        self,
+                        method_name or method.__name__,
+                        args=args,
+                        x=x,
+                        y=y,
+                        z=z,
+                        style=style,
+                        every=every,
+                        auto_style=auto_style,
+                        label=label_for_extraction,
+                        **kwargs,
+                    )
+
+                    # Extract metadata for layer creation
+                    dimension_set = plot_kwargs.pop('_dimension_set')
+                    plot_style = plot_kwargs.pop('_style')
+                    primary_axis = plot_kwargs.pop('_primary_axis')
+                    units = plot_kwargs.pop('_units')
+                    xunits = plot_kwargs.pop('_xunits')
+                    yunits = plot_kwargs.pop('_yunits')
+                    # Discard _label - we use the label parameter from the decorator
+                    plot_kwargs.pop('_label', None)
+
+                # Call matplotlib scatter method
+                mpl_method = getattr(self.ax, method_name or method.__name__)
+                if z_values is not None:
+                    # Colored scatter
+                    mappable = mpl_method(x_values, y_values, c=z_values, **plot_kwargs)
+                else:
+                    # Uncolored scatter
+                    mappable = mpl_method(x_values, y_values, **plot_kwargs)
+
+                # Create and store layer
+                from earthkit.plots.core.layers import Layer
+                axis_units = {}
+                if xunits is not None:
+                    axis_units["x"] = xunits
+                if yunits is not None:
+                    axis_units["y"] = yunits
+                if units is not None and primary_axis not in axis_units:
+                    axis_units[primary_axis] = units
+
+                # Create layer
+                layer = Layer(
+                    dimension_set=dimension_set,
+                    mappable=mappable,
+                    subplot=self,
+                    style=plot_style,
+                    axis_units=axis_units,
+                )
+
+                # Handle label for legend
+                # Distinguish between:
+                # - label not provided (_LABEL_AUTO) → use default based on context
+                # - label=None explicitly → don't show in legend (set to special marker)
+                # - label="something" → use that label
+                if label is _LABEL_AUTO:
+                    # Default: set based on plot context
+                    if dimension_set.z is None:
+                        # 1D scatter: use variable name
+                        label_to_use = "{variable_name}"
+                    else:
+                        # 2D scatter: use variable name and units
+                        label_to_use = "{variable_name} ({units})"
+                elif label is None:
+                    # Explicitly None: mark as excluded from legend
+                    label_to_use = "_no_legend_"
+                else:
+                    # User-provided label
+                    label_to_use = label
+
+                # Store the label from plot time for later use by legend()
+                layer._plot_label = label_to_use
+
+                # Set label on mappable (unless excluded)
+                if label_to_use != "_no_legend_":
+                    formatted_label = layer.format_string(label_to_use)
+                    if isinstance(mappable, list):
+                        for m in mappable:
+                            m.set_label(formatted_label)
+                    else:
+                        mappable.set_label(formatted_label)
+
+                self.layers.append(layer)
+                return mappable
+
+            return wrapper
+
+        return decorator
 
     def plot_vector(method_name=None):
         def decorator(method):
@@ -630,183 +817,10 @@ class Subplot:
 
         return decorator
 
-    def _extract_plottables_2D(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        return extract_plottables_2D(
-            self,
-            method_name,
-            args,
-            x=x,
-            y=y,
-            z=z,
-            style=style,
-            no_style=no_style,
-            units=units,
-            every=every,
-            source_units=source_units,
-            auto_style=auto_style,
-            regrid=regrid,
-            metadata=metadata,
-            **kwargs,
-        )
-
-    def _extract_plottables(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        extract_domain=False,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        return extract_plottables_3D(
-            self,
-            method_name,
-            args,
-            x=x,
-            y=y,
-            z=z,
-            style=style,
-            no_style=no_style,
-            units=units,
-            every=every,
-            source_units=source_units,
-            extract_domain=extract_domain,
-            auto_style=auto_style,
-            regrid=regrid,
-            metadata=metadata,
-            **kwargs,
-        )
-
-    def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
-        """Configures style based on method name, style, source, and units."""
-        if style:
-            return style
-        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-        # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
-        style_class = get_style_class(method_name)
-        style = (
-            style_class(**{**style_kwargs, "units": units})
-            if not auto_style
-            else auto.guess_style(source, units=units or source.units)
-        )
-        return style
-
-    def _process_z_values(self, style, source, z):
-        """Processes z values by converting units and applying a scale factor."""
-        if source._data is None and z is None:
-            return None
-
-        z_values = style.convert_units(source.z_values, source.units)
-        return style.apply_scale_factor(z_values)
-
-    def _apply_sampling(self, x_values, y_values, z_values, every):
-        """Applies sampling to x, y, and z values if 'every' is specified."""
-        if every:
-            x_values = x_values[::every]
-            y_values = y_values[::every]
-            if z_values is not None:
-                z_values = z_values[::every, ::every]
-        return x_values, y_values, z_values
-
-    def _plot_healpix(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import healpix
-
-        nest = source.metadata("orderingConvention", default=None) == "nested"
-        kwargs["transform"] = self.crs
-        return healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
-
-    def _plot_octahedral(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import octahedral
-
-        return octahedral.plot_octahedral_grid(
-            source.x_values,
-            source.y_values,
-            z_values,
-            self.ax,
-            style=style,
-            **kwargs,
-        )
-
-    # def _plot_reduced_gg(self, source, z_values, style, kwargs):
-    #     """Handles plotting for 'reduced_gg' grid type."""
-    #     from earthkit.plots.geo import octahedral
-
-    #     kwargs["transform"] = self.crs
-    #     return octahedral.nnshow(
-    #         z_values,
-    #         source.x_values,
-    #         source.y_values,
-    #         ax=self.ax,
-    #         style=style,
-    #         **kwargs,
-    #     )
-
-    def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
-    ):
-        """Attempts to plot with or without interpolation as needed."""
-        if "interpolate" not in kwargs:
-            try:
-                return getattr(style, method_name)(
-                    self.ax, x_values, y_values, z_values, **kwargs
-                )
-            except (ValueError, TypeError):
-                warnings.warn(
-                    f"{method_name} failed with raw data, attempting interpolation to structured grid with default interpolation options."
-                )
-
-        # TODO: handle interpolate kwarg in decorator
-        interpolate = kwargs.pop("interpolate", dict())
-        if interpolate is True:
-            interpolate = Interpolate()
-        if isinstance(interpolate, dict):
-            interpolate = Interpolate(**interpolate)
-        x_values, y_values, z_values = interpolate.apply(
-            x_values,
-            y_values,
-            z_values,
-            source_crs=source_crs,
-            target_crs=self.crs,
-        )
-        _ = kwargs.pop("transform_first", None)
-        if interpolate.transform:
-            _ = kwargs.pop("transform", None)
-        return getattr(style, method_name)(
-            self.ax, x_values, y_values, z_values, **kwargs
-        )
-
-
     @property
     def figure(self):
         """The :class:`earthkit.plots.components.figures.Figure` object."""
-        from earthkit.plots.components.figures import Figure
+        from earthkit.plots.core.figures import Figure
 
         if self._figure is None:
             self._figure = Figure(1, 1, size=self._size)
@@ -830,12 +844,13 @@ class Subplot:
         """
         Add a y-axis label to the plot.
         """
-        if label is None:
-            metadata = self.layers[0].sources[0].y_metadata
-            if metadata is not None and "units" in metadata:
-                label = "{variable_name} ({units})"
-            else:
-                label = "{variable_name}"
+        # if label is None:
+        #     metadata = self.layers[0].sources[0].y_metadata
+        #     if metadata is not None and "units" in metadata:
+        #         label = "{variable_name} ({units})"
+        #     else:
+        #         label = "{variable_name}"
+        label = "{variable_name} ({units})" if label is None else label
         label = self.format_string(label, axis="y")
         return self.ax.set_ylabel(label, **kwargs)
 
@@ -843,12 +858,13 @@ class Subplot:
         """
         Add an x-axis label to the plot.
         """
-        if label is None:
-            metadata = self.layers[0].sources[0].x_metadata
-            if metadata is not None and "units" in metadata:
-                label = "{variable_name} ({units})"
-            else:
-                label = "{variable_name}"
+        # if label is None:
+        #     metadata = self.layers[0].sources[0].x_metadata
+        #     if metadata is not None and "units" in metadata:
+        #         label = "{variable_name} ({units})"
+        #     else:
+        #         label = "{variable_name}"
+        label = "{variable_name} ({units})" if label is None else label
         label = self.format_string(label, axis="x")
         return self.ax.set_xlabel(label, **kwargs)
 
@@ -888,7 +904,7 @@ class Subplot:
         Plot coastlines on the Subplot.
 
         NOTE: This method is not implemented on Subplots, but may be available
-        on subclasses such as :class:`earthkit.plots.components.maps.Map`.
+        on subclasses such as :class:`earthkit.plots.core.maps.Map`.
         """
         raise NotImplementedError
 
@@ -897,15 +913,782 @@ class Subplot:
         Plot gridlines on the Subplot.
 
         NOTE: This method is not implemented on Subplots, but may be available
-        on subclasses such as :class:`earthkit.plots.components.maps.Map`.
+        on subclasses such as :class:`earthkit.plots.core.maps.Map`.
         """
         raise NotImplementedError
 
-    @plot_1d()
-    def quantiles(self, *args, **kwargs):
-        pass
+    def _compute_quantiles(
+        self,
+        data,
+        x="auto",
+        dim=None,
+        quantiles=None,
+        style=None,
+        units=None,
+        xunits=None,
+        yunits=None,
+    ):
+        """
+        Compute quantiles along a specified dimension with unit conversion.
 
-    @plot_1d()
+        This is a private helper method that handles data validation, unit conversion,
+        and quantile computation. It returns all necessary data for visualization
+        methods like boxenplot() and envelopes().
+
+        Parameters
+        ----------
+        data : xarray.DataArray or xarray.Dataset
+            The data to process. Will be automatically squeezed.
+        x : str, optional
+            The dimension to use for the x-axis. Default is "auto".
+        dim : str, optional
+            The dimension along which to compute quantiles. If None, uses left-most dimension.
+        quantiles : list of float, optional
+            Quantile values to compute. Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for colors and units.
+        units : str, optional
+            Target units for the data values (y-axis).
+        xunits : str, optional
+            Target units for the x-axis values.
+        yunits : str, optional
+            Target units for the y-axis values. Takes precedence over `units`.
+
+        Returns
+        -------
+        dict
+            Dictionary containing:
+            - quantile_data: xarray.DataArray with computed quantiles
+            - x_values: array of x-axis values
+            - x_dim: name of x dimension
+            - q_values: 2D array of quantile values (n_quantiles, n_x_points)
+            - base_color: color extracted from style
+            - pairs: list of (lower_idx, upper_idx) tuples for quantile pairs
+            - median_idx: index of median quantile (None if even number of quantiles)
+            - n_quantiles: number of quantiles
+            - target_xunits: target units for x-axis
+            - target_yunits: target units for y-axis
+            - target_units: general target units
+            - representative_data: 1D data for dimension set creation
+            - style: processed style object
+        """
+        import xarray as xr
+        xr.set_options(keep_attrs=True)
+
+        # Import needed functions early to avoid shadowing issues
+        from earthkit.plots.core.extractors import _infer_plot_type_from_subplot, _ensure_style_from_kwargs
+        from earthkit.plots.sources import get_dimension_set
+        from earthkit.plots.sources.core import PlotType
+
+        # Default quantiles
+        if quantiles is None:
+            quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+
+        # Validate quantiles
+        quantiles = sorted(quantiles)
+        if not all(0 <= q <= 1 for q in quantiles):
+            raise ValueError("All quantiles must be between 0 and 1")
+
+        # Ensure we have a DataArray
+        if isinstance(data, xr.Dataset):
+            # Get the first data variable
+            data_vars = [v for v in data.data_vars if data[v].ndim > 0]
+            if len(data_vars) == 0:
+                raise ValueError("Dataset has no multi-dimensional data variables")
+            if len(data_vars) > 1:
+                raise ValueError(
+                    f"Dataset has multiple data variables: {data_vars}. "
+                    f"Please select one explicitly (e.g., ds['variable_name'])"
+                )
+            data = data[data_vars[0]]
+
+        # Auto-squeeze dimensions of size 1
+        data = data.squeeze()
+
+        # Configure units based on style if provided
+        style, _ = _ensure_style_from_kwargs(style, {})
+
+        # Set target units on the data dimension (y-axis for quantile plots)
+        # Priority: explicit parameter > style units > no conversion
+        target_units = units
+        target_xunits = xunits
+        target_yunits = yunits
+
+        if style is not None:
+            if target_units is None and hasattr(style, '_units'):
+                target_units = style._units
+
+        # Determine the dimension to compute quantiles over first
+        # We need this to know which dimension to slice for unit conversion
+        if dim is None:
+            # Use the left-most (first) dimension
+            if len(data.dims) < 2:
+                raise ValueError(
+                    f"Data must have at least 2 dimensions for quantile plotting. "
+                    f"Got {len(data.dims)} dimension(s): {list(data.dims)}. "
+                    f"After squeezing, need one dimension for quantiles and one for x-axis."
+                )
+            dim = data.dims[0]
+        elif dim not in data.dims:
+            raise ValueError(
+                f"Dimension '{dim}' not found in data. Available dimensions: {list(data.dims)}"
+            )
+
+        # For quantile plots, the y-axis contains the data values
+        # Apply unit conversion to the raw data before computing quantiles
+        if target_yunits is not None or target_units is not None:
+            y_target_units = target_yunits or target_units
+
+            # Use earthkit's unit conversion if available
+            # For 2D data, we need to create a 1D slice to get the dimension for conversion
+            if len(data.dims) >= 2:
+                # Get plot type from subplot
+                plot_type_enum = _infer_plot_type_from_subplot(self, is_1d=True)
+
+                # Create a 1D slice to extract units metadata
+                # Slice along the quantile dimension (dim), keeping the x-axis dimension
+                data_slice = data.isel({dim: 0})
+
+                temp_dimension_set = get_dimension_set(
+                    data_slice,
+                    plot_type=plot_type_enum,
+                    x="auto",
+                    y="auto",
+                    z=None,
+                )
+
+                # Check if we have a y dimension with unit conversion capability
+                if hasattr(temp_dimension_set, 'y') and temp_dimension_set.y is not None:
+                    # Get original values before conversion
+                    original_values = temp_dimension_set.y._values
+
+                    # Set target units - this will trigger conversion when we access .values
+                    temp_dimension_set.y.set_target_units(y_target_units)
+
+                    # Get converted values - the .values property handles conversion automatically
+                    converted_values_1d = temp_dimension_set.y.values
+
+                    # Check if conversion actually happened
+                    if converted_values_1d is not original_values and not np.array_equal(converted_values_1d, original_values):
+                        # Conversion happened, compute scale factor and offset from the 1D conversion
+                        # Use linear regression to find scale and offset: converted = original * scale + offset
+                        # For temperature conversions like K to C, this captures the relationship
+                        if len(original_values) > 1:
+                            # Use two points to compute scale and offset
+                            scale_factor = (converted_values_1d[1] - converted_values_1d[0]) / (original_values[1] - original_values[0])
+                            offset = converted_values_1d[0] - scale_factor * original_values[0]
+                        else:
+                            # Single value - assume additive offset only
+                            scale_factor = 1.0
+                            offset = converted_values_1d[0] - original_values[0]
+
+                        # Apply the same conversion to the full 2D data
+                        converted_values = data.values * scale_factor + offset
+                        data = xr.DataArray(
+                            converted_values,
+                            dims=data.dims,
+                            coords=data.coords,
+                            attrs=data.attrs
+                        )
+
+        # Compute quantiles along the specified dimension
+        quantile_data = data.quantile(quantiles, dim=dim)
+
+        # After quantile computation, we should have a 'quantile' dimension
+        # and the remaining dimension(s) for plotting
+        remaining_dims = [d for d in quantile_data.dims if d != 'quantile']
+
+        if len(remaining_dims) == 0:
+            raise ValueError(
+                f"After computing quantiles and squeezing, no dimensions remain for x-axis. "
+                f"Original dimensions: {list(data.dims)}"
+            )
+        elif len(remaining_dims) > 1:
+            raise ValueError(
+                f"After computing quantiles, multiple dimensions remain: {remaining_dims}. "
+                f"Please squeeze or select data to have only one remaining dimension."
+            )
+
+        # Get x values
+        x_dim = remaining_dims[0]
+        if x == "auto":
+            x_values = quantile_data[x_dim].values
+        else:
+            # User specified x coordinate
+            if x in quantile_data.coords:
+                x_values = quantile_data[x].values
+            else:
+                raise ValueError(f"Coordinate '{x}' not found in data")
+
+        # Get the quantile values as a 2D array: (n_quantiles, n_x_points)
+        q_values = quantile_data.values
+
+        # Configure style for colors
+        if style is None:
+            # Use a default blue color scheme
+            base_color = 'steelblue'
+        else:
+            # Try to get color from style
+            if hasattr(style, '_colors') and style._colors:
+                if isinstance(style._colors, str):
+                    base_color = style._colors
+                elif hasattr(style._colors, '__iter__'):
+                    base_color = style._colors[0] if len(style._colors) > 0 else 'steelblue'
+                else:
+                    base_color = 'steelblue'
+            else:
+                base_color = 'steelblue'
+
+        # Plot quantile bands symmetrically
+        # Pair quantiles from outside to inside: (0, 1), (0.1, 0.9), (0.25, 0.75), etc.
+        n_quantiles = len(quantiles)
+
+        # Find pairs and the median
+        pairs = []
+        median_idx = None
+
+        for i in range(n_quantiles // 2):
+            pairs.append((i, n_quantiles - 1 - i))
+
+        # Check if there's a median (odd number of quantiles)
+        if n_quantiles % 2 == 1:
+            median_idx = n_quantiles // 2
+
+        # Create representative data for dimension set creation
+        median_or_first_idx = median_idx if median_idx is not None else n_quantiles // 2
+        representative_data = quantile_data.isel(quantile=median_or_first_idx)
+
+        return {
+            'quantile_data': quantile_data,
+            'x_values': x_values,
+            'x_dim': x_dim,
+            'q_values': q_values,
+            'base_color': base_color,
+            'pairs': pairs,
+            'median_idx': median_idx,
+            'n_quantiles': n_quantiles,
+            'target_xunits': target_xunits,
+            'target_yunits': target_yunits,
+            'target_units': target_units,
+            'representative_data': representative_data,
+            'style': style,
+        }
+
+    def boxenplot(
+        self,
+        data,
+        x="auto",
+        dim=None,
+        quantiles=None,
+        style=None,
+        label=None,
+        color=None,
+        units=None,
+        xunits=None,
+        yunits=None,
+        **kwargs
+    ):
+        """
+        Plot a boxenplot (letter-value plot) from multi-dimensional quantile data.
+
+        A boxenplot visualizes quantiles as stacked boxes with varying widths, where
+        inner quantiles have wider boxes to show the distribution shape. The outermost
+        quantile pair (min-max) is shown as a line. Boxes use solid colors with a gradient
+        from light (outer) to dark (inner) shades. This is useful for ensemble forecasts,
+        uncertainty visualization, or distribution analysis.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or xarray.Dataset
+            The data to plot. Will be automatically squeezed to remove size-1 dimensions.
+        x : str, optional
+            The dimension to use for the x-axis. Default is "auto" (uses the remaining
+            dimension after quantile computation).
+        dim : str, optional
+            The dimension along which to compute quantiles (e.g., 'number' for ensemble members).
+            If None, uses the left-most dimension.
+        quantiles : list of float, optional
+            Quantile values to compute, as fractions between 0 and 1.
+            Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
+            Quantiles are paired symmetrically (e.g., 0.1-0.9, 0.25-0.75).
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for colors. If None, uses default styling.
+        label : str, optional
+            Label for the legend. Can contain format placeholders like "{variable_name}".
+        color : str or tuple, optional
+            Color for the darkest (innermost) box. If None, uses matplotlib's color cycle
+            to automatically assign colors. This allows multiple boxenplots on the same axes
+            to have different colors. Can be any valid matplotlib color specification.
+        units : str, optional
+            Target units for the data values (y-axis). If specified, data will be
+            automatically converted from source units to target units.
+        xunits : str, optional
+            Target units for the x-axis values.
+        yunits : str, optional
+            Target units for the y-axis values. Takes precedence over `units`.
+        **kwargs
+            Additional keyword arguments. Supports `boxprops` for styling the boxes.
+            boxprops : dict, optional
+                Dictionary of properties for the box rectangles. Can include:
+                - 'edgecolor': Color of box outlines (default: 'black')
+                - 'linewidth': Width of box outlines (default: 0.5)
+                - 'linestyle': Style of box outlines (default: 'solid')
+
+        Returns
+        -------
+        list of matplotlib artists
+            List of matplotlib artists (Lines and Rectangles) for each quantile band.
+
+        Examples
+        --------
+        >>> # Ensemble forecast visualization with automatic colors
+        >>> chart = Chart()
+        >>> chart.boxenplot(ensemble_data, dim='number')
+        >>> chart.xlabel()
+        >>> chart.ylabel()
+        >>> chart.show()
+
+        >>> # Custom color
+        >>> chart.boxenplot(data, dim='member', color='steelblue')
+
+        >>> # Multiple boxenplots with automatic color cycling
+        >>> chart.boxenplot(data1, dim='member', label='Forecast 1')
+        >>> chart.boxenplot(data2, dim='member', label='Forecast 2')  # Different color
+
+        >>> # Custom box styling with boxprops
+        >>> chart.boxenplot(data, dim='member', color='steelblue',
+        ...                 boxprops={'edgecolor': 'navy', 'linewidth': 1.0})
+        """
+        # Compute quantiles
+        result = self._compute_quantiles(
+            data, x=x, dim=dim, quantiles=quantiles, style=style,
+            units=units, xunits=xunits, yunits=yunits
+        )
+
+        # Extract results
+        quantile_data = result['quantile_data']
+        x_values = result['x_values']
+        x_dim = result['x_dim']
+        q_values = result['q_values']
+        base_color = result['base_color']
+        pairs = result['pairs']
+        median_idx = result['median_idx']
+        n_quantiles = result['n_quantiles']
+        target_xunits = result['target_xunits']
+        target_yunits = result['target_yunits']
+        target_units = result['target_units']
+        representative_data = result['representative_data']
+        style = result['style']
+
+        # Boxenplot style: letter-value plot with varying box widths
+        # Inner quantiles get wider boxes to show distribution shape
+        from matplotlib.patches import Rectangle
+        from matplotlib.colors import to_rgb, to_hex
+        import numpy as np
+
+        mappables = []
+
+        # Extract boxprops from kwargs
+        boxprops = kwargs.pop('boxprops', {})
+
+        # Set default box styling
+        edge_color = boxprops.get('edgecolor', 'black')
+        edge_linewidth = boxprops.get('linewidth', 0.5)
+        edge_linestyle = boxprops.get('linestyle', 'solid')
+
+        # Determine the base color
+        # If color is explicitly provided, use it. Otherwise use matplotlib's color cycle
+        if color is not None:
+            plot_color = color
+        elif style is not None and hasattr(style, '_colors') and style._colors:
+            # Use color from style if available
+            if isinstance(style._colors, str):
+                plot_color = style._colors
+            elif hasattr(style._colors, '__iter__'):
+                plot_color = style._colors[0] if len(style._colors) > 0 else None
+            else:
+                plot_color = None
+        else:
+            plot_color = None
+
+        # If no color specified, get next color from matplotlib's cycle
+        if plot_color is None:
+            # Get the next color from the axis's color cycle
+            plot_color = self.ax._get_lines.get_next_color()
+
+        # Calculate the spacing between x positions
+        if len(x_values) > 1:
+            # Use the minimum spacing between consecutive x values
+            if np.issubdtype(x_values.dtype, np.datetime64):
+                # Convert to numeric for spacing calculation
+                from matplotlib.dates import date2num
+                x_numeric = date2num(x_values)
+                x_spacing = np.min(np.diff(x_numeric))
+            else:
+                x_spacing = np.min(np.diff(x_values))
+        else:
+            x_spacing = 1.0
+
+        # Base box width (as fraction of x_spacing)
+        base_width = 0.6 * x_spacing
+
+        # For each x position, draw boxes for each quantile pair
+        for x_idx, x_val in enumerate(x_values):
+            # Use x_val directly (matplotlib handles datetime conversion)
+            x_pos = x_val
+
+            # Draw boxes for each quantile pair (from outside to inside)
+            for pair_idx, (lower_idx, upper_idx) in enumerate(pairs):
+                # Width decreases as we go inward (reverse of typical letter-value plot)
+                # Outermost band (min-max) is narrowest, innermost is widest
+                width_factor = (pair_idx + 1) / len(pairs)
+                box_width = base_width * width_factor
+
+                # Get the y-values for this quantile pair at this x position
+                y_lower = q_values[lower_idx, x_idx]
+                y_upper = q_values[upper_idx, x_idx]
+                box_height = y_upper - y_lower
+
+                # Calculate color: widest box (innermost, largest pair_idx) is darkest
+                # narrowest box (outermost, smallest pair_idx) is lightest
+                if pair_idx == 0:
+                    # Outermost box (min-max): draw as a line instead
+                    # Use the same color as box edges for consistency
+                    # Use zorder=1 to ensure it appears behind the boxes
+                    if np.issubdtype(x_values.dtype, np.datetime64):
+                        from matplotlib.dates import date2num
+                        x_pos_numeric = date2num(x_pos)
+                        # Draw vertical line from min to max
+                        line = self.ax.plot(
+                            [x_pos_numeric, x_pos_numeric],
+                            [y_lower, y_upper],
+                            color=edge_color,
+                            linewidth=edge_linewidth,
+                            linestyle=edge_linestyle,
+                            alpha=1.0,
+                            zorder=1,
+                        )
+                    else:
+                        # Draw vertical line from min to max
+                        line = self.ax.plot(
+                            [x_pos, x_pos],
+                            [y_lower, y_upper],
+                            color=edge_color,
+                            linewidth=edge_linewidth,
+                            linestyle=edge_linestyle,
+                            alpha=1.0,
+                            zorder=1,
+                        )
+
+                    if x_idx == 0:
+                        mappables.extend(line)
+                else:
+                    # For other boxes, create lighter shades
+                    # pair_idx goes from 1 to len(pairs)-1
+                    # Create gradient from light (outer) to dark (inner)
+                    # Normalize pair_idx (excluding the first pair which is a line)
+                    normalized_idx = (pair_idx - 1) / max(1, len(pairs) - 2)
+
+                    # Convert base color to RGB
+                    rgb = to_rgb(plot_color)
+
+                    # Create lighter shade by blending with white
+                    # Outer boxes are lighter (more white), inner boxes are darker (less white)
+                    # lightness_factor: 0.0 = full color (darkest), 1.0 = white (lightest)
+                    lightness_factor = 0.4 * (1.0 - normalized_idx)  # 0.7 = max lightness for outermost
+
+                    # Blend with white
+                    box_color = tuple(c * (1 - lightness_factor) + lightness_factor for c in rgb)
+
+                    # Create a rectangle for this box
+                    # For datetime, we need to use date2num for the position
+                    # Use zorder=2 to ensure boxes appear above the range line
+                    if np.issubdtype(x_values.dtype, np.datetime64):
+                        from matplotlib.dates import date2num
+                        x_pos_numeric = date2num(x_pos)
+                        rect = Rectangle(
+                            (x_pos_numeric - box_width/2, y_lower),
+                            box_width,
+                            box_height,
+                            facecolor=box_color,
+                            edgecolor=edge_color,
+                            alpha=1.0,
+                            linewidth=edge_linewidth,
+                            linestyle=edge_linestyle,
+                            zorder=2,
+                        )
+                    else:
+                        rect = Rectangle(
+                            (x_pos - box_width/2, y_lower),
+                            box_width,
+                            box_height,
+                            facecolor=box_color,
+                            edgecolor=edge_color,
+                            alpha=1.0,
+                            linewidth=edge_linewidth,
+                            linestyle=edge_linestyle,
+                            zorder=2,
+                        )
+                    self.ax.add_patch(rect)
+
+                    # Only add the first rectangle to mappables for layer tracking
+                    if x_idx == 0 and pair_idx == 1:
+                        mappables.append(rect)
+
+            # Draw median line at this x position if it exists
+            if median_idx is not None:
+                y_median = q_values[median_idx, x_idx]
+                if np.issubdtype(x_values.dtype, np.datetime64):
+                    from matplotlib.dates import date2num
+                    x_pos_numeric = date2num(x_pos)
+                    median_line = self.ax.plot(
+                        [x_pos_numeric - base_width/2, x_pos_numeric + base_width/2],
+                        [y_median, y_median],
+                        color='white',
+                        linewidth=1.5,
+                        alpha=0.9,
+                        zorder=10,
+                    )
+                else:
+                    median_line = self.ax.plot(
+                        [x_pos - base_width/2, x_pos + base_width/2],
+                        [y_median, y_median],
+                        color='white',
+                        linewidth=1.5,
+                        alpha=0.9,
+                        zorder=10,
+                    )
+                if x_idx == 0:
+                    mappables.extend(median_line)
+
+        # Update axis limits to include all boxes
+        # For datetime axes, explicitly set the x-limits
+        if np.issubdtype(x_values.dtype, np.datetime64):
+            from matplotlib.dates import date2num
+            x_numeric = date2num(x_values)
+            margin = base_width
+            self.ax.set_xlim(x_numeric[0] - margin, x_numeric[-1] + margin)
+        else:
+            margin = base_width
+            self.ax.set_xlim(x_values[0] - margin, x_values[-1] + margin)
+
+        # Let matplotlib autoscale the y-axis
+        self.ax.autoscale_view(scalex=False, scaley=True)
+
+        # Create a layer for this plot
+        from earthkit.plots.sources import get_dimension_set
+        from earthkit.plots.sources.core import PlotType
+
+        dimension_set = get_dimension_set(
+            representative_data,
+            plot_type=PlotType.CARTESIAN_1D,
+            x=x_dim if x == "auto" else x,
+            y="auto",
+            z=None,
+        )
+
+        # Set target units on the dimension set if specified
+        if target_yunits is not None or target_units is not None:
+            y_target_units = target_yunits or target_units
+            if hasattr(dimension_set, 'y') and dimension_set.y is not None:
+                dimension_set.y.set_target_units(y_target_units)
+
+        if target_xunits is not None:
+            if hasattr(dimension_set, 'x') and dimension_set.x is not None:
+                dimension_set.x.set_target_units(target_xunits)
+
+        # Track axis units for proper label formatting
+        axis_units = {}
+        if target_xunits is not None:
+            axis_units["x"] = target_xunits
+        if target_yunits is not None or target_units is not None:
+            axis_units["y"] = target_yunits or target_units
+
+        layer = Layer(
+            dimension_set=dimension_set,
+            mappable=mappables,
+            subplot=self,
+            style=style,
+            axis_units=axis_units,
+        )
+
+        # Handle label
+        if label is not None:
+            formatted_label = layer.format_string(label)
+            # Set label on the first (outermost) band
+            if mappables:
+                mappables[0].set_label(formatted_label)
+
+        self.layers.append(layer)
+
+        return mappables
+
+    def envelopes(
+        self,
+        data,
+        x="auto",
+        dim=None,
+        quantiles=None,
+        style=None,
+        label=None,
+        alpha=0.3,
+        units=None,
+        xunits=None,
+        yunits=None,
+        **kwargs
+    ):
+        """
+        Plot quantile envelopes (fan chart) from multi-dimensional data.
+
+        Envelopes visualize quantiles as simple filled regions between quantile pairs
+        with uniform transparency, creating a fan chart effect. This is useful for
+        ensemble forecasts, uncertainty visualization, or distribution analysis.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or xarray.Dataset
+            The data to plot. Will be automatically squeezed to remove size-1 dimensions.
+        x : str, optional
+            The dimension to use for the x-axis. Default is "auto" (uses the remaining
+            dimension after quantile computation).
+        dim : str, optional
+            The dimension along which to compute quantiles (e.g., 'number' for ensemble members).
+            If None, uses the left-most dimension.
+        quantiles : list of float, optional
+            Quantile values to compute, as fractions between 0 and 1.
+            Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
+            Quantiles are paired symmetrically (e.g., 0.1-0.9, 0.25-0.75).
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for colors. If None, uses default styling.
+        label : str, optional
+            Label for the legend. Can contain format placeholders like "{variable_name}".
+        alpha : float, optional
+            Transparency level for the filled quantile bands. Default is 0.3.
+        units : str, optional
+            Target units for the data values (y-axis). If specified, data will be
+            automatically converted from source units to target units.
+        xunits : str, optional
+            Target units for the x-axis values.
+        yunits : str, optional
+            Target units for the y-axis values. Takes precedence over `units`.
+        **kwargs
+            Additional keyword arguments passed to matplotlib's fill_between.
+
+        Returns
+        -------
+        list of matplotlib artists
+            List of matplotlib artists (PolyCollections and Lines) for each quantile band.
+
+        Examples
+        --------
+        >>> # Ensemble forecast visualization with envelopes
+        >>> chart = Chart()
+        >>> chart.envelopes(ensemble_data, dim='number')
+        >>> chart.xlabel()
+        >>> chart.ylabel()
+        >>> chart.show()
+
+        >>> # Custom quantiles and transparency
+        >>> chart.envelopes(data, dim='member', quantiles=[0, 0.25, 0.5, 0.75, 1], alpha=0.5)
+        """
+        # Compute quantiles
+        result = self._compute_quantiles(
+            data, x=x, dim=dim, quantiles=quantiles, style=style,
+            units=units, xunits=xunits, yunits=yunits
+        )
+
+        # Extract results
+        quantile_data = result['quantile_data']
+        x_values = result['x_values']
+        x_dim = result['x_dim']
+        q_values = result['q_values']
+        base_color = result['base_color']
+        pairs = result['pairs']
+        median_idx = result['median_idx']
+        n_quantiles = result['n_quantiles']
+        target_xunits = result['target_xunits']
+        target_yunits = result['target_yunits']
+        target_units = result['target_units']
+        representative_data = result['representative_data']
+        style = result['style']
+
+        # Envelope style: simple filled regions between quantile pairs
+        mappables = []
+        for i, (lower_idx, upper_idx) in enumerate(pairs):
+            # Constant alpha for envelope style
+            band_alpha = alpha
+
+            fill = self.ax.fill_between(
+                x_values,
+                q_values[lower_idx, :],
+                q_values[upper_idx, :],
+                alpha=band_alpha,
+                color=base_color,
+                edgecolor='none',
+                **kwargs
+            )
+            mappables.append(fill)
+
+        # Plot median line
+        if median_idx is not None:
+            line = self.ax.plot(
+                x_values,
+                q_values[median_idx, :],
+                color=base_color,
+                linewidth=2,
+                alpha=0.9,
+            )
+            mappables.extend(line)
+
+        # Create a layer for this plot
+        from earthkit.plots.sources import get_dimension_set
+        from earthkit.plots.sources.core import PlotType
+
+        dimension_set = get_dimension_set(
+            representative_data,
+            plot_type=PlotType.CARTESIAN_1D,
+            x=x_dim if x == "auto" else x,
+            y="auto",
+            z=None,
+        )
+
+        # Set target units on the dimension set if specified
+        if target_yunits is not None or target_units is not None:
+            y_target_units = target_yunits or target_units
+            if hasattr(dimension_set, 'y') and dimension_set.y is not None:
+                dimension_set.y.set_target_units(y_target_units)
+
+        if target_xunits is not None:
+            if hasattr(dimension_set, 'x') and dimension_set.x is not None:
+                dimension_set.x.set_target_units(target_xunits)
+
+        # Track axis units for proper label formatting
+        axis_units = {}
+        if target_xunits is not None:
+            axis_units["x"] = target_xunits
+        if target_yunits is not None or target_units is not None:
+            axis_units["y"] = target_yunits or target_units
+
+        layer = Layer(
+            dimension_set=dimension_set,
+            mappable=mappables,
+            subplot=self,
+            style=style,
+            axis_units=axis_units,
+        )
+
+        # Handle label
+        if label is not None:
+            formatted_label = layer.format_string(label)
+            # Set label on the first (outermost) band
+            if mappables:
+                mappables[0].set_label(formatted_label)
+
+        self.layers.append(layer)
+
+        return mappables
+
+    @plot_1d("plot")
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -1149,7 +1932,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_1d()
+    @plot_1d_or_2d()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
@@ -1164,6 +1947,10 @@ class Subplot:
         y : str, list, numpy.ndarray, or xarray.DataArray, optional
             The y values to plot. If data is provided, this is assumed to be the
             name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to use for coloring the scatter points. If None, points
+            will not be colored. If data is provided, this is assumed to be the
+            name of a variable in the data.
         style : earthkit.plots.styles.Style, optional
             The Style to use for the scatter plot. If None, a Style is automatically
             generated based on the data.
@@ -1351,6 +2138,161 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontourf`.
         """
 
+    def grid_cells(
+        self,
+        *args,
+        x="auto",
+        y="auto",
+        z="auto",
+        style=None,
+        every=None,
+        auto_style=False,
+        **kwargs,
+    ):
+        """
+        Plot data using grid-specific cell visualization or standard pcolormesh.
+
+        This method automatically detects specialized grid types (HEALPix, octahedral)
+        and delegates to their grid-specific plotting methods. For regular grids,
+        it falls back to standard pcolormesh.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If "auto" (default), coordinates are
+            inferred from data.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If "auto" (default), coordinates are
+            inferred from data.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If "auto" (default), values are
+            inferred from data.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for plotting. If None, a Style is automatically
+            generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
+        every : int, optional
+            Sampling interval for data reduction.
+        auto_style : bool, default=False
+            Whether to automatically guess the appropriate style.
+        **kwargs
+            Additional keyword arguments to pass to the underlying plotting method.
+            Note: 'regrid' parameter is not supported and will raise an error.
+
+        Returns
+        -------
+        mappable
+            The matplotlib mappable object (artist) created by the plot.
+
+        Raises
+        ------
+        ValueError
+            If the 'regrid' parameter is passed. Use pcolormesh() or contourf()
+            for regridding support.
+
+        Examples
+        --------
+        >>> # Automatically plot HEALPix data with grid cells
+        >>> chart.grid_cells(healpix_data)
+
+        >>> # Plot octahedral grid data
+        >>> chart.grid_cells(octahedral_data, style=style)
+
+        >>> # Falls back to pcolormesh for regular grids
+        >>> chart.grid_cells(regular_data)
+        """
+        # Check for regrid parameter and raise error
+        if 'regrid' in kwargs:
+            raise ValueError(
+                "The 'regrid' parameter is not compatible with grid_cells(). "
+                "The grid_cells method is designed to show the exact grid cells "
+                "in your data without any regridding. If you need regridding, "
+                "please use pcolormesh() or contourf() instead."
+            )
+
+        # Get processed data and kwargs from extract_plottables_2d
+        x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
+            self,
+            "grid_cells",  # Use grid_cells to trigger special handling
+            args=args,
+            x=x,
+            y=y,
+            z=z,
+            style=style,
+            every=every,
+            auto_style=auto_style,
+            extract_domain=False,  # Don't extract domain for grid cells
+            regrid=False,  # Never regrid for grid_cells
+            **kwargs,
+        )
+
+        # Extract metadata (keys starting with _) for layer creation
+        dimension_set = plot_kwargs.pop('_dimension_set')
+        plot_style = plot_kwargs.pop('_style')
+        primary_axis = plot_kwargs.pop('_primary_axis')
+        units = plot_kwargs.pop('_units')
+        xunits = plot_kwargs.pop('_xunits')
+        yunits = plot_kwargs.pop('_yunits')
+        is_specialized = plot_kwargs.pop('_is_specialized')
+        actual_method_name = plot_kwargs.pop('_method_name')
+        no_style = plot_kwargs.pop('_no_style')
+        grid_cells_callable = plot_kwargs.pop('_grid_cells_callable', None)
+
+        # Try to use specialized grid_cells method if available
+        mappable = None
+        if grid_cells_callable is not None:
+            # Delegate to the GridIdentifier's grid_cells method
+            mappable = grid_cells_callable(
+                self, dimension_set, z_values, plot_style, actual_method_name, plot_kwargs
+            )
+
+        # Fall back to standard pcolormesh if no specialized grid was handled
+        if mappable is None:
+            # Handle interpolation if requested
+            if not no_style and 'interpolate' in plot_kwargs:
+                from earthkit.plots.core.extractors import plot_with_interpolation
+                mappable = plot_with_interpolation(
+                    self,
+                    plot_style,
+                    "pcolormesh",
+                    x_values,
+                    y_values,
+                    z_values,
+                    getattr(self, 'crs', None),
+                    plot_kwargs,
+                )
+            else:
+                # Call matplotlib pcolormesh directly
+                mappable = self.ax.pcolormesh(x_values, y_values, z_values, **plot_kwargs)
+
+        # Create and store layer
+        from earthkit.plots.core.layers import Layer
+        axis_units = {}
+        if xunits is not None:
+            axis_units["x"] = xunits
+        if yunits is not None:
+            axis_units["y"] = yunits
+        if units is not None and primary_axis not in axis_units:
+            axis_units[primary_axis] = units
+
+        layer = Layer(
+            dimension_set=dimension_set,
+            mappable=mappable,
+            subplot=self,
+            style=plot_style,
+            axis_units=axis_units,
+        )
+        self.layers.append(layer)
+
+        return mappable
+
     @schema.quiver.apply()
     @plot_vector()
     def quiver(self, *args, **kwargs):
@@ -1443,48 +2385,115 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.barbs`.
         """
 
-    def block(self, *args, **kwargs):
+    def grid_points(self, *args, regrid=False, z=None, **kwargs):
         """
-        Plot a pcolormesh on the Subplot.
+        Plot grid points using scatter without regridding.
 
-        Deprecated: Use :meth:`pcolormesh` or :meth:`grid_cells` instead.
+        This method is designed to visualize the original data grid points
+        without any interpolation or regridding. It's useful for inspecting
+        the native resolution and structure of your data.
+
+        By default, regrid is set to False to preserve the original grid.
+        You can override this by explicitly passing regrid=True.
 
         Parameters
         ----------
-        *args : xarray.DataArray or earthkit.data.core.Base
-            The data source for which to plot the block.
-        units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        *args
+            Positional arguments passed to scatter.
+        regrid : bool or Regrid, optional
+            Whether to regrid the data. Default is False (no regridding).
+            Can be set to True or a Regrid instance to enable regridding.
         **kwargs
-            Additional keyword arguments to pass to :meth:`pcolormesh`.
+            Additional keyword arguments passed to scatter.
+
+        Returns
+        -------
+        matplotlib.collections.PathCollection
+            The PathCollection object representing the plotted points.
+
+        See Also
+        --------
+        scatter : The underlying plotting method.
+        grid_cells : Plot grid cells using pcolormesh.
         """
-        import warnings
+        default_kwargs = {
+            "color": "red",
+            "marker": ".",
+            "s": 10,
+            "edgecolors": "none",
+            "label": "{grid} grid points",
+        }
+        return self.scatter(*args, z=z, regrid=regrid, **{**default_kwargs, **kwargs})
 
-        warnings.warn(
-            "block is deprecated and will be removed in a future release. "
-            "Please use grid_cells instead."
-        )
-        return self.pcolormesh(*args, **kwargs)
-
-    grid_cells = pcolormesh
-
-    def legend(self, label=None, *args, **kwargs):
+    def legend(self, location='right', label="auto", **kwargs):
         """
-        Add a legend to the Subplot.
+        Add legends/colorbars to the Subplot for all unique styles.
+
+        Creates one colorbar for each unique style used in the subplot's layers.
+        Layers are grouped by their style's legend key, so layers with visually
+        identical styles (same colors, levels, etc.) share a colorbar.
 
         Parameters
         ----------
-        style : Style, optional
-            The Style to use for the legend. If None (default), a legend is
-            created for each Layer with a unique Style. If a single Style is
-            provided, a single legend is created based on that Style.
-        location : str or tuple, optional
-            The location of the legend(s). Must be a valid matplotlib location
-            (see :func:`matplotlib.pyplot.legend`).
+        location : str, optional
+            The location for the colorbar(s). Valid options are 'right', 'left',
+            'top', 'bottom'. Default is 'right'.
+        label : str, optional
+            Label for the colorbar(s). Default is "auto" which generates a label from
+            layer metadata. Can contain format placeholders (e.g., "{units}",
+            "{long_name}", etc.) which will be replaced with layer metadata values.
+            Use None for no label.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
+            Additional keyword arguments passed to each colorbar creation.
+
+        Returns
+        -------
+        list of matplotlib.colorbar.Colorbar
+            List of created colorbars, one for each unique style.
+
+        Examples
+        --------
+        >>> chart = Chart()
+        >>> chart.contourf(temp_data, style=temp_style)
+        >>> chart.contourf(precip_data, style=precip_style)
+        >>> chart.legend()  # Creates two colorbars with auto-generated labels
+        >>> chart.legend(label="{units}")  # Use only units as label
+        >>> chart.legend(label="Custom Label")  # Use a fixed label
+        >>> chart.legend(label=None)  # No label
         """
-        self.ax.legend(*args, **kwargs)
+        from collections import defaultdict
+
+        # Group layers by their style's legend key
+        style_groups = defaultdict(list)
+
+        for layer in self.layers:
+            # Skip layers explicitly excluded from legend (label=None at plot time)
+            if hasattr(layer, '_plot_label') and layer._plot_label == "_no_legend_":
+                continue
+
+            if layer.style is not None:
+                legend_key = layer.style.get_legend_key()
+                style_groups[legend_key].append(layer)
+
+        # Create a colorbar for each unique style
+        colorbars = []
+        for legend_key, layers in style_groups.items():
+            # Use the first layer as representative
+            layer = layers[0]
+
+            # Determine which label to use:
+            # - If label provided at legend-time (not "auto"), use it (overrides plot-time label)
+            # - Otherwise, use plot-time label if available
+            # - Otherwise, use "auto"
+            effective_label = label
+            if label == "auto" and hasattr(layer, '_plot_label'):
+                effective_label = layer._plot_label
+
+            # Create colorbar for this style
+            cbar = layer.legend(location=location, label=effective_label, **kwargs)
+            colorbars.append(cbar)
+
+        return colorbars
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):

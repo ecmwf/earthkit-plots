@@ -19,14 +19,59 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
-from earthkit.plots.components.subplots import Subplot
+from earthkit.plots.core.subplots import Subplot
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
-from earthkit.plots.metadata.formatters import SourceFormatter
+from earthkit.plots.metadata.formatters import DimensionSetFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source
-from earthkit.plots.styles.levels import step_range
+from earthkit.plots.sources import get_dimension_set
 from earthkit.plots.utils import string_utils
+
+
+def _step_range(bounds, step, ref=0):
+    """
+    Generate a range of values with a given step size and reference point.
+
+    Parameters
+    ----------
+    bounds : list
+        The [min, max] bounds for the range.
+    step : float
+        The step size.
+    ref : float, optional
+        The reference point to align steps to. Default is 0.
+
+    Returns
+    -------
+    list
+        List of values within bounds, aligned to the reference point.
+    """
+    import numpy as np
+
+    min_val, max_val = bounds
+    # Calculate the starting point aligned with reference
+    start = ref + np.ceil((min_val - ref) / step) * step
+    # Generate the range
+    return list(np.arange(start, max_val + step/2, step))
+
+
+def queue_if_no_axes(method):
+    """
+    Decorator for Map methods that should be queued if axes don't exist yet.
+
+    This allows methods like coastlines(), gridlines(), etc. to be called before
+    data is plotted. They will be queued and executed once the CRS is determined.
+    """
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if self._ax is None and not self._crs_explicit:
+            # Queue the method call for later execution
+            self._method_queue.append((method.__name__, args, kwargs))
+            return None
+        else:
+            # Execute immediately
+            return method(self, *args, **kwargs)
+    return wrapper
 
 
 class Map(Subplot):
@@ -54,8 +99,14 @@ class Map(Subplot):
 
     def __init__(self, *args, domain=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Track whether CRS was explicitly set by user
+        self._crs_explicit = crs is not None or domain is not None
+        self._crs_inferred = False
+
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
+
         if domain is None:
             self.domain = domain
             self._crs = crs
@@ -77,7 +128,11 @@ class Map(Subplot):
                 self._crs = coordinate_reference_systems.parse_crs(crs)
             else:
                 self._crs = self.domain.bbox.crs
+
         self.natural_earth_resolution = "medium"
+
+        # Queue for methods that need axes but were called before axes creation
+        self._method_queue = []
 
     @property
     def crs(self):
@@ -115,74 +170,120 @@ class Map(Subplot):
                         name = domains.bounds.to_string(extent)
         return name
 
+    def _infer_crs_from_data(self, dimension_set):
+        """
+        Infer CRS from data if not explicitly set by user.
+
+        Parameters
+        ----------
+        dimension_set : DimensionSet
+            The dimension set from the first data being plotted.
+        """
+        if self._crs_explicit or self._crs_inferred:
+            return  # CRS already determined
+
+        # Try to get CRS from dimension_set
+        data_crs = dimension_set.crs
+        if data_crs is not None:
+            self._crs = data_crs
+            self._crs_inferred = True
+
+    def _ensure_axes(self):
+        """
+        Ensure axes exist, creating them with appropriate CRS if needed.
+        If CRS was not explicitly set and not inferred from data, use PlateCarree.
+        """
+        if self._ax is not None:
+            return  # Axes already exist
+
+        # If CRS still not set, use PlateCarree as default
+        if self._crs is None and not self._crs_explicit:
+            self._crs = ccrs.PlateCarree()
+
+        # Create the axes
+        self._ax = self.figure.fig.add_subplot(
+            self.figure.gridspec[self.row, self.column],
+            projection=self.crs,
+            **self._ax_kwargs,
+        )
+
+        # Set domain extent if specified
+        if self.domain is not None and None not in list(self.domain.bbox):
+            self._ax.set_extent(
+                self.domain.bbox.to_cartopy_bounds(),
+                self.domain.bbox.crs,
+            )
+
+        # Replay queued method calls
+        self._replay_method_queue()
+
+    def _replay_method_queue(self):
+        """Execute all queued method calls now that axes exist."""
+        for method_name, args, kwargs in self._method_queue:
+            # Get the method and call it - it will execute now that axes exist
+            method = getattr(self, method_name)
+            # Get the underlying unwrapped method to avoid queuing again
+            if hasattr(method, '__wrapped__'):
+                method = method.__wrapped__.__get__(self, type(self))
+            method(*args, **kwargs)
+        self._method_queue.clear()
+
     @property
     def ax(self):
         """The :class:`matplotlib.axes.Axes` object of the subplot."""
-        if self._ax is None:
-            self._ax = self.figure.fig.add_subplot(
-                self.figure.gridspec[self.row, self.column],
-                projection=self.crs,
-                **self._ax_kwargs,
-            )
-            if self.domain is not None and None not in list(self.domain.bbox):
-                self._ax.set_extent(
-                    self.domain.bbox.to_cartopy_bounds(),
-                    self.domain.bbox.crs,
-                )
+        self._ensure_axes()
         return self._ax
 
-    def _plot_kwargs(self, source):
-        if self._crs is None:
-            self._crs = source.crs or ccrs.PlateCarree()
-        return {"transform": source.crs or ccrs.PlateCarree()}
-
-    @schema.grid_points.apply()
-    def grid_points(self, *args, **kwargs):
+    def _on_first_data_plot(self, dimension_set):
         """
-        Plot grid point centroids on the map.
+        Called when data is first plotted on this map.
+        Used to infer CRS from data if not explicitly set.
 
         Parameters
         ----------
-        data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot grid_points.
-        x : str, optional
-            The name of the x-coordinate variable in the data source.
-        y : str, optional
-            The name of the y-coordinate variable in the data source.
-        **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+        dimension_set : DimensionSet
+            The dimension set being plotted.
         """
-        popped_kwargs = []
-        for key in ["style", "levels", "units", "colors"]:
-            if key in kwargs:
-                popped_kwargs.append(key)
-                kwargs.pop(key)
-        return self.scatter(*args, **kwargs)
+        if self._ax is None:  # Haven't created axes yet
+            self._infer_crs_from_data(dimension_set)
 
-    def gridpoints(self, *args, **kwargs):
+    def _plot_kwargs(self, *args, **kwargs):
         """
-        Plot grid point centroids on the map.
+        Get plot kwargs for matplotlib methods on maps.
 
-        Deprecated: Use :meth:`grid_points` instead.
-
-        Parameters
-        ----------
-        data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot grid_points.
-        x : str, optional
-            The name of the x-coordinate variable in the data source.
-        y : str, optional
-            The name of the y-coordinate variable in the data source.
-        **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib plotting methods.
+            For maps, the 'transform' parameter is set by the extractors based on
+            the data's CRS from the dimension_set.
         """
-        import warnings
+        # The transform will be set by the extractors based on dimension_set.crs
+        # No need to set a default here
+        return kwargs
 
-        warnings.warn(
-            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. "
-            "Please use grid_points instead."
-        )
-        return self.grid_points(*args, **kwargs)
+    # @schema.grid_points.apply()
+    # def grid_points(self, *args, **kwargs):
+    #     """
+    #     Plot grid point centroids on the map.
+
+    #     Parameters
+    #     ----------
+    #     data : xarray.DataArray or earthkit.data.core.Base, optional
+    #         The data source for which to plot grid_points.
+    #     x : str, optional
+    #         The name of the x-coordinate variable in the data source.
+    #     y : str, optional
+    #         The name of the y-coordinate variable in the data source.
+    #     **kwargs
+    #         Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+    #     """
+    #     popped_kwargs = []
+    #     for key in ["style", "levels", "units", "colors"]:
+    #         if key in kwargs:
+    #             popped_kwargs.append(key)
+    #             kwargs.pop(key)
+    #     return self.scatter(*args, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """
@@ -201,11 +302,18 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
         """
-        source = get_source(data=data, x=x, y=y)
-        labels = SourceFormatter(source).format(label)
-        crs = source.crs or ccrs.PlateCarree()
-        for label, x, y in zip(labels, source.x_values, source.y_values):
-            self.ax.annotate(label, (x, y), transform=crs, **kwargs)
+        from earthkit.plots.sources.core import PlotType
+
+        dimension_set = get_dimension_set(
+            data,
+            x=x if x is not None else "auto",
+            y=y if y is not None else "auto",
+            plot_type=PlotType.GEOGRAPHIC_1D,
+        )
+        labels = DimensionSetFormatter(dimension_set).format(label)
+        crs = dimension_set.crs or ccrs.PlateCarree()
+        for label, x_val, y_val in zip(labels, dimension_set.x.values, dimension_set.y.values):
+            self.ax.annotate(label, (x_val, y_val), transform=crs, **kwargs)
 
     @schema.point_cloud.apply()
     def point_cloud(self, *args, **kwargs):
@@ -428,6 +536,7 @@ class Map(Subplot):
 
         return decorator
 
+    @queue_if_no_axes
     @schema.coastlines.apply()
     @natural_earth_layer("physical", "coastline", line=True)
     def coastlines(self, *args, **kwargs):
@@ -440,6 +549,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.borders.apply()
     @natural_earth_layer("cultural", "admin_0_boundary_lines_land", line=True)
     def borders(self, *args, **kwargs):
@@ -452,6 +562,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.unit_boundaries.apply()
     @natural_earth_layer(
         "cultural",
@@ -472,6 +583,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.disputed_boundaries.apply()
     @natural_earth_layer(
         "cultural",
@@ -492,6 +604,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.administrative_areas.apply()
     @natural_earth_layer(
         "cultural",
@@ -510,6 +623,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.countries.apply()
     @natural_earth_layer("cultural", "admin_0_countries", default_label="ISO_A2_EH")
     def countries(self, *args, **kwargs):
@@ -522,6 +636,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.land.apply()
     @natural_earth_layer("physical", "land")
     def land(self, *args, **kwargs):
@@ -534,6 +649,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.ocean.apply()
     @natural_earth_layer("physical", "ocean")
     def ocean(self, *args, **kwargs):
@@ -546,6 +662,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.urban_areas.apply()
     @natural_earth_layer("cultural", "urban_areas")
     def urban_areas(self, *args, **kwargs):
@@ -558,6 +675,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     @schema.countries.apply()
     @natural_earth_layer("cultural", "admin_0_map_units", default_label="ADM0_TLC")
     def map_units(self, *args, **kwargs):
@@ -570,6 +688,7 @@ class Map(Subplot):
             Natrual Earth dataset.
         """
 
+    @queue_if_no_axes
     def cities(
         self,
         density=None,
@@ -665,6 +784,7 @@ class Map(Subplot):
             adjust_text(texts)
         return texts
 
+    @queue_if_no_axes
     def stock_img(self, *args, **kwargs):
         """
         Add the cartopy stock image to the map.
@@ -678,6 +798,7 @@ class Map(Subplot):
         """
         self.ax.stock_img(*args, **kwargs)
 
+    @queue_if_no_axes
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
         Add an image to the map.
@@ -699,6 +820,7 @@ class Map(Subplot):
             img = PIL.Image.open(img)
         return self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
 
+    @queue_if_no_axes
     @schema.shapes.apply()
     def shapes(
         self,
@@ -742,44 +864,7 @@ class Map(Subplot):
             )
         return results
 
-    @schema.legend.apply()
-    def legend(self, style=None, location=None, **kwargs):
-        """
-        Add a legend to the Subplot.
-
-        Parameters
-        ----------
-        style : Style, optional
-            The Style to use for the legend. If None (default), a legend is
-            created for each Layer with a unique Style. If a single Style is
-            provided, a single legend is created based on that Style.
-        location : str or tuple, optional
-            The location of the legend(s). Must be a valid matplotlib location
-            (see :func:`matplotlib.pyplot.legend`).
-        **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
-        """
-        from earthkit.plots.components.layers import Layer
-        from earthkit.plots.sources import NumpySource
-
-        legends = []
-        if style is not None:
-            dummy = [[1, 2], [3, 4]]
-            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
-            layer = Layer(NumpySource(), mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
-            legends.append(legend)
-        else:
-            for i, layer in enumerate(self.distinct_legend_layers):
-                if isinstance(location, (list, tuple)):
-                    loc = location[i]
-                else:
-                    loc = location
-                if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
-                legends.append(legend)
-        return legends
-
+    @queue_if_no_axes
     @schema.gridlines.apply()
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
         """
@@ -801,9 +886,9 @@ class Map(Subplot):
             Additional keyword arguments to pass to cartopy.mpl.gridliner.Gridliner.
         """
         if xstep is not None:
-            kwargs["xlocs"] = step_range([-180, 180], xstep, xref)
+            kwargs["xlocs"] = _step_range([-180, 180], xstep, xref)
         if ystep is not None:
-            kwargs["ylocs"] = step_range([-90, 90], ystep, yref)
+            kwargs["ylocs"] = _step_range([-90, 90], ystep, yref)
         self.ax.gridlines(*args, **kwargs)
 
     def standard_layers(self):

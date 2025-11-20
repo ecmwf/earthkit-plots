@@ -59,7 +59,9 @@ class EarthkitExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]] = "auto",
         y: Optional[Union[str, np.ndarray]] = "auto",
         z: Optional[Union[str, np.ndarray]] = "auto",
+        crs: Optional[Any] = "auto",
         metadata: Optional[dict] = None,
+        regrid: str = "auto",
     ) -> Union[DimensionSet, List[DimensionSet]]:
         """
         Extract dimensions from earthkit-data FieldList.
@@ -70,6 +72,7 @@ class EarthkitExtractor(DataExtractor):
             x: x dimension ("auto" to infer, None to skip extraction, or variable name or array)
             y: y dimension ("auto" to infer, None to skip extraction, or variable name or array)
             z: z dimension ("auto" to infer, None to skip extraction, or variable name to select or array)
+            crs: Coordinate Reference System ("auto" to infer, None for Cartesian, or explicit CRS)
             metadata: Optional user-provided metadata (takes precedence)
 
         Returns:
@@ -79,6 +82,14 @@ class EarthkitExtractor(DataExtractor):
             InvalidSpecificationError: If specifications are invalid
             MissingDimensionError: If required dimensions cannot be determined
         """
+        # Track whether z was explicitly set to None (don't extract) vs "auto" (do extract)
+        skip_z_extraction = z is None
+
+        # For 1D plots, convert to xarray and use xarray extractor
+        # But skip this for geographic 2D data with z=None (grid_points)
+        if plot_context.is_1d and not (plot_context.is_geographic and skip_z_extraction):
+            return self._extract_1d_via_xarray(data, plot_context, x, y, z, crs, metadata, regrid)
+
         # Convert "auto" to None for backward compatibility with existing logic
         if x == "auto":
             x = None
@@ -87,22 +98,23 @@ class EarthkitExtractor(DataExtractor):
         if z == "auto":
             z = None
 
+        # Handle CRS
+        # Extract CRS for all geographic plots (both 1D and 2D)
+        if crs == "auto" and plot_context.is_geographic:
+            crs = self.extract_crs(data)
+
         # Store original data for metadata extraction
         original_data = data
 
         # Parse metadata
         user_metadata = metadata or {}
         global_metadata = user_metadata.copy()
-        
-        # For 1D plots, convert to xarray and use xarray extractor
-        if plot_context.is_1d:
-            return self._extract_1d_via_xarray(data, plot_context, x, y, z, user_metadata)
-        
+
         # For 2D plots, handle multi-field case
         if self._is_multi_field(data):
-            return self._extract_multi_field_2d(data, plot_context, x, y, z, original_data, global_metadata)
+            return self._extract_multi_field_2d(data, plot_context, x, y, z, crs, original_data, global_metadata, regrid, skip_z_extraction)
         else:
-            return self._extract_single_field_2d(data, plot_context, x, y, z, original_data, global_metadata)
+            return self._extract_single_field_2d(data, plot_context, x, y, z, crs, original_data, global_metadata, regrid, skip_z_extraction)
     
     def extract_metadata(
         self,
@@ -144,6 +156,26 @@ class EarthkitExtractor(DataExtractor):
         except (AttributeError, NotImplementedError):
             return {"base_time": None, "valid_time": None}
 
+    def extract_crs(self, original_data: Any) -> Optional[Any]:
+        """
+        Extract Coordinate Reference System from earthkit-data objects.
+
+        Earthkit-data objects have a .projection().to_cartopy_crs() method
+        that returns the CRS.
+
+        Args:
+            original_data: The original earthkit-data FieldList
+
+        Returns:
+            cartopy.crs.CRS object or None (PlateCarree as fallback)
+        """
+        try:
+            return original_data.projection().to_cartopy_crs()
+        except (AttributeError, NotImplementedError):
+            # Default to PlateCarree for earthkit data
+            import cartopy.crs as ccrs
+            return ccrs.PlateCarree()        
+
     def _extract_1d_via_xarray(
         self,
         data: Any,
@@ -151,24 +183,49 @@ class EarthkitExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         user_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Convert to xarray and use xarray extractor for 1D plots.
+
+        Note: We keep the original earthkit data reference so that grid
+        information can be extracted later.
         """
+        # Store original earthkit data before conversion
+        original_earthkit_data = data
+
         try:
             xr_data = data.to_xarray()
         except (AttributeError, NotImplementedError) as e:
             raise InvalidSpecificationError(
                 f"Cannot convert earthkit-data to xarray for 1D plot: {e}"
             )
-        
+
         # Import here to avoid circular dependency
         from earthkit.plots.sources.extractors.xarray import XarrayExtractor
-        
+
         xr_extractor = XarrayExtractor()
-        return xr_extractor.extract_dimensions(
-            xr_data, plot_context, x=x, y=y, z=z, metadata=user_metadata
+        dimension_set = xr_extractor.extract_dimensions(
+            xr_data, plot_context, x=x, y=y, z=z, crs=crs, metadata=user_metadata, regrid=regrid
+        )
+
+        # Override the original_data with earthkit data so grid detection works
+        # Create a new DimensionSet with updated original_data
+        from earthkit.plots.sources.core import DimensionSet
+        return DimensionSet(
+            x=dimension_set.x,
+            y=dimension_set.y,
+            z=dimension_set.z,
+            plot_context=dimension_set.plot_context,
+            crs=dimension_set.crs,
+            grid=self.extract_grid(original_earthkit_data),  # Extract grid from earthkit data
+            _original_data=original_earthkit_data,  # Use earthkit data, not xarray
+            _extractor=self,  # Use earthkit extractor, not xarray
+            _metadata=dimension_set._metadata,
+            _regridded=dimension_set._regridded,
+            _has_cyclic_point=dimension_set._has_cyclic_point,
         )
     
     def _is_multi_field(self, data: Any) -> bool:
@@ -188,47 +245,53 @@ class EarthkitExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: Any,
         global_metadata: dict,
+        regrid: str = "auto",
+        skip_z_extraction: bool = False,
     ) -> List[DimensionSet]:
         """
         Extract dimensions for multi-field 2D data.
-        
+
         Returns a list of DimensionSets, one per field.
         """
         dimension_sets = []
-        
+
         # Extract x and y once (shared across all fields)
         x_values, y_values, is_latlon = self._extract_xy_coords(data, x, y)
-        
+
         # Use appropriate names based on projection
         x_name = "longitude" if is_latlon else "x"
         y_name = "latitude" if is_latlon else "y"
-        
+
         x_dim = self._create_dimension_from_coords(x_values, x_name, "X", original_data)
         y_dim = self._create_dimension_from_coords(y_values, y_name, "Y", original_data)
-        
+
         # Extract z for each field
         for i, field in enumerate(data):
-            if z is not None:
+            if skip_z_extraction:
+                # User explicitly passed z=None - don't extract z
+                z_dim = None
+            elif z is not None:
                 # User specified z - select or use as-is
                 if isinstance(z, str):
                     z_values = self._select_field(field, z)
                 else:
                     z_values = np.asarray(z)
+                z_dim = self._create_dimension_from_field(z_values, field, original_data)
             else:
                 # Default: extract field values
                 z_values = self._extract_field_values(field)
-            
-            z_dim = self._create_dimension_from_field(z_values, field, original_data)
-            
+                z_dim = self._create_dimension_from_field(z_values, field, original_data)
+
             dim_set = self._create_dimension_set(
-                x_dim, y_dim, z_dim, plot_context, original_data, global_metadata
+                x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid
             )
             dimension_sets.append(dim_set)
-        
+
         return dimension_sets
-    
+
     def _extract_single_field_2d(
         self,
         data: Any,
@@ -236,37 +299,43 @@ class EarthkitExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: Any,
         global_metadata: dict,
+        regrid: str = "auto",
+        skip_z_extraction: bool = False,
     ) -> DimensionSet:
         """Extract dimensions for single-field 2D data."""
         # Handle single-element list
         if hasattr(data, '__len__') and len(data) == 1:
             data = data[0]
-        
+
         # Extract x and y coordinates
         x_values, y_values, is_latlon = self._extract_xy_coords(data, x, y)
-        
+
         # Use appropriate names based on projection
         x_name = "longitude" if is_latlon else "x"
         y_name = "latitude" if is_latlon else "y"
-        
+
         x_dim = self._create_dimension_from_coords(x_values, x_name, "X", original_data)
         y_dim = self._create_dimension_from_coords(y_values, y_name, "Y", original_data)
-        
+
         # Extract z values
-        if z is not None:
+        if skip_z_extraction:
+            # User explicitly passed z=None - don't extract z
+            z_dim = None
+        elif z is not None:
             if isinstance(z, str):
                 z_values = self._select_field(data, z)
             else:
                 z_values = np.asarray(z)
+            z_dim = self._create_dimension_from_field(z_values, data, original_data)
         else:
             z_values = self._extract_field_values(data)
-        
-        z_dim = self._create_dimension_from_field(z_values, data, original_data)
-        
+            z_dim = self._create_dimension_from_field(z_values, data, original_data)
+
         return self._create_dimension_set(
-            x_dim, y_dim, z_dim, plot_context, original_data, global_metadata
+            x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid
         )
 
     def _is_latlon_projection(self, data: Any) -> bool:
@@ -410,7 +479,7 @@ class EarthkitExtractor(DataExtractor):
         
         return DimensionInfo(
             name=name,
-            values=values,
+            _values=values,
             source=DimensionSource.COORDINATE,
             axis=axis,
             _metadata=metadata,
@@ -452,9 +521,9 @@ class EarthkitExtractor(DataExtractor):
         
         return DimensionInfo(
             name=field_name or "data",
-            values=values,
+            _values=values,
             source=DimensionSource.VARIABLE,
-            units=units,
+            _source_units=units,
             long_name=long_name,
             standard_name=standard_name,
             _metadata=metadata,

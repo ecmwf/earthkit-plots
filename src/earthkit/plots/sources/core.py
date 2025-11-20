@@ -50,16 +50,17 @@ class DimensionSource(Enum):
 class DimensionInfo:
     """
     Rich container for a single dimension's data and metadata.
-    
+
     This object bundles together the array data with all relevant metadata,
     allowing downstream code to use this information for labeling, unit
     conversion, validation, etc.
-    
+
     Attributes:
         name: The name/identifier for this dimension (e.g., 'time', 'latitude')
         values: The actual data array (numpy array or compatible)
         source: How this dimension was determined (user, inferred, generated, etc.)
-        units: Physical units (e.g., 'degrees_celsius', 'meters')
+        units: Physical units - returns target units if conversion occurred, otherwise source units
+        source_units: Original units before any conversion
         long_name: Human-readable description
         standard_name: CF standard name if applicable
         axis: Axis type ('X', 'Y', 'Z', 'T') if applicable
@@ -70,7 +71,7 @@ class DimensionInfo:
     name: str
     _values: np.ndarray
     source: DimensionSource
-    units: Optional[str] = None
+    _source_units: Optional[str] = None
     long_name: Optional[str] = None
     standard_name: Optional[str] = None
     axis: Optional[str] = None  # 'X', 'Y', 'Z', 'T'
@@ -111,7 +112,7 @@ class DimensionInfo:
         array([0., 26.85])
         """
         # No conversion needed
-        if self._target_units is None or self._target_units == self.units:
+        if self._target_units is None or self._target_units == self._source_units:
             return self._values
 
         # Check if we have a valid cached conversion
@@ -119,18 +120,24 @@ class DimensionInfo:
             return self._converted_values
 
         # Perform conversion and cache
-        if self.units is None:
+        if self._source_units is None:
             # Can't convert without source units
             return self._values
 
         try:
             from earthkit.plots.metadata import units as metadata_units
             self._converted_values = metadata_units.convert(
-                self._values, self.units, self._target_units
+                self._values, self._source_units, self._target_units
             )
             return self._converted_values
-        except Exception:
-            # If conversion fails, return original values
+        except Exception as e:
+            # If conversion fails, warn and return original values
+            import warnings
+            warnings.warn(
+                f"Unit conversion failed: {self._source_units} -> {self._target_units}. "
+                f"Error: {e}. Returning original values.",
+                UserWarning
+            )
             return self._values
 
     def set_target_units(self, target_units: Optional[str]) -> None:
@@ -155,6 +162,34 @@ class DimensionInfo:
             self._converted_values = None  # Clear cache
 
     @property
+    def units(self) -> Optional[str]:
+        """
+        Get the current units for this dimension.
+
+        Returns target units if conversion was requested, otherwise source units.
+
+        Returns
+        -------
+        str or None
+            The units string, or None if no units are defined.
+        """
+        if self._target_units is not None:
+            return self._target_units
+        return self._source_units
+
+    @property
+    def source_units(self) -> Optional[str]:
+        """
+        Get the original source units before any conversion.
+
+        Returns
+        -------
+        str or None
+            The original units string, or None if no units are defined.
+        """
+        return self._source_units
+
+    @property
     def size(self) -> int:
         """Return the size of the dimension."""
         return self._values.size
@@ -167,28 +202,35 @@ class DimensionInfo:
     def metadata(self, key: str) -> Any:
         """
         Get metadata value with fallback to extractor.
-        
+
+        Special handling for "units" key: returns converted units if conversion occurred.
+
         Precedence:
-        1. Local _metadata dict (dimension-specific attrs)
-        2. Extractor's extract_metadata() method (for data-type-specific lookups)
-        3. None if not found
-        
+        1. Special handling for "units" key (returns .units property)
+        2. Local _metadata dict (dimension-specific attrs)
+        3. Extractor's extract_metadata() method (for data-type-specific lookups)
+        4. None if not found
+
         Args:
             key: Metadata key to look up
-        
+
         Returns:
             Metadata value or None if not found
         """
+        # Special handling for units - return converted units if available
+        if key == "units":
+            return self.units
+
         # Check local metadata first
         if key in self._metadata:
             return self._metadata[key]
-        
+
         # Fall back to extractor if available
         if self._extractor and self._original_data is not None:
             return self._extractor.extract_metadata(
                 self._original_data, key, dimension_name=self.name
             )
-        
+
         return None
     
     def __repr__(self) -> str:
@@ -235,26 +277,34 @@ class PlotContext:
 class DimensionSet:
     """
     Container for a complete set of dimensions for plotting.
-    
+
     This represents a validated set of x, y, and optionally z dimensions
     that are ready to be used for visualization.
-    
+
     Attributes:
         x: The x-axis dimension
         y: The y-axis dimension
         z: The z-axis dimension (optional, for 2D plots)
         plot_context: The plot context this set was created for
+        crs: Coordinate Reference System (cartopy CRS) for geographic data, None for Cartesian
+        grid: Grid identifier for specialized grids (HEALPix, Octahedral, etc.), None for regular grids
         _metadata: Global metadata (use .metadata() method to access)
         _original_data: Reference to original data object
         _extractor: Reference to extractor for data-type-specific metadata extraction
+        _regridded: Flag indicating whether the data was regridded (True only if regridding occurred)
+        _has_cyclic_point: Flag indicating whether a cyclic point has been added (True only if cyclic point was added)
     """
     x: DimensionInfo
     y: DimensionInfo
     z: Optional[DimensionInfo] = None
     plot_context: Optional[PlotContext] = None
+    crs: Optional[Any] = None  # cartopy.crs.CRS or None
+    grid: Optional[Any] = None  # GridIdentifier or None
     _metadata: dict = field(default_factory=dict, repr=False)
     _original_data: Any = field(default=None, repr=False)
     _extractor: Optional['DataExtractor'] = field(default=None, repr=False)
+    _regridded: bool = field(default=False, repr=False)
+    _has_cyclic_point: bool = field(default=False, repr=False)
     
     def validate(self) -> None:
         """

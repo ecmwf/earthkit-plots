@@ -20,7 +20,7 @@ from shapely.geometry import Point, Polygon
 from earthkit.plots.ancillary import load
 from earthkit.plots.geo.bounds import BoundingBox
 from earthkit.plots.geo.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
-from earthkit.plots.identifiers import LATITUDE, LONGITUDE
+from earthkit.plots.sources.identifiers import LATITUDE, LONGITUDE
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
 
@@ -397,10 +397,44 @@ class Domain:
 
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
-
+            
             # Handle longitude wrapping
             roll_by = None
-            if crs_bounds[0] < 0:
+            dateline_crossing_handled = False
+
+            # Check if domain crosses dateline (west > east after conversion to same range)
+            domain_crosses_dateline = crs_bounds[0] > crs_bounds[1]
+
+            if domain_crosses_dateline:
+                # Domain crosses dateline - we need to roll the data so it doesn't
+                # Convert everything to 0-360 range first
+                x_min = np.array(x).min()
+                x_max = np.array(x).max()
+
+                # If data is in -180 to 180 range, convert to 0-360
+                if x_min < 0:
+                    x = force_0_to_360(x)
+                    for i in range(2):
+                        crs_bounds[i] = force_0_to_360(crs_bounds[i])
+
+                # Now roll so that the domain's western edge is at the left
+                # We want to roll so that crs_bounds[0] is near index 0
+                if x.ndim == 1:
+                    x_1d = x
+                else:
+                    x_1d = x[0]
+
+                # Find where the western bound is in the data
+                # Roll so that the western edge of domain is at the beginning
+                roll_by = roll_from_0_360_to_minus_180_180(x)
+                x = force_minus_180_to_180(x)
+                for i in range(2):
+                    crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
+
+                # Mark that we've handled the dateline crossing by rolling
+                dateline_crossing_handled = True
+
+            elif crs_bounds[0] < 0:
                 if crs_bounds[0] < np.array(x).min() and (x > 180).any():
                     roll_by = roll_from_0_360_to_minus_180_180(x)
                     x = force_minus_180_to_180(x)
@@ -521,6 +555,7 @@ class Domain:
                     if crosses_meridian and crs_bounds[0] > crs_bounds[1]:
                         # Handle case where domain crosses 180/-180 meridian
                         # Domain includes longitudes >= west_bound OR longitudes <= east_bound
+                        # When west > east, we're wrapping around the dateline
                         bbox = np.where(
                             ((x >= padded_bounds[0]) | (x <= padded_bounds[1]))
                             & (y >= padded_bounds[2])

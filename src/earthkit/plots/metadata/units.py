@@ -151,28 +151,43 @@ def convert(data, source_units, target_units):
 
     Parameters
     ----------
-    data : numpy.ndarray
+    data : numpy.ndarray or numpy.ma.MaskedArray
         The data to convert.
     source_units : str
         The units of the data.
     target_units : str
         The units to convert to.
     """
+    import numpy as np
+
     source_units = _pintify(source_units)
     target_units = _pintify(target_units)
 
+    # Handle MaskedArray by converting the data part only
+    is_masked = isinstance(data, np.ma.MaskedArray)
+    if is_masked:
+        mask = data.mask
+        data_values = data.data
+    else:
+        data_values = data
+
     try:
-        result = (data * source_units).to(target_units).magnitude
+        result = (data_values * source_units).to(target_units).magnitude
     except ValueError as err:
         for units in UNIT_EQUIVALENCE:
             if source_units == _pintify(units):
                 try:
                     equal_units = _pintify(UNIT_EQUIVALENCE[units])
-                    result = (data * equal_units).to(target_units)
+                    result = (data_values * equal_units).to(target_units).magnitude
                 except ValueError:
                     raise err
                 else:
                     break
+
+    # Restore mask if input was masked
+    if is_masked:
+        result = np.ma.MaskedArray(result, mask=mask)
+
     return result
 
 

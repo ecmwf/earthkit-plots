@@ -27,6 +27,7 @@ def get_dimension_set(
     plot_type: Optional[Union[str, PlotType]] = None,
     crs: Optional[str] = None,
     metadata: Optional[dict] = None,
+    regrid: str = "auto",
     **kwargs: Any,
 ) -> DimensionSet:
     """
@@ -62,6 +63,9 @@ def get_dimension_set(
         Coordinate reference system for geographic plots.
     metadata : dict, optional
         Additional metadata to attach to the DimensionSet.
+    regrid : str, optional
+        Regridding parameter. "auto" (default) enables automatic regridding for
+        irregular grids (e.g., HEALPix, Reduced Gaussian) to regular lat-lon grids.
     **kwargs : Any
         Additional keyword arguments (currently unused, reserved for future use).
 
@@ -124,7 +128,9 @@ def get_dimension_set(
         x=x,
         y=y,
         z=z,
+        crs=crs if crs is not None else "auto",
         metadata=metadata,
+        regrid=regrid,
     )
 
     return dimension_set

@@ -48,7 +48,9 @@ class XarrayExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]] = "auto",
         y: Optional[Union[str, np.ndarray]] = "auto",
         z: Optional[Union[str, np.ndarray]] = "auto",
+        crs: Optional[Any] = "auto",
         metadata: Optional[dict] = None,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Extract dimensions from xarray DataArray or Dataset.
@@ -59,6 +61,7 @@ class XarrayExtractor(DataExtractor):
             x: x dimension selector ("auto" to infer, None to skip extraction, or dim/coord/var name or array)
             y: y dimension selector ("auto" to infer, None to skip extraction, or dim/coord/var name or array)
             z: z dimension selector ("auto" to infer, None to skip extraction, or dim/coord/var name or array)
+            crs: Coordinate Reference System ("auto" to infer, None for Cartesian, or explicit CRS)
             metadata: Optional user-provided metadata (takes precedence over xarray metadata)
 
         Returns:
@@ -70,36 +73,55 @@ class XarrayExtractor(DataExtractor):
             MissingDimensionError: If required dimensions cannot be determined
             AmbiguousDimensionError: If multiple valid options exist
         """
-        # Convert "auto" to None for backward compatibility with existing logic
-        if x == "auto":
-            x = None
-        if y == "auto":
-            y = None
-        if z == "auto":
-            z = None
+        # Sentinel value to distinguish "auto" from explicitly None
+        # "auto" means infer/extract, None means skip extraction
+        _AUTO = "auto"
+
+        # Keep track of whether z was explicitly set to None (don't extract)
+        # vs "auto" (do extract)
+        skip_z_extraction = z is None
+
+        # Handle CRS
+        if crs == "auto" and plot_context.is_geographic:
+            crs = self.extract_crs(data)
 
         # Store original data for metadata extraction
         original_data = data
 
         # Squeeze size-1 dimensions while preserving metadata
         data = data.squeeze()
-        
-        # Handle Dataset with single variable - extract the DataArray
+
+        # Handle Dataset - need to extract a DataArray for plotting
         if isinstance(data, xr.Dataset):
-            if len(data.data_vars) == 0:
+            # Filter out 0-dimensional (scalar) variables - these are often grid mapping variables
+            dimensional_vars = self._get_dimensional_variables(data)
+
+            if len(dimensional_vars) == 0:
                 raise MissingDimensionError(
-                    "Dataset has no data variables"
+                    "Dataset has no dimensional data variables (only scalar variables found)"
                 )
-            elif len(data.data_vars) == 1:
-                var_name = list(data.data_vars.keys())[0]
+            elif len(dimensional_vars) == 1:
+                # Single dimensional variable - use it
+                var_name = dimensional_vars[0]
                 data = data[var_name]
             else:
-                # Multiple variables - for now, require user to specify
-                # (future: support multiple layers)
-                raise AmbiguousDimensionError(
-                    f"Dataset has multiple variables: {list(data.data_vars.keys())}. "
-                    f"Please specify which variable to use for y or z."
-                )
+                # Multiple dimensional variables - check if z was specified
+                if isinstance(z, str) and z in dimensional_vars:
+                    # User specified which variable to use for z
+                    data = data[z]
+                    # Clear z so it doesn't get treated as a selector later
+                    z = None
+                elif skip_z_extraction:
+                    # For grid_points with z=None, we just need coordinates (not data values)
+                    # Pick the first dimensional variable to get the coordinate structure
+                    var_name = dimensional_vars[0]
+                    data = data[var_name]
+                else:
+                    # Multiple variables and no z specification
+                    raise AmbiguousDimensionError(
+                        f"Dataset has multiple variables: {dimensional_vars}. "
+                        f"Please specify which variable to use with z='variable_name'."
+                    )
         
         # Parse metadata - extract global attrs
         user_metadata = metadata or {}
@@ -110,14 +132,14 @@ class XarrayExtractor(DataExtractor):
         # Early exit: all required dimensions specified with arrays (not selectors)
         if self._all_arrays_specified(plot_context, x, y, z):
             return self._validate_and_wrap_arrays(
-                data, plot_context, x, y, z, original_data, global_metadata
+                data, plot_context, x, y, z, crs, original_data, global_metadata, regrid
             )
-        
+
         # Infer and resolve based on plot type
         if plot_context.is_1d:
-            return self._extract_1d(data, plot_context, x, y, original_data, global_metadata)
+            return self._extract_1d(data, plot_context, x, y, crs, original_data, global_metadata, regrid, skip_z_extraction)
         else:  # 2D plots
-            return self._extract_2d(data, plot_context, x, y, z, original_data, global_metadata)
+            return self._extract_2d(data, plot_context, x, y, z, crs, original_data, global_metadata, regrid, skip_z_extraction)
     
     def extract_metadata(
         self,
@@ -243,20 +265,109 @@ class XarrayExtractor(DataExtractor):
             "valid_time": datetimes,
         }
 
+    def extract_crs(self, original_data: Any) -> Optional[Any]:
+        """
+        Extract Coordinate Reference System from xarray objects.
+
+        First checks for a 'crs' attribute directly on the DataArray/Dataset,
+        then falls back to converting to earthkit-data and using earthkit-data's
+        .projection().to_cartopy_crs() method.
+
+        IMPORTANT: Always passes the original Dataset/DataArray (not a subset)
+        to preserve dimensionless grid mapping variables that may be referenced
+        via the grid_mapping attribute.
+
+        Args:
+            original_data: The original xarray DataArray or Dataset
+
+        Returns:
+            cartopy.crs.CRS object or None if no CRS found
+        """
+        # First, check for 'crs' attribute directly (common in manually created xarray data)
+        if hasattr(original_data, 'attrs') and 'crs' in original_data.attrs:
+            crs_attr = original_data.attrs['crs']
+            # Check if it's already a cartopy CRS object
+            try:
+                import cartopy.crs as ccrs
+                if isinstance(crs_attr, ccrs.CRS):
+                    return crs_attr
+            except ImportError:
+                pass
+
+        # Try using earthkit-data for more sophisticated CRS extraction
+        try:
+            import earthkit.data
+        except ImportError:
+            return None
+
+        # For Datasets (not DataArrays), we need to find a data variable with a grid_mapping
+        # attribute to extract the CRS from
+        import xarray as xr
+        if isinstance(original_data, xr.Dataset):
+            # Find a data variable with a grid_mapping attribute
+            for var_name in original_data.data_vars:
+                var = original_data[var_name]
+                if hasattr(var, 'attrs') and 'grid_mapping' in var.attrs:
+                    # Found a variable with grid_mapping - use this DataArray for CRS extraction
+                    try:
+                        ek_data = earthkit.data.from_object(var)
+                        return ek_data.projection().to_cartopy_crs()
+                    except (AttributeError, NotImplementedError, ValueError, KeyError):
+                        continue
+
+            # No variable with grid_mapping found
+            return None
+
+        # Always use the original data to preserve grid mapping variables
+        # For DataArrays, if they came from a Dataset, we may have lost context
+        # but earthkit-data can still extract CRS from the DataArray's grid_mapping attribute
+        try:
+            ek_data = earthkit.data.from_object(original_data)
+            return ek_data.projection().to_cartopy_crs()
+        except (AttributeError, NotImplementedError, ValueError, KeyError):
+            return None
+
+    def _get_dimensional_variables(self, dataset: xr.Dataset) -> list[str]:
+        """
+        Get list of data variables that have at least one dimension.
+
+        Filters out 0-dimensional (scalar) variables which are often
+        grid mapping variables like 'lambert_azimuthal_equal_area'.
+
+        Args:
+            dataset: xarray Dataset
+
+        Returns:
+            List of variable names that have at least one dimension
+        """
+        dimensional_vars = []
+        for var_name in dataset.data_vars:
+            var = dataset[var_name]
+            if var.ndim > 0:  # Has at least one dimension
+                dimensional_vars.append(var_name)
+        return dimensional_vars
+
     def _extract_1d(
         self,
         data: xr.DataArray,
         plot_context: PlotContext,
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: xr.DataArray,
         global_metadata: dict,
+        regrid: str = "auto",
+        skip_z_extraction: bool = False,
     ) -> DimensionSet:
         """
         Extract dimensions for 1D plots.
-        
+
         Default: dimension → x, variable → y
         Context-aware swapping: if user specifies variable as x, swap to dim as y
+
+        Special case: For geographic 1D plots (scatter on maps) with 1D data that has
+        lat/lon coordinates, delegate to _extract_2d_single_dim to extract x/y from
+        coordinates rather than using dimension indices.
         """
         # Handle multi-dimensional DataArray - error for now
         if data.ndim > 1:
@@ -264,26 +375,46 @@ class XarrayExtractor(DataExtractor):
                 f"DataArray has {data.ndim} dimensions: {list(data.dims)}. "
                 f"For 1D plots, data must be 1D. Try selecting or squeezing dimensions."
             )
-        
+
         if data.ndim == 0:
             raise InvalidSpecificationError(
                 "DataArray has no dimensions (scalar value)"
             )
-        
-        # Infer defaults
+
+        # Special handling for geographic 1D plots (e.g., scatter on maps)
+        # If this is geographic data with lat/lon coordinates, treat as point cloud
+        if plot_context.is_geographic and data.ndim == 1:
+            from ..identifiers import find_geographic_coords
+
+            # Check if x/y are already specified by user
+            x_spec = self._resolve_selector(data, x, "x") if x is not None and x != "auto" else None
+            y_spec = self._resolve_selector(data, y, "y") if y is not None and y != "auto" else None
+
+            # If neither x nor y specified, check for geographic coordinates
+            if x_spec is None and y_spec is None:
+                lon_coord, lat_coord = find_geographic_coords(data)
+
+                # If we found lat/lon coordinates, this is unstructured point data
+                # Use the 2D single-dimension extraction logic
+                if lon_coord is not None and lat_coord is not None:
+                    return self._extract_2d_single_dim(
+                        data, plot_context, x, y, None, crs, original_data, global_metadata, regrid, skip_z_extraction
+                    )
+
+        # Infer defaults for standard 1D plots
         default_x_name = data.dims[0]  # The dimension name
         default_y_name = data.name or "data"  # The variable name
-        
+
         # Determine what user specified and apply context-aware swapping
-        x_spec = self._resolve_selector(data, x, "x") if x is not None else None
-        y_spec = self._resolve_selector(data, y, "y") if y is not None else None
+        x_spec = self._resolve_selector(data, x, "x") if x is not None and x != "auto" else None
+        y_spec = self._resolve_selector(data, y, "y") if y is not None and y != "auto" else None
         
         # Case 1: Neither specified - use defaults
         if x_spec is None and y_spec is None:
             x_dim = self._create_dimension_from_dim(data, default_x_name, axis="X", original_data=original_data)
             y_dim = self._create_dimension_from_variable(data, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 2: Only x specified
         if x_spec is not None and y_spec is None:
             # Check if user specified what we thought was y (the variable)
@@ -295,8 +426,8 @@ class XarrayExtractor(DataExtractor):
                 # User specified something else (dim/coord) for x, keep variable as y
                 x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
                 y_dim = self._create_dimension_from_variable(data, axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 3: Only y specified
         if y_spec is not None and x_spec is None:
             # Check if user specified what we thought was x (the dimension)
@@ -308,12 +439,12 @@ class XarrayExtractor(DataExtractor):
                 # User specified something else for y, keep dimension as x
                 x_dim = self._create_dimension_from_dim(data, default_x_name, axis="X", original_data=original_data)
                 y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-            return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
-        
+            return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
         # Case 4: Both specified - use directly
         x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
         y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
-        return self._create_dimension_set(x_dim, y_dim, None, plot_context, original_data, global_metadata)
+        return self._create_dimension_set(x_dim, y_dim, None, plot_context, crs, original_data, global_metadata, regrid=regrid)
     
     def _extract_2d(
         self,
@@ -322,15 +453,28 @@ class XarrayExtractor(DataExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
         original_data: xr.DataArray,
         global_metadata: dict,
+        regrid: str = "auto",
+        skip_z_extraction: bool = False,
     ) -> DimensionSet:
         """
         Extract dimensions for 2D plots.
-        
-        Default: dimensions → x and y, variable → z
-        For geographic: use lat/lon identifiers
-        """        
+
+        Handles two patterns:
+        1. Regular 2D grids: 2+ dimensions → x and y from dims, z from variable
+        2. Single-dimension unstructured: 1 dimension → x and y from coordinates
+
+        For geographic: uses lat/lon identifiers
+        """
+        # Check if this is single-dimension unstructured data
+        if data.ndim == 1:
+            return self._extract_2d_single_dim(
+                data, plot_context, x, y, z, crs, original_data, global_metadata, regrid, skip_z_extraction
+            )
+
+        # Regular 2D gridded data with 2+ dimensions
         # Infer defaults based on plot type
         if plot_context.is_geographic:
             default_x_name, default_y_name = self._infer_geographic_dims(data)
@@ -338,33 +482,144 @@ class XarrayExtractor(DataExtractor):
             # Standard 2D: dims[0] → y (rows), dims[1] → x (cols) to match numpy
             default_y_name = data.dims[0]
             default_x_name = data.dims[1]
-        
+
         default_z_name = data.name or "data"
-        
+
         # Resolve user specifications
-        x_spec = self._resolve_selector(data, x, "x") if x is not None else None
-        y_spec = self._resolve_selector(data, y, "y") if y is not None else None
-        z_spec = self._resolve_selector(data, z, "z") if z is not None else None
-        
+        x_spec = self._resolve_selector(data, x, "x") if x is not None and x != "auto" else None
+        y_spec = self._resolve_selector(data, y, "y") if y is not None and y != "auto" else None
+        z_spec = self._resolve_selector(data, z, "z") if z is not None and z != "auto" else None
+
         # Determine z (the variable/field)
-        if z_spec is not None:
+        if skip_z_extraction:
+            # User explicitly passed z=None - don't extract z
+            z_dim = None
+        elif z_spec is not None:
             z_dim = self._resolve_to_dimension_info(data, z_spec, "z", original_data=original_data)
         else:
             z_dim = self._create_dimension_from_variable(data, original_data=original_data)
-        
+
         # Determine x
         if x_spec is not None:
             x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
         else:
             x_dim = self._create_dimension_from_dim(data, default_x_name, axis="X", original_data=original_data)
-        
+
         # Determine y
         if y_spec is not None:
             y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
         else:
             y_dim = self._create_dimension_from_dim(data, default_y_name, axis="Y", original_data=original_data)
-        
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
+    def _extract_2d_single_dim(
+        self,
+        data: xr.DataArray,
+        plot_context: PlotContext,
+        x: Optional[Union[str, np.ndarray]],
+        y: Optional[Union[str, np.ndarray]],
+        z: Optional[Union[str, np.ndarray]],
+        crs: Optional[Any],
+        original_data: xr.DataArray,
+        global_metadata: dict,
+        regrid: str = "auto",
+        skip_z_extraction: bool = False,
+    ) -> DimensionSet:
+        """
+        Extract dimensions for 2D plots from single-dimension unstructured data.
+
+        This handles cases like:
+        - Dimensions: (points: 950000)
+        - Coordinates: latitude(points), longitude(points)
+
+        Results in 1D point data: x, y, z all 1D with same length.
+
+        Args:
+            data: xarray DataArray with single dimension
+            Other args same as _extract_2d
+
+        Returns:
+            DimensionSet with 1D point data
+
+        Raises:
+            MissingDimensionError: If x/y coordinates cannot be found
+        """
+        from ..identifiers import find_geographic_coords
+
+        # Resolve user specifications
+        x_spec = self._resolve_selector(data, x, "x") if x is not None and x != "auto" else None
+        y_spec = self._resolve_selector(data, y, "y") if y is not None and y != "auto" else None
+        z_spec = self._resolve_selector(data, z, "z") if z is not None and z != "auto" else None
+
+        # Determine x and y from coordinates
+        if x_spec is None and y_spec is None:
+            # Try to auto-detect geographic or x/y coordinates
+            x_coord_name, y_coord_name = find_geographic_coords(data)
+
+            if x_coord_name is None or y_coord_name is None:
+                # Fallback: look for any x/y labeled coordinates
+                x_coord_name, y_coord_name = self._find_xy_coords(data)
+
+            if x_coord_name is None or y_coord_name is None:
+                raise MissingDimensionError(
+                    f"Cannot create 2D plot from single-dimension data without x/y coordinates. "
+                    f"Available coords: {list(data.coords.keys())}. "
+                    f"Please specify x and y explicitly."
+                )
+
+            x_dim = self._create_dimension_from_coord(data, x_coord_name, axis="X", original_data=original_data)
+            y_dim = self._create_dimension_from_coord(data, y_coord_name, axis="Y", original_data=original_data)
+        elif x_spec is not None and y_spec is not None:
+            # Both specified
+            x_dim = self._resolve_to_dimension_info(data, x_spec, "x", axis="X", original_data=original_data)
+            y_dim = self._resolve_to_dimension_info(data, y_spec, "y", axis="Y", original_data=original_data)
+        else:
+            # Only one specified - not enough for 2D plot
+            raise MissingDimensionError(
+                f"For single-dimension 2D plots, both x and y must be specified. "
+                f"Available coords: {list(data.coords.keys())}"
+            )
+
+        # Determine z (the variable/field)
+        if skip_z_extraction:
+            # User explicitly passed z=None - don't extract z
+            z_dim = None
+        elif z_spec is not None:
+            z_dim = self._resolve_to_dimension_info(data, z_spec, "z", original_data=original_data)
+        else:
+            z_dim = self._create_dimension_from_variable(data, original_data=original_data)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)
+
+    def _find_xy_coords(self, data: xr.DataArray) -> tuple[Optional[str], Optional[str]]:
+        """
+        Find x and y coordinates by looking for axis attributes or standard names.
+
+        Returns:
+            (x_coord_name, y_coord_name) tuple, with None if not found
+        """
+        x_coord = None
+        y_coord = None
+
+        for coord_name, coord in data.coords.items():
+            # Check axis attribute
+            if hasattr(coord, 'attrs') and 'axis' in coord.attrs:
+                axis = coord.attrs['axis'].upper()
+                if axis == 'X':
+                    x_coord = coord_name
+                elif axis == 'Y':
+                    y_coord = coord_name
+
+            # Check standard_name
+            if hasattr(coord, 'attrs') and 'standard_name' in coord.attrs:
+                std_name = coord.attrs['standard_name'].lower()
+                if 'longitude' in std_name or std_name == 'x':
+                    x_coord = coord_name
+                elif 'latitude' in std_name or std_name == 'y':
+                    y_coord = coord_name
+
+        return x_coord, y_coord
     
     def _infer_geographic_dims(self, data: xr.DataArray) -> tuple[str, str]:
         """
@@ -478,10 +733,10 @@ class XarrayExtractor(DataExtractor):
         if isinstance(spec, np.ndarray):
             return DimensionInfo(
                 name=axis_name,
-                values=spec,
+                _values=spec,
                 source=DimensionSource.USER_SPECIFIED,
                 axis=axis,
-                _original_data=original_data or data,
+                _original_data=data if original_data is None else original_data,
                 _extractor=self,
             )
         
@@ -523,14 +778,14 @@ class XarrayExtractor(DataExtractor):
             
             return DimensionInfo(
                 name=dim_name,
-                values=values,
+                _values=values,
                 source=DimensionSource.DIMENSION,
-                units=coord.attrs.get('units'),
+                _source_units=coord.attrs.get('units'),
                 long_name=coord.attrs.get('long_name'),
                 standard_name=coord.attrs.get('standard_name'),
                 axis=axis or coord.attrs.get('axis'),
                 _metadata=coord_metadata,
-                _original_data=original_data or data,
+                _original_data=data if original_data is None else original_data,
                 _extractor=self,
             )
         else:
@@ -562,14 +817,14 @@ class XarrayExtractor(DataExtractor):
         
         return DimensionInfo(
             name=coord_name,
-            values=coord.values,
+            _values=coord.values,
             source=DimensionSource.COORDINATE,
-            units=coord.attrs.get('units'),
+            _source_units=coord.attrs.get('units'),
             long_name=coord.attrs.get('long_name'),
             standard_name=coord.attrs.get('standard_name'),
             axis=axis or coord.attrs.get('axis'),
             _metadata=coord_metadata,
-            _original_data=original_data or data,
+            _original_data=data if original_data is None else original_data,
             _extractor=self,
         )
     
@@ -588,14 +843,14 @@ class XarrayExtractor(DataExtractor):
         
         return DimensionInfo(
             name=data.name or "data",
-            values=data.values,
+            _values=data.values,
             source=DimensionSource.VARIABLE,
-            units=data.attrs.get('units'),
+            _source_units=data.attrs.get('units'),
             long_name=data.attrs.get('long_name'),
             standard_name=data.attrs.get('standard_name'),
             axis=axis,
             _metadata=var_metadata,
-            _original_data=original_data or data,
+            _original_data=data if original_data is None else original_data,
             _extractor=self,
         )
     
@@ -625,38 +880,40 @@ class XarrayExtractor(DataExtractor):
         x: np.ndarray,
         y: np.ndarray,
         z: Optional[np.ndarray],
+        crs: Optional[Any],
         original_data: xr.DataArray,
         global_metadata: dict,
+        regrid: str = "auto",
     ) -> DimensionSet:
         """
         Wrap user-provided arrays when all dimensions are specified as arrays.
         """
         x_dim = DimensionInfo(
             name="x",
-            values=np.asarray(x),
+            _values=np.asarray(x),
             source=DimensionSource.USER_SPECIFIED,
             axis="X",
             _original_data=original_data,
             _extractor=self,
         )
-        
+
         y_dim = DimensionInfo(
             name="y",
-            values=np.asarray(y),
+            _values=np.asarray(y),
             source=DimensionSource.USER_SPECIFIED,
             axis="Y",
             _original_data=original_data,
             _extractor=self,
         )
-        
+
         z_dim = None
         if z is not None:
             z_dim = DimensionInfo(
                 name="z",
-                values=np.asarray(z),
+                _values=np.asarray(z),
                 source=DimensionSource.USER_SPECIFIED,
                 _original_data=original_data,
                 _extractor=self,
             )
-        
-        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, original_data, global_metadata)
+
+        return self._create_dimension_set(x_dim, y_dim, z_dim, plot_context, crs, original_data, global_metadata, regrid=regrid)

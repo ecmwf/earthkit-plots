@@ -1,0 +1,1 @@
+from earthkit.plots.temporal.timeseries import TimeSeries

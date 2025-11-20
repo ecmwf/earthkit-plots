@@ -13,11 +13,14 @@
 # limitations under the License.
 
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.styles import colors as ekp_colors
+
+
+__all__ = ["Style", "CompositeStyle", "Contour", "Vector", "compute_levels"]
 
 def compute_levels(
     data: np.ndarray,
@@ -87,6 +90,7 @@ class Style:
         scale_factor: Optional[float] = None,
         normalize: bool = True,
         anomaly: bool = False,
+        legend_type: str = "auto",
         **kwargs,
     ):
         self._colors = colors
@@ -96,6 +100,7 @@ class Style:
         self.scale_factor = scale_factor
         self.anomaly = anomaly
         self._normalize = normalize
+        self.legend_type = legend_type
         self._kwargs = kwargs
 
     def levels(self, data: np.ndarray) -> Optional[list[float]]:
@@ -192,3 +197,361 @@ class Style:
                     kwargs["cmap"] = self._colors
 
         return kwargs
+    
+    def to_pcolormesh_kwargs(self, data: np.ndarray) -> dict:
+        """
+        Convert the Style to matplotlib keyword arguments suitable for pcolormesh.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array to be plotted, used to compute levels if needed.
+
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib pcolormesh.
+        """
+        kwargs = self.to_matplotlib_kwargs(data)
+        kwargs.pop("levels", None)  # pcolormesh does not use levels
+        return kwargs
+    
+    def to_scatter_kwargs(self, data: np.ndarray) -> dict:
+        """
+        Convert the Style to matplotlib keyword arguments suitable for scatter.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array to be plotted, used to compute levels if needed.
+
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib scatter.
+        """
+        kwargs = self.to_matplotlib_kwargs(data)
+        kwargs.pop("levels", None)  # scatter does not use levels
+        return kwargs
+    
+    def to_grid_cells_kwargs(self, data: np.ndarray) -> dict:
+        """
+        Convert the Style to matplotlib keyword arguments suitable for grid_cells.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array to be plotted, used to compute levels if needed.
+
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib grid_cells.
+        """
+        return self.to_pcolormesh_kwargs(data)
+
+    def get_legend_key(self) -> tuple:
+        """
+        Get a hashable key representing this style's visual appearance for legend purposes.
+
+        Used to determine if two layers should share the same legend/colorbar.
+        Layers with the same legend_key will be grouped together.
+
+        Returns
+        -------
+        tuple
+            A hashable tuple containing the style characteristics that affect
+            legend appearance: levels, colors, normalization, and extend settings.
+        """
+        # Convert levels to a hashable form
+        if self._levels is None:
+            levels_key = None
+        elif isinstance(self._levels, dict):
+            # For dynamic levels, use the parameters
+            levels_key = tuple(sorted(self._levels.items()))
+        elif isinstance(self._levels, (list, range)):
+            # Convert list or range to tuple for consistent hashing
+            levels_key = tuple(self._levels)
+        else:
+            # For other iterables or single values
+            try:
+                levels_key = tuple(self._levels)
+            except TypeError:
+                # Not iterable, use as-is
+                levels_key = self._levels
+
+        # Convert colors to a hashable form
+        if self._colors is None:
+            colors_key = None
+        elif isinstance(self._colors, str):
+            colors_key = self._colors
+        elif isinstance(self._colors, list):
+            colors_key = tuple(self._colors)
+        else:
+            # For colormap objects, use their name if available
+            colors_key = getattr(self._colors, 'name', id(self._colors))
+
+        # Get key kwargs that affect legend appearance
+        extend = self._kwargs.get("extend", None)
+        extend_levels = self._kwargs.get("extend_levels", True)
+
+        return (levels_key, colors_key, self._normalize, extend, extend_levels)
+
+    def legend(self, layer, ax=None, location='right', orientation=None,
+               label="auto", **kwargs):
+        """
+        Create a legend for this style (colorbar for 2D plots, traditional legend for 1D plots).
+
+        Parameters
+        ----------
+        layer : Layer
+            The layer to create a legend for (provides mappable and data for labeling).
+        ax : matplotlib.axes.Axes, optional
+            The axes to attach the legend to. If None, uses layer.ax.
+        location : str, optional
+            Location for the colorbar ('right', 'left', 'top', 'bottom').
+            Default is 'right'. For traditional legends, use standard matplotlib locations
+            like 'upper right', 'lower left', etc.
+        orientation : str, optional
+            Orientation of the colorbar ('vertical' or 'horizontal').
+            If None, inferred from location. Only applicable to colorbars.
+        label : str, optional
+            Label for the legend. Default is "auto" which generates a label from layer
+            metadata. Can contain format placeholders (e.g., "{units}", "{long_name}", etc.)
+            which will be replaced with layer metadata values. Use None for no label.
+        **kwargs
+            Additional keyword arguments passed to matplotlib's colorbar or legend.
+
+        Returns
+        -------
+        matplotlib.colorbar.Colorbar or matplotlib.legend.Legend
+            The created legend object.
+
+        Examples
+        --------
+        >>> style.legend(layer, label="{long_name} ({units})")
+        >>> style.legend(layer, label="{units}")
+        """
+        # Determine which type of legend to create
+        legend_type = self._infer_legend_type(layer)
+
+        if legend_type == "colorbar":
+            return self._create_colorbar(layer, ax, location, orientation, label, **kwargs)
+        elif legend_type == "legend":
+            return self._create_traditional_legend(layer, ax, location, label, **kwargs)
+        else:
+            raise ValueError(f"Unknown legend_type: {legend_type}")
+
+    def _infer_legend_type(self, layer):
+        """
+        Infer the legend type based on style settings and layer data.
+
+        Parameters
+        ----------
+        layer : Layer
+            The layer to infer legend type for.
+
+        Returns
+        -------
+        str
+            Either "colorbar" or "legend".
+        """
+        if self.legend_type != "auto":
+            # User explicitly specified legend type
+            requested_type = self.legend_type
+
+            # Validate compatibility
+            if layer.dimension_set.z is None and requested_type == "colorbar":
+                raise ValueError(
+                    "Cannot create colorbar for 1D plot (no z dimension). "
+                    "Use legend_type='legend' or 'auto' instead."
+                )
+            elif layer.dimension_set.z is not None and requested_type == "legend":
+                raise ValueError(
+                    "Cannot create traditional legend for 2D plot with z dimension. "
+                    "Use legend_type='colorbar' or 'auto' instead."
+                )
+
+            return requested_type
+
+        # Auto-inference based on z dimension
+        if layer.dimension_set.z is None:
+            return "legend"
+        else:
+            return "colorbar"
+
+    def _create_colorbar(self, layer, ax, location, orientation, label, **kwargs):
+        """Create a colorbar legend."""
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            ax = layer.ax
+
+        # Determine orientation from location if not specified
+        if orientation is None:
+            if location in ('right', 'left'):
+                orientation = 'vertical'
+            else:
+                orientation = 'horizontal'
+
+        # Get the mappable object (the plotted data with colormap)
+        mappable = layer.mappable
+
+        # Generate or format label
+        if label == "auto":
+            # Check if a label was set at plot time - if so, use it
+            # Otherwise, generate a default label template
+            if hasattr(layer, '_plot_label') and layer._plot_label and layer._plot_label != "_no_legend_":
+                label = layer._plot_label
+            else:
+                # Generate a default label template
+                label = self._generate_colorbar_label_template(layer)
+
+        # Format the label using layer metadata (applies format_units, etc.)
+        if label is not None and "{" in label:
+            label = layer.format_string(label)
+
+        # Set default parameters to make colorbar match axes size
+        # Use fraction and aspect instead of shrink for better control
+        if 'fraction' not in kwargs:
+            kwargs['fraction'] = 0.046  # Standard matplotlib default
+        if 'aspect' not in kwargs:
+            # For vertical colorbars, aspect controls width relative to height
+            # For horizontal, it controls height relative to width
+            # Using 20 (matplotlib default) gives good proportions
+            kwargs['aspect'] = 20
+        if 'shrink' not in kwargs:
+            # Shrink controls how much of the axes height/width to use
+            kwargs['shrink'] = 1.0
+
+        # Create colorbar
+        # Use plt.colorbar for standard approach
+        cbar = plt.colorbar(
+            mappable,
+            ax=ax,
+            location=location,
+            orientation=orientation,
+            label=label,
+            **kwargs
+        )
+
+        return cbar
+
+    def _create_traditional_legend(self, layer, ax, location, label, **kwargs):
+        """Create a traditional matplotlib legend for 1D plots."""
+        import matplotlib.pyplot as plt
+
+        if ax is None:
+            ax = layer.ax
+
+        # Generate or format label
+        if label == "auto":
+            # Check if a label was set at plot time - if so, use it
+            # Otherwise, generate a default label from layer metadata
+            if hasattr(layer, '_plot_label') and layer._plot_label and layer._plot_label != "_no_legend_":
+                label = layer._plot_label
+            else:
+                # Generate a default label from layer metadata
+                label = self._generate_legend_label(layer)
+
+        # Format the label using layer metadata (applies format_units, etc.)
+        if label is not None and "{" in label:
+            label = layer.format_string(label)
+
+        # Get the mappable object (line, scatter, etc.)
+        mappable = layer.mappable
+
+        # Add label to the mappable if not already set
+        if hasattr(mappable, 'set_label'):
+            mappable.set_label(label)
+
+        # Create the legend
+        # Use ax.legend() to collect all labeled artists on the axes
+        legend = ax.legend(loc=location, **kwargs)
+
+        return legend
+
+    def _generate_legend_label(self, layer):
+        """
+        Generate a label for traditional legend from layer metadata.
+
+        Parameters
+        ----------
+        layer : Layer
+            The layer to generate a label for.
+
+        Returns
+        -------
+        str or None
+            The label string, or None if no label can be generated.
+        """
+        # For 1D plots, we want to show the variable name and units
+        # Build a template with placeholders
+        parts = []
+
+        # Add variable name from y dimension (for line plots, y is typically the value)
+        if layer.dimension_set.y is not None:
+            var_name = layer.dimension_set.y.long_name or layer.dimension_set.y.name
+            if var_name and var_name != "data":
+                parts.append(var_name)
+
+        # Check if we should include units
+        # Priority: style units_label > style units > dimension units
+        has_units = (
+            self._units_label is not None
+            or self._units is not None
+            or (layer.dimension_set.y is not None and layer.dimension_set.y.units is not None)
+        )
+
+        if has_units:
+            # Use {units} placeholder so LayerFormatter can apply format_units
+            parts.append("({units})")
+
+        return " ".join(parts) if parts else None
+
+    def _generate_colorbar_label_template(self, layer):
+        """
+        Generate a label template for the colorbar that will be formatted by layer metadata.
+
+        This creates a template string with placeholders (e.g., "{long_name} ({units})")
+        that will be filled in by the LayerFormatter, which applies proper formatting
+        rules like format_units.
+
+        Parameters
+        ----------
+        layer : Layer
+            The layer to generate a label template for.
+
+        Returns
+        -------
+        str or None
+            The label template with placeholders, or None if no label can be generated.
+        """
+        # Build a template with placeholders
+        parts = []
+
+        # Add variable name placeholder if we have a z dimension
+        if layer.dimension_set.z is not None:
+            var_name = layer.dimension_set.z.long_name or layer.dimension_set.z.name
+            if var_name and var_name != "data":
+                # Use the actual name directly (not a placeholder) since it's already known
+                parts.append(var_name)
+
+        # Check if we should include units
+        # Priority: style units_label > style units > dimension units
+        has_units = (
+            self._units_label is not None
+            or self._units is not None
+            or (layer.dimension_set.z is not None and layer.dimension_set.z.units is not None)
+        )
+
+        if has_units:
+            # Use {units} placeholder so LayerFormatter can apply format_units
+            parts.append("({units})")
+
+        return " ".join(parts) if parts else None
+
+
+class Contour(Style):
+    """Style subclass for contour plots."""
+    pass
