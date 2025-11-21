@@ -42,7 +42,6 @@ class NumpySource(SingleSource):
         self._metadata = metadata or {}
         self._metadata.update(kwargs)
         self._earthkit_data = None
-        self._gridspec = None
 
         self._x = x
         self._y = y
