@@ -219,7 +219,7 @@ def extract_plottables_1d(
     if plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}:
         # Use the data's CRS for the transform (tells cartopy what CRS the data is in)
         import cartopy.crs as ccrs
-        data_crs = dimension_set.crs if dimension_set.crs is not None else ccrs.PlateCarree()
+        data_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else ccrs.PlateCarree()
         kwargs['transform'] = data_crs
 
     # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
@@ -314,9 +314,10 @@ def _infer_plot_type_from_subplot(subplot: Any, is_1d: bool) -> PlotType:
     PlotType
         The inferred plot type enum value.
     """
-    # Check if subplot is a Map (geographic) by checking its class name
-    # This avoids circular import issues
-    is_geographic = subplot.__class__.__name__ == 'Map'
+    from earthkit.plots.core.maps import Map
+    # Check if subplot is a Map or Map subclass (geographic)
+    # This works for Map and any Map subclasses (like Tile)
+    is_geographic = isinstance(subplot, Map)
 
     if is_geographic:
         return PlotType.GEOGRAPHIC_1D if is_1d else PlotType.GEOGRAPHIC_2D
@@ -543,7 +544,7 @@ def extract_plottables_2d(
     if plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}:
         # Use the data's CRS for the transform (tells cartopy what CRS the data is in)
         import cartopy.crs as ccrs
-        data_crs = dimension_set.crs if dimension_set.crs is not None else ccrs.PlateCarree()
+        data_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else ccrs.PlateCarree()
         kwargs['transform'] = data_crs
 
     # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
@@ -638,8 +639,10 @@ def extract_plottables_2d(
 
         # Step 9b: Extract data within domain boundaries if requested
         if subplot.domain and extract_domain and not no_style:
+            # Resolve "auto" CRS to None so domain.extract can use its default (PlateCarree)
+            extract_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else None
             x_values, y_values, z_values = subplot.domain.extract(
-                x_values, y_values, z_values, source_crs=dimension_set.crs
+                x_values, y_values, z_values, source_crs=extract_crs
             )
 
     if do_standard_processing:
