@@ -109,7 +109,7 @@ class BoundingBox:
 
         x_min, x_max, y_min, y_max = bounds
         x_centre = x_max - (x_max - x_min) / 2
-        
+
         corners = [
             target_crs.transform_point(x_min, y_min, source_crs),
             target_crs.transform_point(x_min, y_max, source_crs),

@@ -172,7 +172,7 @@ class GridIdentifier(metaclass=ABCMeta):
 
         return None
     
-    def to_regular_ll(self, x, y, values, target_resolution=0.2) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def to_regular_ll(self, x, y, values, target_resolution=0.1) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Regrid the data values to a regular lat-lon grid.
         
@@ -196,7 +196,8 @@ class GridIdentifier(metaclass=ABCMeta):
                 "You can install it via pip:\n\n    pip install earthkit-regrid"
             )
         longitudes, latitudes = get_points(target_resolution)
-        
+        import time
+        _start = time.time()
         def interpolate(v):
             return earthkit.regrid.interpolate(
                 v,

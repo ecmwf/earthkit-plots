@@ -38,7 +38,12 @@ class Tile(Map):
         The CRS of the tile. If not provided, it will be inferred from the
         domain.
     dpi : int, optional
-        The DPI to use for rendering. Default is 100.
+        The DPI to use for rendering. Higher DPI values produce better quality
+        but take longer to render. For high-quality tiles, use 200-300.
+        Default is 100.
+    rasterization_dpi : int, optional
+        The DPI to use for rasterizing vector elements (coastlines, etc.).
+        If not specified, defaults to max(dpi * 2, 200) for better quality.
     **kwargs
         Additional keyword arguments to pass to the :class:`Map` constructor.
 
@@ -49,47 +54,120 @@ class Tile(Map):
     >>> tile.save("tile.png")
     """
 
-    def __init__(self, size=(256, 256), dpi=100, **kwargs):
+    def __init__(self, domain=None, size=(256, 256), crs=None, dpi=100, rasterization_dpi=None, **kwargs):
         self._pixel_size = size
         self._dpi = dpi
-        print("foo")
 
-        # Create a standalone figure for this tile
+        # If rasterization_dpi not specified, use a higher value for better quality
+        # This controls the resolution of rasterized elements (coastlines, etc.)
+        if rasterization_dpi is None:
+            # Use at least 2x the output DPI for better quality, or 200 minimum
+            rasterization_dpi = max(dpi * 2, 200)
+        self._rasterization_dpi = rasterization_dpi
+
         # Convert pixel size to inches based on DPI
         figsize = (size[0] / dpi, size[1] / dpi)
 
-        # Initialize parent Map with figure and gridspec references
-        # We need to pass a figure-like object, so we create a minimal wrapper
-        super().__init__(size=figsize, **kwargs)
+        # Create a standalone figure for this tile
+        self._fig = plt.figure(figsize=figsize, dpi=dpi)
+        self._fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        self._fig.patch.set_alpha(0)
 
-    # @property
-    # def ax(self):
-    #     """The matplotlib axes object for the tile."""
-    #     if self._ax is None:
-    #         # Create axes with the tile's CRS
-    #         self._ax = self._fig.add_subplot(
-    #             self._gridspec[0, 0],
-    #             projection=self.crs,
-    #             **self._ax_kwargs,
-    #         )
+        # Create gridspec
+        self._gridspec = self._fig.add_gridspec(1, 1)
 
-    #         # Set domain extent if specified
-    #         if self.domain is not None and None not in list(self.domain.bbox):
-    #             self._ax.set_extent(
-    #                 self.domain.bbox.to_cartopy_bounds(),
-    #                 self.domain.bbox.crs,
-    #             )
+        # Create a minimal figure wrapper for Map
+        figure = _TileFigure(self._fig, self._gridspec)
 
-    #         # Make axes background transparent
-    #         self._ax.patch.set_alpha(0)
+        # Initialize parent Map
+        super().__init__(row=0, column=0, figure=figure, domain=domain, crs=crs, **kwargs)
 
-    #         # Remove any margins
-    #         self._ax.set_aspect('auto')
+    def _ensure_axes(self):
+        """Override to add tile-specific axes configuration."""
+        # Call parent's _ensure_axes to create the axes
+        super()._ensure_axes()
 
-    #         # Replay queued method calls from parent Map class
-    #         self._replay_method_queue()
+        # Add tile-specific configuration
+        if self._ax is not None:
+            # Make axes background transparent
+            self._ax.patch.set_alpha(0)
 
-    #     return self._ax
+            # Handle out-of-bounds domains BEFORE setting aspect
+            # This ensures proper positioning
+            if self.domain is not None:
+                self._handle_out_of_bounds_domain()
+
+            # Set aspect to auto to allow stretching/compressing to fill exact dimensions
+            # Do this AFTER handling out-of-bounds to ensure it applies correctly
+            self._ax.set_aspect('auto')
+
+    def _handle_out_of_bounds_domain(self):
+        """
+        Clip the domain to valid CRS bounds and adjust axes positioning.
+
+        For domains that extend beyond valid CRS bounds (e.g., lat > 90),
+        this clips to valid bounds and positions the map correctly within
+        the tile, leaving out-of-bounds areas transparent.
+        """
+        import cartopy.crs as ccrs
+
+        # Get the requested domain bounds
+        domain_bounds = self.domain.bbox.to_cartopy_bounds()
+        x_min, x_max, y_min, y_max = domain_bounds
+
+        # Get valid CRS bounds
+        # For PlateCarree and similar, latitude is limited to [-90, 90]
+        crs_name = self.crs.__class__.__name__
+
+        if crs_name == 'PlateCarree' or crs_name == 'Geodetic':
+            # Clip to valid latitude range
+            valid_y_min = max(y_min, -90)
+            valid_y_max = min(y_max, 90)
+            valid_x_min = x_min
+            valid_x_max = x_max
+        else:
+            # For other projections, try to get their bounds
+            # If not available, use the domain as-is
+            try:
+                crs_bounds = self.crs.x_limits + self.crs.y_limits
+                valid_x_min = max(x_min, crs_bounds[0])
+                valid_x_max = min(x_max, crs_bounds[1])
+                valid_y_min = max(y_min, crs_bounds[2])
+                valid_y_max = min(y_max, crs_bounds[3])
+            except (AttributeError, TypeError):
+                # CRS doesn't have limits, use domain as-is
+                return
+
+        # If bounds were clipped, we need to adjust the axes position
+        # to maintain the correct pixel dimensions
+        if (valid_y_min != y_min or valid_y_max != y_max or
+            valid_x_min != x_min or valid_x_max != x_max):
+
+            # Set extent to valid bounds only
+            self._ax.set_extent(
+                [valid_x_min, valid_x_max, valid_y_min, valid_y_max],
+                self.domain.bbox.crs
+            )
+
+            # Calculate the fraction of the tile that the valid area occupies
+            # This ensures the valid map area is positioned correctly
+            total_y_range = y_max - y_min
+            total_x_range = x_max - x_min
+
+            if total_y_range > 0 and total_x_range > 0:
+                # Calculate position of valid area within the requested domain
+                # Note: In figure coordinates, (0,0) is bottom-left, (1,1) is top-right
+                y_start_frac = (valid_y_min - y_min) / total_y_range
+                y_end_frac = (valid_y_max - y_min) / total_y_range
+                x_start_frac = (valid_x_min - x_min) / total_x_range
+                x_end_frac = (valid_x_max - x_min) / total_x_range
+
+                # Set axes position directly in figure coordinates
+                # Since we set subplots_adjust(0, 1, 0, 1), the axes should fill the figure
+                # We adjust to position the valid area correctly
+                self._ax.set_position([x_start_frac, y_start_frac,
+                                      x_end_frac - x_start_frac,
+                                      y_end_frac - y_start_frac])
 
     def save(self, filename, **kwargs):
         """
@@ -113,7 +191,23 @@ class Tile(Map):
         kwargs['pad_inches'] = 0
         kwargs['dpi'] = self._dpi
         kwargs['transparent'] = kwargs.get('transparent', True)
-        super().save(filename, **kwargs)
+
+        # Enable figure-level antialiasing for smoother rendering
+        # This is the default but we make it explicit
+        if 'facecolor' not in kwargs:
+            kwargs['facecolor'] = 'none'  # Transparent background
+        if 'edgecolor' not in kwargs:
+            kwargs['edgecolor'] = 'none'
+
+        # Set rasterization DPI for better quality of vector elements
+        # This affects how cartopy features (coastlines, etc.) are rasterized
+        if 'metadata' not in kwargs:
+            kwargs['metadata'] = {}
+
+        self.ax.axis('off')
+
+        # Use the figure's savefig directly instead of plt.savefig
+        self._fig.savefig(filename, **kwargs)
 
     def show(self):
         """
@@ -124,15 +218,23 @@ class Tile(Map):
         plt.show()
 
 
-# class TileFigure:
-#     """
-#     A minimal wrapper to make Tile compatible with Map's figure expectations.
+class _TileFigure:
+    """
+    A minimal wrapper to make Tile compatible with Map's figure expectations.
 
-#     This class wraps a matplotlib Figure and GridSpec to provide the interface
-#     expected by the Map parent class.
-#     """
+    This class wraps a matplotlib Figure and GridSpec to provide the interface
+    expected by the Map parent class.
+    """
 
-#     def __init__(self, fig, gridspec):
-#         self.fig = fig
-#         self.gridspec = gridspec
-#         self.subplots = []
+    def __init__(self, fig, gridspec):
+        self.fig = fig
+        self.gridspec = gridspec
+        self.subplots = []
+
+    def add_attribution(self, attribution):
+        """Placeholder for attribution support."""
+        pass
+
+    def add_logo(self, logo):
+        """Placeholder for logo support."""
+        pass

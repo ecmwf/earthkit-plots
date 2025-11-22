@@ -40,6 +40,7 @@ TARGET_DENSITY = 40
 LAYER_ZORDERS = {
     "contourf": 1,
     "pcolormesh": 1,
+    "imshow": 1,
     "scatter": 2,
     "contour": 3,
     "quiver": 3,
@@ -510,7 +511,6 @@ class Subplot:
                                 mappable = mpl_method(x_values, y_values, **plot_kwargs)
                         else:
                             mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
-
                 # Create and store layer
                 from earthkit.plots.core.layers import Layer
                 axis_units = {}
@@ -1992,6 +1992,40 @@ class Subplot:
             by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+        """
+
+    @plot_2d(extract_domain=True)
+    def imshow(self, *args, **kwargs):
+        """
+        Plot an image on the Subplot.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the image. If None, a Style is automatically
+            generated based on the data.
+        units : str, optional
+            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        interpolate: earthkit.plots.resample.Interpolate, dict, optional
+            A :class:`plots.resample.Interpolate` class which will be applied to data
+            prior to plotting. This is required for unstructured data with no grid information,
+            but it can also be useful if you want to view structured data at a different resolution.
+            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
+            If not provided and the data is unstructured, an `Interpolate` class is created
+            by detecting the resolution of the data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.imshow`.
         """
 
     @schema.contour.apply()
