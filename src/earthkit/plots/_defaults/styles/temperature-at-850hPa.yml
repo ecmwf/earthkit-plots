@@ -1,0 +1,27 @@
+---
+id: temperature-at-850hPa
+optimal: TEMPERATURE_AT_850HPA_IN_CELSIUS
+
+styles:
+
+  TEMPERATURE_AT_850HPA_IN_CELSIUS:
+    plot_type: contourf
+    colors: rainbow
+    extend: both
+    levels: range(-40, 41, 2)
+    units: celsius
+
+  TEMPERATURE_AT_850HPA_IN_KELVIN:
+    plot_type: contourf
+    colors: rainbow
+    extend: both
+    levels: range(230, 311, 2)
+    units: K
+
+  TEMPERATURE_AT_850HPA_IN_FAHRENHEIT:
+    plot_type: contourf
+    colors: rainbow
+    extend: both
+    levels: range(-40, 101, 5)
+    units: fahrenheit
+  
