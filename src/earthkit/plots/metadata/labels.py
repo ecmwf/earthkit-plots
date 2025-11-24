@@ -420,12 +420,21 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
                 if x in ["variable_name", "short_name", "long_name", "standard_name", "name", "units"]:
                     try:
                         primary = search_obj.primary_dimension
-                        if hasattr(primary, x):
-                            val = getattr(primary, x)
-                            if val is not None:
-                                return val
+                        # Special handling for "name": skip the attribute check because
+                        # DimensionInfo.name is the dimension identifier (like "2t"),
+                        # not the long name we want for labels
+                        if x != "name":
+                            if hasattr(primary, x):
+                                val = getattr(primary, x)
+                                if val is not None:
+                                    return val
                         val = primary.metadata(x)
                         if val is not None:
+                            # For "name", prefer global metadata if it's longer (more descriptive)
+                            if x == "name":
+                                global_val = search_obj.metadata(x)
+                                if global_val is not None and len(global_val) > len(val):
+                                    return global_val
                             return val
                     except (AttributeError, ValueError):
                         pass

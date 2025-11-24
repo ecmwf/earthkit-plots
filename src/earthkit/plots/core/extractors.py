@@ -48,6 +48,9 @@ NON_STYLE_KEYS = {
     'label',                          # Legend parameter (not style-specific)
     'transform',                      # Cartopy CRS transform (plot-specific, not style)
     'missing_values',                 # Missing values parameter (earthkit-specific, not matplotlib)
+    'metadata',                       # Metadata parameter (for dimension set, not style)
+    'type',                           # Data type metadata (analysis/forecast, not matplotlib)
+    'units', 'xunits', 'yunits',     # Units parameters (handled separately, not matplotlib kwargs)
 }
 
 
@@ -106,6 +109,8 @@ def _ensure_style_from_kwargs(
             'scale_factor': style_kwargs.pop('scale_factor', style.scale_factor),
             'normalize': style_kwargs.pop('normalize', style._normalize),
             'anomaly': style_kwargs.pop('anomaly', style.anomaly),
+            'legend_type': style_kwargs.pop('legend_type', style.legend_type),
+            'plot_type': style_kwargs.pop('plot_type', style.plot_type),
         }
         # Merge remaining style kwargs with existing style's kwargs
         merged_kwargs = {**style._kwargs, **style_kwargs}
@@ -129,7 +134,7 @@ def extract_plottables_1d(
     x: Optional[Union[str, np.ndarray, list[float]]] = "auto",
     y: Optional[Union[str, np.ndarray, list[float]]] = "auto",
     z: Optional[Union[str, np.ndarray, list[float]]] = None,
-    style: Optional[Style] = None,
+    style: Optional[Union[str, Style]] = None,
     no_style: bool = False,
     units: Optional[str] = None,
     xunits: Optional[str] = None,
@@ -160,8 +165,12 @@ def extract_plottables_1d(
         If "auto" (default), coordinates are inferred from data.
     z : str, array-like, or None, optional
         Optional z values for colored scatter plots.
-    style : Style, optional
-        The style object to use for plotting. If None, one will be created.
+    style : str, Style, or None, optional
+        The style to use for plotting. Can be:
+        - A Style object
+        - "auto" to automatically match style based on data metadata
+        - A style name string (e.g., "MEAN_SEA_LEVEL_PRESSURE_IN_HPA")
+        - None (one will be created from kwargs if needed)
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -222,7 +231,13 @@ def extract_plottables_1d(
         data_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else ccrs.PlateCarree()
         kwargs['transform'] = data_crs
 
-    # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
+    # Step 2.7: Resolve string styles to Style objects
+    from earthkit.plots.styles.utils import resolve_style
+    # Pass dimension_set if auto_style is True OR if style is "auto"
+    need_data_for_matching = auto_style or (isinstance(style, str) and style == "auto")
+    style = resolve_style(style, data=dimension_set if need_data_for_matching else None, auto_style=auto_style, units=units)
+
+    # Step 2.8: Ensure we have a Style object (create from kwargs if needed)
     style, kwargs = _ensure_style_from_kwargs(style, kwargs)
 
     # Step 3: Configure the plotting style
@@ -445,7 +460,7 @@ def extract_plottables_2d(
     x: Optional[Union[str, np.ndarray, list[float]]] = "auto",
     y: Optional[Union[str, np.ndarray, list[float]]] = "auto",
     z: Optional[Union[str, np.ndarray, list[float]]] = "auto",
-    style: Optional[Style] = None,
+    style: Optional[Union[str, Style]] = None,
     no_style: bool = False,
     units: Optional[str] = None,
     xunits: Optional[str] = None,
@@ -476,8 +491,12 @@ def extract_plottables_2d(
     x, y, z : str, array-like, or "auto", optional
         Data coordinates. If strings, they are treated as coordinate names.
         If "auto" (default), coordinates are inferred from data.
-    style : Style, optional
-        The style object to use for plotting. If None, one will be created.
+    style : str, Style, or None, optional
+        The style to use for plotting. Can be:
+        - A Style object
+        - "auto" to automatically match style based on data metadata
+        - A style name string (e.g., "MEAN_SEA_LEVEL_PRESSURE_IN_HPA")
+        - None (one will be created from kwargs if needed)
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -547,10 +566,16 @@ def extract_plottables_2d(
         data_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else ccrs.PlateCarree()
         kwargs['transform'] = data_crs
 
-    # Step 2.7: Ensure we have a Style object (create from kwargs if needed)
+    # Step 2.7: Resolve string styles to Style objects
+    from earthkit.plots.styles.utils import resolve_style
+    # Pass dimension_set if auto_style is True OR if style is "auto"
+    need_data_for_matching = auto_style or (isinstance(style, str) and style == "auto")
+    style = resolve_style(style, data=dimension_set if need_data_for_matching else None, auto_style=auto_style, units=units)
+
+    # Step 2.8: Ensure we have a Style object (create from kwargs if needed)
     style, kwargs = _ensure_style_from_kwargs(style, kwargs)
 
-    # Step 2.8: Special handling for grid_cells method
+    # Step 2.9: Special handling for grid_cells method
     # Try to identify specialized grids and get their grid_cells method
     grid_cells_callable = None
     effective_method_name = method_name

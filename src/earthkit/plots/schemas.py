@@ -335,17 +335,32 @@ class Schema(dict):
         >>> schema.use("default")
         >>> schema.use("~/custom.yaml")
         """
-        if name not in PLUGINS:
+        # Check if it's a plugin
+        if name in PLUGINS and PLUGINS[name].get("schema") is not None:
+            file_name = PLUGINS[name]["schema"]
+        # Check if it's "default" and use built-in defaults
+        elif name == "default":
+            from earthkit.plots._defaults import SCHEMA_PATH
+            file_name = SCHEMA_PATH
+        # Otherwise, treat as a file path
+        else:
             file_name = Path(name).expanduser()
             if not file_name.exists():
-                raise SchemaNotFoundError(f"No plugin '{name}' found")
-        elif PLUGINS[name].get("schema") is None:
-            raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
-        else:
-            file_name = PLUGINS[name]["schema"]
+                raise SchemaNotFoundError(
+                    f"Schema '{name}' not found. "
+                    f"Not a registered plugin and file does not exist at: {file_name}"
+                )
 
         with open(file_name, "r") as f:
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
+
+        # Load user config file if it exists and merge with schema
+        user_config = Path.home() / ".config" / "earthkit-plots" / "config.yml"
+        if user_config.exists():
+            with open(user_config, "r") as f:
+                user_kwargs = yaml.load(f, Loader=yaml.SafeLoader)
+            if user_kwargs:
+                kwargs = recursive_dict_update(kwargs, user_kwargs)
 
         self._reset(**kwargs)
 
