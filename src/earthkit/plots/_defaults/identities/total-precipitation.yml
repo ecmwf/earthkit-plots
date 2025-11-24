@@ -1,0 +1,7 @@
+id: total-precipitation
+
+criteria:
+- {standard_name: total_precipitation}
+- {long_name: "Total precipitation"}
+- {paramId: 228, shortName: tp }
+- {paramId: 228 }

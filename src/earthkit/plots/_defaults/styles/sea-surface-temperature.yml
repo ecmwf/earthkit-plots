@@ -1,0 +1,19 @@
+---
+id: sea-surface-temperature
+optimal: SEA_SURFACE_TEMPERATURE_IN_CELSIUS
+
+styles:
+
+  SEA_SURFACE_TEMPERATURE_IN_CELSIUS:
+    plot_type: contourf
+    colors: Spectral_r
+    extend: both
+    levels: range(-1, 31)
+    units: celsius
+
+  SEA_SURFACE_TEMPERATURE_IN_KELVIN:
+    plot_type: contourf
+    colors: Spectral_r
+    extend: both
+    levels: range(272, 301)
+    units: K
