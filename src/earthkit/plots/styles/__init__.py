@@ -20,7 +20,16 @@ from earthkit.plots import metadata
 from earthkit.plots.styles import colors as ekp_colors
 
 
-__all__ = ["Style", "CompositeStyle", "Contour", "Vector", "compute_levels"]
+__all__ = [
+    "Style",
+    "CompositeStyle",
+    "Contour",
+    "Vector",
+    "compute_levels",
+    "get",
+    "available",
+    "match",
+]
 
 def compute_levels(
     data: np.ndarray,
@@ -91,6 +100,7 @@ class Style:
         normalize: bool = True,
         anomaly: bool = False,
         legend_type: str = "auto",
+        plot_type: Optional[str] = None,
         **kwargs,
     ):
         self._colors = colors
@@ -101,6 +111,7 @@ class Style:
         self.anomaly = anomaly
         self._normalize = normalize
         self.legend_type = legend_type
+        self.plot_type = plot_type  # Method name for quickplot (e.g., "contour", "pcolormesh")
         self._kwargs = kwargs
 
     def levels(self, data: np.ndarray) -> Optional[list[float]]:
@@ -120,6 +131,45 @@ class Style:
             return self._units_label
         elif self._units is not None:
             return self._units
+
+    @classmethod
+    def from_magics(cls, **magics_params):
+        """
+        Create a Style from Magics contouring parameters.
+
+        This class method provides a convenient way to convert Magics plotting
+        parameters to earthkit-plots Style objects.
+
+        Parameters
+        ----------
+        **magics_params : dict
+            Magics contouring parameters (see earthkit.plots.styles.magics.from_magics
+            for full parameter documentation).
+
+        Returns
+        -------
+        Style
+            A Style object configured with the translated Magics parameters.
+
+        Examples
+        --------
+        >>> # Convert Magics-style parameters
+        >>> style = Style.from_magics(
+        ...     contour_level_selection_type="interval",
+        ...     contour_interval=2.0,
+        ...     contour_shade="on",
+        ...     contour_shade_palette_name="eccharts_rainbow_purple_red_25"
+        ... )
+        >>>
+        >>> # Use in plotting
+        >>> chart.contourf(data, style=style)
+
+        See Also
+        --------
+        earthkit.plots.styles.magics.from_magics : Full documentation of Magics parameter translation
+        """
+        from earthkit.plots.styles.magics import from_magics
+        return from_magics(**magics_params)
 
     def apply_scale_factor(self, values):
         """Apply the scale factor to some values."""
@@ -198,6 +248,38 @@ class Style:
 
         return kwargs
     
+    def to_contourf_kwargs(self, data: np.ndarray) -> dict:
+        """
+        Convert the Style to matplotlib keyword arguments suitable for contourf.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array to be plotted, used to compute levels if needed.
+
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib contourf.
+        """
+        return self.to_matplotlib_kwargs(data)
+    
+    def to_contour_kwargs(self, data: np.ndarray) -> dict:
+        """
+        Convert the Style to matplotlib keyword arguments suitable for contour.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            The data array to be plotted, used to compute levels if needed.
+
+        Returns
+        -------
+        dict
+            Dictionary of keyword arguments to pass to matplotlib contour.
+        """
+        return self.to_matplotlib_kwargs(data)
+    
     def to_pcolormesh_kwargs(self, data: np.ndarray) -> dict:
         """
         Convert the Style to matplotlib keyword arguments suitable for pcolormesh.
@@ -212,8 +294,44 @@ class Style:
         dict
             Dictionary of keyword arguments to pass to matplotlib pcolormesh.
         """
-        kwargs = self.to_matplotlib_kwargs(data)
+        # For pcolormesh with discrete levels, we need to use extend_levels=False
+        # so that over/under colors are set via cmap.set_over/under instead of
+        # including infinities in the BoundaryNorm (which causes colorbar issues)
+        levels = self.levels(data)
+        kwargs = self._kwargs.copy()
+
+        if levels is not None:
+            # Create colormap and normalization with extend_levels=False
+            import earthkit.plots.styles.colors as ekp_colors
+            cmap, norm = ekp_colors.cmap_and_norm(
+                self._colors,
+                levels,
+                normalize=self._normalize,
+                extend=kwargs.get("extend", None),
+                extend_levels=False,  # Use set_over/set_under instead of inf boundaries
+            )
+            kwargs.update({"cmap": cmap, "norm": norm})
+        else:
+            # When no levels specified, just pass through the colormap/colors
+            if self._colors is not None:
+                if isinstance(self._colors, str):
+                    # Named colormap
+                    kwargs["cmap"] = self._colors
+                elif isinstance(self._colors, list):
+                    # List of colors - create a colormap from it
+                    from matplotlib.colors import LinearSegmentedColormap
+                    kwargs["cmap"] = LinearSegmentedColormap.from_list(
+                        name="custom",
+                        colors=self._colors,
+                        N=256
+                    )
+                else:
+                    # Assume it's already a Colormap object
+                    kwargs["cmap"] = self._colors
+
         kwargs.pop("levels", None)  # pcolormesh does not use levels
+        kwargs.pop("extend", None)  # extend is for colorbar, not pcolormesh
+        kwargs.pop("extend_levels", None)  # internal parameter
         return kwargs
     
     def to_scatter_kwargs(self, data: np.ndarray) -> dict:
@@ -230,8 +348,44 @@ class Style:
         dict
             Dictionary of keyword arguments to pass to matplotlib scatter.
         """
-        kwargs = self.to_matplotlib_kwargs(data)
+        # For scatter with discrete levels, we need to use extend_levels=False
+        # so that over/under colors are set via cmap.set_over/under instead of
+        # including infinities in the BoundaryNorm (which causes colorbar issues)
+        levels = self.levels(data)
+        kwargs = self._kwargs.copy()
+
+        if levels is not None:
+            # Create colormap and normalization with extend_levels=False
+            import earthkit.plots.styles.colors as ekp_colors
+            cmap, norm = ekp_colors.cmap_and_norm(
+                self._colors,
+                levels,
+                normalize=self._normalize,
+                extend=kwargs.get("extend", None),
+                extend_levels=False,  # Use set_over/set_under instead of inf boundaries
+            )
+            kwargs.update({"cmap": cmap, "norm": norm})
+        else:
+            # When no levels specified, just pass through the colormap/colors
+            if self._colors is not None:
+                if isinstance(self._colors, str):
+                    # Named colormap
+                    kwargs["cmap"] = self._colors
+                elif isinstance(self._colors, list):
+                    # List of colors - create a colormap from it
+                    from matplotlib.colors import LinearSegmentedColormap
+                    kwargs["cmap"] = LinearSegmentedColormap.from_list(
+                        name="custom",
+                        colors=self._colors,
+                        N=256
+                    )
+                else:
+                    # Assume it's already a Colormap object
+                    kwargs["cmap"] = self._colors
+
         kwargs.pop("levels", None)  # scatter does not use levels
+        kwargs.pop("extend", None)  # extend is for colorbar, not scatter
+        kwargs.pop("extend_levels", None)  # internal parameter
         return kwargs
     
     def to_grid_cells_kwargs(self, data: np.ndarray) -> dict:
@@ -332,8 +486,12 @@ class Style:
         >>> style.legend(layer, label="{long_name} ({units})")
         >>> style.legend(layer, label="{units}")
         """
-        # Determine which type of legend to create
-        legend_type = self._infer_legend_type(layer)
+        legend_type = self.legend_type
+        if legend_type is None:
+            return
+        
+        if legend_type == "auto":
+            legend_type = self._infer_legend_type(layer)
 
         if legend_type == "colorbar":
             return self._create_colorbar(layer, ax, location, orientation, label, **kwargs)
@@ -423,6 +581,10 @@ class Style:
         if 'shrink' not in kwargs:
             # Shrink controls how much of the axes height/width to use
             kwargs['shrink'] = 1.0
+
+        # Add extend parameter if it's in the style kwargs
+        if 'extend' not in kwargs and 'extend' in self._kwargs:
+            kwargs['extend'] = self._kwargs['extend']
 
         # Create colorbar
         # Use plt.colorbar for standard approach
@@ -555,3 +717,252 @@ class Style:
 class Contour(Style):
     """Style subclass for contour plots."""
     pass
+
+
+class Vector(Style):
+    """Style subclass for vector plots (quiver, barbs)."""
+    pass
+
+
+class CompositeStyle:
+    """
+    A composite style that combines multiple styles for multi-layer plots.
+
+    This is useful when quickplot needs to apply multiple styles to the same data.
+    """
+
+    def __init__(self, styles: List[Style]):
+        self.styles = styles
+
+    def __iter__(self):
+        return iter(self.styles)
+
+
+# ============================================================================
+# Public API for style management
+# ============================================================================
+
+def get(style_name: str) -> Optional[Style]:
+    """
+    Get a named style by its identifier.
+
+    Parameters
+    ----------
+    style_name : str
+        The name of the style (e.g., "MEAN_SEA_LEVEL_PRESSURE_IN_HPA").
+
+    Returns
+    -------
+    Style or None
+        The requested style, or None if not found.
+
+    Examples
+    --------
+    >>> from earthkit.plots import styles
+    >>> style = styles.get("MEAN_SEA_LEVEL_PRESSURE_IN_HPA")
+    >>> print(style.plot_type)
+    contour
+    """
+    from earthkit.plots.styles.loader import get as loader_get
+    return loader_get(style_name)
+
+
+def available() -> List[str]:
+    """
+    Get a list of all available style names.
+
+    Returns
+    -------
+    list of str
+        Sorted list of all style names that can be used with styles.get().
+
+    Examples
+    --------
+    >>> from earthkit.plots import styles
+    >>> all_styles = styles.available()
+    >>> print(f"Found {len(all_styles)} styles")
+    >>> print(all_styles[:5])
+    """
+    from earthkit.plots.styles.loader import available as loader_available
+    return loader_available()
+
+
+def _extract_data_units(data) -> Optional[str]:
+    """
+    Extract units from data object.
+
+    Parameters
+    ----------
+    data : object
+        Data object to extract units from (DimensionSet, Field, DataArray, etc.)
+
+    Returns
+    -------
+    str or None
+        The units string if found, None otherwise.
+    """
+    # Check if it's a DimensionSet
+    if hasattr(data, 'z') and data.z is not None and hasattr(data.z, 'units'):
+        return data.z.units
+
+    # Check for direct units attribute
+    if hasattr(data, 'units') and data.units is not None:
+        return data.units
+
+    # Check for metadata access methods (earthkit-data)
+    if hasattr(data, 'metadata'):
+        try:
+            units = data.metadata('units')
+            if units is not None:
+                return units
+        except:
+            pass
+
+    # Check for attrs (xarray)
+    if hasattr(data, 'attrs') and 'units' in data.attrs:
+        return data.attrs['units']
+
+    return None
+
+
+def _units_compatible(data_units: str, style_units: str) -> bool:
+    """
+    Check if data units are compatible with style units.
+
+    This performs a simple string comparison with some normalization.
+    Future improvements could use pint or similar for more sophisticated
+    unit conversion checking.
+
+    Parameters
+    ----------
+    data_units : str
+        Units from the data
+    style_units : str
+        Units from the style
+
+    Returns
+    -------
+    bool
+        True if units are considered compatible, False otherwise.
+    """
+    if data_units is None or style_units is None:
+        return False
+
+    # Normalize both strings for comparison
+    data_units_norm = data_units.strip().lower()
+    style_units_norm = style_units.strip().lower()
+
+    # Direct match
+    if data_units_norm == style_units_norm:
+        return True
+
+    # Common equivalences
+    equivalences = [
+        {'m3 s-1', 'm^3 s^-1', 'm**3 s**-1', 'm³ s⁻¹', 'm3/s'},
+        {'k', 'kelvin'},
+        {'c', 'celsius', 'degc', '°c'},
+        {'pa', 'pascal'},
+        {'hpa', 'hectopascal'},
+        {'m', 'meter', 'metre'},
+        {'kg', 'kilogram'},
+        {'s', 'second'},
+    ]
+
+    for equiv_set in equivalences:
+        if data_units_norm in equiv_set and style_units_norm in equiv_set:
+            return True
+
+    return False
+
+
+def match(data, units: Optional[str] = None) -> List[str]:
+    """
+    Find and return all style names that match the given data.
+
+    This function analyzes the data's metadata (paramId, shortName, standard_name, etc.)
+    to identify the variable type, then returns all styles (not just optimal ones)
+    for matching variables.
+
+    Parameters
+    ----------
+    data : object
+        Data object with metadata (earthkit-data Field, xarray DataArray, etc.)
+    units : str, optional
+        If provided, only return styles that match these units or have no units defined.
+        This allows filtering styles when the user explicitly specifies units.
+
+    Returns
+    -------
+    list of str
+        List of style names that match this data based on metadata matching,
+        or empty list if no matching styles are found. Optimal styles are placed
+        first in the list, followed by other matching styles. The first style in
+        the list is used as the default when style="auto".
+
+    Examples
+    --------
+    >>> from earthkit.plots import styles
+    >>> import earthkit.data as ekd
+    >>> data = ekd.from_source("file", "river_discharge.grib")
+    >>> style_names = styles.match(data)
+    >>> print(style_names)
+    ['RIVER_DISCHARGE_GLOBAL_IN_M3_S-1', 'RIVER_DISCHARGE_EUROPE_IN_M3_S-1']
+    >>> # Use the first one (optimal) as default
+    >>> style = styles.get(style_names[0])
+    >>> # Filter by units
+    >>> style_names = styles.match(data, units="m3 s-1")
+    >>> print(style_names)
+    ['RIVER_DISCHARGE_GLOBAL_IN_M3_S-1', 'RIVER_DISCHARGE_EUROPE_IN_M3_S-1']
+    """
+    from earthkit.plots.styles.matcher import match as matcher_match
+    from earthkit.plots.schemas import schema
+    identity_ids = matcher_match(data)
+
+    if not identity_ids:
+        return []
+
+    # Get ALL styles for each matching identity
+    from earthkit.plots.styles.loader import _style_library
+    _style_library._load_all_styles()
+
+    # Extract data units for matching
+    data_units = _extract_data_units(data)
+    use_preferred_units = schema.get("use_preferred_units")
+
+    matched_styles = []
+    optimal_styles = []
+    unit_matched_optimal = []
+    unit_matched_other = []
+
+    for identity_id in identity_ids:
+        # Find all styles that match this identity
+        for style_name, style in _style_library._styles_cache.items():
+            if hasattr(style, "_file_id") and style._file_id == identity_id:
+                # If user specified units, filter styles
+                if units is not None:
+                    style_has_units = hasattr(style, "_units") and style._units is not None
+                    # Only include styles that match the requested units or have no units
+                    if style_has_units and not _units_compatible(units, style._units):
+                        continue  # Skip this style
+
+                is_optimal = hasattr(style, "_is_optimal") and style._is_optimal
+                units_match = (data_units and hasattr(style, "_units") and
+                              _units_compatible(data_units, style._units))
+
+                # Categorize by optimal status and unit matching
+                if is_optimal and units_match:
+                    unit_matched_optimal.append(style_name)
+                elif is_optimal:
+                    optimal_styles.append(style_name)
+                elif units_match:
+                    unit_matched_other.append(style_name)
+                else:
+                    matched_styles.append(style_name)
+
+    # Return styles in priority order based on use_preferred_units setting
+    if use_preferred_units:
+        # When use_preferred_units=True, prioritize optimal regardless of units
+        return optimal_styles + unit_matched_optimal + matched_styles + unit_matched_other
+    else:
+        # When use_preferred_units=False, prioritize unit matches
+        return unit_matched_optimal + unit_matched_other + optimal_styles + matched_styles
