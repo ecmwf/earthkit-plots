@@ -112,6 +112,55 @@ MAGICS_PALETTE_TO_MPL = {
 }
 
 
+def _hsl_to_rgb(h: float, s: float, l: float) -> tuple:
+    """
+    Convert HSL color to RGB.
+
+    Parameters
+    ----------
+    h : float
+        Hue in degrees [0, 360]
+    s : float
+        Saturation [0, 1]
+    l : float
+        Lightness [0, 1]
+
+    Returns
+    -------
+    tuple
+        RGB tuple (r, g, b) with values in range [0, 1]
+    """
+    # Normalize hue to [0, 1]
+    h = h / 360.0
+
+    # Convert HSL to RGB using standard algorithm
+    if s == 0:
+        # Achromatic (gray)
+        return (l, l, l)
+
+    def hue_to_rgb(p, q, t):
+        if t < 0:
+            t += 1
+        if t > 1:
+            t -= 1
+        if t < 1/6:
+            return p + (q - p) * 6 * t
+        if t < 1/2:
+            return q
+        if t < 2/3:
+            return p + (q - p) * (2/3 - t) * 6
+        return p
+
+    q = l * (1 + s) if l < 0.5 else l + s - l * s
+    p = 2 * l - q
+
+    r = hue_to_rgb(p, q, h + 1/3)
+    g = hue_to_rgb(p, q, h)
+    b = hue_to_rgb(p, q, h - 1/3)
+
+    return (r, g, b)
+
+
 def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     """
     Convert a Magics named color to matplotlib-compatible RGB or color name.
@@ -120,6 +169,9 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     ----------
     color_name : str
         Magics color name (e.g., "ecmwf_blue", "charcoal", "red").
+        Also supports RGB and HSL formats:
+        - "rgb(r,g,b)" where values are in [0, 1]
+        - "hsl(h,s,l)" where h is in degrees [0, 360] and s,l are in [0, 1]
 
     Returns
     -------
@@ -144,6 +196,14 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     >>> magics.magics_color("charcoal")
     (0.2, 0.2, 0.2)
     >>>
+    >>> # RGB format
+    >>> magics.magics_color("rgb(0.3,0.3,0.3)")
+    (0.3, 0.3, 0.3)
+    >>>
+    >>> # HSL format
+    >>> magics.magics_color("hsl(29,0.12,0.92)")
+    (0.9312, 0.9088, 0.8864)
+    >>>
     >>> # No color / transparent
     >>> magics.magics_color("none")
     None
@@ -157,6 +217,26 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     if not isinstance(color_name, str):
         # If it's already a tuple/list (RGB), return as-is
         return color_name
+
+    elif color_name.startswith("rgb("):
+        # Handle explicit RGB format "rgb(r,g,b)"
+        rgb_values = color_name[4:-1].split(",")
+        try:
+            r, g, b = [float(v.strip()) for v in rgb_values]
+            return (r, g, b)
+        except (ValueError, IndexError):
+            # Invalid RGB format - return None
+            return None
+
+    elif color_name.startswith("hsl(") or color_name.upper().startswith("HSL("):
+        # Handle HSL format "hsl(h,s,l)" or "HSL(h,s,l)"
+        hsl_values = color_name[4:-1].split(",")
+        try:
+            h, s, l = [float(v.strip()) for v in hsl_values]
+            return _hsl_to_rgb(h, s, l)
+        except (ValueError, IndexError):
+            # Invalid HSL format - return None
+            return None
 
     color_lower = color_name.lower()
 
@@ -355,11 +435,8 @@ def _convert_levels(magics_params: Dict[str, Any]) -> Optional[Union[List[float]
 
     Handles both explicit level lists and interval-based level generation.
     """
-    print("HERE")
+    import numpy as np
     level_selection_type = magics_params.get("contour_level_selection_type", "interval")
-    print("LEVEL SELECTION TYPE:", level_selection_type)
-    
-    print("MAGICS PARAMS:", magics_params)
 
     if level_selection_type == "level_list":
         # Explicit level list
@@ -371,12 +448,13 @@ def _convert_levels(magics_params: Dict[str, Any]) -> Optional[Union[List[float]
         # Interval-based levels - use dict format for dynamic computation
         interval = magics_params.get("contour_interval")
         reference = magics_params.get("contour_reference_level")
-        min_level = magics_params.get("contour_min_level")
-        max_level = magics_params.get("contour_max_level")
-        
-        print("INTERVAL:", interval)
+        min_level = magics_params.get("contour_shade_min_level")
+        max_level = magics_params.get("contour_shade_max_level")
 
         if interval is not None:
+            if min_level is not None and max_level is not None:
+                return np.arange(min_level, max_level + interval, interval).tolist()
+            
             # Use earthkit's dict-based level computation
             levels_dict = {"step": interval}
 
@@ -390,12 +468,56 @@ def _convert_levels(magics_params: Dict[str, Any]) -> Optional[Union[List[float]
                     "Magics min_level/max_level parameters are not directly supported. "
                     "Consider using explicit level_list instead."
                 )
-                
-            print(levels_dict)
 
             return levels_dict
 
     return None
+
+
+def _load_magics_palettes():
+    """
+    Load the Magics palettes from the JSON data file.
+
+    Returns
+    -------
+    dict
+        Dictionary mapping palette names to palette data (colors and metadata).
+    """
+    import json
+    from pathlib import Path
+
+    # Get the path to the data file (in repository root data/colors/)
+    # Walk up from src/earthkit/plots/styles/magics.py to repository root
+    # __file__ is at: src/earthkit/plots/styles/magics.py
+    # Need to go up 5 levels: styles -> plots -> earthkit -> src -> repo_root
+    repo_root = Path(__file__).parent.parent.parent.parent.parent
+    palette_file = repo_root / "data" / "colors" / "palettes.json"
+
+    if not palette_file.exists():
+        warnings.warn(
+            f"Magics palettes file not found: {palette_file}. "
+            "Palette name lookups will fall back to matplotlib colormap names."
+        )
+        return {}
+
+    try:
+        with open(palette_file) as f:
+            return json.load(f)
+    except Exception as e:
+        warnings.warn(f"Failed to load Magics palettes: {e}")
+        return {}
+
+
+# Cache the palettes on first load
+_MAGICS_PALETTES_CACHE = None
+
+
+def _get_magics_palettes():
+    """Get Magics palettes, loading them if not already cached."""
+    global _MAGICS_PALETTES_CACHE
+    if _MAGICS_PALETTES_CACHE is None:
+        _MAGICS_PALETTES_CACHE = _load_magics_palettes()
+    return _MAGICS_PALETTES_CACHE
 
 
 def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optional[Union[str, List[str]]]:
@@ -412,7 +534,13 @@ def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optio
             # Use a named palette
             palette_name = magics_params.get("contour_shade_palette_name")
             if palette_name:
-                # Try to map to matplotlib colormap
+                # First, check if it's in our Magics palettes JSON
+                palettes = _get_magics_palettes()
+                if palette_name in palettes:
+                    # Return the color list from the palette
+                    return palettes[palette_name]["colors"]
+
+                # Fall back to matplotlib colormap name mapping
                 mpl_cmap = MAGICS_PALETTE_TO_MPL.get(palette_name, palette_name)
                 return mpl_cmap
 
@@ -420,7 +548,13 @@ def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optio
             # Use gradient colors
             colour_list = magics_params.get("contour_gradients_colour_list")
             if colour_list:
-                return list(colour_list)
+                return [magics_color(c) for c in colour_list]
+
+        elif colour_method == "list":
+            # Direct color list (less common)
+            colour_list = magics_params.get("contour_shade_colour_list")
+            if colour_list:
+                return [magics_color(c) for c in colour_list]
 
     else:
         # Contour lines - get line color
