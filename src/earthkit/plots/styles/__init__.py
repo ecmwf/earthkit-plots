@@ -440,7 +440,12 @@ class Style:
         elif isinstance(self._colors, str):
             colors_key = self._colors
         elif isinstance(self._colors, list):
-            colors_key = tuple(self._colors)
+            # Convert list to tuple, handling nested lists (e.g., RGB tuples)
+            def make_hashable(item):
+                if isinstance(item, list):
+                    return tuple(item)
+                return item
+            colors_key = tuple(make_hashable(c) for c in self._colors)
         else:
             # For colormap objects, use their name if available
             colors_key = getattr(self._colors, 'name', id(self._colors))
@@ -596,6 +601,9 @@ class Style:
             label=label,
             **kwargs
         )
+        if kwargs.get("ticks_off", True):
+            cbar.minorticks_off()
+            cbar.ax.tick_params(size=0)
 
         return cbar
 
