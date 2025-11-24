@@ -501,6 +501,9 @@ class Subplot:
                         # Call matplotlib method directly
                         mpl_method = getattr(self.ax, method_name or method.__name__)
 
+                        # Extract contour-specific parameters
+                        show_labels = plot_kwargs.pop('labels', False)
+
                         # For scatter, handle z_values specially
                         if actual_method_name == 'scatter':
                             if z_values is not None:
@@ -511,6 +514,10 @@ class Subplot:
                                 mappable = mpl_method(x_values, y_values, **plot_kwargs)
                         else:
                             mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
+
+                        # Add contour labels if requested (only for contour, not contourf)
+                        if show_labels and actual_method_name in ['contour', 'tricontour']:
+                            self.ax.clabel(mappable, inline=True, fontsize=10)
                 # Create and store layer
                 from earthkit.plots.core.layers import Layer
                 axis_units = {}
@@ -1757,38 +1764,126 @@ class Subplot:
             method = getattr(self, style._preferred_method)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
-    def quickplot(self, data, style=None, units=None, **kwargs):
+    def quickplot(self, data, style="auto", units=None, **kwargs):
         """
-        Generate a convenient plot from the given data with optional grouping.
+        Generate a convenient plot from the given data using automatic style detection.
+
+        This method automatically determines the appropriate plotting method and style
+        based on the data's metadata (paramId, shortName, standard_name, etc.).
 
         Parameters
         ----------
-        *args : list
-            The data to be plotted. Can be a single xarray or earthkit data object,
-            or separate x, y, z, u, v arguments.
-        methods : string or list, optional
-            The plot method(s) to apply.
-        style : earthkit.plots.styles.Style, optional
-            The Style to use for the data.
-        units : string or list, optional
+        data : xarray.DataArray, earthkit.data object, or array-like
+            The data to be plotted. Can be a single data object or field.
+        style : str, Style, or list of str, optional
+            The style(s) to use for plotting. Default is "auto" which automatically
+            matches styles based on data metadata. Can be:
+            - "auto" (default): Automatic style detection
+            - A style name string (e.g., "MEAN_SEA_LEVEL_PRESSURE_IN_HPA")
+            - A Style object
+            - A list of style names for multi-layer plotting
+        units : str, optional
             Units to convert the data to.
         **kwargs : dict
-            Additional arguments for the plot method(s).
+            Additional arguments passed to the underlying plot method.
+
+        Returns
+        -------
+        The result of the plotting method (typically a matplotlib artist or Layer).
+
+        Examples
+        --------
+        >>> chart = ek.plots.Map()
+        >>> chart.quickplot(data)  # Auto-detects style and method
+
+        >>> # Use a specific style
+        >>> chart.quickplot(data, style="RIVER_DISCHARGE_EUROPE_IN_M3_S-1")
+
+        >>> # Multi-layer plotting
+        >>> chart.quickplot(data, style=["PRESSURE_CONTOUR", "WIND_BARBS"])
+
+        Notes
+        -----
+        The `auto_style` parameter is always True for quickplot and cannot be disabled.
         """
+        from earthkit.plots import styles as ekp_styles
+        from earthkit.plots.styles import Style
+
+        # Ensure auto_style is always True for quickplot
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
-        source = get_source(data)
-        if style is None:
-            auto_style = auto.guess_style(source, units=units, **kwargs)
-            if auto_style is not None:
-                method = getattr(self, auto_style._preferred_method)
-            else:
-                method = self.grid_cells
+
+        # Handle multiple styles (list of style names)
+        if isinstance(style, list):
+            # Multi-layer plotting: apply each style in sequence
+            results = []
+            for style_item in style:
+                result = self.quickplot(data, style=style_item, units=units, **kwargs)
+                results.append(result)
+            return results
+
+        # Resolve style to a Style object (handles "auto", style names, or Style objects)
+        from earthkit.plots.sources import get_dimension_set
+
+        # Get dimension set to pass for auto-matching
+        dimension_set = get_dimension_set(data)
+
+        # Resolve the style
+        from earthkit.plots.styles.utils import resolve_style
+        resolved_style = resolve_style(style, data=dimension_set, auto_style=(style == "auto"))
+
+        # Handle CompositeStyle - plot each component style in sequence
+        from earthkit.plots.styles import CompositeStyle
+        if isinstance(resolved_style, CompositeStyle):
+            results = []
+            for component_style in resolved_style.styles:
+                # Plot this component with its own plot_type
+                if component_style.plot_type:
+                    method_name = component_style.plot_type
+                else:
+                    method_name = "grid_cells"
+
+                try:
+                    method = getattr(self, method_name)
+                except AttributeError:
+                    warnings.warn(
+                        f"Plot method '{method_name}' not found. Falling back to 'grid_cells'."
+                    )
+                    method = self.grid_cells
+
+                # Set default zorder based on method
+                zorder = LAYER_ZORDERS.get(method_name, 10)
+                component_kwargs = kwargs.copy()
+                component_kwargs.setdefault("zorder", zorder)
+
+                # Call the plotting method with this component style
+                result = method(data, style=component_style, units=units, **component_kwargs)
+                results.append(result)
+            return results
+
+        # Single style - determine which plotting method to use
+        if resolved_style is not None and hasattr(resolved_style, 'plot_type') and resolved_style.plot_type:
+            # Use the plot_type from the style
+            method_name = resolved_style.plot_type
         else:
-            method = getattr(self, style._preferred_method)
-        zorder = LAYER_ZORDERS.get(method.__name__, 10)
+            # Fallback to grid_cells if no style or plot_type
+            method_name = "grid_cells"
+
+        # Get the method from self
+        try:
+            method = getattr(self, method_name)
+        except AttributeError:
+            warnings.warn(
+                f"Plot method '{method_name}' not found. Falling back to 'grid_cells'."
+            )
+            method = self.grid_cells
+
+        # Set default zorder based on method
+        zorder = LAYER_ZORDERS.get(method_name, 10)
         kwargs.setdefault("zorder", zorder)
-        return method(data, style=style, units=units, auto_style=True, **kwargs)
+
+        # Call the plotting method with the resolved style
+        return method(data, style=resolved_style, units=units, **kwargs)
 
     def hsv_composite(self, *args):
         """
@@ -2052,6 +2147,9 @@ class Subplot:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        labels : bool, optional
+            If True, add labels to the contour lines showing their values. Default is False.
+            This parameter can also be included in Style definitions.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contour`.
         """
@@ -2181,6 +2279,7 @@ class Subplot:
         style=None,
         every=None,
         auto_style=False,
+        label=None,  # Default to None, will be converted to auto-generated label
         **kwargs,
     ):
         """
@@ -2216,6 +2315,9 @@ class Subplot:
             Sampling interval for data reduction.
         auto_style : bool, default=False
             Whether to automatically guess the appropriate style.
+        label : str, optional
+            The label to use for the legend. If None (default), an automatic label
+            will be generated.
         **kwargs
             Additional keyword arguments to pass to the underlying plotting method.
             Note: 'regrid' parameter is not supported and will raise an error.
@@ -2242,6 +2344,14 @@ class Subplot:
         >>> # Falls back to pcolormesh for regular grids
         >>> chart.grid_cells(regular_data)
         """
+        # Sentinel value to distinguish "not provided" from "explicitly None"
+        _LABEL_AUTO = object()
+
+        # If label was not provided (is None), use sentinel
+        # This allows us to distinguish between label=None (explicitly passed)
+        # and label not provided at all
+        label_sentinel = _LABEL_AUTO if label is None else label
+
         # Check for regrid parameter and raise error
         if 'regrid' in kwargs:
             raise ValueError(
@@ -2250,6 +2360,9 @@ class Subplot:
                 "in your data without any regridding. If you need regridding, "
                 "please use pcolormesh() or contourf() instead."
             )
+
+        # Convert sentinel to None for extract_plottables_2d
+        label_for_extraction = None if label_sentinel is _LABEL_AUTO else label_sentinel
 
         # Get processed data and kwargs from extract_plottables_2d
         x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
@@ -2264,6 +2377,7 @@ class Subplot:
             auto_style=auto_style,
             extract_domain=False,  # Don't extract domain for grid cells
             regrid=False,  # Never regrid for grid_cells
+            label=label_for_extraction,
             **kwargs,
         )
 
@@ -2277,6 +2391,7 @@ class Subplot:
         is_specialized = plot_kwargs.pop('_is_specialized')
         actual_method_name = plot_kwargs.pop('_method_name')
         no_style = plot_kwargs.pop('_no_style')
+        plot_label = plot_kwargs.pop('_label')
         grid_cells_callable = plot_kwargs.pop('_grid_cells_callable', None)
 
         # Try to use specialized grid_cells method if available
@@ -2323,6 +2438,25 @@ class Subplot:
             style=plot_style,
             axis_units=axis_units,
         )
+
+        # Handle label for legend
+        # Distinguish between:
+        # - label not provided (_LABEL_AUTO) → use default "{variable_name} ({units})"
+        # - label=None explicitly → don't show in legend (set to special marker)
+        # - label="something" → use that label
+        if label_sentinel is _LABEL_AUTO:
+            # Default: use variable name with units
+            label_to_use = "{variable_name} ({units})"
+        elif label_sentinel is None:
+            # Explicitly None: mark as excluded from legend
+            label_to_use = "_no_legend_"
+        else:
+            # User-provided label
+            label_to_use = label_sentinel
+
+        # Store the label from plot time for later use by legend()
+        layer._plot_label = label_to_use
+
         self.layers.append(layer)
 
         return mappable
