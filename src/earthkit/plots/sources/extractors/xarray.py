@@ -117,11 +117,17 @@ class XarrayExtractor(DataExtractor):
                     var_name = dimensional_vars[0]
                     data = data[var_name]
                 else:
-                    # Multiple variables and no z specification
-                    raise AmbiguousDimensionError(
+                    # Multiple variables and no z specification - default to first variable
+                    var_name = dimensional_vars[0]
+                    import warnings
+                    warnings.warn(
                         f"Dataset has multiple variables: {dimensional_vars}. "
-                        f"Please specify which variable to use with z='variable_name'."
+                        f"Using first variable '{var_name}' for plotting. "
+                        f"To select a different variable, specify z='variable_name'.",
+                        UserWarning,
+                        stacklevel=2
                     )
+                    data = data[var_name]
         
         # Parse metadata - extract global attrs
         user_metadata = metadata or {}
@@ -308,9 +314,10 @@ class XarrayExtractor(DataExtractor):
             for var_name in original_data.data_vars:
                 var = original_data[var_name]
                 if hasattr(var, 'attrs') and 'grid_mapping' in var.attrs:
-                    # Found a variable with grid_mapping - use this DataArray for CRS extraction
+                    # Found a variable with grid_mapping - pass the entire Dataset to preserve
+                    # the grid mapping variable (which is typically a 0-dim variable in the Dataset)
                     try:
-                        ek_data = earthkit.data.from_object(var)
+                        ek_data = earthkit.data.from_object(original_data)
                         return ek_data.projection().to_cartopy_crs()
                     except (AttributeError, NotImplementedError, ValueError, KeyError):
                         continue

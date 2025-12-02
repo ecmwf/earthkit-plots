@@ -3,6 +3,13 @@
 ## For matplotlib appearance settings, see earthkit-default.mplstyle
 
 # *************************************************************************** #
+# * MATPLOTLIB STYLE                                                        * #
+# *************************************************************************** #
+
+# The matplotlib style sheet to use (path will be resolved by Schema class)
+style_sheet: earthkit-default
+
+# *************************************************************************** #
 # * LIBRARY BEHAVIOR                                                        * #
 # *************************************************************************** #
 

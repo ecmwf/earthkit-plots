@@ -553,6 +553,8 @@ def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optio
         elif colour_method == "list":
             # Direct color list (less common)
             colour_list = magics_params.get("contour_shade_colour_list")
+            if isinstance(colour_list, str):
+                colour_list = colour_list.split("/")
             if colour_list:
                 return [magics_color(c) for c in colour_list]
 
