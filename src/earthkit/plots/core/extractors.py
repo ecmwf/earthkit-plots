@@ -929,7 +929,17 @@ def extract_plottables_2d(
 
         # Get the target bbox from the map's extent
         # ax.get_extent() returns (x0, x1, y0, y1) in the map's CRS
-        extent = subplot.ax.get_extent(crs=target_crs)
+        # For matplotlib-only mode (tiles with PlateCarree), use domain instead
+        try:
+            extent = subplot.ax.get_extent(crs=target_crs)
+        except AttributeError:
+            # Axes doesn't have get_extent (matplotlib-only mode)
+            # Fall back to using the subplot's domain
+            if hasattr(subplot, 'domain') and subplot.domain is not None:
+                extent = subplot.domain.bbox.to_cartopy_bounds()
+            else:
+                # Last resort: use a default extent
+                extent = (-180, 180, -90, 90)
         bbox_target = extent  # (xmin, xmax, ymin, ymax)
 
         # Use default resolution of 500x500

@@ -444,10 +444,11 @@ class Subplot:
 
         return decorator
 
-    def plot_2d(method_name=None, extract_domain=False):
+    def plot_2d(method_name=None, extract_domain=False, default_reproject_to_target=True):
         """Decorator for 2D plotting methods (contour, pcolormesh)."""
         # Sentinel value to distinguish "not provided" from "explicitly None"
         _LABEL_AUTO = object()
+        _REPROJECT_AUTO = object()
 
         def decorator(method):
             @functools.wraps(method)
@@ -462,11 +463,13 @@ class Subplot:
                 every=None,
                 auto_style=False,
                 label=_LABEL_AUTO,
-                reproject_to_target=True,
+                reproject_to_target=_REPROJECT_AUTO,
                 **kwargs,
             ):
-                # Convert sentinel to None for extract_plottables_2d
+                # Convert sentinels to actual values
                 label_for_extraction = None if label is _LABEL_AUTO else label
+                reproject_value = default_reproject_to_target if reproject_to_target is _REPROJECT_AUTO else reproject_to_target
+
                 # Get processed data and kwargs from extract_plottables_2d
                 x_values, y_values, z_values, plot_kwargs = extract_plottables_2d(
                     self,
@@ -481,7 +484,7 @@ class Subplot:
                     extract_domain=extract_domain,
                     regrid=regrid,
                     label=label_for_extraction,
-                    reproject_to_target=reproject_to_target,
+                    reproject_to_target=reproject_value,
                     **kwargs,
                 )
 
@@ -2209,7 +2212,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
-    @plot_2d(extract_domain=True)
+    @plot_2d(extract_domain=True, default_reproject_to_target=False)
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
@@ -2232,6 +2235,11 @@ class Subplot:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        reproject_to_target : bool, optional
+            Whether to reproject data to the map's CRS before plotting. Default is False for pcolormesh.
+            When False, data is plotted in its native CRS using matplotlib's transform parameter.
+            When True, data is reprojected to match the map's CRS, which can be useful for certain projections
+            but may be slower and lose some precision.
         interpolate: earthkit.plots.resample.Interpolate, dict, optional
             A :class:`plots.resample.Interpolate` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
