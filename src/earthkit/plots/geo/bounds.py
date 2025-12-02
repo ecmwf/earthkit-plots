@@ -33,17 +33,26 @@ class BoundingBox:
         ----------
         geometry : shapely.geometry
             A shapely geometry around which the bounding box should be drawn.
-        source_crs : cartopy.crs.CRS, optional
+        source_crs : str, dict or cartopy.crs.CRS, optional
             The coordinate reference system on which the geometry's coordinates
             are defined. If `None`, assumes a cylindrical lat-lon CRS.
-        target_crs : cartopy.crs.CRS, optional
+            Can be a string (e.g., "PlateCarree", "EPSG:4326"), a dictionary,
+            or a cartopy CRS object.
+        target_crs : str, dict or cartopy.crs.CRS, optional
             The target coordinate reference system for the generated bounding
-            box.
+            box. Can be a string (e.g., "PlateCarree", "EPSG:4326"), a dictionary,
+            or a cartopy CRS object.
 
         Returns
         -------
         earthkit.plots.geo.bounds.BoundingBox
         """
+        # Parse CRS parameters if they are strings or dicts
+        if source_crs is not None:
+            source_crs = coordinate_reference_systems.parse_crs(source_crs)
+        if target_crs is not None:
+            target_crs = coordinate_reference_systems.parse_crs(target_crs)
+
         try:
             geometries = list(geometry.geoms)  # get sub-geometries, if present
         except AttributeError:
@@ -78,16 +87,18 @@ class BoundingBox:
         bbox : list or earthkit.plots.geo.bounds.BoundingBox
             The bounding box around which to generate a new bounding box. If a
             list, mus
-        source_crs : cartopy.crs.CRS, optional
+        source_crs : str, dict or cartopy.crs.CRS, optional
             The coordinate reference system of the source bounding box.  If
             `None` (default), assumes a cylindrical lat-lon CRS, unless the
             source bounding box is an `earthkit.plots.geo.bounds.BoundingBox`
-            with its own CRS.
-        target_crs : cartopy.crs.CRS, optional
+            with its own CRS. Can be a string (e.g., "PlateCarree", "EPSG:4326"),
+            a dictionary, or a cartopy CRS object.
+        target_crs : str, dict or cartopy.crs.CRS, optional
             The coordinate reference system in which to generate a new bounding
             box which entriely contains the input bounding box. If `None`
             (default), attempts to find an "optimised" target CRS based on the
-            domain extents.
+            domain extents. Can be a string (e.g., "PlateCarree", "EPSG:4326"),
+            a dictionary, or a cartopy CRS object.
 
         Returns
         -------
@@ -95,11 +106,19 @@ class BoundingBox:
         """
         bounds = list(bbox)
 
+        # Parse CRS parameters if they are strings or dicts
+        if source_crs is not None:
+            source_crs = coordinate_reference_systems.parse_crs(source_crs)
+
         if source_crs is None:
             try:
                 source_crs = bbox.crs
             except AttributeError:
                 source_crs = coordinate_reference_systems.DEFAULT_CRS
+
+        # Parse target_crs if provided
+        if target_crs is not None:
+            target_crs = coordinate_reference_systems.parse_crs(target_crs)
 
         if target_crs is None:
             return cls(*bounds, source_crs).to_optimised_bbox()

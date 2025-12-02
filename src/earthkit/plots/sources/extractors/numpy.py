@@ -16,6 +16,7 @@ from typing import Any, Optional, Union
 import numpy as np
 
 from earthkit.plots.sources.core import (
+    AxisType,
     DimensionSet,
     DimensionInfo,
     DimensionSource,

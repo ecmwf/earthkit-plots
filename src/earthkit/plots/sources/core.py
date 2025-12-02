@@ -30,7 +30,7 @@ class DimensionSource(Enum):
     """A record of how a dimension was determined."""
     # Explicitly provided by user
     USER_SPECIFIED = "user_specified"
-    
+
     # Extracted from data dimension (xarray, pandas index)
     DIMENSION = "dimension"
 
@@ -42,9 +42,17 @@ class DimensionSource(Enum):
 
     # Generated (index) array
     GENERATED = "generated"
-    
+
     # Inferred from metadata/conventions
     INFERRED = "inferred"
+
+
+class AxisType(Enum):
+    """Types of coordinate axes following CF conventions."""
+    X = "X"
+    Y = "Y"
+    Z = "Z"
+    T = "T"
 
 @dataclass
 class DimensionInfo:
@@ -63,7 +71,7 @@ class DimensionInfo:
         source_units: Original units before any conversion
         long_name: Human-readable description
         standard_name: CF standard name if applicable
-        axis: Axis type ('X', 'Y', 'Z', 'T') if applicable
+        axis: Axis type (AxisType enum or string 'X', 'Y', 'Z', 'T') if applicable
         _metadata: Internal metadata storage (use .metadata() method to access)
         _original_data: Reference to original data object for fallback lookups
         _extractor: Reference to extractor for data-type-specific metadata extraction
@@ -74,7 +82,7 @@ class DimensionInfo:
     _source_units: Optional[str] = None
     long_name: Optional[str] = None
     standard_name: Optional[str] = None
-    axis: Optional[str] = None  # 'X', 'Y', 'Z', 'T'
+    axis: Optional[Union[AxisType, str]] = None
     _metadata: dict = field(default_factory=dict, repr=False)
     _original_data: Any = field(default=None, repr=False)
     _extractor: Optional['DataExtractor'] = field(default=None, repr=False)
@@ -83,12 +91,21 @@ class DimensionInfo:
     _scale_factor: Optional[float] = field(default=None, repr=False, init=False)
 
     def __post_init__(self):
-        """Validate and normalize the values array."""
+        """Validate and normalize the values array and axis type."""
         if not isinstance(self._values, np.ndarray):
             self._values = np.asarray(self._values)
         self._target_units = None
         self._converted_values = None
         self._scale_factor = None
+
+        # Normalize axis to AxisType enum if it's a string
+        if isinstance(self.axis, str):
+            try:
+                self.axis = AxisType(self.axis)
+            except ValueError:
+                # If it's not a valid AxisType value, keep it as a string
+                # This allows for flexibility with custom axis types
+                pass
 
     @property
     def values(self) -> np.ndarray:
@@ -479,22 +496,30 @@ class DimensionSet:
 def create_index_dimension(
     size: int,
     name: str = "index",
-    axis: Optional[str] = None,
+    axis: Optional[Union[AxisType, str]] = None,
     original_data: Any = None,
     extractor: Optional['DataExtractor'] = None,
 ) -> DimensionInfo:
     """
     Create a generated index dimension (0, 1, 2, ..., size-1).
-    
-    Args:
-        size: The size of the index array
-        name: Name for the dimension (default: 'index')
-        axis: Axis type ('X' or 'Y') if applicable
-        original_data: Reference to original data object
-        extractor: Reference to extractor
-    
-    Returns:
-        DimensionInfo representing the index array
+
+    Parameters
+    ----------
+    size : int
+        The size of the index array.
+    name : str, optional
+        Name for the dimension (default: 'index').
+    axis : AxisType or str, optional
+        Axis type (AxisType.X, AxisType.Y, or string 'X', 'Y') if applicable.
+    original_data : Any, optional
+        Reference to original data object.
+    extractor : DataExtractor, optional
+        Reference to extractor.
+
+    Returns
+    -------
+    DimensionInfo
+        DimensionInfo representing the index array.
     """
     return DimensionInfo(
         name=name,

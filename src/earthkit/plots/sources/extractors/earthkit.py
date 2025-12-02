@@ -17,6 +17,7 @@ from typing import Any, Optional, Union, List
 import numpy as np
 
 from earthkit.plots.sources.core import (
+    AxisType,
     DimensionSet,
     DimensionInfo,
     DimensionSource,
@@ -357,6 +358,28 @@ class EarthkitExtractor(DataExtractor):
         # If we can't determine, assume False
         return False
 
+    def _resolve_coordinate(self, data: Any, spec: Optional[Union[str, np.ndarray]]) -> Optional[np.ndarray]:
+        """
+        Resolve a coordinate specification to an array.
+
+        Parameters
+        ----------
+        data : Any
+            The data object.
+        spec : str, np.ndarray, or None
+            Either a variable name (str) or an array, or None.
+
+        Returns
+        -------
+        np.ndarray or None
+            The resolved coordinate array, or None if spec was None.
+        """
+        if spec is None:
+            return None
+        if isinstance(spec, str):
+            return self._select_field(data, spec)
+        return np.asarray(spec)
+
     def _extract_xy_coords(
         self,
         data: Any,
@@ -365,36 +388,24 @@ class EarthkitExtractor(DataExtractor):
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Extract x and y coordinates from earthkit-data.
-        
+
         Priority:
         1. User-specified x/y (as variable names or arrays)
         2. .to_points() method (returns {'x': ..., 'y': ...})
         3. .to_latlon() method (returns {'lon': ..., 'lat': ...})
-        
-        Returns:
-            Tuple of (x_values, y_values)
+
+        Returns
+        -------
+        tuple of (np.ndarray, np.ndarray, bool)
+            (x_values, y_values, is_latlon)
         """
         # Check if this is a lat/lon projection
         is_latlon = self._is_latlon_projection(data)
-        
-        # Handle user-specified x
-        if x is not None:
-            if isinstance(x, str):
-                x_values = self._select_field(data, x)
-            else:
-                x_values = np.asarray(x)
-        else:
-            x_values = None
-        
-        # Handle user-specified y
-        if y is not None:
-            if isinstance(y, str):
-                y_values = self._select_field(data, y)
-            else:
-                y_values = np.asarray(y)
-        else:
-            y_values = None
-        
+
+        # Handle user-specified coordinates
+        x_values = self._resolve_coordinate(data, x)
+        y_values = self._resolve_coordinate(data, y)
+
         # If both specified, return them
         if x_values is not None and y_values is not None:
             return x_values, y_values, is_latlon
@@ -468,15 +479,33 @@ class EarthkitExtractor(DataExtractor):
         self,
         values: np.ndarray,
         name: str,
-        axis: str,
+        axis: Union[AxisType, str],
         original_data: Any,
     ) -> DimensionInfo:
-        """Create DimensionInfo from coordinate values."""
+        """
+        Create DimensionInfo from coordinate values.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The coordinate values.
+        name : str
+            Name for the dimension.
+        axis : AxisType or str
+            Axis type (AxisType.X, AxisType.Y, or string).
+        original_data : Any
+            Reference to original data object.
+
+        Returns
+        -------
+        DimensionInfo
+            The created dimension info object.
+        """
         metadata = {
             'source_type': 'coordinates',
             'coord_name': name,
         }
-        
+
         return DimensionInfo(
             name=name,
             _values=values,
