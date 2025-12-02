@@ -4,12 +4,12 @@
 ##   plt.style.use('earthkit-default')
 
 # Figure settings
-figure.figsize: 8, 7
+figure.figsize: 6, 5
 figure.dpi: 100
 
 # Axes settings
-axes.linewidth: 1
-axes.edgecolor: #AAAAAA
+axes.linewidth: 0.75
+axes.edgecolor: 777777
 axes.grid: True
 axes.xmargin: 0.02
 axes.ymargin: 0.02
@@ -18,19 +18,15 @@ axes.prop_cycle: cycler('color', ['545FA4', 'EB702D', 'FABC20', '9aa1cb', 'f6bfa
 # X-axis tick settings
 xtick.top: False
 xtick.bottom: False
-xtick.color: #333333
+xtick.color: 333333
 
 # Y-axis tick settings
 ytick.left: False
 ytick.right: False
-ytick.color: #333333
+ytick.color: 333333
 
 # Grid settings
-grid.color: #ff0000
-grid.zorder: 0
+grid.color: DDDDDD
 
 # Font settings
 font.family: Roboto
-
-# Text settings
-text.color: #333333

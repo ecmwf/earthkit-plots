@@ -80,6 +80,7 @@ class DimensionInfo:
     _extractor: Optional['DataExtractor'] = field(default=None, repr=False)
     _target_units: Optional[str] = field(default=None, repr=False, init=False)
     _converted_values: Optional[np.ndarray] = field(default=None, repr=False, init=False)
+    _scale_factor: Optional[float] = field(default=None, repr=False, init=False)
 
     def __post_init__(self):
         """Validate and normalize the values array."""
@@ -87,20 +88,20 @@ class DimensionInfo:
             self._values = np.asarray(self._values)
         self._target_units = None
         self._converted_values = None
+        self._scale_factor = None
 
     @property
     def values(self) -> np.ndarray:
         """
-        Get dimension values, with automatic unit conversion if target units are set.
+        Get dimension values, with automatic unit conversion and scale factor applied.
 
-        This property supports lazy unit conversion with caching for performance.
-        If _target_units is set and differs from source units, values are
-        automatically converted and cached.
+        This property supports lazy unit conversion and scaling with caching for performance.
+        Transformations are applied in order: 1) unit conversion, 2) scale factor.
 
         Returns
         -------
         np.ndarray
-            The values array, potentially with unit conversion applied.
+            The values array, potentially with unit conversion and scaling applied.
 
         Examples
         --------
@@ -110,35 +111,52 @@ class DimensionInfo:
         >>> dim.set_target_units("celsius")
         >>> dim.values  # Automatic conversion
         array([0., 26.85])
+        >>> dim.set_scale_factor(0.001)  # Convert from mm to m
+        >>> dim.values  # Scaled values
+        array([0., 0.02685])
         """
-        # No conversion needed
-        if self._target_units is None or self._target_units == self._source_units:
-            return self._values
+        # Start with original values
+        result = self._values
+
+        # Apply unit conversion if needed
+        needs_unit_conversion = (self._target_units is not None and
+                                 self._target_units != self._source_units)
 
         # Check if we have a valid cached conversion
-        if self._converted_values is not None:
-            return self._converted_values
+        if needs_unit_conversion or self._scale_factor is not None:
+            if self._converted_values is not None:
+                return self._converted_values
 
-        # Perform conversion and cache
-        if self._source_units is None:
-            # Can't convert without source units
-            return self._values
+        # Perform unit conversion first
+        if needs_unit_conversion:
+            if self._source_units is None:
+                # Can't convert without source units - just use original
+                result = self._values
+            else:
+                try:
+                    from earthkit.plots.metadata import units as metadata_units
+                    result = metadata_units.convert(
+                        self._values, self._source_units, self._target_units
+                    )
+                except Exception as e:
+                    # If conversion fails, warn and use original values
+                    import warnings
+                    warnings.warn(
+                        f"Unit conversion failed: {self._source_units} -> {self._target_units}. "
+                        f"Error: {e}. Returning original values.",
+                        UserWarning
+                    )
+                    result = self._values
 
-        try:
-            from earthkit.plots.metadata import units as metadata_units
-            self._converted_values = metadata_units.convert(
-                self._values, self._source_units, self._target_units
-            )
-            return self._converted_values
-        except Exception as e:
-            # If conversion fails, warn and return original values
-            import warnings
-            warnings.warn(
-                f"Unit conversion failed: {self._source_units} -> {self._target_units}. "
-                f"Error: {e}. Returning original values.",
-                UserWarning
-            )
-            return self._values
+        # Apply scale factor if set
+        if self._scale_factor is not None:
+            result = result * self._scale_factor
+
+        # Cache the result if any transformation was applied
+        if needs_unit_conversion or self._scale_factor is not None:
+            self._converted_values = result
+
+        return result
 
     def set_target_units(self, target_units: Optional[str]) -> None:
         """
@@ -159,6 +177,27 @@ class DimensionInfo:
         """
         if target_units != self._target_units:
             self._target_units = target_units
+            self._converted_values = None  # Clear cache
+
+    def set_scale_factor(self, scale_factor: Optional[float]) -> None:
+        """
+        Set a scale factor to multiply the values by.
+
+        The scale factor is applied after unit conversion (if any).
+        Calling this clears any cached converted values if the scale factor changes.
+
+        Parameters
+        ----------
+        scale_factor : float or None
+            Factor to multiply values by, or None to clear.
+
+        Examples
+        --------
+        >>> dim.set_scale_factor(0.001)  # Convert from mm to m
+        >>> scaled = dim.values  # Values multiplied by 0.001
+        """
+        if scale_factor != self._scale_factor:
+            self._scale_factor = scale_factor
             self._converted_values = None  # Clear cache
 
     @property

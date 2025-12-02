@@ -112,6 +112,11 @@ class Style:
         self._normalize = normalize
         self.legend_type = legend_type
         self.plot_type = plot_type  # Method name for quickplot (e.g., "contour", "pcolormesh")
+        
+        if "ticks" not in kwargs and isinstance(levels, list):
+            if len(levels) <= 30 and len(np.unique(np.diff(levels))) != 1:
+                kwargs["ticks"] = levels
+        
         self._kwargs = kwargs
 
     def levels(self, data: np.ndarray) -> Optional[list[float]]:
@@ -214,6 +219,7 @@ class Style:
         """
         levels = self.levels(data)
         kwargs = self._kwargs.copy()
+        kwargs.pop("ticks", None)  # ticks handled separately
 
         if levels is not None:
             # When levels are specified, create colormap and normalization
@@ -591,6 +597,17 @@ class Style:
         if 'extend' not in kwargs and 'extend' in self._kwargs:
             kwargs['extend'] = self._kwargs['extend']
 
+        # Add ticks parameter if it's in the style kwargs
+        if 'ticks' not in kwargs and 'ticks' in self._kwargs:
+            kwargs['ticks'] = self._kwargs['ticks']
+
+        # Handle ticks parameter based on levels and user input
+        if 'ticks' not in kwargs:
+            # User didn't provide ticks - apply smart defaults
+            ticks = self._get_colorbar_ticks(layer)
+            if ticks is not None:
+                kwargs['ticks'] = ticks
+
         # Create colorbar
         # Use plt.colorbar for standard approach
         cbar = plt.colorbar(
@@ -605,7 +622,87 @@ class Style:
             cbar.minorticks_off()
             cbar.ax.tick_params(size=0)
 
+        # Set appropriate tick formatter and labels if we have explicit ticks
+        if 'ticks' in kwargs and kwargs['ticks'] is not None:
+            ticks = kwargs['ticks']
+            from matplotlib.ticker import FixedLocator, FuncFormatter
+
+            # Determine appropriate number of decimal places based on tick values
+            def smart_format(x, pos):
+                # Find the minimum non-zero absolute value to determine precision
+                min_val = min(abs(t) for t in ticks if t != 0) if any(t != 0 for t in ticks) else 1
+
+                # Determine decimal places needed
+                if min_val >= 1:
+                    # For values >= 1, show as integers or minimal decimals
+                    if x == int(x):
+                        return f'{int(x)}'
+                    else:
+                        return f'{x:.10g}'  # Use general format, strips trailing zeros
+                elif min_val >= 0.01:
+                    # For small decimals, show 1-2 decimal places
+                    return f'{x:.10g}'
+                else:
+                    # For very small decimals, use scientific or more decimals
+                    return f'{x:.10g}'
+
+            # Force matplotlib to show all ticks by using FixedLocator and custom formatter
+            formatter = FuncFormatter(smart_format)
+
+            if orientation == 'vertical':
+                cbar.ax.yaxis.set_major_locator(FixedLocator(ticks))
+                cbar.ax.yaxis.set_major_formatter(formatter)
+            else:
+                cbar.ax.xaxis.set_major_locator(FixedLocator(ticks))
+                cbar.ax.xaxis.set_major_formatter(formatter)
+
         return cbar
+
+    def _get_colorbar_ticks(self, layer):
+        """
+        Determine appropriate tick locations for colorbar.
+
+        Returns None for monotonic levels (use matplotlib default).
+        Returns all level values for non-monotonic levels.
+
+        Parameters
+        ----------
+        layer : Layer
+            The layer to extract levels from
+
+        Returns
+        -------
+        list or None
+            List of tick positions for non-monotonic levels, or None for monotonic
+        """
+        # Get levels from the style
+        levels = self._levels
+
+        # If levels is None or not a sequence, use matplotlib default
+        if levels is None:
+            return None
+
+        if not isinstance(levels, (list, tuple)):
+            return None
+
+        # Need at least 2 levels to check monotonicity
+        if len(levels) < 2:
+            return None
+
+        # Check if levels are monotonic (strictly increasing or decreasing)
+        try:
+            is_increasing = all(levels[i] < levels[i+1] for i in range(len(levels)-1))
+            is_decreasing = all(levels[i] > levels[i+1] for i in range(len(levels)-1))
+        except (TypeError, AttributeError):
+            # Can't compare levels, use matplotlib default
+            return None
+
+        if is_increasing or is_decreasing:
+            # Monotonic levels - use matplotlib default tick labeling
+            return None
+        else:
+            # Non-monotonic levels - place a tick label at every level
+            return list(levels)
 
     def _create_traditional_legend(self, layer, ax, location, label, **kwargs):
         """Create a traditional matplotlib legend for 1D plots."""

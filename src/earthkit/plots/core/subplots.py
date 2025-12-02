@@ -443,6 +443,7 @@ class Subplot:
                 every=None,
                 auto_style=False,
                 label=_LABEL_AUTO,
+                reproject_to_target=True,
                 **kwargs,
             ):
                 # Convert sentinel to None for extract_plottables_2d
@@ -461,6 +462,7 @@ class Subplot:
                     extract_domain=extract_domain,
                     regrid=regrid,
                     label=label_for_extraction,
+                    reproject_to_target=reproject_to_target,
                     **kwargs,
                 )
 
@@ -476,16 +478,24 @@ class Subplot:
                 no_style = plot_kwargs.pop('_no_style')
                 plot_label = plot_kwargs.pop('_label')
 
+                import time
+                import logging
+                logger = logging.getLogger(__name__)
+
                 # Handle specialized grids (healpix, octahedral)
                 if is_specialized and not regrid:
                     from earthkit.plots.core.extractors import _handle_specialized_grids_dimension_set
+                    t_render_start = time.time()
                     mappable = _handle_specialized_grids_dimension_set(
                         self, dimension_set, z_values, plot_style, actual_method_name, plot_kwargs
                     )
+                    t_render = (time.time() - t_render_start) * 1000
+                    logger.info(f"[TIMING] specialized grid rendering: {t_render:.2f}ms")
                 else:
                     # Handle interpolation if requested
                     if not no_style and 'interpolate' in plot_kwargs:
                         from earthkit.plots.core.extractors import plot_with_interpolation
+                        t_render_start = time.time()
                         mappable = plot_with_interpolation(
                             self,
                             plot_style,
@@ -496,13 +506,19 @@ class Subplot:
                             getattr(self, 'crs', None),
                             plot_kwargs,
                         )
+                        t_render = (time.time() - t_render_start) * 1000
+                        logger.info(f"[TIMING] interpolation + rendering: {t_render:.2f}ms")
                     else:
                         import cartopy.crs as ccrs
+
                         # Call matplotlib method directly
                         mpl_method = getattr(self.ax, method_name or method.__name__)
 
                         # Extract contour-specific parameters
                         show_labels = plot_kwargs.pop('labels', False)
+
+                        # Timing: Start matplotlib rendering
+                        t_render_start = time.time()
 
                         # For scatter, handle z_values specially
                         if actual_method_name == 'scatter':
@@ -514,6 +530,10 @@ class Subplot:
                                 mappable = mpl_method(x_values, y_values, **plot_kwargs)
                         else:
                             mappable = mpl_method(x_values, y_values, z_values, **plot_kwargs)
+
+                        # Timing: Log matplotlib rendering time
+                        t_render = (time.time() - t_render_start) * 1000
+                        logger.info(f"[TIMING] matplotlib.{actual_method_name}() rendering: {t_render:.2f}ms")
 
                         # Add contour labels if requested (only for contour, not contourf)
                         if show_labels and actual_method_name in ['contour', 'tricontour']:

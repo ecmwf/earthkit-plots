@@ -99,7 +99,12 @@ class Schema(dict):
 
     def _apply_rcParams(self):
         if "style_sheet" in self:
-            plt.style.use(self["style_sheet"])
+            style_sheet = self["style_sheet"]
+            # Resolve style_sheet path if it's a built-in name
+            if style_sheet == "earthkit-default":
+                from earthkit.plots._defaults import MPLSTYLE_PATH
+                style_sheet = str(MPLSTYLE_PATH)
+            plt.style.use(style_sheet)
         for param, config in self.items():
             if param in RCPARAMS and self._parent is None:
                 for member, value in config.items():

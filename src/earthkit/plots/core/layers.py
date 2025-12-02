@@ -123,7 +123,7 @@ class Layer:
         """
         # Check if this is analysis data (type="an") or forecast
         data_type = self.dimension_set.metadata("type")
-        if data_type == "an":
+        if "an" in data_type or data_type is None:
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

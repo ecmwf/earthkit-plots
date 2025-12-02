@@ -26,6 +26,8 @@ The module is organized into three main categories:
 """
 
 import warnings
+import time
+import logging
 from typing import Any, Optional, Union
 
 import numpy as np
@@ -36,6 +38,22 @@ from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_dimension_set
 from earthkit.plots.sources.core import DimensionSet, PlotType
 from earthkit.plots.styles import Style, Contour
+
+# Set up logger for performance tracking
+logger = logging.getLogger(__name__)
+ENABLE_TIMING = True  # Set to False to disable timing logs
+
+# Cache expensive cartopy CRS objects to avoid repeated instantiation
+# Creating CRS objects is VERY expensive (100-200ms each), so we cache them
+_PLATECARREE_CACHE = None
+
+def _get_platecarree():
+    """Get cached PlateCarree CRS instance to avoid expensive re-creation."""
+    global _PLATECARREE_CACHE
+    if _PLATECARREE_CACHE is None:
+        import cartopy.crs as ccrs
+        _PLATECARREE_CACHE = ccrs.PlateCarree()
+    return _PLATECARREE_CACHE
 
 
 # Keys that should NOT be included in Style objects
@@ -245,15 +263,18 @@ def extract_plottables_1d(
         method_name, style, dimension_set, units, auto_style, kwargs
     )
 
-    # Step 4: Set target units on dimensions for automatic conversion
-    # Priority: explicit parameter > style units > no conversion
+    # Step 4: Set target units and scale factor on dimensions for automatic conversion
+    # Priority: explicit parameter > style units/scale_factor > no conversion
     target_units = units
     target_xunits = xunits
     target_yunits = yunits
+    scale_factor = None
 
     if style is not None:
         if target_units is None and hasattr(style, '_units'):
             target_units = style._units
+        if hasattr(style, 'scale_factor') and style.scale_factor is not None:
+            scale_factor = style.scale_factor
         # Note: Style doesn't currently have xunits/yunits, but we keep this for future compatibility
         # if target_xunits is None and hasattr(style, '_xunits'):
         #     target_xunits = style._xunits
@@ -267,6 +288,10 @@ def extract_plottables_1d(
         # Priority: yunits > units > style units
         y_target_units = target_yunits or target_units
         dimension_set.y.set_target_units(y_target_units)
+
+    # Apply scale factor to y dimension (primary data dimension for 1D plots)
+    if scale_factor is not None:
+        dimension_set.y.set_scale_factor(scale_factor)
 
     # Step 5: Extract values (with automatic unit conversion via .values property)
     x_values = dimension_set.x.values
@@ -471,6 +496,7 @@ def extract_plottables_2d(
     metadata: Optional[dict[str, Any]] = None,
     label: Optional[str] = None,
     regrid: str = "auto",
+    reproject_to_target: bool = True,
     **kwargs: Any,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, dict]:
     """
@@ -515,6 +541,11 @@ def extract_plottables_2d(
         The label to use for the legend.
     regrid : str, optional
         Regridding parameter. For grid_cells method, this should not be used.
+    reproject_to_target : bool, default=True
+        Whether to reproject data to the target map CRS when there is a CRS mismatch.
+        If True (default), data will be reprojected using reproject_to_grid instead of
+        relying on cartopy's transform argument. This only applies to contour/contourf
+        methods on geographic plots. Set to False to use cartopy's transform (old behavior).
     **kwargs
         Additional keyword arguments passed to the plotting method.
 
@@ -533,13 +564,19 @@ def extract_plottables_2d(
     ...     subplot, "pcolormesh", (), x=[1, 2, 3], y=[4, 5, 6], z=[[1, 2], [3, 4]]
     ... )
     """
+    t_start = time.time() if ENABLE_TIMING else None
+
     # Step 1: Get plot type from subplot
+    t0 = time.time() if ENABLE_TIMING else None
     plot_type = _infer_plot_type_from_subplot(subplot, is_1d=False)
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 1 - Infer plot type: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2: Create DimensionSet
     # For geographic plots, let the extractor determine the data's native CRS
     # (we'll use the subplot's CRS as the target projection, but need data's CRS for transform)
     # For grid_cells, disable regridding to preserve native grid cells
+    t0 = time.time() if ENABLE_TIMING else None
     effective_regrid = False if method_name == "grid_cells" else regrid
 
     dimension_set = get_dimension_set(
@@ -552,28 +589,76 @@ def extract_plottables_2d(
         metadata=metadata,
         regrid=effective_regrid,
     )
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 2 - Create DimensionSet: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2.5: Allow subplot to react to first data being plotted (e.g., infer CRS for maps)
+    t0 = time.time() if ENABLE_TIMING else None
     if hasattr(subplot, '_on_first_data_plot'):
         subplot._on_first_data_plot(dimension_set)
 
     kwargs.update(subplot._plot_kwargs())
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 2.5 - First data plot hook: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2.6: For geographic plots, set transform to data's CRS
+    # IMPORTANT: Cache dimension_set.crs early to avoid multiple accesses (each is expensive!)
+    # OPTIMIZATION: If user explicitly passes 'transform' kwarg, use that and skip expensive CRS resolution
+    t0 = time.time() if ENABLE_TIMING else None
+    # Cache the raw CRS value from dimension_set (used later in Step 6.5)
+    cached_data_crs_raw = None
+    user_provided_transform = 'transform' in kwargs  # Check if user explicitly provided transform
+    tile_matplotlib_only = kwargs.pop('_tile_matplotlib_only', False)  # Check if Tile wants matplotlib-only
+
     if plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}:
-        # Use the data's CRS for the transform (tells cartopy what CRS the data is in)
-        import cartopy.crs as ccrs
-        data_crs = dimension_set.crs if (dimension_set.crs is not None and dimension_set.crs != "auto") else ccrs.PlateCarree()
-        kwargs['transform'] = data_crs
+        if user_provided_transform:
+            # User explicitly provided transform - use it as the data's CRS
+            # This skips expensive dimension_set.crs access (saves 100-200ms!)
+            t1 = time.time() if ENABLE_TIMING else None
+            cached_data_crs_raw = kwargs['transform']
+            if ENABLE_TIMING:
+                logger.info(f"  [TIMING] Step 2.6 - Using user-provided transform (FAST PATH): {(time.time() - t1)*1000:.2f}ms")
+
+            # For Tile matplotlib-only mode, convert transform to _source_crs
+            if tile_matplotlib_only:
+                kwargs['_source_crs'] = kwargs.pop('transform')
+        else:
+            # No user-provided transform - need to determine data's CRS
+            t1 = time.time() if ENABLE_TIMING else None
+            cached_data_crs_raw = dimension_set.crs  # Cache this - it's expensive to access!
+            if ENABLE_TIMING:
+                logger.info(f"  [TIMING] Step 2.6a - Access dimension_set.crs: {(time.time() - t1)*1000:.2f}ms")
+
+            t1 = time.time() if ENABLE_TIMING else None
+            # Use cached PlateCarree to avoid expensive CRS creation (saves 100ms!)
+            data_crs = cached_data_crs_raw if (cached_data_crs_raw is not None and cached_data_crs_raw != "auto") else _get_platecarree()
+            if ENABLE_TIMING:
+                logger.info(f"  [TIMING] Step 2.6b - Resolve data CRS: {(time.time() - t1)*1000:.2f}ms")
+
+            # For Tile matplotlib-only mode, store the source CRS but don't set transform yet
+            # The Tile will handle transformation itself
+            if not tile_matplotlib_only:
+                kwargs['transform'] = data_crs
+            else:
+                # Store source CRS for later transformation by Tile
+                kwargs['_source_crs'] = data_crs
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 2.6 - Set transform CRS: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2.7: Resolve string styles to Style objects
+    t0 = time.time() if ENABLE_TIMING else None
     from earthkit.plots.styles.utils import resolve_style
     # Pass dimension_set if auto_style is True OR if style is "auto"
     need_data_for_matching = auto_style or (isinstance(style, str) and style == "auto")
     style = resolve_style(style, data=dimension_set if need_data_for_matching else None, auto_style=auto_style, units=units)
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 2.7 - Resolve style: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2.8: Ensure we have a Style object (create from kwargs if needed)
+    t0 = time.time() if ENABLE_TIMING else None
     style, kwargs = _ensure_style_from_kwargs(style, kwargs)
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 2.8 - Ensure style from kwargs: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 2.9: Special handling for grid_cells method
     # Try to identify specialized grids and get their grid_cells method
@@ -594,19 +679,26 @@ def extract_plottables_2d(
         effective_method_name = "pcolormesh"
 
     # Step 3: Configure the plotting style
+    t0 = time.time() if ENABLE_TIMING else None
     style = _configure_style_from_dimension_set(
         effective_method_name, style, dimension_set, units, auto_style, kwargs
     )
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 3 - Configure style: {(time.time() - t0)*1000:.2f}ms")
 
-    # Step 4: Set target units on dimensions for automatic conversion
-    # Priority: explicit parameter > style units > no conversion
+    # Step 4: Set target units and scale factor on dimensions for automatic conversion
+    t0 = time.time() if ENABLE_TIMING else None
+    # Priority: explicit parameter > style units/scale_factor > no conversion
     target_units = units
     target_xunits = xunits
     target_yunits = yunits
+    scale_factor = None
 
     if style is not None:
         if target_units is None and hasattr(style, '_units'):
             target_units = style._units
+        if hasattr(style, 'scale_factor') and style.scale_factor is not None:
+            scale_factor = style.scale_factor
         # Note: Style doesn't currently have xunits/yunits, but we keep this for future compatibility
         # if target_xunits is None and hasattr(style, '_xunits'):
         #     target_xunits = style._xunits
@@ -621,10 +713,116 @@ def extract_plottables_2d(
         # For 2D plots, z is the primary data dimension
         dimension_set.z.set_target_units(target_units)
 
+    # Apply scale factor to z dimension (primary data dimension for 2D plots)
+    if scale_factor is not None:
+        dimension_set.z.set_scale_factor(scale_factor)
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 4 - Set target units/scale: {(time.time() - t0)*1000:.2f}ms")
+
     # Step 5: Extract values (with automatic unit conversion via .values property)
+    t0 = time.time() if ENABLE_TIMING else None
     x_values = dimension_set.x.values
     y_values = dimension_set.y.values
     z_values = dimension_set.z.values
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 5 - Extract values: {(time.time() - t0)*1000:.2f}ms (shapes: x={x_values.shape}, y={y_values.shape}, z={z_values.shape})")
+
+    # Step 5.5: Handle multi-wrap longitude for cylindrical projections
+    # If the domain extends beyond 360° longitude, tile the data horizontally
+    t0 = time.time() if ENABLE_TIMING else None
+    multi_wrap_applied = False  # Track if we applied multi-wrap tiling
+
+    if (plot_type in {PlotType.GEOGRAPHIC_2D} and
+        hasattr(subplot, 'domain') and subplot.domain is not None and
+        hasattr(subplot, 'crs')):
+
+        from earthkit.plots.geo.coordinate_reference_systems import is_cylindrical
+
+        if is_cylindrical(subplot.crs):
+            # Get domain bounds
+            domain_bounds = subplot.domain.bbox.to_cartopy_bounds()
+            lon_min, lon_max = domain_bounds[0], domain_bounds[1]
+            lon_extent = lon_max - lon_min
+
+            # Check if we need multi-wrap (extent >= 360°)
+            # Even a single wrap (e.g., -360 to 0 vs 0 to 360) needs handling
+            if lon_extent >= 360:
+                # Only wrap if data looks global (covers most/all of 360°)
+                # Check the span of x_values
+                x_min = float(x_values.min())
+                x_max = float(x_values.max())
+                x_span = x_max - x_min
+
+                # Data should span at least 300° to be considered wrappable
+                # (allows for some regional data that shouldn't be wrapped)
+                if x_span >= 300:
+                    import numpy as np
+
+                    if ENABLE_TIMING:
+                        logger.info(f"  [TIMING] Step 5.5 - Multi-wrap detected: domain=[{lon_min}, {lon_max}] ({lon_extent:.1f}°), data x=[{x_min:.1f}, {x_max:.1f}] ({x_span:.1f}°)")
+
+                    # Calculate which 360° tiles we need to cover the domain
+                    # The key insight: we need to place copies of the data at different
+                    # longitude offsets so that the domain is filled
+
+                    # Determine how many complete 360° wraps are needed
+                    num_complete_wraps = int(np.ceil(lon_extent / 360))
+
+                    # Generate offsets that will cover the domain
+                    # Start from the leftmost position that makes sense for the data
+                    # Find which multiple of 360 to start from
+                    start_offset = int(np.floor(lon_min / 360)) * 360
+
+                    offsets = []
+                    for i in range(num_complete_wraps + 1):  # +1 to ensure full coverage
+                        offset = start_offset + (i * 360)
+                        # Check if this offset would place data within the domain
+                        offset_x_min = x_min + offset
+                        offset_x_max = x_max + offset
+
+                        # Include this tile if it overlaps with the domain
+                        if offset_x_max >= lon_min and offset_x_min <= lon_max:
+                            offsets.append(offset)
+
+                    if len(offsets) >= 1:  # Proceed with tiling
+                        multi_wrap_applied = True  # Mark that we're doing multi-wrap
+
+                        if ENABLE_TIMING or True:  # Always log for now to help debug
+                            logger.info(f"  [TIMING] Step 5.5 - BEFORE tiling: x.shape={x_values.shape} ({x_values.min():.1f} to {x_values.max():.1f}), y.shape={y_values.shape}, z.shape={z_values.shape}")
+                            logger.info(f"  [TIMING] Step 5.5 - Will create {len(offsets)} tiles with offsets={offsets}")
+
+                        # Tile the data
+                        # For 1D coordinates (x, y separate), tile appropriately
+                        if x_values.ndim == 1:
+                            # Create repeated x coordinates with offsets
+                            x_tiles = [x_values + offset for offset in offsets]
+                            x_values = np.concatenate(x_tiles)
+
+                            # Tile z_values horizontally (along last dimension)
+                            # z_values is typically (lat, lon), so tile along axis 1 (lon)
+                            z_values = np.tile(z_values, (1, len(offsets)))
+
+                            # y_values stays the same (no tiling in latitude)
+                            # But if it's 2D (meshgrid), tile it to match
+                            if y_values.ndim == 2:
+                                y_values = np.tile(y_values, (1, len(offsets)))
+
+                        elif x_values.ndim == 2:
+                            # 2D coordinates (meshgrid format)
+                            # Tile x horizontally with offsets
+                            x_tiles = [x_values + offset for offset in offsets]
+                            x_values = np.concatenate(x_tiles, axis=1)
+
+                            # Tile y and z horizontally (no offset for y)
+                            y_values = np.tile(y_values, (1, len(offsets)))
+                            z_values = np.tile(z_values, (1, len(offsets)))
+
+                        if ENABLE_TIMING or True:  # Always log for now
+                            logger.info(f"  [TIMING] Step 5.5 - AFTER tiling: x.shape={x_values.shape} ({x_values.min():.1f} to {x_values.max():.1f}), y.shape={y_values.shape}, z.shape={z_values.shape}")
+                            logger.info(f"  [TIMING] Step 5.5 - Tiled data {len(offsets)}x, new shapes: x={x_values.shape}, y={y_values.shape}, z={z_values.shape}")
+
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 5.5 - Multi-wrap handling: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 6: Check for specialized grid types (healpix, octahedral)
     # Mark if this is a specialized grid that will need special handling
@@ -634,19 +832,63 @@ def extract_plottables_2d(
     # (scatter doesn't use the specialized grid rendering paths)
     do_standard_processing = not is_specialized or method_name == 'scatter'
 
+    # Step 6.5: Determine if reprojection will be done
+    # We need to know this early so we can skip domain extraction and cyclic points
+    t0 = time.time() if ENABLE_TIMING else None
+    will_reproject = False
+    target_crs = None  # Cache target CRS for later use
+
+    if (
+        reproject_to_target
+        and method_name in ('contour', 'contourf')
+        and plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}
+        and hasattr(subplot, 'crs')
+    ):
+        t_crs_access = time.time() if ENABLE_TIMING else None
+        target_crs = subplot.crs  # This might trigger expensive CRS/axes initialization
+        if ENABLE_TIMING:
+            logger.info(f"  [TIMING] Step 6.5a - Access subplot.crs: {(time.time() - t_crs_access)*1000:.2f}ms")
+
+        if target_crs is not None and cached_data_crs_raw is not None:
+            # Check if CRS mismatch exists
+            t_crs_check = time.time() if ENABLE_TIMING else None
+
+            # FAST PATH: If user provided transform, we already have the data CRS
+            # This skips expensive "auto" resolution
+            data_crs = cached_data_crs_raw
+
+            # Handle "auto" data CRS (use cached PlateCarree)
+            if data_crs == "auto":
+                data_crs = _get_platecarree()
+
+            # OPTIMIZATION: Quick type name comparison instead of expensive CRS equality checks
+            # Compare CRS: they're different if they're not the same class
+            if type(data_crs).__name__ != type(target_crs).__name__:
+                will_reproject = True
+                if ENABLE_TIMING:
+                    logger.info(f"  [TIMING] Step 6.5b - CRS mismatch detected: {type(data_crs).__name__} → {type(target_crs).__name__}: {(time.time() - t_crs_check)*1000:.2f}ms")
+            elif ENABLE_TIMING:
+                logger.info(f"  [TIMING] Step 6.5b - CRS match (no reprojection): {type(data_crs).__name__}: {(time.time() - t_crs_check)*1000:.2f}ms")
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 6.5 - Check reprojection needed: {(time.time() - t0)*1000:.2f}ms (will_reproject={will_reproject})")
+
     if do_standard_processing:
         # Step 7: Apply sampling if specified
+        t0 = time.time() if ENABLE_TIMING else None
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
         )
+        if ENABLE_TIMING:
+            logger.info(f"[TIMING] Step 7 - Apply sampling: {(time.time() - t0)*1000:.2f}ms")
 
         # Step 8: Handle no-style case for z values
         if no_style and z_values is None:
             z_values = kwargs.pop("c", None)
 
     # Step 9: Domain extraction - applies to ALL methods except grid_cells
-    # This must happen outside do_standard_processing so specialized grids get domain extraction too
-    if method_name != 'grid_cells':
+    # Skip domain extraction if we're going to reproject (reprojection handles the domain via bbox)
+    t0 = time.time() if ENABLE_TIMING else None
+    if method_name != 'grid_cells' and not will_reproject:
         # Step 9a: Remove cyclic point before domain extraction if it was added
         # Domain extraction needs data without cyclic points to correctly handle dateline crossing
         cyclic_point_was_added = dimension_set._has_cyclic_point
@@ -669,25 +911,87 @@ def extract_plottables_2d(
             x_values, y_values, z_values = subplot.domain.extract(
                 x_values, y_values, z_values, source_crs=extract_crs
             )
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 9 - Domain extraction: {(time.time() - t0)*1000:.2f}ms")
+
+    # Step 10: Reproject data to target CRS if needed
+    # This applies to contour/contourf on geographic plots when CRS doesn't match
+    t0_reproj = time.time() if ENABLE_TIMING else None
+    if will_reproject:
+        from earthkit.plots.geo.reproject import reproject_to_grid
+
+        # Get CRS objects - IMPORTANT: use cached values to avoid expensive re-access!
+        # We cached both data_crs_raw (Step 2.6) and target_crs (Step 6.5)
+        data_crs = cached_data_crs_raw if (cached_data_crs_raw is not None and cached_data_crs_raw != "auto") else None
+        if data_crs == "auto":
+            data_crs = _get_platecarree()
+        # Use cached target_crs from Step 6.5 instead of accessing subplot.crs again!
+
+        # Get the target bbox from the map's extent
+        # ax.get_extent() returns (x0, x1, y0, y1) in the map's CRS
+        extent = subplot.ax.get_extent(crs=target_crs)
+        bbox_target = extent  # (xmin, xmax, ymin, ymax)
+
+        # Use default resolution of 500x500
+        # TODO: Make this configurable via a parameter if needed
+        nx, ny = 500, 500
+
+        # Reproject the data
+        # Before reprojection, ensure coordinates are in the right format
+        # reproject_to_grid expects 1D or 2D coordinate arrays
+        x_src = x_values
+        y_src = y_values
+
+        # If coordinates are 2D from meshgrid, extract the 1D arrays
+        if x_values.ndim == 2:
+            x_src = x_values[0, :]
+            y_src = y_values[:, 0]
+
+        t0 = time.time() if ENABLE_TIMING else None
+        x_values, y_values, z_values = reproject_to_grid(
+            x_src, y_src, z_values,
+            crs_src=data_crs,
+            bbox_target=bbox_target,
+            crs_target=target_crs,
+            nx=nx,
+            ny=ny,
+        )
+        if ENABLE_TIMING:
+            logger.info(f"[TIMING] Step 10a - reproject_to_grid call: {(time.time() - t0)*1000:.2f}ms")
+
+        # Update the transform kwarg to target CRS since data is now in target CRS
+        kwargs['transform'] = target_crs
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 10 - TOTAL Reprojection: {(time.time() - t0_reproj)*1000:.2f}ms")
 
     if do_standard_processing:
         # Step 11: Handle cyclic point wrapping for contour plots
-        # Always add cyclic point for contour plots after domain extraction
-        if method_name.startswith("contour"):
+        # Skip cyclic points if we reprojected (reprojected data is already a complete grid)
+        t0 = time.time() if ENABLE_TIMING else None
+        if method_name.startswith("contour") and plot_type in (PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D) and not will_reproject:
             x_values, y_values, z_values = _handle_cyclic_points(
                 x_values, y_values, z_values
             )
+        if ENABLE_TIMING:
+            logger.info(f"[TIMING] Step 11 - Handle cyclic points: {(time.time() - t0)*1000:.2f}ms")
 
         # Step 12: Handle coordinate transformation settings
+        t0 = time.time() if ENABLE_TIMING else None
         kwargs = _handle_transform_settings(subplot, kwargs)
+        if ENABLE_TIMING:
+            logger.info(f"[TIMING] Step 12 - Handle transform settings: {(time.time() - t0)*1000:.2f}ms")
 
         # Step 13: Handle meshgrid for geographic 2D plots with 1D coordinates
         # For maps, cartopy expects 2D coordinate arrays
+        t0 = time.time() if ENABLE_TIMING else None
         is_geographic = plot_type in {PlotType.GEOGRAPHIC_1D, PlotType.GEOGRAPHIC_2D}
         if is_geographic and x_values.ndim == 1 and y_values.ndim == 1:
             x_values, y_values = np.meshgrid(x_values, y_values)
+        if ENABLE_TIMING:
+            logger.info(f"[TIMING] Step 13 - Handle meshgrid: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 14: Get matplotlib kwargs from style
+    t0 = time.time() if ENABLE_TIMING else None
     if not no_style and style is not None:
         # For 2D plots, we use z_values as the data for style processing
         try:
@@ -695,6 +999,8 @@ def extract_plottables_2d(
         except Exception:
             style_kwargs = style.to_matplotlib_kwargs(z_values)
         kwargs = {**style_kwargs, **kwargs}
+    if ENABLE_TIMING:
+        logger.info(f"[TIMING] Step 14 - Get matplotlib kwargs from style: {(time.time() - t0)*1000:.2f}ms")
 
     # Step 14.5: Remove earthkit-specific parameters that shouldn't reach matplotlib
     # These were already filtered from Style but may still be in remaining kwargs
@@ -713,6 +1019,10 @@ def extract_plottables_2d(
     kwargs['_label'] = label
     if method_name == "grid_cells":
         kwargs['_grid_cells_callable'] = grid_cells_callable  # For grid_cells method
+
+    if ENABLE_TIMING:
+        total_time = (time.time() - t_start) * 1000
+        logger.info(f"[TIMING] ═══ TOTAL extract_plottables_2d: {total_time:.2f}ms ═══")
 
     return x_values, y_values, z_values, kwargs
 
