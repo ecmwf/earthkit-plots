@@ -17,6 +17,7 @@ from typing import Any, Optional, Union, List
 import numpy as np
 
 from earthkit.plots.sources.core import (
+    AxisType,
     DimensionSet,
     DimensionInfo,
     DimensionSource,
@@ -478,15 +479,33 @@ class EarthkitExtractor(DataExtractor):
         self,
         values: np.ndarray,
         name: str,
-        axis: str,
+        axis: Union[AxisType, str],
         original_data: Any,
     ) -> DimensionInfo:
-        """Create DimensionInfo from coordinate values."""
+        """
+        Create DimensionInfo from coordinate values.
+
+        Parameters
+        ----------
+        values : np.ndarray
+            The coordinate values.
+        name : str
+            Name for the dimension.
+        axis : AxisType or str
+            Axis type (AxisType.X, AxisType.Y, or string).
+        original_data : Any
+            Reference to original data object.
+
+        Returns
+        -------
+        DimensionInfo
+            The created dimension info object.
+        """
         metadata = {
             'source_type': 'coordinates',
             'coord_name': name,
         }
-        
+
         return DimensionInfo(
             name=name,
             _values=values,

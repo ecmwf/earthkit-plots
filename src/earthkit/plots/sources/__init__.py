@@ -16,7 +16,7 @@ from typing import Any, Optional, Union
 import numpy as np
 
 from earthkit.plots.sources import core, extractors, identifiers
-from earthkit.plots.sources.core import DimensionSet, PlotContext, PlotType
+from earthkit.plots.sources.core import AxisType, DimensionSet, PlotContext, PlotType
 
 
 def get_dimension_set(

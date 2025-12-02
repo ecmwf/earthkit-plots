@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 
 from earthkit.plots.sources.core import (
+    AxisType,
     DimensionSet,
     DimensionInfo,
     DimensionSource,
@@ -970,7 +971,7 @@ class XarrayExtractor(DataExtractor):
             name="x",
             _values=np.asarray(x),
             source=DimensionSource.USER_SPECIFIED,
-            axis="X",
+            axis=AxisType.X,
             _original_data=original_data,
             _extractor=self,
         )
@@ -979,7 +980,7 @@ class XarrayExtractor(DataExtractor):
             name="y",
             _values=np.asarray(y),
             source=DimensionSource.USER_SPECIFIED,
-            axis="Y",
+            axis=AxisType.Y,
             _original_data=original_data,
             _extractor=self,
         )
