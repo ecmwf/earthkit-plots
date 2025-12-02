@@ -184,46 +184,27 @@ def find_time(array):
 def find_geographic_coords(data):
     """
     Find geographic x (longitude) and y (latitude) coordinates.
-    
+
     Searches for coordinate/dimension names in priority order. If geographic
     coordinates cannot be found, returns (None, None) to allow fallback to
     standard 2D Cartesian behavior.
-    
+
     Parameters
     ----------
     data : xarray.DataArray or xarray.Dataset
         The data to search for geographic coordinates.
-    
+
     Returns
     -------
     tuple of (str or None, str or None)
         (x_coord_name, y_coord_name) if found, otherwise (None, None)
     """
-    X_GEOGRAPHIC = [
-        "x",
-        "X",
-        "xc",
-        "projection_x_coordinate",
-        "longitude",
-        "long",
-        "lon",
-    ]
-    
-    Y_GEOGRAPHIC = [
-        "y",
-        "Y",
-        "yc",
-        "projection_y_coordinate",
-        "latitude",
-        "lat",
-    ]
-    
     def find_coord_or_dim(data, candidates):
         """Find first matching coordinate or dimension from candidates list."""
         # Get available coords and dims
         coords = list(data.coords.keys()) if hasattr(data, 'coords') else []
         dims = list(data.dims) if hasattr(data, 'dims') else []
-        
+
         for candidate in candidates:
             # Check coords first (prefer coords over dims if both exist)
             if candidate in coords:
@@ -234,12 +215,12 @@ def find_geographic_coords(data):
             # Then check dims
             elif candidate in dims:
                 return candidate
-        
+
         return None
-    
-    x_name = find_coord_or_dim(data, X_GEOGRAPHIC)
-    y_name = find_coord_or_dim(data, Y_GEOGRAPHIC)
-    
+
+    x_name = find_coord_or_dim(data, X)
+    y_name = find_coord_or_dim(data, Y)
+
     return x_name, y_name
 
 
