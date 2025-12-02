@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import functools
+import warnings
 
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
@@ -26,6 +27,71 @@ from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_dimension_set
 from earthkit.plots.utils import string_utils
+
+
+def _reproject_geometries(geometries, src_crs, target_crs):
+    """
+    Reproject a list of shapely geometries from source CRS to target CRS.
+
+    This is used as a performance optimization to avoid on-the-fly reprojection
+    during matplotlib rendering. It's suitable for features with many small
+    segments (like coastlines) but NOT for features with long straight lines
+    that should be curved on the target projection (like political boundaries).
+
+    Parameters
+    ----------
+    geometries : list
+        List of shapely geometries to reproject.
+    src_crs : cartopy.crs.CRS
+        Source coordinate reference system.
+    target_crs : cartopy.crs.CRS
+        Target coordinate reference system.
+
+    Returns
+    -------
+    list
+        List of reprojected shapely geometries in target_crs.
+    """
+    import pyproj
+    from shapely.ops import transform
+
+    try:
+        # Get proj4 strings for both CRS
+        # Try proj4_init first, fall back to proj4_params
+        src_proj = getattr(src_crs, 'proj4_init', None) or src_crs.proj4_params
+        target_proj = getattr(target_crs, 'proj4_init', None) or target_crs.proj4_params
+
+        # Create transformer
+        transformer = pyproj.Transformer.from_crs(
+            src_proj if isinstance(src_proj, str) else pyproj.CRS.from_proj4(src_proj),
+            target_proj if isinstance(target_proj, str) else pyproj.CRS.from_proj4(target_proj),
+            always_xy=True
+        )
+
+        # Reproject all geometries
+        reprojected = []
+        for geom in geometries:
+            try:
+                reprojected_geom = transform(transformer.transform, geom)
+                if not reprojected_geom.is_empty:
+                    reprojected.append(reprojected_geom)
+            except Exception as e:
+                # If a single geometry fails, warn but continue with others
+                warnings.warn(
+                    f"Failed to reproject geometry: {e}. Skipping this geometry.",
+                    RuntimeWarning
+                )
+                continue
+
+        return reprojected
+
+    except Exception as e:
+        # If reprojection fails entirely, warn and return original geometries
+        warnings.warn(
+            f"Geometry reprojection failed: {e}. Falling back to cartopy reprojection.",
+            RuntimeWarning
+        )
+        return geometries
 
 
 def _step_range(bounds, step, ref=0):
@@ -395,6 +461,7 @@ class Map(Subplot):
         max_resolution="high",
         min_resolution="low",
         line=False,
+        default_transform_first=False,
     ):
         """
         Decorate a method to add a natural earth layer to the map.
@@ -415,6 +482,11 @@ class Map(Subplot):
             The minimum resolution of the natural earth layer.
         line : bool, optional
             Whether to plot the natural earth layer as a line.
+        default_transform_first : bool, optional
+            Default value for transform_first parameter. If True, reproject
+            geometries before plotting for better performance. If False, let
+            cartopy handle reprojection (needed for long straight lines that
+            should be curved on the projection). Default is False.
         """
 
         def decorator(method):
@@ -428,8 +500,11 @@ class Map(Subplot):
                 labels=False,
                 special_styles=None,
                 adjust_labels=False,
+                transform_first=None,  # Allow user override
                 **kwargs,
             ):
+                # Use decorator default if user didn't specify
+                _transform_first = default_transform_first if transform_first is None else transform_first
                 if resolution is None:
                     resolution = self.natural_earth_resolution
                 resolution = natural_earth.get_resolution(
@@ -519,15 +594,33 @@ class Map(Subplot):
                     if not geom.is_empty:  # Only keep visible parts
                         geometries.append(geom)
 
+                # Determine source and target CRS for features
+                src_crs = ccrs.PlateCarree()
+                target_crs = self.crs
+
+                # Apply transform_first optimization if requested and needed
+                if _transform_first and target_crs != src_crs:
+                    # Reproject geometries before adding to map for better performance
+                    geometries = _reproject_geometries(geometries, src_crs, target_crs)
+                    feature_crs = target_crs
+                else:
+                    # Let cartopy handle reprojection (needed for proper line interpolation)
+                    feature_crs = src_crs
+
                 # Add optimized features
-                feature = cfeature.ShapelyFeature(geometries, ccrs.PlateCarree())
+                feature = cfeature.ShapelyFeature(geometries, feature_crs)
                 result = self.ax.add_feature(feature, *args, **kwargs)
 
                 if special_styles is not None:
                     for record, style in special_records:
                         geom = record.geometry
                         if not geom.is_empty:
-                            feature = cfeature.ShapelyFeature([geom], self.crs)
+                            # Special styled features also respect transform_first
+                            if _transform_first and target_crs != src_crs:
+                                geom_list = _reproject_geometries([geom], src_crs, target_crs)
+                                feature = cfeature.ShapelyFeature(geom_list, target_crs)
+                            else:
+                                feature = cfeature.ShapelyFeature([geom], src_crs)
                             self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
                 return result
@@ -538,15 +631,21 @@ class Map(Subplot):
 
     @queue_if_no_axes
     @schema.coastlines.apply()
-    @natural_earth_layer("physical", "coastline", line=True)
+    @natural_earth_layer("physical", "coastline", line=True, default_transform_first=True)
     def coastlines(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add coastlines from Natural Earth.
+
+        Coastlines use optimized reprojection for better performance on
+        non-PlateCarree projections.
 
         Parameters
         ----------
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
+            Natural Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @queue_if_no_axes
@@ -559,7 +658,10 @@ class Map(Subplot):
         ----------
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
+            Natural Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting. If False (default),
+            let cartopy handle reprojection to properly interpolate long straight lines.
         """
 
     @queue_if_no_axes

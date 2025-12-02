@@ -338,9 +338,11 @@ def default_label(data):
     data : earthkit.plots.sources.Source
         The data source to get the label for.
     """
-    if data.metadata("type") == "an":
+    if "an" in data.metadata("type") or data.metadata("type") is None:
+        print("YES")
         format_string = DEFAULT_ANALYSIS_TITLE
     else:
+        print("NO")
         format_string = DEFAULT_FORECAST_TITLE
     return format_string
 
