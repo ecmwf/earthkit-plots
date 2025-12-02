@@ -11,6 +11,7 @@ import numpy as np
 import xarray as xr
 
 from earthkit.plots.sources.core import (
+    AxisType,
     DimensionSet,
     DimensionInfo,
     DimensionSource,
@@ -134,14 +135,14 @@ class XarrayExtractor(DataExtractor):
         global_metadata = dict(data.attrs) if hasattr(data, 'attrs') else {}
         # User metadata takes precedence
         global_metadata.update(user_metadata)
-        
-        # Early exit: all required dimensions specified with arrays (not selectors)
-        if self._all_arrays_specified(plot_context, x, y, z):
-            return self._validate_and_wrap_arrays(
+
+        # Fast path: all required dimensions specified as explicit arrays (skip extraction)
+        if self._should_use_fast_path(plot_context, x, y, z):
+            return self._handle_explicit_arrays(
                 data, plot_context, x, y, z, crs, original_data, global_metadata, regrid
             )
 
-        # Infer and resolve based on plot type
+        # Normal extraction path: infer and resolve based on plot type
         if plot_context.is_1d:
             return self._extract_1d(data, plot_context, x, y, crs, original_data, global_metadata, regrid, skip_z_extraction)
         else:  # 2D plots
@@ -729,7 +730,7 @@ class XarrayExtractor(DataExtractor):
     ) -> DimensionInfo:
         """
         Resolve a specification to a DimensionInfo object.
-        
+
         Handles:
         - String dimension name → extract coordinate values
         - String coordinate name → extract coordinate values
@@ -746,7 +747,7 @@ class XarrayExtractor(DataExtractor):
                 _original_data=data if original_data is None else original_data,
                 _extractor=self,
             )
-        
+
         # spec is a string - determine what it references
         if spec in data.dims:
             return self._create_dimension_from_dim(data, spec, axis=axis, original_data=original_data)
@@ -758,7 +759,58 @@ class XarrayExtractor(DataExtractor):
             raise InvalidSpecificationError(
                 f"Could not resolve '{spec}' to a dimension, coordinate, or variable"
             )
-    
+
+    def _create_dimension_info_from_xarray(
+        self,
+        name: str,
+        values: np.ndarray,
+        source: DimensionSource,
+        attrs: dict,
+        source_metadata: dict,
+        axis: Optional[str] = None,
+        original_data: Optional[xr.DataArray] = None,
+    ) -> DimensionInfo:
+        """
+        Helper to create DimensionInfo from xarray data with common pattern.
+
+        Parameters
+        ----------
+        name : str
+            Name for the dimension.
+        values : np.ndarray
+            The data values.
+        source : DimensionSource
+            How this dimension was determined.
+        attrs : dict
+            Xarray attributes (e.g., from coord.attrs or data.attrs).
+        source_metadata : dict
+            Additional metadata specific to the source type (e.g., {'source_type': 'dimension'}).
+        axis : str, optional
+            Axis type ('X', 'Y', 'Z', 'T').
+        original_data : xr.DataArray, optional
+            Reference to original data object.
+
+        Returns
+        -------
+        DimensionInfo
+            The created dimension info object.
+        """
+        metadata = dict(attrs)
+        metadata.update(source_metadata)
+
+        return DimensionInfo(
+            name=name,
+            _values=values,
+            source=source,
+            _source_units=attrs.get('units'),
+            long_name=attrs.get('long_name'),
+            standard_name=attrs.get('standard_name'),
+            axis=axis or attrs.get('axis'),
+            _metadata=metadata,
+            _original_data=original_data,
+            _extractor=self,
+        )
+
     def _create_dimension_from_dim(
         self,
         data: xr.DataArray,
@@ -768,32 +820,23 @@ class XarrayExtractor(DataExtractor):
     ) -> DimensionInfo:
         """
         Create DimensionInfo from a dimension.
-        
+
         Uses the coordinate values for that dimension if available,
         otherwise generates an index.
         """
         if dim_name in data.coords:
             coord = data.coords[dim_name]
-            values = coord.values
-            
-            # Extract metadata from coordinate attributes
-            coord_metadata = dict(coord.attrs)
-            coord_metadata.update({
-                'source_type': 'dimension',
-                'dim_name': dim_name,
-            })
-            
-            return DimensionInfo(
+            return self._create_dimension_info_from_xarray(
                 name=dim_name,
-                _values=values,
+                values=coord.values,
                 source=DimensionSource.DIMENSION,
-                _source_units=coord.attrs.get('units'),
-                long_name=coord.attrs.get('long_name'),
-                standard_name=coord.attrs.get('standard_name'),
-                axis=axis or coord.attrs.get('axis'),
-                _metadata=coord_metadata,
-                _original_data=data if original_data is None else original_data,
-                _extractor=self,
+                attrs=dict(coord.attrs),
+                source_metadata={
+                    'source_type': 'dimension',
+                    'dim_name': dim_name,
+                },
+                axis=axis,
+                original_data=data if original_data is None else original_data,
             )
         else:
             # No coordinate for this dimension, generate index
@@ -805,7 +848,7 @@ class XarrayExtractor(DataExtractor):
                 original_data=original_data or data,
                 extractor=self,
             )
-    
+
     def _create_dimension_from_coord(
         self,
         data: xr.DataArray,
@@ -815,26 +858,19 @@ class XarrayExtractor(DataExtractor):
     ) -> DimensionInfo:
         """Create DimensionInfo from a coordinate."""
         coord = data.coords[coord_name]
-        
-        coord_metadata = dict(coord.attrs)
-        coord_metadata.update({
-            'source_type': 'coordinate',
-            'coord_name': coord_name,
-        })
-        
-        return DimensionInfo(
+        return self._create_dimension_info_from_xarray(
             name=coord_name,
-            _values=coord.values,
+            values=coord.values,
             source=DimensionSource.COORDINATE,
-            _source_units=coord.attrs.get('units'),
-            long_name=coord.attrs.get('long_name'),
-            standard_name=coord.attrs.get('standard_name'),
-            axis=axis or coord.attrs.get('axis'),
-            _metadata=coord_metadata,
-            _original_data=data if original_data is None else original_data,
-            _extractor=self,
+            attrs=dict(coord.attrs),
+            source_metadata={
+                'source_type': 'coordinate',
+                'coord_name': coord_name,
+            },
+            axis=axis,
+            original_data=data if original_data is None else original_data,
         )
-    
+
     def _create_dimension_from_variable(
         self,
         data: xr.DataArray,
@@ -842,26 +878,20 @@ class XarrayExtractor(DataExtractor):
         original_data: Optional[xr.DataArray] = None,
     ) -> DimensionInfo:
         """Create DimensionInfo from the DataArray variable itself."""
-        var_metadata = dict(data.attrs)
-        var_metadata.update({
-            'source_type': 'variable',
-            'var_name': data.name,
-        })
-        
-        return DimensionInfo(
+        return self._create_dimension_info_from_xarray(
             name=data.name or "data",
-            _values=data.values,
+            values=data.values,
             source=DimensionSource.VARIABLE,
-            _source_units=data.attrs.get('units'),
-            long_name=data.attrs.get('long_name'),
-            standard_name=data.attrs.get('standard_name'),
+            attrs=dict(data.attrs),
+            source_metadata={
+                'source_type': 'variable',
+                'var_name': data.name,
+            },
             axis=axis,
-            _metadata=var_metadata,
-            _original_data=data if original_data is None else original_data,
-            _extractor=self,
+            original_data=data if original_data is None else original_data,
         )
     
-    def _all_arrays_specified(
+    def _should_use_fast_path(
         self,
         plot_context: PlotContext,
         x: Optional[Union[str, np.ndarray]],
@@ -869,18 +899,33 @@ class XarrayExtractor(DataExtractor):
         z: Optional[Union[str, np.ndarray]],
     ) -> bool:
         """
-        Check if all required dimensions are specified as arrays (not selectors).
+        Check if all required dimensions are specified as explicit arrays.
+
+        When all dimensions are provided as arrays (not selectors), we can skip
+        the extraction logic and directly wrap the arrays.
+
+        Parameters
+        ----------
+        plot_context : PlotContext
+            The plot context to check requirements against.
+        x, y, z : str, np.ndarray, or None
+            The dimension specifications.
+
+        Returns
+        -------
+        bool
+            True if fast path should be used, False otherwise.
         """
         def is_array(val):
             return isinstance(val, (np.ndarray, list))
-        
+
         if plot_context.is_1d:
             return x is not None and y is not None and is_array(x) and is_array(y)
         else:
             return (x is not None and y is not None and z is not None and
                     is_array(x) and is_array(y) and is_array(z))
-    
-    def _validate_and_wrap_arrays(
+
+    def _handle_explicit_arrays(
         self,
         data: xr.DataArray,
         plot_context: PlotContext,
@@ -893,13 +938,40 @@ class XarrayExtractor(DataExtractor):
         regrid: str = "auto",
     ) -> DimensionSet:
         """
-        Wrap user-provided arrays when all dimensions are specified as arrays.
+        Handle the case where all dimensions are provided as explicit arrays.
+
+        This is a fast path that skips the extraction logic and directly wraps
+        the user-provided arrays into DimensionInfo objects.
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            The xarray DataArray (not used, but kept for reference).
+        plot_context : PlotContext
+            The plot context.
+        x, y : np.ndarray
+            The x and y coordinate arrays.
+        z : np.ndarray, optional
+            The z data array (for 2D plots).
+        crs : Any, optional
+            Coordinate reference system.
+        original_data : xr.DataArray
+            Reference to original data object.
+        global_metadata : dict
+            User-provided metadata.
+        regrid : str
+            Regrid parameter.
+
+        Returns
+        -------
+        DimensionSet
+            The dimension set with wrapped arrays.
         """
         x_dim = DimensionInfo(
             name="x",
             _values=np.asarray(x),
             source=DimensionSource.USER_SPECIFIED,
-            axis="X",
+            axis=AxisType.X,
             _original_data=original_data,
             _extractor=self,
         )
@@ -908,7 +980,7 @@ class XarrayExtractor(DataExtractor):
             name="y",
             _values=np.asarray(y),
             source=DimensionSource.USER_SPECIFIED,
-            axis="Y",
+            axis=AxisType.Y,
             _original_data=original_data,
             _extractor=self,
         )
