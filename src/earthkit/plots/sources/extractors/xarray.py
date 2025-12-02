@@ -134,14 +134,14 @@ class XarrayExtractor(DataExtractor):
         global_metadata = dict(data.attrs) if hasattr(data, 'attrs') else {}
         # User metadata takes precedence
         global_metadata.update(user_metadata)
-        
-        # Early exit: all required dimensions specified with arrays (not selectors)
-        if self._all_arrays_specified(plot_context, x, y, z):
-            return self._validate_and_wrap_arrays(
+
+        # Fast path: all required dimensions specified as explicit arrays (skip extraction)
+        if self._should_use_fast_path(plot_context, x, y, z):
+            return self._handle_explicit_arrays(
                 data, plot_context, x, y, z, crs, original_data, global_metadata, regrid
             )
 
-        # Infer and resolve based on plot type
+        # Normal extraction path: infer and resolve based on plot type
         if plot_context.is_1d:
             return self._extract_1d(data, plot_context, x, y, crs, original_data, global_metadata, regrid, skip_z_extraction)
         else:  # 2D plots
@@ -890,7 +890,7 @@ class XarrayExtractor(DataExtractor):
             original_data=data if original_data is None else original_data,
         )
     
-    def _all_arrays_specified(
+    def _should_use_fast_path(
         self,
         plot_context: PlotContext,
         x: Optional[Union[str, np.ndarray]],
@@ -898,18 +898,33 @@ class XarrayExtractor(DataExtractor):
         z: Optional[Union[str, np.ndarray]],
     ) -> bool:
         """
-        Check if all required dimensions are specified as arrays (not selectors).
+        Check if all required dimensions are specified as explicit arrays.
+
+        When all dimensions are provided as arrays (not selectors), we can skip
+        the extraction logic and directly wrap the arrays.
+
+        Parameters
+        ----------
+        plot_context : PlotContext
+            The plot context to check requirements against.
+        x, y, z : str, np.ndarray, or None
+            The dimension specifications.
+
+        Returns
+        -------
+        bool
+            True if fast path should be used, False otherwise.
         """
         def is_array(val):
             return isinstance(val, (np.ndarray, list))
-        
+
         if plot_context.is_1d:
             return x is not None and y is not None and is_array(x) and is_array(y)
         else:
             return (x is not None and y is not None and z is not None and
                     is_array(x) and is_array(y) and is_array(z))
-    
-    def _validate_and_wrap_arrays(
+
+    def _handle_explicit_arrays(
         self,
         data: xr.DataArray,
         plot_context: PlotContext,
@@ -922,7 +937,34 @@ class XarrayExtractor(DataExtractor):
         regrid: str = "auto",
     ) -> DimensionSet:
         """
-        Wrap user-provided arrays when all dimensions are specified as arrays.
+        Handle the case where all dimensions are provided as explicit arrays.
+
+        This is a fast path that skips the extraction logic and directly wraps
+        the user-provided arrays into DimensionInfo objects.
+
+        Parameters
+        ----------
+        data : xr.DataArray
+            The xarray DataArray (not used, but kept for reference).
+        plot_context : PlotContext
+            The plot context.
+        x, y : np.ndarray
+            The x and y coordinate arrays.
+        z : np.ndarray, optional
+            The z data array (for 2D plots).
+        crs : Any, optional
+            Coordinate reference system.
+        original_data : xr.DataArray
+            Reference to original data object.
+        global_metadata : dict
+            User-provided metadata.
+        regrid : str
+            Regrid parameter.
+
+        Returns
+        -------
+        DimensionSet
+            The dimension set with wrapped arrays.
         """
         x_dim = DimensionInfo(
             name="x",
