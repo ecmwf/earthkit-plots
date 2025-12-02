@@ -88,6 +88,13 @@ class Subplot:
         self.domain = None
         self._crs = None
 
+        # Multi-axis support for unit-based y-axis management
+        # Each entry maps units (str) to (axis, side, offset) tuple
+        # side is 'left' for primary axis, 'right' for secondary axes
+        # offset is the spine offset for right-side axes (in axes fraction)
+        self._yaxes = {}  # {units: (ax, side, offset)}
+        self._right_axis_count = 0  # Track number of right-side axes for offset calculation
+
     @property
     def crs(self):
         """The Coordinate Reference System of the subplot."""
@@ -364,8 +371,20 @@ class Subplot:
                 yunits = plot_kwargs.pop('_yunits')
                 plot_kwargs.pop('_label')  # Discard, we use our own label handling
 
-                # Call matplotlib method directly
-                mpl_method = getattr(self.ax, method_name or method.__name__)
+                # Determine which y-axis to use based on units
+                # Priority: explicit yunits > explicit units (if y is primary) > actual data units from dimension_set
+                if yunits is not None:
+                    y_axis_units = yunits
+                elif units is not None and primary_axis == 'y':
+                    y_axis_units = units
+                else:
+                    # Extract actual units from the dimension_set (from the data itself)
+                    y_axis_units = dimension_set.y.units
+
+                target_ax = self._get_or_create_yaxis(y_axis_units)
+
+                # Call matplotlib method on the appropriate axis
+                mpl_method = getattr(target_ax, method_name or method.__name__)
                 if z_values is not None:
                     # For scatter with color
                     mappable = mpl_method(x_values, y_values, c=z_values, **plot_kwargs)
@@ -867,19 +886,134 @@ class Subplot:
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
         return self._ax
 
+    def _get_or_create_yaxis(self, units):
+        """
+        Get or create a y-axis for the given units.
+
+        This method implements automatic multi-axis support based on unit matching.
+        If data has no units (None), it's added to the primary axis. If units match
+        an existing axis, that axis is reused. Otherwise, a new axis is created.
+
+        Parameters
+        ----------
+        units : str or None
+            The units for the y-axis. None means unitless data (uses primary axis).
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axis to plot on.
+
+        Notes
+        -----
+        - First axis is always on the left (primary axis)
+        - Subsequent axes are created on the right side using twinx()
+        - Multiple right-side axes are spaced 60 points apart to avoid overlap
+        - Unit comparison uses metadata.units.are_equal()
+        """
+        from earthkit.plots.metadata import units as metadata_units
+
+        # Handle unitless data - always use primary axis
+        if units is None:
+            if None not in self._yaxes:
+                # First time: register primary axis
+                self._yaxes[None] = (self.ax, 'left', 0)
+            return self._yaxes[None][0]
+
+        # Check if we already have an axis for these units (or equivalent units)
+        for existing_units, axis_info in self._yaxes.items():
+            existing_ax, side, offset = axis_info
+            if existing_units is not None and metadata_units.are_equal(units, existing_units):
+                return existing_ax
+
+        # Need to create a new axis
+        if len(self._yaxes) == 0:
+            # First axis - use primary axis on the left
+            new_ax = self.ax
+            side = 'left'
+            offset = 0
+        else:
+            # Create twin axis on the right
+            new_ax = self.ax.twinx()
+            side = 'right'
+
+            # Calculate offset for this axis (60 points per additional right axis)
+            # This spacing accommodates tick labels and axis labels
+            offset = self._right_axis_count * 60
+
+            # Move the spine outward
+            new_ax.spines['right'].set_position(('outward', offset))
+
+            # Increment right axis counter
+            self._right_axis_count += 1
+
+        # Register this axis with its units
+        self._yaxes[units] = (new_ax, side, offset)
+
+        return new_ax
+
     def ylabel(self, label=None, **kwargs):
         """
-        Add a y-axis label to the plot.
+        Add y-axis labels to the plot.
+
+        When multiple y-axes exist (due to different units), this method sets
+        labels on each axis using the appropriate metadata from the layers
+        associated with that axis.
+
+        Parameters
+        ----------
+        label : str, optional
+            Label template string. Can include format placeholders like
+            {variable_name} and {units}. Default is "{variable_name} ({units})".
+        **kwargs
+            Additional keyword arguments passed to ax.set_ylabel().
         """
-        # if label is None:
-        #     metadata = self.layers[0].sources[0].y_metadata
-        #     if metadata is not None and "units" in metadata:
-        #         label = "{variable_name} ({units})"
-        #     else:
-        #         label = "{variable_name}"
-        label = "{variable_name} ({units})" if label is None else label
-        label = self.format_string(label, axis="y")
-        return self.ax.set_ylabel(label, **kwargs)
+        label_template = "{variable_name} ({units})" if label is None else label
+
+        # If no multi-axis setup, use simple approach
+        if len(self._yaxes) <= 1:
+            formatted_label = self.format_string(label_template, axis="y")
+            return self.ax.set_ylabel(formatted_label, **kwargs)
+
+        # Multi-axis case: set label on each y-axis using its layers' metadata
+        from earthkit.plots.metadata import units as metadata_units
+
+        # Group layers by their y-axis units
+        layers_by_units = {}
+        for layer in self.layers:
+            # Get y-axis units for this layer from the actual data (dimension_set)
+            # This is more reliable than axis_units which only has explicitly passed units
+            layer_yunits = layer.dimension_set.y.units
+
+            # Find which axis this layer belongs to
+            target_units = None
+            for registered_units in self._yaxes.keys():
+                if layer_yunits is None and registered_units is None:
+                    target_units = None
+                    break
+                elif layer_yunits is not None and registered_units is not None:
+                    if metadata_units.are_equal(layer_yunits, registered_units):
+                        target_units = registered_units
+                        break
+
+            if target_units not in layers_by_units:
+                layers_by_units[target_units] = []
+            layers_by_units[target_units].append(layer)
+
+        # Set label on each axis using its layers
+        results = []
+        for units_key, layers_group in layers_by_units.items():
+            if units_key in self._yaxes:
+                target_ax, side, offset = self._yaxes[units_key]
+
+                # Create a temporary subplot-like object with just these layers for formatting
+                # Use SubplotFormatter with filtered layers
+                if len(layers_group) > 0:
+                    formatted_label = LayerFormatter(layers_group[0], axis="y").format(label_template)
+                    result = target_ax.set_ylabel(formatted_label, **kwargs)
+                    results.append(result)
+
+        return results if len(results) > 1 else results[0] if results else None
 
     def xlabel(self, label=None, **kwargs):
         """

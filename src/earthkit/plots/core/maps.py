@@ -156,6 +156,10 @@ class Map(Subplot):
         The domain of the map. Can be a string, a tuple or a list of
         coordinates, or a :class:`earthkit.plots.geo.domains.Domain` object. This is used to set the extent and
         projection of the map.
+    domain_crs : cartopy.crs.CRS, optional
+        The CRS of the domain extents when domain is provided as a tuple or list of coordinates.
+        If None (default), assumes PlateCarree (regular latitude/longitude). Only used when
+        domain is a tuple or list of numeric coordinates.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
         domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
@@ -163,15 +167,22 @@ class Map(Subplot):
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
 
-    def __init__(self, *args, domain=None, crs=None, **kwargs):
+    def __init__(self, *args, domain=None, domain_crs=None, crs=None, **kwargs):
         super().__init__(*args, **kwargs)
 
         # Track whether CRS was explicitly set by user
         self._crs_explicit = crs is not None or domain is not None
         self._crs_inferred = False
 
+        # Parse CRS if provided as string
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
+
+        # Set default domain_crs to PlateCarree if not provided
+        # Note: domain_crs can be a string (e.g., "EPSG:32661") and will be
+        # parsed by BoundingBox.from_bbox() / Domain.from_bbox()
+        if domain_crs is None:
+            domain_crs = ccrs.PlateCarree()
 
         if domain is None:
             self.domain = domain
@@ -181,9 +192,10 @@ class Map(Subplot):
                 if isinstance(domain[0], str):
                     self.domain = domains.union(domain)
                 else:
+                    # domain_crs and crs will be parsed by Domain.from_bbox()
                     self.domain = domains.Domain.from_bbox(
                         bbox=domain,
-                        source_crs=ccrs.PlateCarree(),
+                        source_crs=domain_crs,
                         target_crs=crs,
                     )
             elif isinstance(domain, str):
@@ -235,6 +247,57 @@ class Map(Subplot):
                     else:
                         name = domains.bounds.to_string(extent)
         return name
+
+    def _get_or_create_yaxis(self, units):
+        """
+        Override parent method to reject multi-axis behavior on Maps.
+
+        Maps should not support multiple y-axes as they are geographic plots
+        where the y-axis represents latitude, not data values.
+
+        Parameters
+        ----------
+        units : str or None
+            The units for the y-axis (ignored for Maps).
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            Always returns the primary axis.
+
+        Raises
+        ------
+        ValueError
+            If attempting to create a second y-axis with different units.
+        """
+        # For Maps, always use the primary axis
+        # But check if we're trying to create multiple axes with different units
+        if len(self._yaxes) > 0:
+            # We already have an axis registered
+            existing_units = list(self._yaxes.keys())[0]
+            if existing_units != units:
+                from earthkit.plots.metadata import units as metadata_units
+                # Check if units are actually different
+                if not (existing_units is None and units is None):
+                    if existing_units is None or units is None:
+                        # One is None, the other isn't
+                        raise ValueError(
+                            "Multi-axis plotting is not supported on Map objects. "
+                            "All data plotted on a Map must have compatible units or no units. "
+                            f"Attempted to mix units: {existing_units} and {units}."
+                        )
+                    elif not metadata_units.are_equal(existing_units, units):
+                        raise ValueError(
+                            "Multi-axis plotting is not supported on Map objects. "
+                            "All data plotted on a Map must have compatible units. "
+                            f"Attempted to mix incompatible units: {existing_units} and {units}."
+                        )
+
+        # Register the primary axis if not already registered
+        if units not in self._yaxes:
+            self._yaxes[units] = (self.ax, 'left', 0)
+
+        return self.ax
 
     def _infer_crs_from_data(self, dimension_set):
         """
