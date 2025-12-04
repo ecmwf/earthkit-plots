@@ -45,6 +45,14 @@ EPSG_EXCEPTIONS = {
         true_scale_latitude=81.114528,  # Corresponds to scale factor k=0.994
         globe=ccrs.Globe(ellipse='WGS84')
     ),
+    "32761": lambda: ccrs.Stereographic(
+        central_latitude=-90,
+        central_longitude=0,
+        false_easting=2000000,
+        false_northing=2000000,
+        true_scale_latitude=-81.114528,  # Corresponds to scale factor k=0.994
+        globe=ccrs.Globe(ellipse='WGS84')
+    ),
 }
 
 
