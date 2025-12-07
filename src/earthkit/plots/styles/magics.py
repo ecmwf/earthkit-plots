@@ -442,6 +442,8 @@ def _convert_levels(magics_params: Dict[str, Any]) -> Optional[Union[List[float]
         # Explicit level list
         level_list = magics_params.get("contour_level_list")
         if level_list is not None:
+            if isinstance(level_list, str):
+                return [float(level) for level in level_list.split("/")]
             return list(level_list)
 
     elif level_selection_type == "interval":
