@@ -218,7 +218,7 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
         # If it's already a tuple/list (RGB), return as-is
         return color_name
 
-    elif color_name.startswith("rgb("):
+    elif color_name.upper().startswith("RGB("):
         # Handle explicit RGB format "rgb(r,g,b)"
         rgb_values = color_name[4:-1].split(",")
         try:
@@ -228,7 +228,7 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
             # Invalid RGB format - return None
             return None
 
-    elif color_name.startswith("hsl(") or color_name.upper().startswith("HSL("):
+    elif color_name.upper().startswith("HSL("):
         # Handle HSL format "hsl(h,s,l)" or "HSL(h,s,l)"
         hsl_values = color_name[4:-1].split(",")
         try:
