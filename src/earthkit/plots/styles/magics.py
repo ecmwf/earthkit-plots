@@ -569,7 +569,7 @@ def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optio
 
         line_colour = magics_params.get("contour_line_colour")
         if line_colour:
-            return line_colour
+            return magics_color(line_colour)
 
     return None
 
