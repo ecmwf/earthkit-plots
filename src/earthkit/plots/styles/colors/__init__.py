@@ -105,7 +105,9 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         Whether to extend the levels. If False, the levels will be used as is.
         If True, the levels will be extended to include the under and over values.
     """
-    levels = list(levels)
+    # convert level windows to right-inclusive, with first level fully inclusive
+    # i.e. levels 0, 0.1, 0.5, 1 becomes [0, 0.1], (0.1, 0.5], (0.5, 1]
+    levels = [levels[0]] + [np.nextafter(x, np.inf) for x in levels[1:]]
     extend_colors = 0
     color_levels = levels
     if extend == "both":
