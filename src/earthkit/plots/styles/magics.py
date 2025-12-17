@@ -44,6 +44,7 @@ MAGICS_COLORS = {
     "brick": (0.6000, 0.0844, 0.0300),
     "brown": (0.4078, 0.0643, 0.0),
     "burgundy": (0.5000, 0.0, 0.1727),
+    "charcol": (0.2000, 0.2000, 0.2000),
     "charcoal": (0.2000, 0.2000, 0.2000),
     "chestnut": (0.3200, 0.0112, 0.0),
     "coral": (0.9000, 0.2895, 0.2250),
@@ -218,7 +219,7 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
         # If it's already a tuple/list (RGB), return as-is
         return color_name
 
-    elif color_name.startswith("rgb("):
+    elif color_name.upper().startswith("RGB("):
         # Handle explicit RGB format "rgb(r,g,b)"
         rgb_values = color_name[4:-1].split(",")
         try:
@@ -228,7 +229,7 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
             # Invalid RGB format - return None
             return None
 
-    elif color_name.startswith("hsl(") or color_name.upper().startswith("HSL("):
+    elif color_name.upper().startswith("HSL("):
         # Handle HSL format "hsl(h,s,l)" or "HSL(h,s,l)"
         hsl_values = color_name[4:-1].split(",")
         try:
@@ -442,6 +443,8 @@ def _convert_levels(magics_params: Dict[str, Any]) -> Optional[Union[List[float]
         # Explicit level list
         level_list = magics_params.get("contour_level_list")
         if level_list is not None:
+            if isinstance(level_list, str):
+                return [float(level) for level in level_list.split("/")]
             return list(level_list)
 
     elif level_selection_type == "interval":
@@ -566,7 +569,7 @@ def _convert_colors(magics_params: Dict[str, Any], shade_enabled: bool) -> Optio
 
         line_colour = magics_params.get("contour_line_colour")
         if line_colour:
-            return line_colour
+            return magics_color(line_colour)
 
     return None
 
