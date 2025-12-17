@@ -22,8 +22,9 @@ import matplotlib.pyplot as plt
 from earthkit.plots.ancillary import find_logo
 from earthkit.plots.core.layers import LayerGroup
 from earthkit.plots.core.layouts import rows_cols
-# from earthkit.plots.core.maps import Map
+from earthkit.plots.core.maps import Map
 from earthkit.plots.core.subplots import Subplot
+from earthkit.plots.temporal.timeseries import TimeSeries
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
@@ -248,6 +249,45 @@ class Figure:
         row, column = self._determine_row_column(row, column)
         subplot = Map(
             row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
+        )
+        self.subplots.append(subplot)
+        return subplot
+
+    @_defer_subplot
+    def add_timeseries(self, row=None, column=None, **kwargs):
+        """
+        Add a time series subplot to the figure.
+
+        A TimeSeries subplot is specialized for plotting time series data with
+        automatic time axis detection, time-based resampling, and appropriate
+        default sizing.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        kwargs : dict, optional
+            Additional keyword arguments to pass to the :class:`TimeSeries` constructor.
+            If 'size' is not provided, defaults to (8, 4).
+
+        Returns
+        -------
+        TimeSeries
+            The time series subplot object.
+
+        Examples
+        --------
+        >>> from earthkit.plots import Figure
+        >>> fig = Figure()
+        >>> ts = fig.add_timeseries()
+        >>> ts.line(data)
+        >>> fig.show()
+        """
+        row, column = self._determine_row_column(row, column)
+        subplot = TimeSeries(
+            row=row, column=column, figure=self, **kwargs
         )
         self.subplots.append(subplot)
         return subplot

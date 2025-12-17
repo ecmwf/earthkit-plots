@@ -49,6 +49,29 @@ LAYER_ZORDERS = {
 }
 
 
+def _darken_color(color, factor=0.25):
+    """
+    Darken a color by multiplying RGB values by factor.
+
+    Parameters
+    ----------
+    color : color
+        Any matplotlib color specification
+    factor : float
+        Multiplication factor (0 = black, 1 = original color)
+        Default 0.25 = very dark version
+
+    Returns
+    -------
+    str
+        Hex color string
+    """
+    from matplotlib.colors import to_rgb, to_hex
+    rgb = to_rgb(color)
+    darkened = tuple(c * factor for c in rgb)
+    return to_hex(darkened)
+
+
 class Subplot:
     """
     A single plot within a Figure.
@@ -1107,8 +1130,11 @@ class Subplot:
             The dimension to use for the x-axis. Default is "auto".
         dim : str, optional
             The dimension along which to compute quantiles. If None, uses left-most dimension.
-        quantiles : list of float, optional
-            Quantile values to compute. Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
+            When quantiles=None (pre-computed), this specifies which dimension contains the quantile values.
+        quantiles : list of float, "auto", or None, optional
+            - If "auto" (default): compute quantiles [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+            - If list of float: compute these specific quantiles (values between 0 and 1)
+            - If None: don't compute quantiles - treat 'dim' as containing pre-computed quantile values.
         style : earthkit.plots.styles.Style, optional
             The Style to use for colors and units.
         units : str, optional
@@ -1137,21 +1163,11 @@ class Subplot:
             - style: processed style object
         """
         import xarray as xr
-        xr.set_options(keep_attrs=True)
 
         # Import needed functions early to avoid shadowing issues
         from earthkit.plots.core.extractors import _infer_plot_type_from_subplot, _ensure_style_from_kwargs
         from earthkit.plots.sources import get_dimension_set
         from earthkit.plots.sources.core import PlotType
-
-        # Default quantiles
-        if quantiles is None:
-            quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
-
-        # Validate quantiles
-        quantiles = sorted(quantiles)
-        if not all(0 <= q <= 1 for q in quantiles):
-            raise ValueError("All quantiles must be between 0 and 1")
 
         # Ensure we have a DataArray
         if isinstance(data, xr.Dataset):
@@ -1182,94 +1198,208 @@ class Subplot:
             if target_units is None and hasattr(style, '_units'):
                 target_units = style._units
 
-        # Determine the dimension to compute quantiles over first
-        # We need this to know which dimension to slice for unit conversion
-        if dim is None:
-            # Use the left-most (first) dimension
-            if len(data.dims) < 2:
+        # PATHWAY DECISION: Pre-computed quantiles OR compute quantiles
+        if quantiles is None:
+            # ============================================================
+            # PRE-COMPUTED QUANTILES PATHWAY
+            # ============================================================
+            # User is signaling: "dim" contains pre-computed quantile values
+
+            if dim is None:
                 raise ValueError(
-                    f"Data must have at least 2 dimensions for quantile plotting. "
-                    f"Got {len(data.dims)} dimension(s): {list(data.dims)}. "
-                    f"After squeezing, need one dimension for quantiles and one for x-axis."
-                )
-            dim = data.dims[0]
-        elif dim not in data.dims:
-            raise ValueError(
-                f"Dimension '{dim}' not found in data. Available dimensions: {list(data.dims)}"
-            )
-
-        # For quantile plots, the y-axis contains the data values
-        # Apply unit conversion to the raw data before computing quantiles
-        if target_yunits is not None or target_units is not None:
-            y_target_units = target_yunits or target_units
-
-            # Use earthkit's unit conversion if available
-            # For 2D data, we need to create a 1D slice to get the dimension for conversion
-            if len(data.dims) >= 2:
-                # Get plot type from subplot
-                plot_type_enum = _infer_plot_type_from_subplot(self, is_1d=True)
-
-                # Create a 1D slice to extract units metadata
-                # Slice along the quantile dimension (dim), keeping the x-axis dimension
-                data_slice = data.isel({dim: 0})
-
-                temp_dimension_set = get_dimension_set(
-                    data_slice,
-                    plot_type=plot_type_enum,
-                    x="auto",
-                    y="auto",
-                    z=None,
+                    "When quantiles=None (pre-computed quantiles), you must specify "
+                    "which dimension contains the quantile values using the 'dim' parameter"
                 )
 
-                # Check if we have a y dimension with unit conversion capability
-                if hasattr(temp_dimension_set, 'y') and temp_dimension_set.y is not None:
-                    # Get original values before conversion
-                    original_values = temp_dimension_set.y._values
+            if dim not in data.dims:
+                raise ValueError(
+                    f"Quantile dimension '{dim}' not found in data. "
+                    f"Available dimensions: {list(data.dims)}"
+                )
 
-                    # Set target units - this will trigger conversion when we access .values
-                    temp_dimension_set.y.set_target_units(y_target_units)
+            # Treat 'dim' as the quantile dimension
+            quantile_dim = dim
+            quantile_data = data
 
-                    # Get converted values - the .values property handles conversion automatically
-                    converted_values_1d = temp_dimension_set.y.values
+            # Try to extract quantile values from coordinate
+            if dim in data.coords:
+                quantile_coord = data.coords[dim].values
+                # Check if they look like normalized quantiles (between 0 and 1)
+                if all(0 <= q <= 1 for q in quantile_coord):
+                    quantiles = sorted(quantile_coord.tolist())
+                else:
+                    # Not normalized quantiles - could be percentiles (0-100), indices, etc.
+                    # Still use them for pairing logic
+                    quantiles = sorted(quantile_coord.tolist())
+            else:
+                # No coordinate - use dimension indices as quantile values
+                quantiles = list(range(data.sizes[dim]))
 
-                    # Check if conversion actually happened
-                    if converted_values_1d is not original_values and not np.array_equal(converted_values_1d, original_values):
-                        # Conversion happened, compute scale factor and offset from the 1D conversion
-                        # Use linear regression to find scale and offset: converted = original * scale + offset
-                        # For temperature conversions like K to C, this captures the relationship
-                        if len(original_values) > 1:
-                            # Use two points to compute scale and offset
-                            scale_factor = (converted_values_1d[1] - converted_values_1d[0]) / (original_values[1] - original_values[0])
-                            offset = converted_values_1d[0] - scale_factor * original_values[0]
-                        else:
-                            # Single value - assume additive offset only
-                            scale_factor = 1.0
-                            offset = converted_values_1d[0] - original_values[0]
+            # Apply unit conversion if needed (on the pre-computed data)
+            if target_yunits is not None or target_units is not None:
+                y_target_units = target_yunits or target_units
 
-                        # Apply the same conversion to the full 2D data
-                        converted_values = data.values * scale_factor + offset
-                        data = xr.DataArray(
-                            converted_values,
-                            dims=data.dims,
-                            coords=data.coords,
-                            attrs=data.attrs
-                        )
+                if len(quantile_data.dims) >= 2:
+                    # Get plot type from subplot
+                    plot_type_enum = _infer_plot_type_from_subplot(self, is_1d=True)
 
-        # Compute quantiles along the specified dimension
-        quantile_data = data.quantile(quantiles, dim=dim)
+                    # Create a 1D slice to extract units metadata
+                    data_slice = quantile_data.isel({quantile_dim: 0})
 
-        # After quantile computation, we should have a 'quantile' dimension
-        # and the remaining dimension(s) for plotting
-        remaining_dims = [d for d in quantile_data.dims if d != 'quantile']
+                    temp_dimension_set = get_dimension_set(
+                        data_slice,
+                        plot_type=plot_type_enum,
+                        x="auto",
+                        y="auto",
+                        z=None,
+                    )
+
+                    # Check if we have a y dimension with unit conversion capability
+                    if hasattr(temp_dimension_set, 'y') and temp_dimension_set.y is not None:
+                        # Get original values before conversion
+                        original_values = temp_dimension_set.y._values
+
+                        # Set target units
+                        temp_dimension_set.y.set_target_units(y_target_units)
+
+                        # Get converted values
+                        converted_values_1d = temp_dimension_set.y.values
+
+                        # Check if conversion actually happened
+                        if converted_values_1d is not original_values and not np.array_equal(converted_values_1d, original_values):
+                            # Compute scale factor and offset
+                            if len(original_values) > 1:
+                                scale_factor = (converted_values_1d[1] - converted_values_1d[0]) / (original_values[1] - original_values[0])
+                                offset = converted_values_1d[0] - scale_factor * original_values[0]
+                            else:
+                                scale_factor = 1.0
+                                offset = converted_values_1d[0] - original_values[0]
+
+                            # Apply conversion to full data, preserving metadata
+                            converted_values = quantile_data.values * scale_factor + offset
+                            quantile_data = xr.DataArray(
+                                converted_values,
+                                dims=quantile_data.dims,
+                                coords=quantile_data.coords,
+                                attrs=quantile_data.attrs
+                            )
+
+        else:
+            # ============================================================
+            # COMPUTE QUANTILES PATHWAY (existing behavior)
+            # ============================================================
+
+            # Set default quantiles
+            if quantiles == "auto":
+                quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+
+            # Validate quantiles
+            quantiles = sorted(quantiles)
+            if not all(0 <= q <= 1 for q in quantiles):
+                raise ValueError("All quantiles must be between 0 and 1")
+
+            # Determine the dimension to compute quantiles over
+            if dim is None:
+                # Use the left-most (first) dimension
+                if len(data.dims) < 2:
+                    raise ValueError(
+                        f"Data must have at least 2 dimensions for quantile plotting. "
+                        f"Got {len(data.dims)} dimension(s): {list(data.dims)}. "
+                        f"After squeezing, need one dimension for quantiles and one for x-axis."
+                    )
+                dim = data.dims[0]
+            elif dim not in data.dims:
+                raise ValueError(
+                    f"Dimension '{dim}' not found in data. Available dimensions: {list(data.dims)}"
+                )
+
+            # For quantile plots, the y-axis contains the data values
+            # Apply unit conversion to the raw data before computing quantiles
+            if target_yunits is not None or target_units is not None:
+                y_target_units = target_yunits or target_units
+
+                # Use earthkit's unit conversion if available
+                # For 2D data, we need to create a 1D slice to get the dimension for conversion
+                if len(data.dims) >= 2:
+                    # Get plot type from subplot
+                    plot_type_enum = _infer_plot_type_from_subplot(self, is_1d=True)
+
+                    # Create a 1D slice to extract units metadata
+                    # Slice along the quantile dimension (dim), keeping the x-axis dimension
+                    data_slice = data.isel({dim: 0})
+
+                    temp_dimension_set = get_dimension_set(
+                        data_slice,
+                        plot_type=plot_type_enum,
+                        x="auto",
+                        y="auto",
+                        z=None,
+                    )
+
+                    # Check if we have a y dimension with unit conversion capability
+                    if hasattr(temp_dimension_set, 'y') and temp_dimension_set.y is not None:
+                        # Get original values before conversion
+                        original_values = temp_dimension_set.y._values
+
+                        # Set target units - this will trigger conversion when we access .values
+                        temp_dimension_set.y.set_target_units(y_target_units)
+
+                        # Get converted values - the .values property handles conversion automatically
+                        converted_values_1d = temp_dimension_set.y.values
+
+                        # Check if conversion actually happened
+                        if converted_values_1d is not original_values and not np.array_equal(converted_values_1d, original_values):
+                            # Conversion happened, compute scale factor and offset from the 1D conversion
+                            # Use linear regression to find scale and offset: converted = original * scale + offset
+                            # For temperature conversions like K to C, this captures the relationship
+                            if len(original_values) > 1:
+                                # Use two points to compute scale and offset
+                                scale_factor = (converted_values_1d[1] - converted_values_1d[0]) / (original_values[1] - original_values[0])
+                                offset = converted_values_1d[0] - scale_factor * original_values[0]
+                            else:
+                                # Single value - assume additive offset only
+                                scale_factor = 1.0
+                                offset = converted_values_1d[0] - original_values[0]
+
+                            # Apply the same conversion to the full 2D data
+                            converted_values = data.values * scale_factor + offset
+                            data = xr.DataArray(
+                                converted_values,
+                                dims=data.dims,
+                                coords=data.coords,
+                                attrs=data.attrs
+                            )
+
+            # Preserve metadata before computing quantiles (Option C)
+            attrs_to_preserve = data.attrs.copy()
+            coord_attrs = {coord: data.coords[coord].attrs.copy()
+                          for coord in data.coords if coord in data.coords}
+
+            # Compute quantiles along the specified dimension
+            quantile_data = data.quantile(quantiles, dim=dim)
+            quantile_dim = 'quantile'  # xarray always names it 'quantile'
+
+            # Restore attributes
+            quantile_data.attrs.update(attrs_to_preserve)
+            for coord, attrs in coord_attrs.items():
+                if coord in quantile_data.coords:
+                    quantile_data.coords[coord].attrs.update(attrs)
+
+        # ============================================================
+        # COMMON CODE FOR BOTH PATHWAYS
+        # ============================================================
+
+        # After processing, we should have quantile_data with quantile_dim and remaining dimension(s)
+        remaining_dims = [d for d in quantile_data.dims if d != quantile_dim]
 
         if len(remaining_dims) == 0:
             raise ValueError(
-                f"After computing quantiles and squeezing, no dimensions remain for x-axis. "
-                f"Original dimensions: {list(data.dims)}"
+                f"After processing quantiles, no dimensions remain for x-axis. "
+                f"Data dimensions: {list(quantile_data.dims)}"
             )
         elif len(remaining_dims) > 1:
             raise ValueError(
-                f"After computing quantiles, multiple dimensions remain: {remaining_dims}. "
+                f"After processing quantiles, multiple dimensions remain: {remaining_dims}. "
                 f"Please squeeze or select data to have only one remaining dimension."
             )
 
@@ -1331,6 +1461,7 @@ class Subplot:
             'pairs': pairs,
             'median_idx': median_idx,
             'n_quantiles': n_quantiles,
+            'quantiles': quantiles,
             'target_xunits': target_xunits,
             'target_yunits': target_yunits,
             'target_units': target_units,
@@ -1338,24 +1469,29 @@ class Subplot:
             'style': style,
         }
 
-    def boxenplot(
+    def multiboxplot(
         self,
         data,
         x="auto",
         dim=None,
-        quantiles=None,
+        quantiles="auto",
         style=None,
         label=None,
         color=None,
         units=None,
         xunits=None,
         yunits=None,
+        boxprops=None,
+        whiskerprops=None,
+        medianprops=None,
+        capprops=None,
+        showcaps=False,
         **kwargs
     ):
         """
-        Plot a boxenplot (letter-value plot) from multi-dimensional quantile data.
+        Plot a multiboxplot (letter-value plot) from multi-dimensional quantile data.
 
-        A boxenplot visualizes quantiles as stacked boxes with varying widths, where
+        A multiboxplot visualizes quantiles as stacked boxes with varying widths, where
         inner quantiles have wider boxes to show the distribution shape. The outermost
         quantile pair (min-max) is shown as a line. Boxes use solid colors with a gradient
         from light (outer) to dark (inner) shades. This is useful for ensemble forecasts,
@@ -1370,11 +1506,15 @@ class Subplot:
             dimension after quantile computation).
         dim : str, optional
             The dimension along which to compute quantiles (e.g., 'number' for ensemble members).
-            If None, uses the left-most dimension.
-        quantiles : list of float, optional
-            Quantile values to compute, as fractions between 0 and 1.
-            Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
-            Quantiles are paired symmetrically (e.g., 0.1-0.9, 0.25-0.75).
+            If None, uses the left-most dimension. When quantiles=None (pre-computed quantiles),
+            this specifies which dimension contains the quantile values.
+        quantiles : list of float, "auto", or None, optional
+            - If "auto" (default): compute quantiles [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+            - If list of float: compute these specific quantiles (values between 0 and 1),
+              paired symmetrically (e.g., 0.1-0.9, 0.25-0.75)
+            - If None: don't compute quantiles - treat the dimension specified by 'dim' as
+              containing pre-computed quantile values. This allows plotting data where quantiles
+              have already been calculated.
         style : earthkit.plots.styles.Style, optional
             The Style to use for colors. If None, uses default styling.
         label : str, optional
@@ -1390,13 +1530,38 @@ class Subplot:
             Target units for the x-axis values.
         yunits : str, optional
             Target units for the y-axis values. Takes precedence over `units`.
+        boxprops : dict, optional
+            Dictionary of properties for the box rectangles. Can include:
+            - 'edgecolor': Color of box outlines (default: 'black')
+            - 'linewidth': Width of box outlines (default: 1.0)
+            - 'linestyle': Style of box outlines (default: 'solid')
+            - Any other matplotlib Rectangle properties
+        whiskerprops : dict, optional
+            Dictionary of properties for the whisker/range lines (vertical lines from min to max).
+            Can include:
+            - 'color': Whisker line color (default: inherits from boxprops['edgecolor'])
+            - 'linewidth': Whisker line width (default: inherits from boxprops['linewidth'])
+            - 'linestyle': Whisker line style (default: 'solid')
+            - Any other matplotlib Line2D properties
+        medianprops : dict, optional
+            Dictionary of properties for the median line. Can include:
+            - 'color': Median line color (default: darkened version of main color parameter)
+            - 'linewidth': Median line width (default: 1.5)
+            - 'linestyle': Median line style (default: 'solid')
+            - 'alpha': Median line transparency (default: 1.0)
+            - Any other matplotlib Line2D properties
+        capprops : dict, optional
+            Dictionary of properties for the cap lines (horizontal lines at whisker ends).
+            Can include:
+            - 'color': Cap line color (default: inherits from whiskerprops['color'])
+            - 'linewidth': Cap line width (default: inherits from whiskerprops['linewidth'])
+            - 'linestyle': Cap line style (default: 'solid')
+            - 'capwidth': Width of cap as fraction of box width (default: 1.0)
+            - Any other matplotlib Line2D properties
+        showcaps : bool, optional
+            Whether to show horizontal cap lines at the ends of whiskers (default: False).
         **kwargs
-            Additional keyword arguments. Supports `boxprops` for styling the boxes.
-            boxprops : dict, optional
-                Dictionary of properties for the box rectangles. Can include:
-                - 'edgecolor': Color of box outlines (default: 'black')
-                - 'linewidth': Width of box outlines (default: 0.5)
-                - 'linestyle': Style of box outlines (default: 'solid')
+            Additional keyword arguments passed to the underlying matplotlib functions.
 
         Returns
         -------
@@ -1407,21 +1572,44 @@ class Subplot:
         --------
         >>> # Ensemble forecast visualization with automatic colors
         >>> chart = Chart()
-        >>> chart.boxenplot(ensemble_data, dim='number')
+        >>> chart.multiboxplot(ensemble_data, dim='number')
         >>> chart.xlabel()
         >>> chart.ylabel()
         >>> chart.show()
 
         >>> # Custom color
-        >>> chart.boxenplot(data, dim='member', color='steelblue')
+        >>> chart.multiboxplot(data, dim='member', color='steelblue')
 
-        >>> # Multiple boxenplots with automatic color cycling
-        >>> chart.boxenplot(data1, dim='member', label='Forecast 1')
-        >>> chart.boxenplot(data2, dim='member', label='Forecast 2')  # Different color
+        >>> # Multiple multiboxplots with automatic color cycling
+        >>> chart.multiboxplot(data1, dim='member', label='Forecast 1')
+        >>> chart.multiboxplot(data2, dim='member', label='Forecast 2')  # Different color
 
         >>> # Custom box styling with boxprops
-        >>> chart.boxenplot(data, dim='member', color='steelblue',
-        ...                 boxprops={'edgecolor': 'navy', 'linewidth': 1.0})
+        >>> chart.multiboxplot(data, dim='member', color='steelblue',
+        ...                     boxprops={'edgecolor': 'navy', 'linewidth': 1.0})
+
+        >>> # Custom whiskers (different from box edges)
+        >>> chart.multiboxplot(data, dim='member', color='steelblue',
+        ...                     whiskerprops={'color': 'gray', 'linewidth': 0.8, 'linestyle': '--'})
+
+        >>> # Custom median line
+        >>> chart.multiboxplot(data, dim='member', color='steelblue',
+        ...                     medianprops={'color': 'red', 'linewidth': 2.0})
+
+        >>> # With caps
+        >>> chart.multiboxplot(data, dim='member', showcaps=True,
+        ...                     capprops={'capwidth': 0.8})
+
+        >>> # Fully customized
+        >>> chart.multiboxplot(data, dim='member', color='#4287f5',
+        ...                     boxprops={'edgecolor': 'black', 'linewidth': 0.8},
+        ...                     whiskerprops={'color': 'gray', 'linewidth': 0.5},
+        ...                     medianprops={'color': 'darkred', 'linewidth': 2.5'},
+        ...                     showcaps=True, capprops={'capwidth': 1.0})
+
+        >>> # Pre-computed quantiles (skip quantile computation)
+        >>> quantile_data = ensemble_data.quantile([0.1, 0.5, 0.9], dim='member')
+        >>> chart.multiboxplot(quantile_data, dim='quantile', quantiles=None)
         """
         # Compute quantiles
         result = self._compute_quantiles(
@@ -1438,13 +1626,14 @@ class Subplot:
         pairs = result['pairs']
         median_idx = result['median_idx']
         n_quantiles = result['n_quantiles']
+        quantiles = result['quantiles']
         target_xunits = result['target_xunits']
         target_yunits = result['target_yunits']
         target_units = result['target_units']
         representative_data = result['representative_data']
         style = result['style']
 
-        # Boxenplot style: letter-value plot with varying box widths
+        # Multiboxplot style: letter-value plot with varying box widths
         # Inner quantiles get wider boxes to show distribution shape
         from matplotlib.patches import Rectangle
         from matplotlib.colors import to_rgb, to_hex
@@ -1452,13 +1641,11 @@ class Subplot:
 
         mappables = []
 
-        # Extract boxprops from kwargs
-        boxprops = kwargs.pop('boxprops', {})
-
-        # Set default box styling
-        edge_color = boxprops.get('edgecolor', 'black')
-        edge_linewidth = boxprops.get('linewidth', 0.5)
-        edge_linestyle = boxprops.get('linestyle', 'solid')
+        # Resolve boxprops with defaults
+        boxprops = boxprops or {}
+        box_edgecolor = boxprops.get('edgecolor', 'black')
+        box_linewidth = boxprops.get('linewidth', 1.0)
+        box_linestyle = boxprops.get('linestyle', 'solid')
 
         # Determine the base color
         # If color is explicitly provided, use it. Otherwise use matplotlib's color cycle
@@ -1479,6 +1666,30 @@ class Subplot:
         if plot_color is None:
             # Get the next color from the axis's color cycle
             plot_color = self.ax._get_lines.get_next_color()
+
+        # Resolve whiskerprops (inherits from boxprops)
+        whiskerprops = whiskerprops or {}
+        whisker_color = whiskerprops.get('color', box_edgecolor)
+        whisker_linewidth = whiskerprops.get('linewidth', box_linewidth)
+        whisker_linestyle = whiskerprops.get('linestyle', 'solid')
+
+        # Resolve medianprops (color from darkened main color unless explicitly provided)
+        medianprops = medianprops or {}
+        if 'color' not in medianprops:
+            median_color = _darken_color(plot_color, 0.25)
+        else:
+            median_color = medianprops['color']
+        median_linewidth = medianprops.get('linewidth', 1.5)
+        median_linestyle = medianprops.get('linestyle', 'solid')
+        median_alpha = medianprops.get('alpha', 1.0)
+
+        # Resolve capprops (inherits from whiskerprops)
+        if showcaps:
+            capprops = capprops or {}
+            cap_color = capprops.get('color', whisker_color)
+            cap_linewidth = capprops.get('linewidth', whisker_linewidth)
+            cap_linestyle = capprops.get('linestyle', 'solid')
+            cap_width_factor = capprops.get('capwidth', 1.0)
 
         # Calculate the spacing between x positions
         if len(x_values) > 1:
@@ -1516,8 +1727,7 @@ class Subplot:
                 # Calculate color: widest box (innermost, largest pair_idx) is darkest
                 # narrowest box (outermost, smallest pair_idx) is lightest
                 if pair_idx == 0:
-                    # Outermost box (min-max): draw as a line instead
-                    # Use the same color as box edges for consistency
+                    # Outermost box (min-max): draw as a whisker line
                     # Use zorder=1 to ensure it appears behind the boxes
                     if np.issubdtype(x_values.dtype, np.datetime64):
                         from matplotlib.dates import date2num
@@ -1526,9 +1736,9 @@ class Subplot:
                         line = self.ax.plot(
                             [x_pos_numeric, x_pos_numeric],
                             [y_lower, y_upper],
-                            color=edge_color,
-                            linewidth=edge_linewidth,
-                            linestyle=edge_linestyle,
+                            color=whisker_color,
+                            linewidth=whisker_linewidth,
+                            linestyle=whisker_linestyle,
                             alpha=1.0,
                             zorder=1,
                         )
@@ -1537,15 +1747,62 @@ class Subplot:
                         line = self.ax.plot(
                             [x_pos, x_pos],
                             [y_lower, y_upper],
-                            color=edge_color,
-                            linewidth=edge_linewidth,
-                            linestyle=edge_linestyle,
+                            color=whisker_color,
+                            linewidth=whisker_linewidth,
+                            linestyle=whisker_linestyle,
                             alpha=1.0,
                             zorder=1,
                         )
 
                     if x_idx == 0:
                         mappables.extend(line)
+
+                    # Draw caps if showcaps is True
+                    if showcaps:
+                        cap_half_width = base_width * cap_width_factor / 2
+                        if np.issubdtype(x_values.dtype, np.datetime64):
+                            x_pos_numeric = date2num(x_pos)
+                            # Draw cap at lower end
+                            self.ax.plot(
+                                [x_pos_numeric - cap_half_width, x_pos_numeric + cap_half_width],
+                                [y_lower, y_lower],
+                                color=cap_color,
+                                linewidth=cap_linewidth,
+                                linestyle=cap_linestyle,
+                                alpha=1.0,
+                                zorder=1,
+                            )
+                            # Draw cap at upper end
+                            self.ax.plot(
+                                [x_pos_numeric - cap_half_width, x_pos_numeric + cap_half_width],
+                                [y_upper, y_upper],
+                                color=cap_color,
+                                linewidth=cap_linewidth,
+                                linestyle=cap_linestyle,
+                                alpha=1.0,
+                                zorder=1,
+                            )
+                        else:
+                            # Draw cap at lower end
+                            self.ax.plot(
+                                [x_pos - cap_half_width, x_pos + cap_half_width],
+                                [y_lower, y_lower],
+                                color=cap_color,
+                                linewidth=cap_linewidth,
+                                linestyle=cap_linestyle,
+                                alpha=1.0,
+                                zorder=1,
+                            )
+                            # Draw cap at upper end
+                            self.ax.plot(
+                                [x_pos - cap_half_width, x_pos + cap_half_width],
+                                [y_upper, y_upper],
+                                color=cap_color,
+                                linewidth=cap_linewidth,
+                                linestyle=cap_linestyle,
+                                alpha=1.0,
+                                zorder=1,
+                            )
                 else:
                     # For other boxes, create lighter shades
                     # pair_idx goes from 1 to len(pairs)-1
@@ -1575,10 +1832,10 @@ class Subplot:
                             box_width,
                             box_height,
                             facecolor=box_color,
-                            edgecolor=edge_color,
+                            edgecolor=box_edgecolor,
                             alpha=1.0,
-                            linewidth=edge_linewidth,
-                            linestyle=edge_linestyle,
+                            linewidth=box_linewidth,
+                            linestyle=box_linestyle,
                             zorder=2,
                         )
                     else:
@@ -1587,10 +1844,10 @@ class Subplot:
                             box_width,
                             box_height,
                             facecolor=box_color,
-                            edgecolor=edge_color,
+                            edgecolor=box_edgecolor,
                             alpha=1.0,
-                            linewidth=edge_linewidth,
-                            linestyle=edge_linestyle,
+                            linewidth=box_linewidth,
+                            linestyle=box_linestyle,
                             zorder=2,
                         )
                     self.ax.add_patch(rect)
@@ -1602,24 +1859,28 @@ class Subplot:
             # Draw median line at this x position if it exists
             if median_idx is not None:
                 y_median = q_values[median_idx, x_idx]
+                # Make median line slightly narrower than the widest box to avoid poking out
+                median_width = base_width * 0.95
                 if np.issubdtype(x_values.dtype, np.datetime64):
                     from matplotlib.dates import date2num
                     x_pos_numeric = date2num(x_pos)
                     median_line = self.ax.plot(
-                        [x_pos_numeric - base_width/2, x_pos_numeric + base_width/2],
+                        [x_pos_numeric - median_width/2, x_pos_numeric + median_width/2],
                         [y_median, y_median],
-                        color='white',
-                        linewidth=1.5,
-                        alpha=0.9,
+                        color=median_color,
+                        linewidth=median_linewidth,
+                        linestyle=median_linestyle,
+                        alpha=median_alpha,
                         zorder=10,
                     )
                 else:
                     median_line = self.ax.plot(
-                        [x_pos - base_width/2, x_pos + base_width/2],
+                        [x_pos - median_width/2, x_pos + median_width/2],
                         [y_median, y_median],
-                        color='white',
-                        linewidth=1.5,
-                        alpha=0.9,
+                        color=median_color,
+                        linewidth=median_linewidth,
+                        linestyle=median_linestyle,
+                        alpha=median_alpha,
                         zorder=10,
                     )
                 if x_idx == 0:
@@ -1676,6 +1937,19 @@ class Subplot:
             axis_units=axis_units,
         )
 
+        # Mark this layer as a multiboxplot for legend generation
+        layer._layer_type = 'multiboxplot'
+        layer._multiboxplot_quantiles = quantiles
+        layer._multiboxplot_color = plot_color  # Use plot_color (actual color used) not base_color
+        layer._multiboxplot_styling = {
+            'whisker_color': whisker_color,
+            'whisker_linewidth': whisker_linewidth,
+            'box_edgecolor': box_edgecolor,
+            'box_linewidth': box_linewidth,
+            'median_color': median_color,
+            'median_linewidth': median_linewidth,
+        }
+
         # Handle label
         if label is not None:
             formatted_label = layer.format_string(label)
@@ -1685,6 +1959,10 @@ class Subplot:
 
         self.layers.append(layer)
 
+        # Store quantiles and color for potential legend creation
+        self._last_multiboxplot_quantiles = quantiles
+        self._last_multiboxplot_color = base_color
+
         return mappables
 
     def envelopes(
@@ -1692,7 +1970,7 @@ class Subplot:
         data,
         x="auto",
         dim=None,
-        quantiles=None,
+        quantiles="auto",
         style=None,
         label=None,
         alpha=0.3,
@@ -1717,11 +1995,15 @@ class Subplot:
             dimension after quantile computation).
         dim : str, optional
             The dimension along which to compute quantiles (e.g., 'number' for ensemble members).
-            If None, uses the left-most dimension.
-        quantiles : list of float, optional
-            Quantile values to compute, as fractions between 0 and 1.
-            Default is [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1].
-            Quantiles are paired symmetrically (e.g., 0.1-0.9, 0.25-0.75).
+            If None, uses the left-most dimension. When quantiles=None (pre-computed quantiles),
+            this specifies which dimension contains the quantile values.
+        quantiles : list of float, "auto", or None, optional
+            - If "auto" (default): compute quantiles [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+            - If list of float: compute these specific quantiles (values between 0 and 1),
+              paired symmetrically (e.g., 0.1-0.9, 0.25-0.75)
+            - If None: don't compute quantiles - treat the dimension specified by 'dim' as
+              containing pre-computed quantile values. This allows plotting data where quantiles
+              have already been calculated.
         style : earthkit.plots.styles.Style, optional
             The Style to use for colors. If None, uses default styling.
         label : str, optional
@@ -1754,6 +2036,10 @@ class Subplot:
 
         >>> # Custom quantiles and transparency
         >>> chart.envelopes(data, dim='member', quantiles=[0, 0.25, 0.5, 0.75, 1], alpha=0.5)
+
+        >>> # Pre-computed quantiles (skip quantile computation)
+        >>> quantile_data = ensemble_data.quantile([0.1, 0.5, 0.9], dim='member')
+        >>> chart.envelopes(quantile_data, dim='quantile', quantiles=None)
         """
         # Compute quantiles
         result = self._compute_quantiles(
@@ -1770,6 +2056,7 @@ class Subplot:
         pairs = result['pairs']
         median_idx = result['median_idx']
         n_quantiles = result['n_quantiles']
+        quantiles = result['quantiles']
         target_xunits = result['target_xunits']
         target_yunits = result['target_yunits']
         target_units = result['target_units']
@@ -1851,6 +2138,244 @@ class Subplot:
         self.layers.append(layer)
 
         return mappables
+    def multiboxplot_legend(
+        self,
+        location='right',
+        fontsize=8,
+        color=None,
+        boxprops=None,
+        whiskerprops=None,
+        medianprops=None,
+        **kwargs
+    ):
+        """
+        Create a visual legend for the last multiboxplot showing quantile structure.
+
+        This creates a miniature demonstration plot showing the quantile structure with
+        labeled percentiles. The legend is placed outside the plot area, similar to a colorbar.
+        The legend is always displayed in vertical orientation (0.75 x 0.75 inches) regardless
+        of where it's positioned.
+
+        Parameters
+        ----------
+        location : str, optional
+            Location for the legend outside the plot area.
+            Options: 'right', 'left', 'top', 'bottom'. Default is 'right'.
+        fontsize : int, optional
+            Font size for labels. Default is 8.
+        color : str or tuple, optional
+            Base color for the legend. If None, uses the color from the multiboxplot.
+        boxprops : dict, optional
+            Properties for box edges (edgecolor, linewidth, linestyle).
+            If None, uses styling from the multiboxplot.
+        whiskerprops : dict, optional
+            Properties for whisker lines (color, linewidth, linestyle).
+            If None, uses styling from the multiboxplot.
+        medianprops : dict, optional
+            Properties for median line (color, linewidth, linestyle).
+            If None, uses styling from the multiboxplot.
+        **kwargs
+            Additional keyword arguments:
+            - size: Size of legend in inches (default: 0.75, creating a 0.75x0.75 square)
+            - pad: Padding between plot and legend in inches (default: 0.1)
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes containing the legend.
+
+        Examples
+        --------
+        >>> subplot.multiboxplot(ensemble_data, dim='member', color='steelblue')
+        >>> subplot.multiboxplot_legend()  # Uses 'steelblue' from the plot
+
+        >>> # Override with custom styling
+        >>> subplot.multiboxplot_legend(
+        ...     color='orange',
+        ...     boxprops={'edgecolor': 'red', 'linewidth': 1.5},
+        ...     medianprops={'color': 'darkred', 'linewidth': 2.0}
+        ... )
+        """
+        # Check if we have quantiles from a previous multiboxplot call
+        # If not stored yet, look for multiboxplot layers
+        if not hasattr(self, '_last_multiboxplot_quantiles'):
+            multiboxplot_layers = [
+                layer for layer in self.layers
+                if hasattr(layer, '_layer_type') and layer._layer_type == 'multiboxplot'
+            ]
+
+            if not multiboxplot_layers:
+                raise ValueError(
+                    "No multiboxplot has been created yet. "
+                    "Call multiboxplot() before creating a legend."
+                )
+
+            # Use the most recent multiboxplot layer
+            layer = multiboxplot_layers[-1]
+            self._last_multiboxplot_quantiles = layer._multiboxplot_quantiles
+            self._last_multiboxplot_color = layer._multiboxplot_color
+            self._last_multiboxplot_styling = getattr(layer, '_multiboxplot_styling', {})
+
+        quantiles = self._last_multiboxplot_quantiles
+        stored_color = self._last_multiboxplot_color
+        stored_styling = getattr(self, '_last_multiboxplot_styling', {})
+
+        # Ensure quantiles are floats
+        quantiles = [float(q) for q in quantiles]
+
+        # Use provided color or fall back to stored color
+        base_color = color if color is not None else stored_color
+
+        # Convert base_color to RGB for use in gradient and median calculations
+        import matplotlib.colors as mcolors
+        if isinstance(base_color, str):
+            base_color_rgb = mcolors.to_rgb(base_color)
+        else:
+            base_color_rgb = base_color
+
+        # Resolve styling parameters - use provided values or fall back to stored styling
+        # Whisker properties
+        whiskerprops = whiskerprops or {}
+        whisker_color = whiskerprops.get('color', stored_styling.get('whisker_color', (0.3, 0.3, 0.3)))
+        whisker_linewidth = whiskerprops.get('linewidth', stored_styling.get('whisker_linewidth', 0.8))
+
+        # Box properties
+        boxprops = boxprops or {}
+        box_edgecolor = boxprops.get('edgecolor', stored_styling.get('box_edgecolor', base_color))
+        box_linewidth = boxprops.get('linewidth', stored_styling.get('box_linewidth', 0.5))
+
+        # Median properties
+        medianprops = medianprops or {}
+        median_color = medianprops.get('color', stored_styling.get('median_color', tuple(c * 0.6 for c in base_color_rgb)))
+        median_linewidth = medianprops.get('linewidth', stored_styling.get('median_linewidth', 1.5))
+
+        # Validate location
+        valid_locations = ['right', 'left', 'top', 'bottom']
+        if location not in valid_locations:
+            raise ValueError(
+                f"Invalid location '{location}'. "
+                f"Valid options: {valid_locations}"
+            )
+
+        # Create legend axes using axes_divider (like colorbar does)
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        divider = make_axes_locatable(self.ax)
+
+        # Get pad parameter
+        pad = kwargs.pop('pad', 0.1)
+
+        # Always create a 0.75x0.75 inch square legend with vertical orientation
+        # The legend is always vertical regardless of where it's positioned
+        size = kwargs.pop('size', 0.75)  # inches
+
+        # Create the axes at the specified location
+        legend_ax = divider.append_axes(location, size=size, pad=pad)
+
+        # Set fixed aspect ratio and size
+        # The legend box will always be 0.75 x 0.75 inches
+        legend_ax.set_aspect('equal', adjustable='box')
+
+        # Import for drawing
+        import matplotlib.patches as mpatches
+
+        # Use the base_color_rgb we already calculated above
+        rgb = base_color_rgb
+
+        # Draw the multiboxplot structure
+        n_quantiles = len(quantiles)
+        pairs = []
+        for i in range(n_quantiles // 2):
+            pairs.append((i, n_quantiles - 1 - i))
+
+        if n_quantiles % 2 == 1:
+            median_idx = n_quantiles // 2
+        else:
+            median_idx = None
+
+        # Always draw in vertical orientation (regardless of location)
+        x_center = 0.25  # Shift left to make room for labels on the right
+        base_width = 0.15  # 50% narrower than before (was 0.3)
+
+        for pair_idx, (lower_idx, upper_idx) in enumerate(pairs):
+            width_factor = (pair_idx + 1) / len(pairs)
+            box_width = base_width * width_factor
+
+            q_lower = quantiles[lower_idx]
+            q_upper = quantiles[upper_idx]
+            y_lower = q_lower
+            y_upper = q_upper
+            box_height = y_upper - y_lower
+
+            if pair_idx == 0:
+                # Outermost: whisker line (use actual styling from multiboxplot)
+                legend_ax.plot(
+                    [x_center, x_center],
+                    [y_lower, y_upper],
+                    color=whisker_color,
+                    linewidth=whisker_linewidth,
+                    zorder=1,
+                )
+            else:
+                # Inner boxes - match the actual multiboxplot gradient
+                # Replicate the lightness calculation from multiboxplot
+                normalized_idx = (pair_idx - 1) / max(1, len(pairs) - 2)
+                lightness_factor = 0.4 * (1.0 - normalized_idx)
+                color = tuple(c * (1 - lightness_factor) + lightness_factor for c in rgb)
+
+                legend_ax.add_patch(
+                    mpatches.Rectangle(
+                        (x_center - box_width/2, y_lower),
+                        box_width,
+                        box_height,
+                        facecolor=color,
+                        edgecolor=box_edgecolor,
+                        linewidth=box_linewidth,
+                        zorder=2,
+                    )
+                )
+
+        # Draw median line if it exists
+        if median_idx is not None:
+            q_median = quantiles[median_idx]
+            median_width = base_width * 0.95
+            legend_ax.plot(
+                [x_center - median_width/2, x_center + median_width/2],
+                [q_median, q_median],
+                color=median_color,
+                linewidth=median_linewidth,
+                zorder=10,
+            )
+
+        # Add labels for quantiles - always on the right of the box
+        for i, q in enumerate(quantiles):
+            # Format label
+            if q == 0:
+                label_text = 'min'
+            elif q == 1:
+                label_text = 'max'
+            elif q == 0.5:
+                label_text = 'median'
+            else:
+                percentile = int(q * 100)
+                label_text = f'{percentile}%'
+
+            # Position label to the right of the box
+            legend_ax.text(
+                0.4, q, label_text,
+                ha='left', va='center',
+                fontsize=fontsize - 1,
+            )
+
+        # Configure legend axes
+        legend_ax.set_xlim(0, 1)
+        legend_ax.set_ylim(-0.05, 1.05)
+        legend_ax.set_xticks([])
+        legend_ax.set_yticks([])
+        for spine in legend_ax.spines.values():
+            spine.set_visible(False)
+
+        return legend_ax
 
     @plot_1d("plot")
     def line(self, *args, **kwargs):
@@ -2763,18 +3288,21 @@ class Subplot:
         Layers are grouped by their style's legend key, so layers with visually
         identical styles (same colors, levels, etc.) share a colorbar.
 
+        Note: For multiboxplot layers, use the multiboxplot_legend() method to create
+        a specialized visual legend showing the quantile structure.
+
         Parameters
         ----------
         location : str, optional
-            The location for the colorbar(s). Valid options are 'right', 'left',
-            'top', 'bottom'. Default is 'right'.
+            The location for the colorbar(s).
+            Valid options: 'right', 'left', 'top', 'bottom'. Default is 'right'.
         label : str, optional
             Label for the colorbar(s). Default is "auto" which generates a label from
             layer metadata. Can contain format placeholders (e.g., "{units}",
             "{long_name}", etc.) which will be replaced with layer metadata values.
             Use None for no label.
         **kwargs
-            Additional keyword arguments passed to each colorbar creation.
+            Additional keyword arguments passed to each colorbar/legend creation.
 
         Returns
         -------
@@ -2792,6 +3320,8 @@ class Subplot:
         >>> chart.legend(label=None)  # No label
         """
         from collections import defaultdict
+
+        legends = []
 
         # Group layers by their style's legend key
         style_groups = defaultdict(list)
