@@ -205,19 +205,20 @@ def _expand_season_placeholders(
         if spec is None:
             # No format specifier provided, default to %c (season code)
             return _season_code(months)
-        if spec == "%b":
+        elif spec == "%b":
             return sep.join(month_abbr[m] for m in months)
-        if spec == "%B":
+        elif spec == "%B":
             return sep.join(month_name[m] for m in months)
-        if spec == "%c":
+        elif spec == "%c":
             return _season_code(months)
-        if spec == "%s":
+        elif spec == "%s":
             return _season_name(dt, hemi=hemi)
-        if spec == "%N":
+        elif spec == "%N":
             return _season_name(dt, hemi="north")
-        if spec == "%S":
+        elif spec == "%S":
             return _season_name(dt, hemi="south")
-        return match.group(0)  # shouldn't happen
+        else:
+            return match.group(0)  # shouldn't happen
 
     return _SEASON_TOKEN_RE.sub(repl, fmt)
 
