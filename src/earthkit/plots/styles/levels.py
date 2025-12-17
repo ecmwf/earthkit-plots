@@ -39,8 +39,9 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
     if hasattr(data, "to_numpy"):
         data = data.to_numpy()
 
-    min_value = np.nanmin(data)
-    max_value = np.nanmax(data)
+    finite_vals = data[np.isfinite(data)]
+    min_value = np.min(finite_vals)
+    max_value = np.max(finite_vals)
 
     if np.isnan(min_value) or min_value == max_value:
         return [0] * (n_levels + 1)
