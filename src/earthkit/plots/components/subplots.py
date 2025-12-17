@@ -18,7 +18,6 @@ import warnings
 import matplotlib.dates as mdates
 import numpy as np
 
-from earthkit.plots import identifiers
 from earthkit.plots.components.extractors import (
     extract_plottables_2D,
     extract_plottables_3D,
@@ -30,7 +29,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Interpolate, Regrid
+from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source, get_vector_sources
 from earthkit.plots.sources.multi import MultiSource
@@ -51,6 +50,165 @@ LAYER_ZORDERS = {
     "barbs": 3,
     "streamplot": 3,
 }
+
+
+def plot_2D(method_name=None):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            z=None,
+            style=None,
+            every=None,
+            **kwargs,
+        ):
+            return extract_plottables_2D(
+                self,
+                method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                z=z,
+                style=style,
+                every=every,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
+
+
+def plot_3D(method_name=None, extract_domain=False):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            z=None,
+            style=None,
+            every=None,
+            auto_style=False,
+            **kwargs,
+        ):
+            return self._extract_plottables(
+                method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                z=z,
+                style=style,
+                every=every,
+                auto_style=auto_style,
+                extract_domain=extract_domain,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
+
+
+def plot_vector(method_name=None):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            u=None,
+            v=None,
+            colors=False,
+            style=None,
+            units=None,
+            auto_style=False,
+            source_units=None,
+            resample=Regrid(40),
+            **kwargs,
+        ):
+            u_source = None
+            v_source = None
+
+            if not args:
+                u_source = get_source(u, x=x, y=y, units=source_units)
+                v_source = get_source(v, x=x, y=y, units=source_units)
+            elif len(args) == 1:
+                u_source, v_source = get_vector_sources(
+                    args[0], x=x, y=y, u=u, v=v, units=source_units
+                )
+            elif len(args) == 2:
+                u_source = get_source(args[0], x=x, y=y, units=source_units)
+                v_source = get_source(args[1], x=x, y=y, units=source_units)
+
+            assert (
+                u_source is not None and v_source is not None
+            ), "Could not determine vector components from input arguments"
+
+            kwargs = {**self._plot_kwargs(u_source), **kwargs}
+
+            multi_source = MultiSource([u_source, v_source])
+
+            style = self._configure_style(
+                method_name or method.__name__,
+                style,
+                multi_source,
+                units,
+                auto_style,
+                {**kwargs, "colors": colors},
+            )
+            m = getattr(style, method_name or method.__name__)
+
+            x_values = u_source.x_values
+            y_values = u_source.y_values
+            u_values = style.convert_units(u_source.z_values, u_source.units)
+            v_values = style.convert_units(v_source.z_values, v_source.units)
+
+            resample = style.resample or resample
+
+            if self.domain is not None:
+                x_values, y_values, _, [u_values, v_values] = self.domain.extract(
+                    x_values,
+                    y_values,
+                    extra_values=[u_values, v_values],
+                    source_crs=u_source.crs,
+                )
+
+            if resample is not None:
+                kwargs.pop("regrid_shape", None)
+                if resample.__class__.__name__ == "Regrid":
+                    kwargs.pop("transform")
+                args = resample.apply(
+                    x_values,
+                    y_values,
+                    u_values,
+                    v_values,
+                    source_crs=u_source.crs,
+                    target_crs=self.crs,
+                    extents=self.ax.get_extent(),
+                )
+            else:
+                args = [x_values, y_values, u_values, v_values]
+
+            if colors:
+                args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
+
+            mappable = m(self.ax, *args, **kwargs)
+            self.layers.append(Layer([u_source, v_source], mappable, self, style))
+            if isinstance(u_source._x, str):
+                self.ax.set_xlabel(u_source._x)
+            if isinstance(u_source._y, str):
+                self.ax.set_ylabel(u_source._y)
+            return mappable
+
+        return wrapper
+
+    return decorator
 
 
 class Subplot:
@@ -324,231 +482,6 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                z=None,
-                style=None,
-                every=None,
-                **kwargs,
-            ):
-                return self._extract_plottables_2D(
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    **kwargs,
-                )
-
-            return wrapper
-
-        return decorator
-
-    def plot_box(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
-                source = get_source(data=data, x=x, y=y, z=z)
-                kwargs = {**self._plot_kwargs(source), **kwargs}
-                m = getattr(self.ax, method_name or method.__name__)
-                if source.extract_x() in identifiers.TIME:
-                    positions = mdates.date2num(source.x_values)
-                else:
-                    positions = source.x_values
-                widths = min(0.5, np.diff(positions).min() * 0.7)
-                mappable = m(
-                    source.z_values, positions=positions, widths=widths, **kwargs
-                )
-                self.layers.append(Layer(source, mappable, self, style))
-                if isinstance(source._x, str):
-                    if source._x in identifiers.TIME:
-                        locator = mdates.AutoDateLocator(maxticks=30)
-                        formatter = mdates.ConciseDateFormatter(
-                            locator,
-                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
-                        )
-                        self.ax.xaxis.set_major_locator(locator)
-                        self.ax.xaxis.set_major_formatter(formatter)
-                    else:
-                        self.ax.set_xlabel(source._x)
-                if isinstance(source._z, str):
-                    self.ax.set_ylabel(source._z)
-                return mappable
-
-            return wrapper
-
-        return decorator
-
-    def plot_3D(method_name=None, extract_domain=False):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                z=None,
-                style=None,
-                every=None,
-                auto_style=False,
-                **kwargs,
-            ):
-                return self._extract_plottables(
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    auto_style=auto_style,
-                    extract_domain=extract_domain,
-                    **kwargs,
-                )
-
-            return wrapper
-
-        return decorator
-
-    def plot_vector(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                u=None,
-                v=None,
-                colors=False,
-                style=None,
-                units=None,
-                auto_style=False,
-                source_units=None,
-                resample=Regrid(40),
-                **kwargs,
-            ):
-                u_source = None
-                v_source = None
-
-                if not args:
-                    u_source = get_source(u, x=x, y=y, units=source_units)
-                    v_source = get_source(v, x=x, y=y, units=source_units)
-                elif len(args) == 1:
-                    u_source, v_source = get_vector_sources(
-                        args[0], x=x, y=y, u=u, v=v, units=source_units
-                    )
-                elif len(args) == 2:
-                    u_source = get_source(args[0], x=x, y=y, units=source_units)
-                    v_source = get_source(args[1], x=x, y=y, units=source_units)
-
-                assert (
-                    u_source is not None and v_source is not None
-                ), "Could not determine vector components from input arguments"
-
-                kwargs = {**self._plot_kwargs(u_source), **kwargs}
-
-                multi_source = MultiSource([u_source, v_source])
-
-                style = self._configure_style(
-                    method_name or method.__name__,
-                    style,
-                    multi_source,
-                    units,
-                    auto_style,
-                    {**kwargs, "colors": colors},
-                )
-                m = getattr(style, method_name or method.__name__)
-
-                x_values = u_source.x_values
-                y_values = u_source.y_values
-                u_values = style.convert_units(u_source.z_values, u_source.units)
-                v_values = style.convert_units(v_source.z_values, v_source.units)
-
-                resample = style.resample or resample
-
-                if self.domain is not None:
-                    x_values, y_values, _, [u_values, v_values] = self.domain.extract(
-                        x_values,
-                        y_values,
-                        extra_values=[u_values, v_values],
-                        source_crs=u_source.crs,
-                    )
-
-                if resample is not None:
-                    kwargs.pop("regrid_shape", None)
-                    if resample.__class__.__name__ == "Regrid":
-                        kwargs.pop("transform")
-                    args = resample.apply(
-                        x_values,
-                        y_values,
-                        u_values,
-                        v_values,
-                        source_crs=u_source.crs,
-                        target_crs=self.crs,
-                        extents=self.ax.get_extent(),
-                    )
-                else:
-                    args = [x_values, y_values, u_values, v_values]
-
-                if colors:
-                    args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
-
-                mappable = m(self.ax, *args, **kwargs)
-                self.layers.append(Layer([u_source, v_source], mappable, self, style))
-                if isinstance(u_source._x, str):
-                    self.ax.set_xlabel(u_source._x)
-                if isinstance(u_source._y, str):
-                    self.ax.set_ylabel(u_source._y)
-                return mappable
-
-            return wrapper
-
-        return decorator
-
-    def _extract_plottables_2D(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        return extract_plottables_2D(
-            self,
-            method_name,
-            args,
-            x=x,
-            y=y,
-            z=z,
-            style=style,
-            no_style=no_style,
-            units=units,
-            every=every,
-            source_units=source_units,
-            auto_style=auto_style,
-            regrid=regrid,
-            metadata=metadata,
-            **kwargs,
-        )
-
     def _extract_plottables(
         self,
         method_name,
@@ -599,92 +532,6 @@ class Subplot:
             else auto.guess_style(source, units=units or source.units)
         )
         return style
-
-    def _process_z_values(self, style, source, z):
-        """Processes z values by converting units and applying a scale factor."""
-        if source._data is None and z is None:
-            return None
-
-        z_values = style.convert_units(source.z_values, source.units)
-        return style.apply_scale_factor(z_values)
-
-    def _apply_sampling(self, x_values, y_values, z_values, every):
-        """Applies sampling to x, y, and z values if 'every' is specified."""
-        if every:
-            x_values = x_values[::every]
-            y_values = y_values[::every]
-            if z_values is not None:
-                z_values = z_values[::every, ::every]
-        return x_values, y_values, z_values
-
-    def _plot_healpix(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import healpix
-
-        nest = source.metadata("orderingConvention", default=None) == "nested"
-        kwargs["transform"] = self.crs
-        return healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
-
-    def _plot_octahedral(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import octahedral
-
-        return octahedral.plot_octahedral_grid(
-            source.x_values,
-            source.y_values,
-            z_values,
-            self.ax,
-            style=style,
-            **kwargs,
-        )
-
-    # def _plot_reduced_gg(self, source, z_values, style, kwargs):
-    #     """Handles plotting for 'reduced_gg' grid type."""
-    #     from earthkit.plots.geo import octahedral
-
-    #     kwargs["transform"] = self.crs
-    #     return octahedral.nnshow(
-    #         z_values,
-    #         source.x_values,
-    #         source.y_values,
-    #         ax=self.ax,
-    #         style=style,
-    #         **kwargs,
-    #     )
-
-    def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
-    ):
-        """Attempts to plot with or without interpolation as needed."""
-        if "interpolate" not in kwargs:
-            try:
-                return getattr(style, method_name)(
-                    self.ax, x_values, y_values, z_values, **kwargs
-                )
-            except (ValueError, TypeError):
-                warnings.warn(
-                    f"{method_name} failed with raw data, attempting interpolation to structured grid with default interpolation options."
-                )
-
-        # TODO: handle interpolate kwarg in decorator
-        interpolate = kwargs.pop("interpolate", dict())
-        if interpolate is True:
-            interpolate = Interpolate()
-        if isinstance(interpolate, dict):
-            interpolate = Interpolate(**interpolate)
-        x_values, y_values, z_values = interpolate.apply(
-            x_values,
-            y_values,
-            z_values,
-            source_crs=source_crs,
-            target_crs=self.crs,
-        )
-        _ = kwargs.pop("transform_first", None)
-        if interpolate.transform:
-            _ = kwargs.pop("transform", None)
-        return getattr(style, method_name)(
-            self.ax, x_values, y_values, z_values, **kwargs
-        )
 
     def _extract_plottables_envelope(
         self,
@@ -1517,20 +1364,3 @@ class Subplot:
     def save(self, *args, **kwargs):
         """Save the plot to a file."""
         return self.figure.save(*args, **kwargs)
-
-
-def thin_array(array, every=2):
-    """
-    Reduce the size of an array by taking every `every`th element.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-        The array to thin.
-    every : int, optional
-        The number of elements to skip.
-    """
-    if len(array.shape) == 1:
-        return array[::every]
-    else:
-        return array[::every, ::every]
