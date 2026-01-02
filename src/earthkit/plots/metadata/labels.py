@@ -79,9 +79,9 @@ def get_location(data):
     # Method 2: Try coordinate values (take first/mean if arrays)
     if lat is None or lon is None:
         try:
-            if hasattr(data, "y_values") and hasattr(data, "x_values"):
-                y_vals = data.y_values
-                x_vals = data.x_values
+            if hasattr(data, "y") and hasattr(data, "x"):
+                y_vals = data.y.values
+                x_vals = data.x.values
                 if isinstance(y_vals, np.ndarray):
                     lat = (
                         float(np.mean(y_vals))
@@ -227,10 +227,12 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
 
     else:
         if axis is not None:
-            metadata = getattr(data, f"{axis}_metadata")
+            # Get the dimension object (e.g., data.x, data.y, data.z)
+            dimension = getattr(data, axis)
 
             def search(x, default):
-                return metadata.get(x, default)
+                # Use the dimension's metadata() method
+                return dimension.metadata(x, default)
 
         elif hasattr(data, "metadata"):
             search = data.metadata

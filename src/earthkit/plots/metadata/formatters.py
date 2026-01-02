@@ -108,7 +108,51 @@ class BaseFormatter(Formatter):
             for method in methods:
                 if method in SPECIAL_METHODS:
                     result = SPECIAL_METHODS[method](result)
+                # Check if result is a DimensionInfo object
+                elif (
+                    len(result) == 1
+                    and hasattr(result[0], "__class__")
+                    and result[0].__class__.__name__ == "DimensionInfo"
+                ):
+                    dim_info = result[0]
+                    # Handle DimensionInfo attribute/method access
+                    if method == "metadata":
+                        # For metadata, we need to handle it specially in MAGIC_KEYS
+                        # For now, just access as attribute - will be handled later
+                        result = [None]
+                    elif hasattr(dim_info, method):
+                        attr_value = getattr(dim_info, method)
+                        # If it's a callable (like metadata()), we can't call it without args
+                        # Otherwise, get the attribute value
+                        if callable(attr_value):
+                            # metadata() is special - return a function that can be called
+                            result = [attr_value]
+                        else:
+                            result = [attr_value]
+                    elif method in metadata.labels.MAGIC_KEYS:
+                        # Handle magic keys by calling metadata() on the dimension
+                        # Get the preference list for this magic key
+                        candidates = metadata.labels.MAGIC_KEYS[method].get(
+                            "preference", [method]
+                        )
+                        value = None
+                        for candidate in candidates:
+                            value = dim_info.metadata(candidate)
+                            if value is not None:
+                                break
+                        # Apply transformations
+                        if value is not None and metadata.labels.MAGIC_KEYS[method].get(
+                            "remove_underscores"
+                        ):
+                            if isinstance(value, str):
+                                value = value.replace("_", " ")
+                        result = [value]
+                    else:
+                        # Try as a regular metadata key
+                        value = dim_info.metadata(method)
+                        result = [value]
                 else:
+                    # Not a DimensionInfo - try numpy method
                     result = getattr(np, method)(result)
                 if not isinstance(result, (list, tuple, np.ndarray)):
                     result = [result]
@@ -216,6 +260,8 @@ class BaseFormatter(Formatter):
 class SourceFormatter(BaseFormatter):
     """
     Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
+
+    Supports dimension access like {x.units}, {y.variable_name}, {z.units}.
     """
 
     def __init__(self, source, axis=None):
@@ -223,6 +269,14 @@ class SourceFormatter(BaseFormatter):
         self._axis = axis
 
     def format_key(self, key):
+        # Check if key is a dimension access (x, y, or z)
+        if key in ("x", "y", "z") and hasattr(self.source, key):
+            # Return the DimensionInfo object so subsequent method calls work
+            dim = getattr(self.source, key)
+            if dim is not None:
+                return [dim]
+            # If dimension is None (e.g., z for 1D plots), fall through to regular extraction
+
         return [metadata.labels.extract(self.source, key, axis=self._axis)[0]]
 
 
@@ -238,11 +292,92 @@ class LayerFormatter(BaseFormatter):
         self._axis = axis
 
     def format_key(self, key):
-        if key in self.SUBPLOT_ATTRIBUTES:
-            value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
-        elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
-            value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
-            if value is None:
+        # Check if key is a dimension access (x, y, or z)
+        if key in ("x", "y", "z"):
+            # Return DimensionInfo objects from sources
+            dim_values = []
+            for source in self.layer.sources:
+                if hasattr(source, key):
+                    dim = getattr(source, key)
+                    if dim is not None:
+                        dim_values.append(dim)
+
+            # If we got DimensionInfo objects, set as value and fall through to unwrapping
+            if dim_values:
+                value = dim_values
+                # Skip to unwrapping logic at the end
+                # (don't execute the normal extraction path)
+            else:
+                # No DimensionInfo found for this dimension key, fall through to normal extraction
+                value = None
+        else:
+            # Not a dimension key, initialize value for normal extraction
+            value = None
+
+        # Normal extraction path (only executed if value is None)
+        if value is None:
+            if key in self.SUBPLOT_ATTRIBUTES:
+                value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
+            elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
+                value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
+                if value is None:
+                    value = [
+                        metadata.labels.extract(
+                            source,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
+                        )
+                        for source in self.layer.sources
+                    ]
+                if key == "units":
+                    # Check if we have axis-specific units defined
+                    axis_specific_units = None
+                    if (
+                        hasattr(self.layer, "axis_units")
+                        and self.layer.axis_units
+                        and self._axis in self.layer.axis_units
+                    ):
+                        axis_specific_units = self.layer.axis_units[self._axis]
+
+                    # Use axis-specific units if available
+                    if axis_specific_units is not None:
+                        value = [f"__units__{axis_specific_units}"]
+                    else:
+                        # For legend formatting (when axis is None) or primary axis, prioritize style units
+                        is_primary_axis = (
+                            hasattr(self.layer, "primary_axis")
+                            and self.layer.primary_axis == self._axis
+                        )
+                        is_legend_formatting = self._axis is None
+
+                        if (
+                            is_primary_axis or is_legend_formatting
+                        ) and value is not None:
+                            # This is the primary data axis or legend formatting - use style units
+                            if isinstance(value, list):
+                                value = [
+                                    f"__units__{v}" if v is not None else ""
+                                    for v in value
+                                ]
+                            else:
+                                value = [
+                                    f"__units__{value}" if value is not None else ""
+                                ]
+                        else:
+                            # This is a coordinate axis or no style units available - use source units
+                            value = [
+                                metadata.labels.extract(
+                                    source,
+                                    key,
+                                    default=self._default,
+                                    issue_warnings=self._issue_warnings,
+                                    axis=self._axis,
+                                )
+                                for source in self.layer.sources
+                            ]
+            else:
                 value = [
                     metadata.labels.extract(
                         source,
@@ -253,58 +388,8 @@ class LayerFormatter(BaseFormatter):
                     )
                     for source in self.layer.sources
                 ]
-            if key == "units":
-                # Check if we have axis-specific units defined
-                axis_specific_units = None
-                if (
-                    hasattr(self.layer, "axis_units")
-                    and self.layer.axis_units
-                    and self._axis in self.layer.axis_units
-                ):
-                    axis_specific_units = self.layer.axis_units[self._axis]
 
-                # Use axis-specific units if available
-                if axis_specific_units is not None:
-                    value = [f"__units__{axis_specific_units}"]
-                else:
-                    # For legend formatting (when axis is None) or primary axis, prioritize style units
-                    is_primary_axis = (
-                        hasattr(self.layer, "primary_axis")
-                        and self.layer.primary_axis == self._axis
-                    )
-                    is_legend_formatting = self._axis is None
-
-                    if (is_primary_axis or is_legend_formatting) and value is not None:
-                        # This is the primary data axis or legend formatting - use style units
-                        if isinstance(value, list):
-                            value = [
-                                f"__units__{v}" if v is not None else "" for v in value
-                            ]
-                        else:
-                            value = [f"__units__{value}" if value is not None else ""]
-                    else:
-                        # This is a coordinate axis or no style units available - use source units
-                        value = [
-                            metadata.labels.extract(
-                                source,
-                                key,
-                                default=self._default,
-                                issue_warnings=self._issue_warnings,
-                                axis=self._axis,
-                            )
-                            for source in self.layer.sources
-                        ]
-        else:
-            value = [
-                metadata.labels.extract(
-                    source,
-                    key,
-                    default=self._default,
-                    issue_warnings=self._issue_warnings,
-                    axis=self._axis,
-                )
-                for source in self.layer.sources
-            ]
+        # Unwrapping logic for all paths
         if isinstance(value, list):
             if len(value) == 1 or iter_utils.all_equal(value):
                 value = value[0]

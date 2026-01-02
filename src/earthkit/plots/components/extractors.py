@@ -36,7 +36,39 @@ from earthkit.plots.geo.grids import needs_cyclic_point
 from earthkit.plots.identifiers import identify_primary
 from earthkit.plots.resample import Interpolate
 from earthkit.plots.sources import get_source
+from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
+
+
+def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
+    """
+    Infer plot context from subplot type and method name.
+
+    Parameters
+    ----------
+    subplot : Any
+        The subplot instance.
+    method_name : str
+        Name of the plotting method.
+
+    Returns
+    -------
+    PlotContext
+        Inferred plot context.
+    """
+    # Import here to avoid circular imports
+    from earthkit.plots.components.maps import Map
+
+    # Check if subplot is a Map
+    is_map = isinstance(subplot, Map)
+
+    # Check if method is 1D or 2D based on common method names
+    is_1d = method_name in ("line", "scatter", "bar", "barh", "plot")
+
+    if is_map:
+        return PlotContext.GEOGRAPHIC_1D if is_1d else PlotContext.GEOGRAPHIC_2D
+    else:
+        return PlotContext.CARTESIAN_1D if is_1d else PlotContext.CARTESIAN_2D
 
 
 def extract_plottables_2D(
@@ -49,8 +81,9 @@ def extract_plottables_2D(
     style: Optional[Style] = None,
     no_style: bool = False,
     units: Optional[str] = None,
-    xunits: Optional[str] = None,
-    yunits: Optional[str] = None,
+    x_units: Optional[str] = None,
+    y_units: Optional[str] = None,
+    z_units: Optional[str] = None,
     every: Optional[int] = None,
     source_units: Optional[str] = None,
     auto_style: bool = False,
@@ -105,9 +138,20 @@ def extract_plottables_2D(
     --------
     >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
-    # Step 1: Initialize the data source
+    # Step 1: Infer plot context and initialize the data source
+    context = _infer_plot_context(subplot, method_name)
     source = get_source(
-        *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
+        *args,
+        x=x,
+        y=y,
+        z=z,
+        context=context,
+        units=units,  # Target units for unit conversion
+        x_units=x_units,  # Target units for x coordinates
+        y_units=y_units,  # Target units for y coordinates
+        z_units=z_units,  # Target units for z coordinates
+        metadata=metadata,
+        regrid=regrid,
     )
     kwargs.update(subplot._plot_kwargs(source))
 
@@ -115,14 +159,14 @@ def extract_plottables_2D(
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
     # Step 3: Process z values (convert units, apply scale factors)
-    if z is not None or source.z_values is not None:
+    if z is not None or (source.z is not None and source.z.values is not None):
         z_values = process_z_values(style, source, z)
     else:
         z_values = None
 
     # Step 4: Apply unit conversion to x and y values if needed
     x_values, y_values = _apply_coordinate_unit_conversion(
-        source, units, xunits, yunits, x, y, method_name
+        source, units, x_units, y_units, x, y, method_name
     )
 
     # Step 5: Apply sampling if specified
@@ -141,14 +185,14 @@ def extract_plottables_2D(
     from earthkit.plots.components.layers import Layer
 
     # Determine primary axis for unit conversion display
-    primary_axis = _identify_primary_axis(source, source._x, source._y)
+    primary_axis = _identify_primary_axis(source, source._x_spec, source._y_spec)
 
     # Store axis-specific units for formatter
     axis_units = {}
-    if xunits is not None:
-        axis_units["x"] = xunits
-    if yunits is not None:
-        axis_units["y"] = yunits
+    if x_units is not None:
+        axis_units["x"] = x_units
+    if y_units is not None:
+        axis_units["y"] = y_units
     if (
         units is not None
         and primary_axis is not None
@@ -261,74 +305,39 @@ def _identify_primary_axis(source, x, y):
     return None
 
 
-def _apply_coordinate_unit_conversion(source, units, xunits, yunits, x, y, method_name):
+def _apply_coordinate_unit_conversion(
+    source, units, x_units, y_units, x, y, method_name
+):
     """
-    Apply unit conversion to x and y coordinate values if needed.
+    Get x and y coordinate values from source (unit conversion already applied).
 
-    This function applies unit conversion to coordinate axes based on explicit
-    axis-specific units (xunits, yunits) or falls back to primary axis detection
-    when only general units are specified.
+    Unit conversion is now handled inside the Source class when units/x_units/y_units
+    are passed to get_source(). This function simply extracts the already-converted
+    values from the source.
 
     Parameters
     ----------
     source : Source
-        The data source object.
+        The data source object (already configured with target units).
     units : str or None
-        The target units for conversion applied to primary data axis. If None, no conversion is applied.
-    xunits : str or None
-        The target units for x-axis conversion. Takes precedence over `units` for x-axis.
-    yunits : str or None
-        The target units for y-axis conversion. Takes precedence over `units` for y-axis.
+        (Unused - kept for API compatibility)
+    x_units : str or None
+        (Unused - kept for API compatibility)
+    y_units : str or None
+        (Unused - kept for API compatibility)
     x, y : str, array-like, or None
-        X and Y coordinate values or names.
+        (Unused - kept for API compatibility)
     method_name : str
-        The name of the plotting method being used.
+        (Unused - kept for API compatibility)
 
     Returns
     -------
     tuple
-        A tuple of (x_values, y_values) with unit conversion applied if needed.
+        A tuple of (x_values, y_values) with unit conversion already applied.
     """
-    import warnings
-
-    from earthkit.plots.metadata import units as metadata_units
-
-    x_values = source.x_values
-    y_values = source.y_values
-
-    # Determine target units for each axis
-    target_x_units = xunits
-    target_y_units = yunits
-
-    # If axis-specific units not provided, use general units for primary axis only
-    if target_x_units is None and target_y_units is None and units is not None:
-        primary_axis = _identify_primary_axis(source, source._x, source._y)
-        if primary_axis == "x":
-            target_x_units = units
-        elif primary_axis == "y":
-            target_y_units = units
-
-    # Apply x-axis unit conversion
-    if target_x_units is not None:
-        x_meta = getattr(source, "x_metadata", {})
-        if "units" in x_meta and x_meta["units"] != target_x_units:
-            try:
-                x_values = metadata_units.convert(
-                    x_values, x_meta["units"], target_x_units
-                )
-            except Exception as e:
-                warnings.warn(f"Failed to convert x values to {target_x_units}: {e}")
-
-    # Apply y-axis unit conversion
-    if target_y_units is not None:
-        y_meta = getattr(source, "y_metadata", {})
-        if "units" in y_meta and y_meta["units"] != target_y_units:
-            try:
-                y_values = metadata_units.convert(
-                    y_values, y_meta["units"], target_y_units
-                )
-            except Exception as e:
-                warnings.warn(f"Failed to convert y values to {target_y_units}: {e}")
+    # Unit conversion is handled by Source class when accessing these properties
+    x_values = source.x.values
+    y_values = source.y.values
 
     return x_values, y_values
 
@@ -343,8 +352,9 @@ def extract_plottables_3D(
     style: Optional[Style] = None,
     no_style: bool = False,
     units: Optional[str] = None,
-    xunits: Optional[str] = None,
-    yunits: Optional[str] = None,
+    x_units: Optional[str] = None,
+    y_units: Optional[str] = None,
+    z_units: Optional[str] = None,
     every: Optional[int] = None,
     source_units: Optional[str] = None,
     extract_domain: bool = False,
@@ -406,9 +416,20 @@ def extract_plottables_3D(
     if method_name.startswith("contour"):
         regrid = True
 
-    # Step 2: Initialize the data source
+    # Step 2: Infer plot context and initialize the data source
+    context = _infer_plot_context(subplot, method_name)
     source = get_source(
-        *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
+        *args,
+        x=x,
+        y=y,
+        z=z,
+        context=context,
+        units=units,  # Target units for unit conversion
+        x_units=x_units,  # Target units for x coordinates
+        y_units=y_units,  # Target units for y coordinates
+        z_units=z_units,  # Target units for z coordinates
+        metadata=metadata,
+        regrid=regrid,
     )
     kwargs.update(subplot._plot_kwargs(source))
 
@@ -426,7 +447,7 @@ def extract_plottables_3D(
     if not mappable:
         # Step 6: Process x, y values and apply sampling
         # For 3D plots, use source coordinates directly (no coordinate unit conversion)
-        x_values, y_values = source.x_values, source.y_values
+        x_values, y_values = source.x.values, source.y.values
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
         )
@@ -476,10 +497,10 @@ def extract_plottables_3D(
 
     # Store axis-specific units for formatter
     axis_units = {}
-    if xunits is not None:
-        axis_units["x"] = xunits
-    if yunits is not None:
-        axis_units["y"] = yunits
+    if x_units is not None:
+        axis_units["x"] = x_units
+    if y_units is not None:
+        axis_units["y"] = y_units
     if units is not None and "z" not in axis_units:
         axis_units["z"] = units
 
@@ -503,6 +524,10 @@ def extract_plottables_envelope(
     y: Optional[Union[str, np.ndarray, list[float]]] = None,
     z: Optional[Union[str, np.ndarray, list[float]]] = None,
     every: Optional[int] = None,
+    units: Optional[str] = None,
+    x_units: Optional[str] = None,
+    y_units: Optional[str] = None,
+    z_units: Optional[str] = None,
     source_units: Optional[str] = None,
     extract_domain: bool = False,
     **kwargs: Any,
@@ -523,8 +548,16 @@ def extract_plottables_envelope(
         Data coordinates. If strings, they are treated as coordinate names.
     every : int, optional
         Sampling interval for data reduction.
+    units : str, optional
+        Target units for primary data values (z for 2D plots, y for 1D plots).
+    x_units : str, optional
+        Target units for x coordinates.
+    y_units : str, optional
+        Target units for y coordinates.
+    z_units : str, optional
+        Target units for z coordinates.
     source_units : str, optional
-        Units of the source data.
+        Deprecated. Use 'units' instead.
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     **kwargs
@@ -541,23 +574,38 @@ def extract_plottables_envelope(
     ...     subplot, data=[[1, 2], [3, 4]], x=[1, 2], y=[3, 4]
     ... )
     """
-    # Step 1: Create data source
-    if source_units is not None:
-        source = get_source(data=data, x=x, y=y, z=z, units=source_units)
-    else:
-        source = get_source(data=data, x=x, y=y, z=z)
+    # Step 1: Infer plot context and create data source
+    context = PlotContext.CARTESIAN_2D  # Envelope plots are always cartesian
+
+    # Support deprecated source_units parameter
+    if source_units is not None and units is None:
+        units = source_units
+
+    source = get_source(
+        data=data,
+        x=x,
+        y=y,
+        z=z,
+        context=context,
+        units=units,  # Target units for unit conversion
+        x_units=x_units,  # Target units for x coordinates
+        y_units=y_units,  # Target units for y coordinates
+        z_units=z_units,  # Target units for z coordinates
+    )
 
     kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     # Step 2: Determine z values
     if (data is None and z is None) or (z is not None and not z):
         z_values = None
+    elif source.z is not None:
+        z_values = source.z.values
     else:
-        z_values = source.z_values
+        z_values = None
 
     # Step 3: Extract x, y values
-    x_values = source.x_values
-    y_values = source.y_values
+    x_values = source.x.values
+    y_values = source.y.values
 
     # Step 4: Apply sampling if specified
     if every is not None:
@@ -661,7 +709,7 @@ def process_z_values(
     source : Any
         The data source object.
     z : str, array-like, or None
-        Z values or coordinate name. If None, uses source.z_values.
+        Z values or coordinate name. If None, uses source.z.values.
 
     Returns
     -------
@@ -675,8 +723,11 @@ def process_z_values(
     if source._data is None and z is None:
         return None
 
+    if source.z is None:
+        return None
+
     # Convert units and apply scale factors
-    z_values = style.convert_units(source.z_values, source.units)
+    z_values = style.convert_units(source.z.values, source.units)
     return style.apply_scale_factor(z_values)
 
 
@@ -870,8 +921,8 @@ def plot_octahedral(
     from earthkit.plots.geo import octahedral
 
     return octahedral.plot_octahedral_grid(
-        source.x_values,
-        source.y_values,
+        source.x.values,
+        source.y.values,
         z_values,
         subplot.ax,
         style=style,
