@@ -82,9 +82,9 @@ class TimeSeries(Subplot):
             time_dim = find_time(dims)
             if time_dim:
                 # Determine which axis this dimension corresponds to
-                if hasattr(source, "_x") and source._x == time_dim:
+                if hasattr(source, "_x_spec") and source._x_spec == time_dim:
                     return "x"
-                elif hasattr(source, "_y") and source._y == time_dim:
+                elif hasattr(source, "_y_spec") and source._y_spec == time_dim:
                     return "y"
                 else:
                     # If time dimension exists but isn't explicitly mapped,

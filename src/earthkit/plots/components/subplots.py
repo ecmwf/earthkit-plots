@@ -31,8 +31,7 @@ from earthkit.plots.metadata.formatters import (
 )
 from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source, get_vector_sources
-from earthkit.plots.sources.multi import MultiSource
+from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
@@ -139,9 +138,10 @@ def plot_vector(method_name=None):
                 u_source = get_source(u, x=x, y=y, units=source_units)
                 v_source = get_source(v, x=x, y=y, units=source_units)
             elif len(args) == 1:
-                u_source, v_source = get_vector_sources(
-                    args[0], x=x, y=y, u=u, v=v, units=source_units
-                )
+                # Single data object containing both u and v components
+                # Use z parameter to select the appropriate component
+                u_source = get_source(args[0], x=x, y=y, z=u, units=source_units)
+                v_source = get_source(args[0], x=x, y=y, z=v, units=source_units)
             elif len(args) == 2:
                 u_source = get_source(args[0], x=x, y=y, units=source_units)
                 v_source = get_source(args[1], x=x, y=y, units=source_units)
@@ -152,22 +152,24 @@ def plot_vector(method_name=None):
 
             kwargs = {**self._plot_kwargs(u_source), **kwargs}
 
-            multi_source = MultiSource([u_source, v_source])
-
             style = self._configure_style(
                 method_name or method.__name__,
                 style,
-                multi_source,
+                u_source,  # Use u_source for style configuration
                 units,
                 auto_style,
                 {**kwargs, "colors": colors},
             )
             m = getattr(style, method_name or method.__name__)
 
-            x_values = u_source.x_values
-            y_values = u_source.y_values
-            u_values = style.convert_units(u_source.z_values, u_source.units)
-            v_values = style.convert_units(v_source.z_values, v_source.units)
+            x_values = u_source.x.values
+            y_values = u_source.y.values
+
+            if u_source.z is None or v_source.z is None:
+                raise ValueError("Vector plots require u and v components (z values)")
+
+            u_values = style.convert_units(u_source.z.values, u_source.units)
+            v_values = style.convert_units(v_source.z.values, v_source.units)
 
             resample = style.resample or resample
 
@@ -200,10 +202,10 @@ def plot_vector(method_name=None):
 
             mappable = m(self.ax, *args, **kwargs)
             self.layers.append(Layer([u_source, v_source], mappable, self, style))
-            if isinstance(u_source._x, str):
-                self.ax.set_xlabel(u_source._x)
-            if isinstance(u_source._y, str):
-                self.ax.set_ylabel(u_source._y)
+            if isinstance(u_source._x_spec, str):
+                self.ax.set_xlabel(u_source._x_spec)
+            if isinstance(u_source._y_spec, str):
+                self.ax.set_ylabel(u_source._y_spec)
             return mappable
 
         return wrapper
@@ -584,8 +586,9 @@ class Subplot:
         Add a y-axis label to the plot.
         """
         if label is None:
-            metadata = self.layers[0].sources[0].y_metadata
-            if metadata is not None and "units" in metadata:
+            # Check if units metadata exists
+            units = self.layers[0].sources[0].y.metadata("units")
+            if units is not None:
                 label = "{variable_name} ({units})"
             else:
                 label = "{variable_name}"
@@ -597,8 +600,9 @@ class Subplot:
         Add an x-axis label to the plot.
         """
         if label is None:
-            metadata = self.layers[0].sources[0].x_metadata
-            if metadata is not None and "units" in metadata:
+            # Check if units metadata exists
+            units = self.layers[0].sources[0].x.metadata("units")
+            if units is not None:
                 label = "{variable_name} ({units})"
             else:
                 label = "{variable_name}"
@@ -718,7 +722,7 @@ class Subplot:
         """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
-        for label, x, y in zip(labels, source.x_values, source.y_values):
+        for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), **kwargs)
 
     def plot(self, data, style=None, units=None, **kwargs):
@@ -768,8 +772,13 @@ class Subplot:
         **kwargs : dict
             Additional arguments for the plot method(s).
         """
+        import earthkit.data
+        from earthkit.data.core import Base
+
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
+        if not isinstance(data, Base):
+            data = earthkit.data.from_object(data)
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)
@@ -804,17 +813,20 @@ class Subplot:
         green_source = get_source(green)
         blue_source = get_source(blue)
 
-        x_values = red_source.x_values
-        y_values = red_source.y_values
+        if red_source.z is None or green_source.z is None or blue_source.z is None:
+            raise ValueError("RGB plots require z values for all three channels")
 
-        red = (red_source.z_values - red_source.z_values.min()) / (
-            red_source.z_values.max() - red_source.z_values.min()
+        x_values = red_source.x.values
+        y_values = red_source.y.values
+
+        red = (red_source.z.values - red_source.z.values.min()) / (
+            red_source.z.values.max() - red_source.z.values.min()
         )
-        green = (green_source.z_values - green_source.z_values.min()) / (
-            green_source.z_values.max() - green_source.z_values.min()
+        green = (green_source.z.values - green_source.z.values.min()) / (
+            green_source.z.values.max() - green_source.z.values.min()
         )
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (
-            blue_source.z_values.max() - blue_source.z_values.min()
+        blue = (blue_source.z.values - blue_source.z.values.min()) / (
+            blue_source.z.values.max() - blue_source.z.values.min()
         )
 
         rgb = np.stack((red, green, blue), axis=-1)
@@ -862,17 +874,20 @@ class Subplot:
         green_source = get_source(green)
         blue_source = get_source(blue)
 
-        x_values = red_source.x_values
-        y_values = red_source.y_values
+        if red_source.z is None or green_source.z is None or blue_source.z is None:
+            raise ValueError("RGB plots require z values for all three channels")
 
-        red = (red_source.z_values - red_source.z_values.min()) / (
-            red_source.z_values.max() - red_source.z_values.min()
+        x_values = red_source.x.values
+        y_values = red_source.y.values
+
+        red = (red_source.z.values - red_source.z.values.min()) / (
+            red_source.z.values.max() - red_source.z.values.min()
         )
-        green = (green_source.z_values - green_source.z_values.min()) / (
-            green_source.z_values.max() - green_source.z_values.min()
+        green = (green_source.z.values - green_source.z.values.min()) / (
+            green_source.z.values.max() - green_source.z.values.min()
         )
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (
-            blue_source.z_values.max() - blue_source.z_values.min()
+        blue = (blue_source.z.values - blue_source.z.values.min()) / (
+            blue_source.z.values.max() - blue_source.z.values.min()
         )
 
         rgb = np.stack((red, green, blue), axis=-1)
@@ -893,7 +908,7 @@ class Subplot:
             dims=["y", "x", "rgb"],
         )
 
-        result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
+        result = self.pcolormesh(rgb, x=x_values, y=y_values, no_style=True)
 
         self.layers[-1].sources = [red_source, green_source, blue_source]
 
