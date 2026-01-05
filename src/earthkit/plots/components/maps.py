@@ -287,6 +287,7 @@ class Map(Subplot):
         max_resolution="high",
         min_resolution="low",
         line=False,
+        default_transform_first=False,
     ):
         """
         Decorate a method to add a natural earth layer to the map.
@@ -307,6 +308,11 @@ class Map(Subplot):
             The minimum resolution of the natural earth layer.
         line : bool, optional
             Whether to plot the natural earth layer as a line.
+        default_transform_first : bool, optional
+            Default value for transform_first parameter. If True, reproject
+            geometries before plotting for better performance. If False, let
+            cartopy handle reprojection (needed for long straight lines that
+            should be curved on the projection). Default is False.
         """
 
         def decorator(method):
@@ -320,8 +326,14 @@ class Map(Subplot):
                 labels=False,
                 special_styles=None,
                 adjust_labels=False,
+                transform_first=None,
                 **kwargs,
             ):
+                _transform_first = (
+                    default_transform_first
+                    if transform_first is None
+                    else transform_first
+                )
                 if resolution is None:
                     resolution = self.natural_earth_resolution
                 resolution = natural_earth.get_resolution(
@@ -411,8 +423,23 @@ class Map(Subplot):
                     if not geom.is_empty:  # Only keep visible parts
                         geometries.append(geom)
 
+                # Determine source and target CRS for features
+                src_crs = ccrs.PlateCarree()
+                target_crs = self.crs
+
+                # Apply transform_first optimization if requested and needed
+                if _transform_first and target_crs != src_crs:
+                    from earthkit.plots.geo.natural_earth import reproject_geometries
+
+                    # Reproject geometries before adding to map for better performance
+                    geometries = reproject_geometries(geometries, src_crs, target_crs)
+                    feature_crs = target_crs
+                else:
+                    # Let cartopy handle reprojection (needed for proper line interpolation)
+                    feature_crs = src_crs
+
                 # Add optimized features
-                feature = cfeature.ShapelyFeature(geometries, ccrs.PlateCarree())
+                feature = cfeature.ShapelyFeature(geometries, feature_crs)
                 result = self.ax.add_feature(feature, *args, **kwargs)
 
                 if special_styles is not None:
@@ -429,7 +456,9 @@ class Map(Subplot):
         return decorator
 
     @schema.coastlines.apply()
-    @natural_earth_layer("physical", "coastline", line=True)
+    @natural_earth_layer(
+        "physical", "coastline", line=True, default_transform_first=True
+    )
     def coastlines(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
@@ -438,6 +467,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.borders.apply()
@@ -450,6 +482,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.unit_boundaries.apply()
@@ -470,6 +505,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.disputed_boundaries.apply()
@@ -490,6 +528,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.administrative_areas.apply()
@@ -508,6 +549,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.countries.apply()
@@ -520,10 +564,13 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.land.apply()
-    @natural_earth_layer("physical", "land")
+    @natural_earth_layer("physical", "land", default_transform_first=True)
     def land(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
@@ -532,6 +579,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.ocean.apply()
@@ -544,10 +594,13 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.urban_areas.apply()
-    @natural_earth_layer("cultural", "urban_areas")
+    @natural_earth_layer("cultural", "urban_areas", default_transform_first=True)
     def urban_areas(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
@@ -556,6 +609,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     @schema.countries.apply()
@@ -568,6 +624,9 @@ class Map(Subplot):
         resolution: (str, optional)
             One of "low", "medium" or "high", or a named resolution from the
             Natrual Earth dataset.
+        transform_first: (bool, optional)
+            If True, reproject geometries before plotting for better performance.
+            If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
     def cities(
