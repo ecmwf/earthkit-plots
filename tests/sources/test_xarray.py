@@ -488,7 +488,7 @@ def test_xarray_dataset_key_variable_selection():
     source = get_source(data, context=PlotContext.CARTESIAN_1D)
 
     # Verify the correct variable was selected
-    # Note: source._data is the original Dataset, but the adaptor selects the DataArray
+    # Note: source._data is the original Dataset, but the extractor selects the DataArray
     # We verify selection by checking the extracted coordinates
     assert np.array_equal(
         source.y.values, data["t2m"].values

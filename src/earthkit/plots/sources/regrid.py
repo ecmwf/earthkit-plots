@@ -94,7 +94,10 @@ def apply_regrid(
     elif z.ndim == 3:
         # Multiple fields - regrid each
         z_new = np.stack(
-            [regrid(z[i], in_grid=gridspec, out_grid=out_grid) for i in range(z.shape[0])]
+            [
+                regrid(z[i], in_grid=gridspec, out_grid=out_grid)
+                for i in range(z.shape[0])
+            ]
         )
     else:
         # Unexpected dimensionality - return as is

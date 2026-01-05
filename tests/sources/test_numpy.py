@@ -116,6 +116,40 @@ def test_numpy_no_meshgrid_for_2d_coords():
     assert np.array_equal(source.z.values, z)
 
 
+def test_numpy_scattered_points_1d():
+    """Test scattered point data with 1D x, y, z arrays in 2D context."""
+    # Scattered points: each (x[i], y[i], z[i]) is a single point
+    x = np.array([1.5, 2.3, 4.1, 5.7, 3.2])
+    y = np.array([2.1, 4.5, 1.8, 3.9, 5.0])
+    z = np.array([10, 20, 15, 25, 18])
+
+    source = get_source(z, x=x, y=y, context=PlotContext.CARTESIAN_2D)
+
+    # Should keep as 1D - no meshgrid for scattered points
+    assert source.x.values.ndim == 1
+    assert source.y.values.ndim == 1
+    assert source.z.values.ndim == 1
+    assert np.array_equal(source.x.values, x)
+    assert np.array_equal(source.y.values, y)
+    assert np.array_equal(source.z.values, z)
+
+
+def test_numpy_scattered_points_auto_x_y():
+    """Test scattered point data with auto-generated x and y."""
+    # Only z provided, x and y should be auto-generated as indices
+    z = np.array([10, 20, 15, 25, 18])
+
+    source = get_source(z, context=PlotContext.CARTESIAN_2D)
+
+    # Should auto-generate 1D x and y as indices
+    assert source.x.values.ndim == 1
+    assert source.y.values.ndim == 1
+    assert source.z.values.ndim == 1
+    assert np.array_equal(source.x.values, np.array([0, 1, 2, 3, 4]))
+    assert np.array_equal(source.y.values, np.array([0, 1, 2, 3, 4]))
+    assert np.array_equal(source.z.values, z)
+
+
 # =============================================================================
 # PlotContext Tests (NEW FEATURE)
 # =============================================================================

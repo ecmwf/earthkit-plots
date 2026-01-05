@@ -12,19 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Marker constant used to reference the selected DataArray's/Field's data values
-# Used in coordinate extraction to distinguish "use this variable's data" from "use this coordinate"
-SELECTED_DATA = "__selected_data__"
+from earthkit.plots.sources.extractors.base import BaseExtractor
+from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
+from earthkit.plots.sources.extractors.numpy import NumpyExtractor
+from earthkit.plots.sources.extractors.xarray import XarrayExtractor
 
-from earthkit.plots.sources.adaptors.base import BaseAdaptor
-from earthkit.plots.sources.adaptors.earthkit import EarthkitAdaptor
-from earthkit.plots.sources.adaptors.numpy import NumpyAdaptor
-from earthkit.plots.sources.adaptors.xarray import XarrayAdaptor
-
-__all__ = [
-    "BaseAdaptor",
-    "NumpyAdaptor",
-    "XarrayAdaptor",
-    "EarthkitAdaptor",
-    "SELECTED_DATA",
-]
+__all__ = ["BaseExtractor", "NumpyExtractor", "XarrayExtractor", "EarthkitExtractor"]
