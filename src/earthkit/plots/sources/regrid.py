@@ -86,22 +86,7 @@ def apply_regrid(
     # Prepare output grid spec
     out_grid = {"grid": [target_resolution, target_resolution]}
 
-    # Apply regridding
-    # Handle both single fields and multi-field data
-    if z.ndim == 2:
-        # Single 2D field
-        z_new = regrid(z, in_grid=gridspec, out_grid=out_grid)
-    elif z.ndim == 3:
-        # Multiple fields - regrid each
-        z_new = np.stack(
-            [
-                regrid(z[i], in_grid=gridspec, out_grid=out_grid)
-                for i in range(z.shape[0])
-            ]
-        )
-    else:
-        # Unexpected dimensionality - return as is
-        return x, y, z
+    z_new = regrid(z, in_grid=gridspec, out_grid=out_grid)
 
     return x_new, y_new, z_new
 
