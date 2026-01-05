@@ -27,8 +27,8 @@ class PlotContext(Enum):
     should be interpreted.
     """
 
-    CARTESIAN_1D = "cartesian_1d"    # Line plots, bar charts, (some) scatter plots
-    CARTESIAN_2D = "cartesian_2d"    # Heatmaps, contours
+    CARTESIAN_1D = "cartesian_1d"  # Line plots, bar charts, (some) scatter plots
+    CARTESIAN_2D = "cartesian_2d"  # Heatmaps, contours
     GEOGRAPHIC_1D = "geographic_1d"  # Hovmoellers, cross-sections
     GEOGRAPHIC_2D = "geographic_2d"  # Maps
 

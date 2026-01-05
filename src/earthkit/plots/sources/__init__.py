@@ -17,20 +17,25 @@ from typing import Any, Optional, Union
 import earthkit.data as ek_data
 import numpy as np
 
-# New architecture imports
-from earthkit.plots.sources.adaptors import EarthkitAdaptor, NumpyAdaptor, XarrayAdaptor
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo
 from earthkit.plots.sources.dimensions import DimensionInfo
+
+# New architecture imports
+from earthkit.plots.sources.extractors import (
+    EarthkitExtractor,
+    NumpyExtractor,
+    XarrayExtractor,
+)
 from earthkit.plots.sources.metadata import MetadataResolver
-from earthkit.plots.sources.protocols import DataAdaptor
+from earthkit.plots.sources.protocols import DataExtractor
 
 
 class Source:
     """
     Unified data source for plotting.
 
-    Wraps different data types via adaptors and provides a consistent
+    Wraps different data types via extractors and provides a consistent
     interface for coordinate extraction, metadata access, and regridding.
 
     Parameters
@@ -79,13 +84,13 @@ class Source:
         y_units: Optional[str] = None,
         z_units: Optional[str] = None,
     ):
-        self._adaptor = _get_adaptor(data, metadata)
+        self._extractor = _get_extractor(data, metadata)
         self._x_spec = x
         self._y_spec = y
         self._z_spec = z
         self._context = context
         self._should_regrid = regrid
-        self._metadata_resolver = MetadataResolver(self._adaptor, metadata)
+        self._metadata_resolver = MetadataResolver(self._extractor, metadata)
 
         # Unit conversion tracking
         self._generic_units = (
@@ -112,8 +117,8 @@ class Source:
         self._z_dimension: Optional[DimensionInfo] = None
 
         # Backward compatibility properties
-        self._data = data  # For compatibility with extractors code
-        self.regrid = regrid  # For compatibility with legacy code
+        self._data = data  # For backward compatibility
+        self.regrid = regrid  # For backward compatibility
 
     def _extract(self):
         """Lazy coordinate extraction with optional regridding."""
@@ -125,8 +130,8 @@ class Source:
         self._y_dimension = None
         self._z_dimension = None
 
-        # Extract coordinates using adaptor
-        extracted = self._adaptor.extract_coordinates(
+        # Extract coordinates using extractor
+        extracted = self._extractor.extract_coordinates(
             self._x_spec, self._y_spec, self._z_spec, self._context
         )
 
@@ -137,7 +142,7 @@ class Source:
 
         # Apply regridding if needed
         if self._should_regrid and self._z_coord_info is not None:
-            gridspec = self._adaptor.get_gridspec()
+            gridspec = self._extractor.get_gridspec()
             if gridspec is not None:
                 from earthkit.plots.sources.regrid import apply_regrid
 
@@ -401,12 +406,12 @@ class Source:
     @property
     def crs(self):
         """Get coordinate reference system."""
-        return self._adaptor.get_crs()
+        return self._extractor.get_crs()
 
     @property
     def gridspec(self):
         """Get grid specification."""
-        return self._adaptor.get_gridspec()
+        return self._extractor.get_gridspec()
 
     def metadata(self, key: str, default: Any = None) -> Any:
         """
@@ -428,9 +433,9 @@ class Source:
             Metadata value, scalar coordinate value, or default.
         """
         # For xarray, check if key is a scalar coordinate and return its value
-        if self._adaptor.__class__.__name__ == "XarrayAdaptor":
-            selected_da = getattr(self._adaptor, "_selected_dataarray", None)
-            da = selected_da if selected_da is not None else self._adaptor.data
+        if self._extractor.__class__.__name__ == "XarrayExtractor":
+            selected_da = getattr(self._extractor, "_selected_dataarray", None)
+            da = selected_da if selected_da is not None else self._extractor.data
 
             if hasattr(da, "coords") and key in da.coords:
                 coord = da.coords[key]
@@ -492,32 +497,32 @@ class Source:
         return {"base_time": None, "valid_time": None}
 
 
-def _get_adaptor(data: Any, metadata: Optional[dict] = None) -> DataAdaptor:
+def _get_extractor(data: Any, metadata: Optional[dict] = None) -> DataExtractor:
     """
-    Factory to create appropriate adaptor for data type.
+    Factory to create appropriate extractor for data type.
 
     Parameters
     ----------
     data : Any
         Data object.
     metadata : dict, optional
-        Metadata to pass to adaptor.
+        Metadata to pass to extractor.
 
     Returns
     -------
-    DataAdaptor
-        Appropriate adaptor for the data type.
+    DataExtractor
+        Appropriate extractor for the data type.
     """
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
-        return XarrayAdaptor(data)
+        return XarrayExtractor(data)
 
     # Check for earthkit types
     if isinstance(data, ek_data.core.Base):
-        return EarthkitAdaptor(data)
+        return EarthkitExtractor(data)
 
-    # Default to numpy adaptor (handles arrays, lists, etc.)
-    return NumpyAdaptor(data, metadata=metadata)
+    # Default to numpy extractor (handles arrays, lists, etc.)
+    return NumpyExtractor(data, metadata=metadata)
 
 
 def get_source(

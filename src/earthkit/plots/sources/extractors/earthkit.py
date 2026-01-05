@@ -17,14 +17,14 @@ from typing import Any, Optional, Union
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.sources.adaptors.base import BaseAdaptor
+from earthkit.plots.sources.extractors.base import BaseExtractor
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordinates
 
 
-class EarthkitAdaptor(BaseAdaptor):
+class EarthkitExtractor(BaseExtractor):
     """
-    Adaptor for earthkit.data objects (Field, FieldList, etc.).
+    Extractor for earthkit.data objects (Field, FieldList, etc.).
 
     Handles geographic data with built-in coordinate extraction
     and metadata access.
@@ -204,11 +204,26 @@ class EarthkitAdaptor(BaseAdaptor):
         # Common GRIB keys to extract
         # These are the most commonly used metadata keys
         common_keys = [
-            "units", "long_name", "short_name", "name", "standard_name",
-            "param", "paramId", "centre", "centreDescription",
-            "dataDate", "dataTime", "validityDate", "validityTime",
-            "stepRange", "level", "levelType", "gridType",
-            "Nx", "Ny", "numberOfPoints",
+            "units",
+            "long_name",
+            "short_name",
+            "name",
+            "standard_name",
+            "param",
+            "paramId",
+            "centre",
+            "centreDescription",
+            "dataDate",
+            "dataTime",
+            "validityDate",
+            "validityTime",
+            "stepRange",
+            "level",
+            "levelType",
+            "gridType",
+            "Nx",
+            "Ny",
+            "numberOfPoints",
         ]
 
         for key in common_keys:

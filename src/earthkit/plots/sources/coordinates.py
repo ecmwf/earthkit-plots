@@ -23,7 +23,7 @@ class CoordinateInfo:
     """
     Information about an extracted coordinate dimension.
 
-    Returned by adaptors to provide both coordinate values and metadata.
+    Returned by extractors to provide both coordinate values and metadata.
     """
 
     values: np.ndarray
@@ -55,7 +55,7 @@ class ExtractedCoordinates:
     """
     Complete coordinate extraction result with metadata.
 
-    Returned by adaptor.extract_coordinates() to provide both coordinate
+    Returned by extractor.extract_coordinates() to provide both coordinate
     arrays and their associated metadata.
     """
 

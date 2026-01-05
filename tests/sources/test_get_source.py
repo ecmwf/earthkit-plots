@@ -28,27 +28,27 @@ def test_get_source_returns_source():
 
 
 def test_get_source_numpy_array():
-    """Test that get_source handles numpy arrays with NumpyAdaptor."""
+    """Test that get_source handles numpy arrays with NumpyExtractor."""
     source = get_source(np.array([1, 2, 3]), context=PlotContext.CARTESIAN_1D)
-    assert source._adaptor.__class__.__name__ == "NumpyAdaptor"
+    assert source._extractor.__class__.__name__ == "NumpyExtractor"
     assert np.array_equal(source.y.values, np.array([1, 2, 3]))
 
 
 def test_get_source_xarray_dataarray():
-    """Test that get_source handles xarray DataArray with XarrayAdaptor."""
+    """Test that get_source handles xarray DataArray with XarrayExtractor."""
     da = xr.DataArray([1, 2, 3], dims=["time"], coords={"time": [0, 1, 2]})
     source = get_source(da)
-    assert source._adaptor.__class__.__name__ == "XarrayAdaptor"
+    assert source._extractor.__class__.__name__ == "XarrayExtractor"
 
 
 def test_get_source_xarray_dataset():
-    """Test that get_source handles xarray Dataset with XarrayAdaptor."""
+    """Test that get_source handles xarray Dataset with XarrayExtractor."""
     ds = xr.Dataset(
         {"temperature": (["time"], [1, 2, 3])},
         coords={"time": [0, 1, 2]},
     )
     source = get_source(ds)
-    assert source._adaptor.__class__.__name__ == "XarrayAdaptor"
+    assert source._extractor.__class__.__name__ == "XarrayExtractor"
 
 
 def test_get_source_with_context():

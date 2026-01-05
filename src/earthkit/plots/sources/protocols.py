@@ -19,11 +19,11 @@ import numpy as np
 from earthkit.plots.sources.context import PlotContext
 
 
-class DataAdaptor(Protocol):
+class DataExtractor(Protocol):
     """
-    Protocol that all data adaptors must satisfy.
+    Protocol that all data extractors must satisfy.
 
-    Adaptors wrap different data types (numpy, xarray, earthkit, etc.)
+    Extractors wrap different data types (numpy, xarray, earthkit, etc.)
     and provide a consistent interface for coordinate extraction and
     metadata access.
     """

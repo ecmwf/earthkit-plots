@@ -14,7 +14,7 @@
 
 from typing import Any, Optional
 
-from earthkit.plots.sources.protocols import DataAdaptor
+from earthkit.plots.sources.protocols import DataExtractor
 
 
 class MetadataResolver:
@@ -23,22 +23,22 @@ class MetadataResolver:
 
     Priority:
     1. User-provided metadata (highest priority)
-    2. Adaptor-extracted metadata
+    2. Extractor-extracted metadata
     3. Defaults (lowest priority)
     """
 
-    def __init__(self, adaptor: DataAdaptor, user_metadata: Optional[dict] = None):
+    def __init__(self, extractor: DataExtractor, user_metadata: Optional[dict] = None):
         """
         Initialize metadata resolver.
 
         Parameters
         ----------
-        adaptor : DataAdaptor
-            Adaptor to extract metadata from.
+        extractor : DataExtractor
+            Extractor to extract metadata from.
         user_metadata : dict, optional
             User-provided metadata with highest priority.
         """
-        self.adaptor = adaptor
+        self.extractor = extractor
         self.user_metadata = user_metadata or {}
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -61,8 +61,8 @@ class MetadataResolver:
         if key in self.user_metadata:
             return self.user_metadata[key]
 
-        # Priority 2: Adaptor metadata
-        value = self.adaptor.get_metadata(key)
+        # Priority 2: Extractor metadata
+        value = self.extractor.get_metadata(key)
         if value is not None:
             return value
 

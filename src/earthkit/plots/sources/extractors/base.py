@@ -20,9 +20,9 @@ from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import ExtractedCoordinates
 
 
-class BaseAdaptor:
+class BaseExtractor:
     """
-    Base adaptor with common utilities and default implementations.
+    Base extractor with common utilities and default implementations.
 
     Subclasses should override extract_coordinates() and optionally
     override get_metadata(), get_crs(), and get_gridspec() methods.
