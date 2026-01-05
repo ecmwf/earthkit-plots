@@ -623,3 +623,140 @@ def test_xarray_datetime_coordinate():
     assert len(source.x.values) == 5
     assert source.x.values[0] == times[0]
     assert np.array_equal(source.y.values, np.array([10, 20, 30, 40, 50]))
+
+
+def test_xarray_projected_crs_uses_dimension_coords():
+    """Test that projected CRS uses x/y dimension coordinates, not lat/lon."""
+    # Create a dataset mimicking Lambert Azimuthal Equal Area projection
+    # with x, y dimension coordinates and 2D latitude, longitude arrays
+    ny, nx = 3, 4
+
+    # Dimension coordinates in projection space (meters)
+    x_coords = np.array([2.5e6, 3.5e6, 4.5e6, 5.5e6])
+    y_coords = np.array([5.5e6, 4.5e6, 3.5e6])
+
+    # Create 2D lat/lon arrays (for reference only)
+    lon_2d = np.array(
+        [
+            [10.0, 15.0, 20.0, 25.0],
+            [10.5, 15.5, 20.5, 25.5],
+            [11.0, 16.0, 21.0, 26.0],
+        ]
+    )
+    lat_2d = np.array(
+        [
+            [50.0, 50.5, 51.0, 51.5],
+            [45.0, 45.5, 46.0, 46.5],
+            [40.0, 40.5, 41.0, 41.5],
+        ]
+    )
+
+    # Data values
+    data_values = np.random.rand(ny, nx)
+
+    # Create dataset with grid mapping variable
+    ds = xr.Dataset(
+        {
+            "temperature": (
+                ["y", "x"],
+                data_values,
+                {"grid_mapping": "lambert_azimuthal_equal_area"},
+            ),
+            "lambert_azimuthal_equal_area": (
+                [],
+                0,
+                {
+                    "grid_mapping_name": "lambert_azimuthal_equal_area",
+                    "latitude_of_projection_origin": 52.0,
+                    "longitude_of_projection_origin": 10.0,
+                    "false_easting": 4321000.0,
+                    "false_northing": 3210000.0,
+                },
+            ),
+        },
+        coords={
+            "x": x_coords,
+            "y": y_coords,
+            "latitude": (["y", "x"], lat_2d),
+            "longitude": (["y", "x"], lon_2d),
+        },
+    )
+
+    from earthkit.plots.sources.context import PlotContext
+
+    source = get_source(ds, context=PlotContext.GEOGRAPHIC_2D)
+
+    # Should use x, y dimension coordinates (1D), not 2D lat/lon
+    assert source.x.values.ndim == 2  # Meshgrid applied
+    assert source.y.values.ndim == 2
+    assert source.z.values.ndim == 2
+
+    # Check that we're using dimension coords by verifying values
+    # After meshgrid, first row should be x_coords
+    assert np.allclose(source.x.values[0, :], x_coords)
+    assert np.allclose(source.y.values[:, 0], y_coords)
+
+    # CRS should be detected as Lambert Azimuthal Equal Area
+    crs = source.crs
+    assert crs is not None
+    assert crs.__class__.__name__ == "LambertAzimuthalEqualArea"
+
+
+def test_xarray_no_crs_uses_latlon_coords():
+    """Test that without CRS, lat/lon coordinates are used when available."""
+    # Create a dataset with x, y dimensions and 2D lat/lon coordinates
+    # but NO grid mapping (no CRS)
+    ny, nx = 3, 4
+
+    # Dimension coordinates (just indices)
+    x_coords = np.arange(nx)
+    y_coords = np.arange(ny)
+
+    # Create 2D lat/lon arrays matching data shape
+    lon_2d = np.array(
+        [
+            [10.0, 15.0, 20.0, 25.0],
+            [10.5, 15.5, 20.5, 25.5],
+            [11.0, 16.0, 21.0, 26.0],
+        ]
+    )
+    lat_2d = np.array(
+        [
+            [50.0, 50.5, 51.0, 51.5],
+            [45.0, 45.5, 46.0, 46.5],
+            [40.0, 40.5, 41.0, 41.5],
+        ]
+    )
+
+    # Data values
+    data_values = np.random.rand(ny, nx)
+
+    # Create dataset WITHOUT grid mapping variable
+    ds = xr.Dataset(
+        {
+            "temperature": (["y", "x"], data_values),
+        },
+        coords={
+            "x": x_coords,
+            "y": y_coords,
+            "latitude": (["y", "x"], lat_2d),
+            "longitude": (["y", "x"], lon_2d),
+        },
+    )
+
+    from earthkit.plots.sources.context import PlotContext
+
+    source = get_source(ds, context=PlotContext.GEOGRAPHIC_2D)
+
+    # Should use 2D lat/lon coordinates since there's no CRS
+    assert source.x.values.ndim == 2
+    assert source.y.values.ndim == 2
+    assert source.z.values.ndim == 2
+
+    # Check that we're using lat/lon coords, not dimension coords
+    assert np.allclose(source.x.values, lon_2d)
+    assert np.allclose(source.y.values, lat_2d)
+    assert np.allclose(source.z.values, data_values)
+
+    # CRS should be None (no grid mapping)
+    assert source.crs is None
