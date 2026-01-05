@@ -17,9 +17,9 @@ from typing import Any, Optional, Union
 import cartopy.crs as ccrs
 import numpy as np
 
-from earthkit.plots.sources.extractors.base import BaseExtractor
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordinates
+from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
 class EarthkitExtractor(BaseExtractor):

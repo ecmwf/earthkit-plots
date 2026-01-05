@@ -18,9 +18,9 @@ import numpy as np
 import xarray as xr
 
 from earthkit.plots import identifiers
-from earthkit.plots.sources.extractors.base import BaseExtractor
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordinates
+from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
 class XarrayExtractor(BaseExtractor):
@@ -28,22 +28,19 @@ class XarrayExtractor(BaseExtractor):
     Strategy for extracting coordinates from xarray DataArrays and Datasets.
 
     Handles rich metadata, coordinate systems, and multi-dimensional data.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Xarray data structure.
     """
 
     def __init__(self, data: Union[xr.DataArray, xr.Dataset]):
-        """
-        Initialize xarray extractor.
-
-        Parameters
-        ----------
-        data : xr.DataArray or xr.Dataset
-            Xarray data structure.
-        """
         super().__init__(data)
-        
+
         # Remove singleton dimensions for easier handling
         self.data = data.squeeze()
-        
+
         # Set up cache for selected DataArray (when data is Dataset)
         self._selected_dataarray: Optional[xr.DataArray] = None
 
@@ -134,12 +131,16 @@ class XarrayExtractor(BaseExtractor):
                 if coord_name in identifiers.LONGITUDE:
                     auto_x_values = coord.values
                     auto_x_name = coord_name
-                    auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    auto_x_metadata = (
+                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    )
                     auto_x_units = auto_x_metadata.get("units")
                 elif coord_name in identifiers.LATITUDE:
                     auto_y_values = coord.values
                     auto_y_name = coord_name
-                    auto_y_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    auto_y_metadata = (
+                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    )
                     auto_y_units = auto_y_metadata.get("units")
         else:
             # Cartesian: x=independent, y=data (default roles)
@@ -160,7 +161,9 @@ class XarrayExtractor(BaseExtractor):
                     coord = da.coords[dim_name]
                     auto_x_values = coord.values
                     auto_x_name = dim_name
-                    auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    auto_x_metadata = (
+                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                    )
                     auto_x_units = auto_x_metadata.get("units")
                 else:
                     auto_x_values = np.arange(da.sizes[dim_name])
@@ -173,7 +176,9 @@ class XarrayExtractor(BaseExtractor):
         if context == PlotContext.GEOGRAPHIC_1D:
             # Geographic: override auto-detected if user specified
             if x is not None:
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
+                    da, x
+                )
             elif auto_x_values is not None:
                 x_values = auto_x_values
                 x_name = auto_x_name
@@ -186,7 +191,9 @@ class XarrayExtractor(BaseExtractor):
                 )
 
             if y is not None:
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
+                    da, y
+                )
             elif auto_y_values is not None:
                 y_values = auto_y_values
                 y_name = auto_y_name
@@ -216,11 +223,17 @@ class XarrayExtractor(BaseExtractor):
             # then swap: y becomes the coordinate, x becomes the data
 
             if x is not None and y is not None:
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
+                    da, x
+                )
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
+                    da, y
+                )
             elif y is not None and x is None:
                 # Only y specified - check if it matches the auto-detected x coordinate
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
+                    da, y
+                )
 
                 # Check if user's y matches what would be the default x (coordinate)
                 if isinstance(y, str) and y in da.coords and y != da.name:
@@ -237,7 +250,9 @@ class XarrayExtractor(BaseExtractor):
                     x_units = auto_x_units
             elif x is not None and y is None:
                 # Only x specified - check if it matches the auto-detected y (data)
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
+                    da, x
+                )
 
                 # Check if user's x matches what would be the default y (data)
                 if isinstance(x, str) and x == da.name:
@@ -461,13 +476,12 @@ class XarrayExtractor(BaseExtractor):
         if crs is not None:
             # Check if it's a projected CRS by seeing if it's NOT PlateCarree/geodetic
             try:
-                import cartopy.crs as ccrs
                 # PlateCarree and other geographic CRS don't have .proj4_params with +proj=longlat
                 # Projected CRS will have different projections
-                if hasattr(crs, '__class__'):
+                if hasattr(crs, "__class__"):
                     crs_class_name = crs.__class__.__name__
                     # Common geographic CRS in cartopy
-                    geographic_crs = ['PlateCarree', 'Geodetic', 'RotatedPole']
+                    geographic_crs = ["PlateCarree", "Geodetic", "RotatedPole"]
                     is_projected = crs_class_name not in geographic_crs
             except (ImportError, AttributeError):
                 pass
