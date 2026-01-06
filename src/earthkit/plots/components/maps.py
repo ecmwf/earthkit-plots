@@ -473,7 +473,12 @@ class Map(Subplot):
         """
 
     @schema.borders.apply()
-    @natural_earth_layer("cultural", "admin_0_boundary_lines_land", line=True)
+    @natural_earth_layer(
+        "cultural",
+        "admin_0_boundary_lines_land",
+        line=True,
+        default_transform_first=True,
+    )
     def borders(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
@@ -496,6 +501,7 @@ class Map(Subplot):
         },
         min_resolution="medium",
         line=True,
+        default_transform_first=True,
     )
     def unit_boundaries(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
@@ -519,6 +525,7 @@ class Map(Subplot):
         },
         min_resolution="medium",
         line=True,
+        default_transform_first=True,
     )
     def disputed_boundaries(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
@@ -540,6 +547,7 @@ class Map(Subplot):
         default_attribute="name",
         default_label="name",
         line=True,
+        default_transform_first=True,
     )
     def administrative_areas(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
@@ -555,7 +563,12 @@ class Map(Subplot):
         """
 
     @schema.countries.apply()
-    @natural_earth_layer("cultural", "admin_0_countries", default_label="ISO_A2_EH")
+    @natural_earth_layer(
+        "cultural",
+        "admin_0_countries",
+        default_label="ISO_A2_EH",
+        default_transform_first=True,
+    )
     def countries(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
@@ -615,7 +628,12 @@ class Map(Subplot):
         """
 
     @schema.countries.apply()
-    @natural_earth_layer("cultural", "admin_0_map_units", default_label="ADM0_TLC")
+    @natural_earth_layer(
+        "cultural",
+        "admin_0_map_units",
+        default_label="ADM0_TLC",
+        default_transform_first=True,
+    )
     def map_units(self, *args, **kwargs):
         """Add country boundary polygons from Natural Earth.
 
