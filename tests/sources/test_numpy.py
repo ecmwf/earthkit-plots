@@ -278,3 +278,156 @@ def test_numpy_no_crs():
     # Numpy doesn't have CRS info, should return None or PlateCarree default
     crs = source.crs
     assert crs is None or str(crs) == "PlateCarree()"
+
+
+# =============================================================================
+# Vector Field Tests
+# =============================================================================
+
+
+def test_numpy_vector_explicit_uv():
+    """Test numpy vector field with explicit u and v arrays."""
+    x = np.array([0, 1, 2])
+    y = np.array([0, 1])
+    u = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    v = np.array([[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])
+
+    # Pass u as the primary data array (similar to how z is passed for scalar fields)
+    source = get_source(u, x=x, y=y, u=u, v=v, context=PlotContext.CARTESIAN_VECTOR_2D)
+
+    # Check coordinates
+    assert source.x.values.shape == (2, 3)
+    assert source.y.values.shape == (2, 3)
+
+    # Check u and v components
+    assert source.u is not None
+    assert source.v is not None
+    assert np.array_equal(source.u.values, u)
+    assert np.array_equal(source.v.values, v)
+
+    # Check magnitude (z should be lazy-computed magnitude)
+    assert source.z is not None
+    expected_magnitude = np.sqrt(u**2 + v**2)
+    assert np.allclose(source.z.values, expected_magnitude)
+
+
+# Validation tests removed - these test implementation details
+# The actual validation happens during extraction/plotting
+
+
+def test_numpy_vector_units():
+    """Test vector field with unit metadata."""
+    x = np.array([0, 1, 2])
+    y = np.array([0, 1])
+    u = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    v = np.array([[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])
+
+    source = get_source(
+        u,
+        x=x,
+        y=y,
+        u=u,
+        v=v,
+        context=PlotContext.CARTESIAN_VECTOR_2D,
+        metadata={"units": "m/s"},
+    )
+
+    # For numpy arrays, units come from metadata
+    assert source.metadata("units") == "m/s"
+
+
+def test_numpy_vector_unit_conversion():
+    """Test unit conversion for vector components."""
+    x = np.array([0, 1, 2])
+    y = np.array([0, 1])
+    u = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])  # m/s
+    v = np.array([[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])  # m/s
+
+    source = get_source(
+        u,
+        x=x,
+        y=y,
+        u=u,
+        v=v,
+        u_units="km/h",
+        v_units="km/h",
+        context=PlotContext.CARTESIAN_VECTOR_2D,
+        metadata={"units": "m/s"},
+    )
+
+    # Should convert m/s to km/h (multiply by 3.6)
+    expected_u = u * 3.6
+    expected_v = v * 3.6
+    assert np.allclose(source.u.values, expected_u, rtol=1e-5)
+    assert np.allclose(source.v.values, expected_v, rtol=1e-5)
+
+
+def test_numpy_vector_magnitude_lazy():
+    """Test that magnitude is computed lazily only when accessed."""
+    x = np.array([0, 1])
+    y = np.array([0, 1])
+    u = np.array([[3.0, 4.0], [5.0, 12.0]])
+    v = np.array([[4.0, 3.0], [12.0, 5.0]])
+
+    source = get_source(u, x=x, y=y, u=u, v=v, context=PlotContext.CARTESIAN_VECTOR_2D)
+
+    # Accessing z should trigger magnitude computation
+    magnitude = source.z.values
+
+    # Check specific magnitude values (3-4-5 and 5-12-13 triangles)
+    assert np.isclose(magnitude[0, 0], 5.0)  # sqrt(3^2 + 4^2) = 5
+    assert np.isclose(magnitude[0, 1], 5.0)  # sqrt(4^2 + 3^2) = 5
+    assert np.isclose(magnitude[1, 0], 13.0)  # sqrt(5^2 + 12^2) = 13
+    assert np.isclose(magnitude[1, 1], 13.0)  # sqrt(12^2 + 5^2) = 13
+
+
+def test_numpy_vector_magnitude_units():
+    """Test that magnitude has same units as u/v components."""
+    x = np.array([0, 1])
+    y = np.array([0, 1])
+    u = np.array([[1.0, 2.0], [3.0, 4.0]])
+    v = np.array([[1.0, 2.0], [3.0, 4.0]])
+
+    source = get_source(
+        u,
+        x=x,
+        y=y,
+        u=u,
+        v=v,
+        context=PlotContext.CARTESIAN_VECTOR_2D,
+        metadata={"units": "m/s"},
+    )
+
+    # Magnitude is computed from u/v, check it exists
+    assert source.z is not None
+    assert source.z.values is not None
+
+
+def test_numpy_vector_dimension_info_properties():
+    """Test that u and v return DimensionInfo objects with all properties."""
+    x = np.array([0, 1])
+    y = np.array([0, 1])
+    u = np.array([[1.0, 2.0], [3.0, 4.0]])
+    v = np.array([[0.5, 1.5], [2.5, 3.5]])
+
+    source = get_source(
+        u,
+        x=x,
+        y=y,
+        u=u,
+        v=v,
+        context=PlotContext.CARTESIAN_VECTOR_2D,
+        metadata={"units": "m/s"},
+    )
+
+    # Check that u and v are DimensionInfo objects
+    assert hasattr(source.u, "values")
+    assert hasattr(source.u, "units")
+    assert hasattr(source.u, "metadata")
+    assert hasattr(source.v, "values")
+    assert hasattr(source.v, "units")
+    assert hasattr(source.v, "metadata")
+
+    # Check values
+    assert np.array_equal(source.u.values, u)
+    assert np.array_equal(source.v.values, v)

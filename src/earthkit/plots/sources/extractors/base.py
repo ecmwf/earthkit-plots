@@ -36,10 +36,12 @@ class BaseExtractor:
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
-        Extract x, y, z coordinates from data with metadata.
+        Extract x, y, z, u, v coordinates from data with metadata.
 
         Must be implemented by subclasses.
 
@@ -51,6 +53,10 @@ class BaseExtractor:
             Y coordinate specification.
         z : str, np.ndarray, or None
             Z values specification.
+        u : str, np.ndarray, or None
+            U component specification (for vector plots).
+        v : str, np.ndarray, or None
+            V component specification (for vector plots).
         context : PlotContext
             Plot context to guide coordinate inference.
 

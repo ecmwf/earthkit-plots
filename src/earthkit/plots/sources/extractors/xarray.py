@@ -49,6 +49,8 @@ class XarrayExtractor(BaseExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -62,6 +64,10 @@ class XarrayExtractor(BaseExtractor):
             Y coordinate name or array.
         z : str, np.ndarray, or None
             Z variable name or array.
+        u : str, np.ndarray, or None
+            U component name or array (for vector plots).
+        v : str, np.ndarray, or None
+            V component name or array (for vector plots).
         context : PlotContext
             Plot context to guide inference.
 
@@ -73,7 +79,7 @@ class XarrayExtractor(BaseExtractor):
         da = self._get_dataarray(z, x, y)
 
         if context.is_2d:
-            coords = self._extract_2d_coordinates(da, x, y, z, context)
+            coords = self._extract_2d_coordinates(da, x, y, z, u, v, context)
         else:
             coords = self._extract_1d_coordinates(da, x, y, context)
 
@@ -81,6 +87,8 @@ class XarrayExtractor(BaseExtractor):
             x=coords["x"],
             y=coords["y"],
             z=coords.get("z"),
+            u=coords.get("u"),
+            v=coords.get("v"),
         )
 
     def _extract_1d_coordinates(
@@ -302,10 +310,12 @@ class XarrayExtractor(BaseExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
     ) -> dict[str, CoordinateInfo]:
         """
-        Extract coordinates for 2D plots (heatmaps, contours, field maps).
+        Extract coordinates for 2D plots (heatmaps, contours, field maps) including vector components.
 
         Parameters
         ----------
@@ -313,18 +323,28 @@ class XarrayExtractor(BaseExtractor):
             DataArray to extract from.
         x, y, z : str, np.ndarray, or None
             User-specified coordinates.
+        u, v : str, np.ndarray, or None
+            User-specified vector components.
         context : PlotContext
             Plot context (CARTESIAN_2D or GEOGRAPHIC_2D).
 
         Returns
         -------
         dict
-            Dictionary with keys 'x', 'y', 'z'.
+            Dictionary with keys 'x', 'y', 'z', 'u', 'v'.
         """
         if context == PlotContext.GEOGRAPHIC_2D:
             # Try geographic coordinate extraction first
             result = self._try_extract_geographic_2d(da, x, y, z)
             if result is not None:
+                # Add empty u/v to result from geographic extraction
+                result["u"] = None
+                result["v"] = None
+                # Now try to extract u/v
+                u_info, v_info = self._extract_uv_components(u, v)
+                if u_info is not None:
+                    result["u"] = u_info
+                    result["v"] = v_info
                 return result
 
         # Cartesian 2D or fallback for geographic
@@ -438,7 +458,10 @@ class XarrayExtractor(BaseExtractor):
             metadata=z_metadata,
         )
 
-        return {"x": x_info, "y": y_info, "z": z_info}
+        # Extract u and v components
+        u_info, v_info = self._extract_uv_components(u, v)
+
+        return {"x": x_info, "y": y_info, "z": z_info, "u": u_info, "v": v_info}
 
     def _try_extract_geographic_2d(
         self,
@@ -846,3 +869,115 @@ class XarrayExtractor(BaseExtractor):
                 return self.data.attrs["gridSpec"]
             elif "grid_spec" in self.data.attrs:
                 return self.data.attrs["grid_spec"]
+
+    def _extract_uv_components(
+        self,
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
+    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        """
+        Extract U and V vector components with auto-detection.
+
+        Parameters
+        ----------
+        u : str, np.ndarray, or None
+            U component specification (variable name or array).
+        v : str, np.ndarray, or None
+            V component specification (variable name or array).
+
+        Returns
+        -------
+        tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]
+            (u_info, v_info) - returns (None, None) if no vector data.
+        """
+        # Case 1: Both u and v explicitly specified
+        if u is not None and v is not None:
+            # Use current DataArray or Dataset
+            da = (
+                self._selected_dataarray
+                if self._selected_dataarray is not None
+                else self.data
+            )
+
+            u_values, u_name, u_metadata, u_units = self._resolve_coordinate_spec(da, u)
+            v_values, v_name, v_metadata, v_units = self._resolve_coordinate_spec(da, v)
+
+            u_info = CoordinateInfo(
+                values=u_values,
+                name=u_name,
+                source_units=u_units,
+                metadata=u_metadata,
+            )
+            v_info = CoordinateInfo(
+                values=v_values,
+                name=v_name,
+                source_units=v_units,
+                metadata=v_metadata,
+            )
+            return u_info, v_info
+
+        # Case 2: Only one specified - error
+        elif u is not None or v is not None:
+            raise ValueError(
+                "Both u and v components must be specified for vector plots. "
+                f"Got u={'specified' if u is not None else 'None'}, "
+                f"v={'specified' if v is not None else 'None'}"
+            )
+
+        # Case 3: Neither specified - try auto-detection from Dataset
+        elif isinstance(self.data, xr.Dataset):
+            return self._try_auto_detect_uv_from_dataset()
+
+        # No vector data
+        return None, None
+
+    def _try_auto_detect_uv_from_dataset(
+        self,
+    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        """
+        Try to auto-detect U/V component pairs from Dataset variables.
+
+        Returns
+        -------
+        tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]
+            (u_info, v_info) if detected, else (None, None).
+        """
+        if not isinstance(self.data, xr.Dataset):
+            return None, None
+
+        # Get list of variable names
+        var_names = list(self.data.data_vars.keys())
+
+        # Use identifier module to find UV pairs
+        uv_pair = identifiers.find_uv_pair(var_names)
+
+        if uv_pair is None:
+            return None, None
+
+        u_name, v_name = uv_pair
+
+        # Extract U component
+        u_var = self.data[u_name]
+        u_values = u_var.values
+        u_metadata = dict(u_var.attrs) if hasattr(u_var, "attrs") else {}
+        u_units = u_metadata.get("units")
+        u_info = CoordinateInfo(
+            values=u_values,
+            name=u_name,
+            source_units=u_units,
+            metadata=u_metadata,
+        )
+
+        # Extract V component
+        v_var = self.data[v_name]
+        v_values = v_var.values
+        v_metadata = dict(v_var.attrs) if hasattr(v_var, "attrs") else {}
+        v_units = v_metadata.get("units")
+        v_info = CoordinateInfo(
+            values=v_values,
+            name=v_name,
+            source_units=v_units,
+            metadata=v_metadata,
+        )
+
+        return u_info, v_info

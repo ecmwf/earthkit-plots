@@ -67,3 +67,9 @@ class ExtractedCoordinates:
 
     z: Optional[CoordinateInfo] = None
     """Z coordinate information (None for 1D plots)."""
+
+    u: Optional[CoordinateInfo] = None
+    """U component information (None for non-vector plots)."""
+
+    v: Optional[CoordinateInfo] = None
+    """V component information (None for non-vector plots)."""

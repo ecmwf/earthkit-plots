@@ -65,13 +65,20 @@ def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
     # Check if method is 1D or 2D based on common method names
     is_1d = method_name in ("line", "scatter", "bar", "barh", "plot")
 
+    # Check if this is a vector plot
+    is_vector = method_name in ("quiver", "barbs")
+
     if is_map:
+        if is_vector:
+            return PlotContext.GEOGRAPHIC_VECTOR_2D
         return PlotContext.GEOGRAPHIC_1D if is_1d else PlotContext.GEOGRAPHIC_2D
     else:
+        if is_vector:
+            return PlotContext.CARTESIAN_VECTOR_2D
         return PlotContext.CARTESIAN_1D if is_1d else PlotContext.CARTESIAN_2D
 
 
-def extract_plottables_2D(
+def extract_plottables_1D(
     subplot: Any,
     method_name: str,
     args: tuple[Any, ...],
@@ -93,9 +100,9 @@ def extract_plottables_2D(
     **kwargs: Any,
 ) -> Any:
     """
-    Extract and process data for 2D plotting methods.
+    Extract and process data for 1D plotting methods.
 
-    This function handles the complete data pipeline for 2D plots including:
+    This function handles the complete data pipeline for 1D plots including:
     source creation, style configuration, value processing, sampling, and plotting.
 
     Parameters
@@ -160,7 +167,7 @@ def extract_plottables_2D(
 
     # Step 3: Process z values (convert units, apply scale factors)
     if z is not None or (source.z is not None and source.z.values is not None):
-        z_values = process_z_values(style, source, z)
+        z_values = apply_scale_factor(style, source, z)
     else:
         z_values = None
 
@@ -342,7 +349,7 @@ def _apply_coordinate_unit_conversion(
     return x_values, y_values
 
 
-def extract_plottables_3D(
+def extract_plottables_2D(
     subplot: Any,
     method_name: str,
     args: tuple[Any, ...],
@@ -364,9 +371,9 @@ def extract_plottables_3D(
     **kwargs: Any,
 ) -> Any:
     """
-    Extract and process data for 3D plotting methods.
+    Extract and process data for 2D plotting methods.
 
-    This function handles the complete data pipeline for 3D plots including:
+    This function handles the complete data pipeline for 2D plots including:
     source creation, style configuration, value processing, domain extraction,
     cyclic point handling, and specialized grid type plotting.
 
@@ -437,7 +444,7 @@ def extract_plottables_3D(
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
     # Step 4: Process z values (convert units, apply scale factors)
-    z_values = process_z_values(style, source, z)
+    z_values = apply_scale_factor(style, source, z)
 
     # Step 5: Handle specialized grid types (healpix, octahedral)
     mappable = _handle_specialized_grids(
@@ -514,6 +521,319 @@ def extract_plottables_3D(
             axis_units=axis_units,
         )
     )
+    return mappable
+
+
+def extract_plottables_vector_2D(
+    subplot: Any,
+    method_name: str,
+    args: tuple[Any, ...],
+    x: Optional[Union[str, np.ndarray, list[float]]] = None,
+    y: Optional[Union[str, np.ndarray, list[float]]] = None,
+    u: Optional[Union[str, np.ndarray, list[float]]] = None,
+    v: Optional[Union[str, np.ndarray, list[float]]] = None,
+    style: Optional[Style] = None,
+    no_style: bool = False,
+    units: Optional[str] = None,
+    u_units: Optional[str] = None,
+    v_units: Optional[str] = None,
+    x_units: Optional[str] = None,
+    y_units: Optional[str] = None,
+    source_units: Optional[str] = None,
+    extract_domain: bool = False,
+    auto_style: bool = False,
+    resample: Optional[Any] = None,
+    colors: bool = False,
+    metadata: Optional[dict[str, Any]] = None,
+    **kwargs: Any,
+) -> Any:
+    """
+    Extract and process data for vector plotting methods (quiver, barbs).
+
+    This function handles the complete data pipeline for vector plots including:
+    source creation, style configuration, u/v component extraction, domain extraction,
+    and resampling.
+
+    Parameters
+    ----------
+    subplot : Subplot
+        The subplot instance to plot on.
+    method_name : str
+        The name of the plotting method to call on the style object.
+    args : tuple
+        Positional arguments. Can be:
+        - Empty: requires u and v keyword arguments
+        - Single data object: will auto-detect u/v or use u/v keyword args
+        - Two data objects: first is u, second is v (legacy)
+    x, y : str, array-like, or None, optional
+        Data coordinates. If strings, they are treated as coordinate names.
+    u, v : str, array-like, or None, optional
+        U and V components. Can be variable names or arrays.
+    style : Style, optional
+        The style object to use for plotting. If None, one will be created.
+    no_style : bool, default=False
+        Whether to skip style processing and use raw matplotlib methods.
+    units : str, optional
+        Units for the data values.
+    u_units, v_units : str, optional
+        Target units for u and v components.
+    x_units, y_units : str, optional
+        Target units for x and y coordinates.
+    source_units : str, optional
+        Deprecated. Use 'units' instead.
+    extract_domain : bool, default=False
+        Whether to extract data within the subplot's domain boundaries.
+    auto_style : bool, default=False
+        Whether to automatically guess the appropriate style.
+    resample : Resample or None, optional
+        Resampling strategy for the vector field.
+    colors : bool, default=False
+        Whether to color vectors by magnitude.
+    metadata : dict, optional
+        Additional metadata for the data source.
+    **kwargs
+        Additional keyword arguments passed to the plotting method.
+
+    Returns
+    -------
+    Any
+        The matplotlib mappable object created by the plotting method.
+
+    Examples
+    --------
+    >>> # Auto-detection from single data source
+    >>> mappable = extract_plottables_vector_3D(subplot, "barbs", (data,))
+
+    >>> # Explicit u/v specification
+    >>> mappable = extract_plottables_vector_3D(
+    ...     subplot, "quiver", (data,), u="u_component", v="v_component"
+    ... )
+
+    >>> # Legacy two-source approach
+    >>> mappable = extract_plottables_vector_3D(subplot, "barbs", (u_data, v_data))
+    """
+    # Support deprecated source_units parameter
+    if source_units is not None and units is None:
+        units = source_units
+
+    # Step 1: Handle different argument patterns and create a unified source
+    source = None
+    u_values_raw = None
+    v_values_raw = None
+    context = _infer_plot_context(subplot, method_name)
+
+    if not args:
+        # No positional args - u and v must be keyword arguments
+        # This could be: chart.barbs(u=u_data, v=v_data)
+        if u is not None and v is not None:
+            # Create temporary sources to extract u and v data, then validate coordinates match
+            u_source = get_source(
+                u, x=x, y=y, context=context, units=units, metadata=metadata
+            )
+            v_source = get_source(
+                v, x=x, y=y, context=context, units=units, metadata=metadata
+            )
+
+            # Validate that x and y coordinates match
+            if not np.array_equal(u_source.x.values, v_source.x.values):
+                raise ValueError(
+                    "X coordinates from u and v sources do not match. "
+                    "U and V components must be defined on the same grid."
+                )
+            if not np.array_equal(u_source.y.values, v_source.y.values):
+                raise ValueError(
+                    "Y coordinates from u and v sources do not match. "
+                    "U and V components must be defined on the same grid."
+                )
+
+            # Extract u and v values from their respective z fields
+            u_array = u_source.z.values if u_source.z else None
+            v_array = v_source.z.values if v_source.z else None
+
+            # Create a properly unified source with u and v as numpy arrays
+            # This ensures the source has proper .u and .v properties
+            source = get_source(
+                u_source._data,  # Use the underlying data from u_source
+                x=x if x is not None else u_source.x.values,
+                y=y if y is not None else u_source.y.values,
+                u=u_array,  # Pass u as numpy array
+                v=v_array,  # Pass v as numpy array
+                context=context,
+                units=units,
+                u_units=u_units,
+                v_units=v_units,
+                x_units=x_units,
+                y_units=y_units,
+                metadata=metadata,
+            )
+
+            # Extract u and v from the unified source
+            u_values_raw = source.u.values if source.u else None
+            v_values_raw = source.v.values if source.v else None
+        else:
+            raise ValueError(
+                "Vector plots require both u and v components. "
+                "Provide as: chart.barbs(data) with auto-detection, "
+                "chart.barbs(data, u='u_var', v='v_var'), or "
+                "chart.barbs(u=u_data, v=v_data)"
+            )
+    elif len(args) == 1:
+        # Single data object - unified approach with auto-detection or explicit u/v
+        source = get_source(
+            args[0],
+            x=x,
+            y=y,
+            u=u,
+            v=v,
+            context=context,
+            units=units,
+            u_units=u_units,
+            v_units=v_units,
+            x_units=x_units,
+            y_units=y_units,
+            metadata=metadata,
+        )
+
+        # Check if source has u and v components
+        if source.u is not None and source.v is not None:
+            u_values_raw = source.u.values
+            v_values_raw = source.v.values
+        else:
+            raise ValueError(
+                "Could not extract u and v components from data. "
+                "Either specify them explicitly (u='u_var', v='v_var') or "
+                "ensure the data contains recognizable U/V variable names."
+            )
+    elif len(args) == 2:
+        # Two separate data objects for u and v (legacy)
+        u_source = get_source(
+            args[0], x=x, y=y, context=context, units=units, metadata=metadata
+        )
+        v_source = get_source(
+            args[1], x=x, y=y, context=context, units=units, metadata=metadata
+        )
+
+        # Validate that x and y coordinates match
+        if not np.array_equal(u_source.x.values, v_source.x.values):
+            raise ValueError(
+                "X coordinates from u and v sources do not match. "
+                "U and V components must be defined on the same grid."
+            )
+        if not np.array_equal(u_source.y.values, v_source.y.values):
+            raise ValueError(
+                "Y coordinates from u and v sources do not match. "
+                "U and V components must be defined on the same grid."
+            )
+
+        # Extract values - use z if available, otherwise y
+        u_array = u_source.z.values if u_source.z else u_source.y.values
+        v_array = v_source.z.values if v_source.z else v_source.y.values
+
+        # Create a properly unified source with u and v as numpy arrays
+        # This ensures the source has proper .u and .v properties
+        source = get_source(
+            u_source._data,  # Use the underlying data from u_source
+            x=x if x is not None else u_source.x.values,
+            y=y if y is not None else u_source.y.values,
+            u=u_array,  # Pass u as numpy array
+            v=v_array,  # Pass v as numpy array
+            context=context,
+            units=units,
+            u_units=u_units,
+            v_units=v_units,
+            x_units=x_units,
+            y_units=y_units,
+            metadata=metadata,
+        )
+
+        # Extract u and v from the unified source
+        u_values_raw = source.u.values if source.u else None
+        v_values_raw = source.v.values if source.v else None
+    else:
+        raise ValueError("Invalid arguments for vector plot")
+
+    # Step 2: Update kwargs with plot-specific settings
+    kwargs.update(subplot._plot_kwargs(source))
+
+    # Step 3: Configure the plotting style
+    style = configure_style(
+        method_name, style, source, units, auto_style, {**kwargs, "colors": colors}
+    )
+
+    # Step 4: Extract x, y coordinate values
+    x_values = source.x.values
+    y_values = source.y.values
+
+    # Step 5: Validate u and v values exist
+    if u_values_raw is None or v_values_raw is None:
+        raise ValueError("Vector plots require u and v components")
+
+    # Step 6: Get u and v values (already converted by Source if target units were specified)
+    # Source handles unit conversion internally when u_units/v_units are passed to get_source()
+    u_values = u_values_raw
+    v_values = v_values_raw
+
+    # Apply style-specific scale factors if needed (styles can have scale factors)
+    # Note: Style.convert_units() also applies scale factors, but since Source already
+    # did the unit conversion, we should only apply scale factors here if Style has them
+    # Currently Quiver/Style classes don't have scale factors like Contour does, so this is a no-op
+    # but we keep it for consistency with how scalar fields are processed
+
+    # Step 7: Use style's resample setting if not explicitly provided
+    if resample is None:
+        resample = style.resample
+
+    # Step 8: Extract data within domain boundaries if requested
+    if subplot.domain and extract_domain:
+        x_values, y_values, _, [u_values, v_values] = subplot.domain.extract(
+            x_values,
+            y_values,
+            extra_values=[u_values, v_values],
+            source_crs=source.crs,
+        )
+
+    # Step 9: Apply resampling if specified
+    if resample is not None:
+        kwargs.pop("regrid_shape", None)
+        if resample.__class__.__name__ == "Regrid":
+            kwargs.pop("transform", None)
+        args_resampled = resample.apply(
+            x_values,
+            y_values,
+            u_values,
+            v_values,
+            source_crs=source.crs,
+            target_crs=subplot.crs,
+            extents=subplot.ax.get_extent(),
+        )
+        x_values, y_values, u_values, v_values = args_resampled
+
+    # Step 10: Prepare arguments for plotting method
+    plot_args = [x_values, y_values, u_values, v_values]
+
+    # Step 11: Add magnitude coloring if requested
+    if colors:
+        # Use source.z which computes magnitude for vector fields
+        magnitude = (
+            source.z.values if source.z else np.sqrt(u_values**2 + v_values**2)
+        )
+        plot_args.append(magnitude)
+
+    # Step 12: Create the plot
+    mappable = getattr(style, method_name)(subplot.ax, *plot_args, **kwargs)
+
+    # Step 13: Store the layer and return the mappable
+    from earthkit.plots.components.layers import Layer
+
+    # Always use single unified source
+    subplot.layers.append(Layer(source, mappable, subplot, style))
+
+    # Step 14: Set axis labels if coordinate names were provided
+    if isinstance(source._x_spec, str):
+        subplot.ax.set_xlabel(source._x_spec)
+    if isinstance(source._y_spec, str):
+        subplot.ax.set_ylabel(source._y_spec)
+
     return mappable
 
 
@@ -693,21 +1013,21 @@ def configure_style(
     return style
 
 
-def process_z_values(
+def apply_scale_factor(
     style: Style, source: Any, z: Optional[Union[str, np.ndarray, list[float]]]
 ) -> Optional[np.ndarray]:
     """
-    Process z values by converting units and applying scale factors.
+    Process z values by applying scale factors.
 
-    This function handles the conversion of z values from source units to
-    target units and applies any scale factors defined in the style.
+    Unit conversion is handled by the Source class when target units are passed
+    to get_source(). This function only applies style-specific scale factors.
 
     Parameters
     ----------
     style : Style
-        The style object containing unit conversion and scaling logic.
+        The style object containing scaling logic.
     source : Any
-        The data source object.
+        The data source object (with units already converted).
     z : str, array-like, or None
         Z values or coordinate name. If None, uses source.z.values.
 
@@ -726,8 +1046,7 @@ def process_z_values(
     if source.z is None:
         return None
 
-    # Convert units and apply scale factors
-    z_values = style.convert_units(source.z.values, source.units)
+    z_values = source.z.values
     return style.apply_scale_factor(z_values)
 
 
@@ -1084,11 +1403,3 @@ def plot_with_interpolation(
     return getattr(style, method_name)(
         subplot.ax, x_values, y_values, z_values, **kwargs
     )
-
-
-# =============================================================================
-# Backward Compatibility
-# =============================================================================
-
-# Alias for backward compatibility
-extract_plottables = extract_plottables_3D

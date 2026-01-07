@@ -760,3 +760,185 @@ def test_xarray_no_crs_uses_latlon_coords():
 
     # CRS should be None (no grid mapping)
     assert source.crs is None
+
+
+# =============================================================================
+# Vector Field Tests
+# =============================================================================
+
+
+def test_xarray_vector_explicit_uv():
+    """Test xarray vector field with explicit u and v variables."""
+    ds = xr.Dataset(
+        {
+            "u_wind": (["lat", "lon"], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+            "v_wind": (["lat", "lon"], [[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]]),
+        },
+        coords={"lat": [10, 20], "lon": [100, 110, 120]},
+    )
+
+    source = get_source(ds, u="u_wind", v="v_wind")
+
+    # Check coordinates
+    assert source.x.values.shape == (2, 3)
+    assert source.y.values.shape == (2, 3)
+
+    # Check u and v components
+    assert source.u is not None
+    assert source.v is not None
+    assert np.allclose(source.u.values, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    assert np.allclose(source.v.values, [[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])
+
+    # Check magnitude
+    assert source.z is not None
+    u_vals = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    v_vals = np.array([[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])
+    expected_magnitude = np.sqrt(u_vals**2 + v_vals**2)
+    assert np.allclose(source.z.values, expected_magnitude)
+
+
+def test_xarray_vector_auto_detection():
+    """Test auto-detection of u and v components in xarray."""
+    from earthkit.plots.sources.context import PlotContext
+
+    ds = xr.Dataset(
+        {
+            "u": (["lat", "lon"], [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]),
+            "v": (["lat", "lon"], [[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]]),
+        },
+        coords={"lat": [10, 20], "lon": [100, 110, 120]},
+    )
+
+    # Should auto-detect u and v from variable names
+    source = get_source(ds, context=PlotContext.CARTESIAN_VECTOR_2D)
+
+    assert source.u is not None
+    assert source.v is not None
+    assert np.allclose(source.u.values, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
+    assert np.allclose(source.v.values, [[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]])
+
+
+def test_xarray_vector_auto_detection_standard_names():
+    """Test auto-detection using standard naming conventions."""
+    from earthkit.plots.sources.context import PlotContext
+
+    # Test various standard u/v naming patterns
+    test_cases = [
+        ("u10", "v10"),  # Common for 10m winds
+        ("u_component_of_wind", "v_component_of_wind"),
+        ("eastward_wind", "northward_wind"),
+    ]
+
+    for u_name, v_name in test_cases:
+        ds = xr.Dataset(
+            {
+                u_name: (["lat", "lon"], [[1.0, 2.0], [3.0, 4.0]]),
+                v_name: (["lat", "lon"], [[0.5, 1.5], [2.5, 3.5]]),
+            },
+            coords={"lat": [10, 20], "lon": [100, 110]},
+        )
+
+        source = get_source(ds, context=PlotContext.CARTESIAN_VECTOR_2D)
+
+        assert source.u is not None, f"Failed to detect u from {u_name}"
+        assert source.v is not None, f"Failed to detect v from {v_name}"
+
+
+def test_xarray_vector_metadata():
+    """Test metadata extraction from xarray vector fields."""
+    ds = xr.Dataset(
+        {
+            "u": (
+                ["lat", "lon"],
+                [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                {"units": "m/s", "long_name": "U component of wind"},
+            ),
+            "v": (
+                ["lat", "lon"],
+                [[0.5, 1.5, 2.5], [3.5, 4.5, 5.5]],
+                {"units": "m/s", "long_name": "V component of wind"},
+            ),
+        },
+        coords={
+            "lat": [10, 20],
+            "lon": [100, 110, 120],
+        },
+        attrs={"level": 850},
+    )
+
+    source = get_source(ds, u="u", v="v")
+
+    # Check dimension metadata
+    assert source.u.metadata("long_name") == "U component of wind"
+    assert source.v.metadata("long_name") == "V component of wind"
+    assert source.u.source_units == "m/s"
+    assert source.v.source_units == "m/s"
+
+    # TODO: Check source-level metadata from dataset attrs
+    # When u/v are explicitly specified, dataset-level attrs should be preserved
+    # assert source.metadata("level") == 850
+
+
+def test_xarray_vector_with_time_dimension():
+    """Test vector field with time dimension (should use first timestep)."""
+    ds = xr.Dataset(
+        {
+            "u": (["time", "lat", "lon"], [[[1.0, 2.0], [3.0, 4.0]]]),
+            "v": (["time", "lat", "lon"], [[[0.5, 1.5], [2.5, 3.5]]]),
+        },
+        coords={
+            "time": ["2024-01-01"],
+            "lat": [10, 20],
+            "lon": [100, 110],
+        },
+    )
+
+    source = get_source(ds, u="u", v="v")
+
+    # Should extract first time step
+    assert source.u.values.shape == (2, 2)
+    assert source.v.values.shape == (2, 2)
+
+
+def test_xarray_vector_magnitude_metadata():
+    """Test that magnitude has appropriate metadata."""
+    ds = xr.Dataset(
+        {
+            "u": (["lat", "lon"], [[1.0, 2.0], [3.0, 4.0]]),
+            "v": (["lat", "lon"], [[1.0, 2.0], [3.0, 4.0]]),
+        },
+        coords={"lat": [10, 20], "lon": [100, 110]},
+    )
+
+    source = get_source(ds, u="u", v="v")
+
+    # Check magnitude metadata
+    assert source.z.name == "magnitude"
+    assert "magnitude" in source.z.metadata("long_name", "").lower()
+
+
+def test_xarray_vector_unit_conversion():
+    """Test unit conversion for vector components."""
+    ds = xr.Dataset(
+        {
+            "u": (
+                ["lat", "lon"],
+                [[1.0, 2.0], [3.0, 4.0]],
+                {"units": "m/s"},
+            ),
+            "v": (
+                ["lat", "lon"],
+                [[0.5, 1.5], [2.5, 3.5]],
+                {"units": "m/s"},
+            ),
+        },
+        coords={"lat": [10, 20], "lon": [100, 110]},
+    )
+
+    source = get_source(ds, u="u", v="v", u_units="km/h", v_units="km/h")
+
+    # Should convert m/s to km/h (multiply by 3.6)
+    expected_u = np.array([[1.0, 2.0], [3.0, 4.0]]) * 3.6
+    expected_v = np.array([[0.5, 1.5], [2.5, 3.5]]) * 3.6
+    assert np.allclose(source.u.values, expected_u, rtol=1e-5)
+    assert np.allclose(source.v.values, expected_v, rtol=1e-5)

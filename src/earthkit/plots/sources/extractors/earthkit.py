@@ -35,6 +35,8 @@ class EarthkitExtractor(BaseExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -48,6 +50,10 @@ class EarthkitExtractor(BaseExtractor):
             Y coordinate specification.
         z : str, np.ndarray, or None
             Z variable name or array.
+        u : str, np.ndarray, or None
+            U component specification (for vector plots).
+        v : str, np.ndarray, or None
+            V component specification (for vector plots).
         context : PlotContext
             Plot context to guide inference.
 
@@ -107,7 +113,10 @@ class EarthkitExtractor(BaseExtractor):
                 metadata=z_metadata,  # Pass all global metadata to z dimension
             )
 
-        return ExtractedCoordinates(x=x_info, y=y_info, z=z_info)
+        # Extract u and v components
+        u_info, v_info = self._extract_uv_components(u, v)
+
+        return ExtractedCoordinates(x=x_info, y=y_info, z=z_info, u=u_info, v=v_info)
 
     def _extract_coordinates_from_data(self) -> tuple[np.ndarray, np.ndarray]:
         """
@@ -299,3 +308,212 @@ class EarthkitExtractor(BaseExtractor):
             return get_grid_spec(self.data)
         except (AttributeError, ImportError):
             return None
+
+    def _extract_uv_components(
+        self,
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
+    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        """
+        Extract U and V vector components with auto-detection.
+
+        Parameters
+        ----------
+        u : str, np.ndarray, or None
+            U component specification (parameter name or array).
+        v : str, np.ndarray, or None
+            V component specification (parameter name or array).
+
+        Returns
+        -------
+        tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]
+            (u_info, v_info) - returns (None, None) if no vector data.
+        """
+        # Case 1: Both u and v explicitly specified
+        if u is not None and v is not None:
+            if isinstance(u, str) and isinstance(v, str):
+                # Extract by parameter name
+                try:
+                    u_field = self.data.sel(short_name=u)
+                    v_field = self.data.sel(short_name=v)
+                except (AttributeError, KeyError):
+                    # Try param instead of short_name
+                    try:
+                        u_field = self.data.sel(param=u)
+                        v_field = self.data.sel(param=v)
+                    except (AttributeError, KeyError):
+                        raise ValueError(
+                            f"Could not find u='{u}' and v='{v}' in data. "
+                            "Try using 'short_name' or 'param' selectors."
+                        )
+
+                u_values = u_field.to_numpy(flatten=False)
+                v_values = v_field.to_numpy(flatten=False)
+
+                # Extract metadata
+                u_metadata = self._extract_all_metadata_from_field(u_field)
+                v_metadata = self._extract_all_metadata_from_field(v_field)
+                u_units = u_metadata.get("units")
+                v_units = v_metadata.get("units")
+
+                u_info = CoordinateInfo(
+                    values=u_values,
+                    name=u,
+                    source_units=u_units,
+                    metadata=u_metadata,
+                )
+                v_info = CoordinateInfo(
+                    values=v_values,
+                    name=v,
+                    source_units=v_units,
+                    metadata=v_metadata,
+                )
+                return u_info, v_info
+
+            elif isinstance(u, np.ndarray) and isinstance(v, np.ndarray):
+                # Explicit arrays provided
+                u_info = CoordinateInfo(
+                    values=u,
+                    name="",
+                    source_units=None,
+                    metadata={},
+                )
+                v_info = CoordinateInfo(
+                    values=v,
+                    name="",
+                    source_units=None,
+                    metadata={},
+                )
+                return u_info, v_info
+
+        # Case 2: Only one specified - error
+        elif u is not None or v is not None:
+            raise ValueError(
+                "Both u and v components must be specified for vector plots. "
+                f"Got u={'specified' if u is not None else 'None'}, "
+                f"v={'specified' if v is not None else 'None'}"
+            )
+
+        # Case 3: Neither specified - try auto-detection from FieldList
+        else:
+            return self._try_auto_detect_uv_from_fieldlist()
+
+        # No vector data
+        return None, None
+
+    def _try_auto_detect_uv_from_fieldlist(
+        self,
+    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        """
+        Try to auto-detect U/V from earthkit FieldList.
+
+        Examines 'param' or 'shortName' metadata to identify UV pairs.
+
+        Returns
+        -------
+        tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]
+            (u_info, v_info) if detected, else (None, None).
+        """
+        if not hasattr(self.data, "metadata"):
+            return None, None
+
+        from earthkit.plots import identifiers
+
+        # Get list of parameter names
+        try:
+            # Try to get all parameters from the FieldList
+            params = []
+            for i in range(len(self.data)):
+                try:
+                    param = self.data[i].metadata("param")
+                    if param:
+                        params.append(param)
+                except (AttributeError, KeyError):
+                    try:
+                        param = self.data[i].metadata("shortName")
+                        if param:
+                            params.append(param)
+                    except (AttributeError, KeyError):
+                        pass
+        except (TypeError, AttributeError):
+            return None, None
+
+        if not params:
+            return None, None
+
+        # Find UV pair
+        uv_pair = identifiers.find_uv_pair(params)
+        if uv_pair is None:
+            return None, None
+
+        u_param, v_param = uv_pair
+
+        # Extract fields
+        try:
+            u_field = self.data.sel(param=u_param)
+            v_field = self.data.sel(param=v_param)
+        except (AttributeError, KeyError):
+            try:
+                u_field = self.data.sel(short_name=u_param)
+                v_field = self.data.sel(short_name=v_param)
+            except (AttributeError, KeyError):
+                return None, None
+
+        # Build CoordinateInfo objects
+        u_values = u_field.to_numpy(flatten=False)
+        u_metadata = self._extract_all_metadata_from_field(u_field)
+        u_units = u_metadata.get("units")
+        u_info = CoordinateInfo(
+            values=u_values,
+            name=u_param,
+            source_units=u_units,
+            metadata=u_metadata,
+        )
+
+        v_values = v_field.to_numpy(flatten=False)
+        v_metadata = self._extract_all_metadata_from_field(v_field)
+        v_units = v_metadata.get("units")
+        v_info = CoordinateInfo(
+            values=v_values,
+            name=v_param,
+            source_units=v_units,
+            metadata=v_metadata,
+        )
+
+        return u_info, v_info
+
+    def _extract_all_metadata_from_field(self, field) -> dict:
+        """
+        Extract all metadata from a single field.
+
+        Parameters
+        ----------
+        field : earthkit.data Field
+            Single field to extract metadata from.
+
+        Returns
+        -------
+        dict
+            Dictionary of all metadata.
+        """
+        metadata = {}
+        if hasattr(field, "metadata"):
+            # Common GRIB keys
+            keys = [
+                "short_name",
+                "param",
+                "level",
+                "levelist",
+                "units",
+                "long_name",
+                "standard_name",
+                "grid_type",
+            ]
+            for key in keys:
+                try:
+                    value = field.metadata(key)
+                    if value is not None:
+                        metadata[key] = value
+                except (AttributeError, KeyError):
+                    pass
+        return metadata

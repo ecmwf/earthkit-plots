@@ -33,10 +33,12 @@ class DataExtractor(Protocol):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
-    ) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+    ):
         """
-        Extract x, y, z coordinates from some arbitrary data.
+        Extract x, y, z, u, v coordinates from some arbitrary data.
 
         Parameters
         ----------
@@ -49,13 +51,19 @@ class DataExtractor(Protocol):
         z : str, np.ndarray, or None
             Z values specification. Can be a variable name (str),
             explicit array, or None for automatic inference.
+        u : str, np.ndarray, or None
+            U component specification (for vector plots). Can be a variable
+            name (str), explicit array, or None for automatic inference.
+        v : str, np.ndarray, or None
+            V component specification (for vector plots). Can be a variable
+            name (str), explicit array, or None for automatic inference.
         context : PlotContext
             Plot context to guide coordinate inference.
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]
-            Extracted (x, y, z) coordinates.
+        ExtractedCoordinates
+            Extracted coordinates with metadata.
         """
         ...
 

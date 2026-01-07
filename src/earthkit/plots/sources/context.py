@@ -31,11 +31,18 @@ class PlotContext(Enum):
     CARTESIAN_2D = "cartesian_2d"  # Heatmaps, contours
     GEOGRAPHIC_1D = "geographic_1d"  # Hovmoellers, cross-sections
     GEOGRAPHIC_2D = "geographic_2d"  # Maps
+    GEOGRAPHIC_VECTOR_2D = "geographic_vector_2d"  # Vector fields on maps
+    CARTESIAN_VECTOR_2D = "cartesian_vector_2d"  # Vector fields in cartesian plots
 
     @property
     def is_geographic(self) -> bool:
         """Return True if this is a geographic plot context."""
         return "geographic" in self.value
+
+    @property
+    def is_vector(self) -> bool:
+        """Return True if this is a vector plot context."""
+        return "vector" in self.value
 
     @property
     def is_cartesian(self) -> bool:
