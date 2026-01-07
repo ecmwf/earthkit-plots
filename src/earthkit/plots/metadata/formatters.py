@@ -398,6 +398,20 @@ class LayerFormatter(BaseFormatter):
         return value
 
     def format_field(self, _value, format_spec):
+        # Handle list values from single sources (e.g., vector fields returning ["wind U", "wind V"])
+        if isinstance(_value, list):
+            # Apply format_spec to each element
+            formatted_values = [
+                super().format_field(str(v), format_spec) for v in _value
+            ]
+            # Get unique values
+            unique_values = list(dict.fromkeys(formatted_values))
+            # If all values are the same, return just one
+            if len(unique_values) == 1:
+                return unique_values[0]
+            # Otherwise format as human-readable list
+            return string_utils.list_to_human(unique_values)
+
         value = str(_value)
         return super().format_field(value, format_spec)
 

@@ -45,6 +45,8 @@ class NumpyExtractor(BaseExtractor):
         x: Optional[Union[str, np.ndarray]],
         y: Optional[Union[str, np.ndarray]],
         z: Optional[Union[str, np.ndarray]],
+        u: Optional[Union[str, np.ndarray]],
+        v: Optional[Union[str, np.ndarray]],
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -65,6 +67,10 @@ class NumpyExtractor(BaseExtractor):
             Y coordinate array.
         z : np.ndarray or None
             Z values array.
+        u : np.ndarray or None
+            U component array (for vector plots).
+        v : np.ndarray or None
+            V component array (for vector plots).
         context : PlotContext
             Plot context to guide inference.
 
@@ -73,7 +79,13 @@ class NumpyExtractor(BaseExtractor):
         ExtractedCoordinates
             Extracted coordinates with metadata for each dimension.
         """
-        for coord_name, coord_value in [("x", x), ("y", y), ("z", z)]:
+        for coord_name, coord_value in [
+            ("x", x),
+            ("y", y),
+            ("z", z),
+            ("u", u),
+            ("v", v),
+        ]:
             if isinstance(coord_value, str):
                 raise ValueError(
                     f"String coordinate names not supported for numpy arrays. "
@@ -84,9 +96,19 @@ class NumpyExtractor(BaseExtractor):
         x_arr = np.atleast_1d(x) if x is not None else None
         y_arr = np.atleast_1d(y) if y is not None else None
         z_arr = np.atleast_1d(z) if z is not None else None
+        u_arr = np.atleast_1d(u) if u is not None else None
+        v_arr = np.atleast_1d(v) if v is not None else None
+
+        # Validate u and v: both or neither
+        if (u_arr is None) != (v_arr is None):
+            raise ValueError(
+                "Both u and v components must be specified for vector plots. "
+                f"Got u={'array' if u_arr is not None else 'None'}, "
+                f"v={'array' if v_arr is not None else 'None'}"
+            )
 
         if context.is_2d:
-            coords = self._extract_2d_coordinates(x_arr, y_arr, z_arr)
+            coords = self._extract_2d_coordinates(x_arr, y_arr, z_arr, u_arr, v_arr)
         else:
             coords = self._extract_1d_coordinates(x_arr, y_arr)
 
@@ -94,6 +116,8 @@ class NumpyExtractor(BaseExtractor):
             x=coords["x"],
             y=coords["y"],
             z=coords.get("z"),
+            u=coords.get("u"),
+            v=coords.get("v"),
         )
 
     def _extract_1d_coordinates(
@@ -154,9 +178,11 @@ class NumpyExtractor(BaseExtractor):
         x_arr: Optional[np.ndarray],
         y_arr: Optional[np.ndarray],
         z_arr: Optional[np.ndarray],
+        u_arr: Optional[np.ndarray],
+        v_arr: Optional[np.ndarray],
     ) -> dict[str, CoordinateInfo]:
         """
-        Extract coordinates for 2D plots.
+        Extract coordinates for 2D plots including optional vector components.
 
         Handles two cases:
         1. Structured grids: z is 2D, x/y are 1D (or auto-generated), meshgrid applied
@@ -170,11 +196,15 @@ class NumpyExtractor(BaseExtractor):
             Y coordinate array.
         z_arr : np.ndarray or None
             Z values array (can be 1D for scattered points or 2D for grids).
+        u_arr : np.ndarray or None
+            U component array (for vector plots).
+        v_arr : np.ndarray or None
+            V component array (for vector plots).
 
         Returns
         -------
         dict
-            Dictionary with keys 'x', 'y', 'z'.
+            Dictionary with keys 'x', 'y', 'z', 'u', 'v'.
         """
         if z_arr is not None:
             z_values = z_arr
@@ -261,7 +291,32 @@ class NumpyExtractor(BaseExtractor):
             metadata={},
         )
 
-        return {"x": x_info, "y": y_info, "z": z_info}
+        # Extract u and v if provided
+        u_info = None
+        v_info = None
+
+        if u_arr is not None and v_arr is not None:
+            # Validate shapes match z
+            if u_arr.shape != z_values.shape or v_arr.shape != z_values.shape:
+                raise ValueError(
+                    f"Vector component shapes must match data shape. "
+                    f"Got z: {z_values.shape}, u: {u_arr.shape}, v: {v_arr.shape}"
+                )
+
+            u_info = CoordinateInfo(
+                values=u_arr,
+                name="",
+                source_units=None,
+                metadata={},
+            )
+            v_info = CoordinateInfo(
+                values=v_arr,
+                name="",
+                source_units=None,
+                metadata={},
+            )
+
+        return {"x": x_info, "y": y_info, "z": z_info, "u": u_info, "v": v_info}
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
         """

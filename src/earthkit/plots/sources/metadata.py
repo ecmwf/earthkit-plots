@@ -45,6 +45,10 @@ class MetadataResolver:
         """
         Get metadata value with priority resolution.
 
+        For list values, if all elements are equal, returns the first element.
+        This handles cases like earthkit FieldLists where metadata returns
+        [850, 850] for a vector field with u and v at the same level.
+
         Parameters
         ----------
         key : str
@@ -59,15 +63,21 @@ class MetadataResolver:
         """
         # Priority 1: User metadata
         if key in self.user_metadata:
-            return self.user_metadata[key]
-
+            value = self.user_metadata[key]
         # Priority 2: Extractor metadata
-        value = self.extractor.get_metadata(key)
-        if value is not None:
-            return value
+        elif (extractor_value := self.extractor.get_metadata(key)) is not None:
+            value = extractor_value
+        else:
+            # Priority 3: Default
+            return default
 
-        # Priority 3: Default
-        return default
+        # Normalize list values: if all elements are equal, return just one
+        if isinstance(value, list) and len(value) > 0:
+            # Check if all elements are equal
+            if all(v == value[0] for v in value):
+                return value[0]
+
+        return value
 
     def get_units(self) -> Optional[str]:
         """

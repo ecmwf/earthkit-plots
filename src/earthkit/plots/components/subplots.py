@@ -19,9 +19,10 @@ import matplotlib.dates as mdates
 import numpy as np
 
 from earthkit.plots.components.extractors import (
+    extract_plottables_1D,
     extract_plottables_2D,
-    extract_plottables_3D,
     extract_plottables_envelope,
+    extract_plottables_vector_2D,
 )
 from earthkit.plots.components.layers import Layer
 from earthkit.plots.metadata.formatters import (
@@ -51,7 +52,7 @@ LAYER_ZORDERS = {
 }
 
 
-def plot_2D(method_name=None):
+def plot_1D(method_name=None):
     def decorator(method):
         @functools.wraps(method)
         def wrapper(
@@ -64,7 +65,7 @@ def plot_2D(method_name=None):
             every=None,
             **kwargs,
         ):
-            return extract_plottables_2D(
+            return extract_plottables_1D(
                 self,
                 method_name or method.__name__,
                 args=args,
@@ -81,7 +82,7 @@ def plot_2D(method_name=None):
     return decorator
 
 
-def plot_3D(method_name=None, extract_domain=False):
+def plot_2D(method_name=None, extract_domain=False):
     def decorator(method):
         @functools.wraps(method)
         def wrapper(
@@ -95,8 +96,9 @@ def plot_3D(method_name=None, extract_domain=False):
             auto_style=False,
             **kwargs,
         ):
-            return self._extract_plottables(
-                method_name or method.__name__,
+            return extract_plottables_2D(
+                subplot=self,
+                method_name=method_name or method.__name__,
                 args=args,
                 x=x,
                 y=y,
@@ -113,7 +115,7 @@ def plot_3D(method_name=None, extract_domain=False):
     return decorator
 
 
-def plot_vector(method_name=None):
+def plot_vector(method_name=None, extract_domain=False):
     def decorator(method):
         @functools.wraps(method)
         def wrapper(
@@ -131,82 +133,23 @@ def plot_vector(method_name=None):
             resample=Regrid(40),
             **kwargs,
         ):
-            u_source = None
-            v_source = None
-
-            if not args:
-                u_source = get_source(u, x=x, y=y, units=source_units)
-                v_source = get_source(v, x=x, y=y, units=source_units)
-            elif len(args) == 1:
-                # Single data object containing both u and v components
-                # Use z parameter to select the appropriate component
-                u_source = get_source(args[0], x=x, y=y, z=u, units=source_units)
-                v_source = get_source(args[0], x=x, y=y, z=v, units=source_units)
-            elif len(args) == 2:
-                u_source = get_source(args[0], x=x, y=y, units=source_units)
-                v_source = get_source(args[1], x=x, y=y, units=source_units)
-
-            assert (
-                u_source is not None and v_source is not None
-            ), "Could not determine vector components from input arguments"
-
-            kwargs = {**self._plot_kwargs(u_source), **kwargs}
-
-            style = self._configure_style(
-                method_name or method.__name__,
-                style,
-                u_source,  # Use u_source for style configuration
-                units,
-                auto_style,
-                {**kwargs, "colors": colors},
+            return extract_plottables_vector_2D(
+                subplot=self,
+                method_name=method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                u=u,
+                v=v,
+                style=style,
+                units=units,
+                auto_style=auto_style,
+                source_units=source_units,
+                extract_domain=extract_domain,
+                resample=resample,
+                colors=colors,
+                **kwargs,
             )
-            m = getattr(style, method_name or method.__name__)
-
-            x_values = u_source.x.values
-            y_values = u_source.y.values
-
-            if u_source.z is None or v_source.z is None:
-                raise ValueError("Vector plots require u and v components (z values)")
-
-            u_values = style.convert_units(u_source.z.values, u_source.units)
-            v_values = style.convert_units(v_source.z.values, v_source.units)
-
-            resample = style.resample or resample
-
-            if self.domain is not None:
-                x_values, y_values, _, [u_values, v_values] = self.domain.extract(
-                    x_values,
-                    y_values,
-                    extra_values=[u_values, v_values],
-                    source_crs=u_source.crs,
-                )
-
-            if resample is not None:
-                kwargs.pop("regrid_shape", None)
-                if resample.__class__.__name__ == "Regrid":
-                    kwargs.pop("transform")
-                args = resample.apply(
-                    x_values,
-                    y_values,
-                    u_values,
-                    v_values,
-                    source_crs=u_source.crs,
-                    target_crs=self.crs,
-                    extents=self.ax.get_extent(),
-                )
-            else:
-                args = [x_values, y_values, u_values, v_values]
-
-            if colors:
-                args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
-
-            mappable = m(self.ax, *args, **kwargs)
-            self.layers.append(Layer([u_source, v_source], mappable, self, style))
-            if isinstance(u_source._x_spec, str):
-                self.ax.set_xlabel(u_source._x_spec)
-            if isinstance(u_source._y_spec, str):
-                self.ax.set_ylabel(u_source._y_spec)
-            return mappable
 
         return wrapper
 
@@ -484,43 +427,6 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def _extract_plottables(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        extract_domain=False,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        return extract_plottables_3D(
-            self,
-            method_name,
-            args,
-            x=x,
-            y=y,
-            z=z,
-            style=style,
-            no_style=no_style,
-            units=units,
-            every=every,
-            source_units=source_units,
-            extract_domain=extract_domain,
-            auto_style=auto_style,
-            regrid=regrid,
-            metadata=metadata,
-            **kwargs,
-        )
-
     def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
         """Configures style based on method name, style, source, and units."""
         if style:
@@ -658,11 +564,11 @@ class Subplot:
         """
         raise NotImplementedError
 
-    @plot_2D()
+    @plot_1D()
     def quantiles(self, *args, **kwargs):
         pass
 
-    @plot_2D()
+    @plot_1D()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -914,7 +820,7 @@ class Subplot:
 
         return result
 
-    @plot_2D()
+    @plot_1D()
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
@@ -940,7 +846,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D()
+    @plot_1D()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
@@ -964,7 +870,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
@@ -999,7 +905,7 @@ class Subplot:
         """
 
     @schema.contour.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def contour(self, *args, **kwargs):
         """
         Plot a contour plot on the Subplot.
@@ -1027,7 +933,7 @@ class Subplot:
         """
 
     @schema.contourf.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def contourf(self, *args, **kwargs):
         """
         Plot a filled contour plot on the Subplot.
@@ -1061,7 +967,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tripcolor(self, *args, **kwargs):
         """
         Plot a tripcolor plot on the Subplot.
@@ -1088,7 +994,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tricontour(self, *args, **kwargs):
         """
         Plot a tricontour plot on the Subplot.
@@ -1115,7 +1021,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tricontourf(self, *args, **kwargs):
         """
         Plot a filled tricontour plot on the Subplot.

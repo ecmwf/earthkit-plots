@@ -48,6 +48,10 @@ class Source:
         Y coordinate specification.
     z : str, np.ndarray, or None, optional
         Z values specification.
+    u : str, np.ndarray, or None, optional
+        U component specification (for vector plots).
+    v : str, np.ndarray, or None, optional
+        V component specification (for vector plots).
     context : PlotContext, optional
         Plot context to guide coordinate inference.
         Defaults to CARTESIAN_2D.
@@ -67,6 +71,10 @@ class Source:
         Target units for y dimension. Overrides 'units' for y.
     z_units : str, optional
         Target units for z dimension. Overrides 'units' for z.
+    u_units : str, optional
+        Target units for u component. Overrides 'units' for u.
+    v_units : str, optional
+        Target units for v component. Overrides 'units' for v.
     """
 
     def __init__(
@@ -76,6 +84,8 @@ class Source:
         x: Optional[Union[str, np.ndarray]] = None,
         y: Optional[Union[str, np.ndarray]] = None,
         z: Optional[Union[str, np.ndarray]] = None,
+        u: Optional[Union[str, np.ndarray]] = None,
+        v: Optional[Union[str, np.ndarray]] = None,
         context: PlotContext = PlotContext.CARTESIAN_2D,
         regrid: bool = True,
         metadata: Optional[dict] = None,
@@ -83,11 +93,15 @@ class Source:
         x_units: Optional[str] = None,
         y_units: Optional[str] = None,
         z_units: Optional[str] = None,
+        u_units: Optional[str] = None,
+        v_units: Optional[str] = None,
     ):
         self._extractor = _get_extractor(data, metadata)
         self._x_spec = x
         self._y_spec = y
         self._z_spec = z
+        self._u_spec = u
+        self._v_spec = v
         self._context = context
         self._should_regrid = regrid
         self._metadata_resolver = MetadataResolver(self._extractor, metadata)
@@ -99,6 +113,8 @@ class Source:
         self._target_x_units = x_units  # Explicit x units
         self._target_y_units = y_units  # Explicit y units
         self._target_z_units = z_units  # Explicit z units
+        self._target_u_units = u_units  # Explicit u units
+        self._target_v_units = v_units  # Explicit v units
 
         # Track which conversions actually succeeded (populated during conversion)
         self._applied_x_units: Optional[str] = None
@@ -110,11 +126,15 @@ class Source:
         self._x_coord_info: Optional[CoordinateInfo] = None
         self._y_coord_info: Optional[CoordinateInfo] = None
         self._z_coord_info: Optional[CoordinateInfo] = None
+        self._u_coord_info: Optional[CoordinateInfo] = None
+        self._v_coord_info: Optional[CoordinateInfo] = None
 
         # Cached DimensionInfo objects (created lazily)
         self._x_dimension: Optional[DimensionInfo] = None
         self._y_dimension: Optional[DimensionInfo] = None
         self._z_dimension: Optional[DimensionInfo] = None
+        self._u_dimension: Optional[DimensionInfo] = None
+        self._v_dimension: Optional[DimensionInfo] = None
 
         # Backward compatibility properties
         self._data = data  # For backward compatibility
@@ -129,16 +149,25 @@ class Source:
         self._x_dimension = None
         self._y_dimension = None
         self._z_dimension = None
+        self._u_dimension = None
+        self._v_dimension = None
 
         # Extract coordinates using extractor
         extracted = self._extractor.extract_coordinates(
-            self._x_spec, self._y_spec, self._z_spec, self._context
+            self._x_spec,
+            self._y_spec,
+            self._z_spec,
+            self._u_spec,
+            self._v_spec,
+            self._context,
         )
 
         # Store CoordinateInfo objects
         self._x_coord_info = extracted.x
         self._y_coord_info = extracted.y
         self._z_coord_info = extracted.z
+        self._u_coord_info = extracted.u
+        self._v_coord_info = extracted.v
 
         # Apply regridding if needed
         if self._should_regrid and self._z_coord_info is not None:
@@ -172,6 +201,35 @@ class Source:
                     source_units=self._z_coord_info.source_units,
                     metadata=self._z_coord_info.metadata,
                 )
+
+                # Regrid u and v if present
+                if self._u_coord_info is not None and self._v_coord_info is not None:
+                    _, _, u = apply_regrid(
+                        self._x_coord_info.values,
+                        self._y_coord_info.values,
+                        self._u_coord_info.values,
+                        gridspec,
+                        self._context,
+                    )
+                    _, _, v = apply_regrid(
+                        self._x_coord_info.values,
+                        self._y_coord_info.values,
+                        self._v_coord_info.values,
+                        gridspec,
+                        self._context,
+                    )
+                    self._u_coord_info = CoordinateInfo(
+                        values=u,
+                        name=self._u_coord_info.name,
+                        source_units=self._u_coord_info.source_units,
+                        metadata=self._u_coord_info.metadata,
+                    )
+                    self._v_coord_info = CoordinateInfo(
+                        values=v,
+                        name=self._v_coord_info.name,
+                        source_units=self._v_coord_info.source_units,
+                        metadata=self._v_coord_info.metadata,
+                    )
 
         self._coords_extracted = True
 
@@ -359,17 +417,53 @@ class Source:
         """
         Get z dimension information with metadata.
 
+        For vector fields (when u and v are present), z represents the magnitude
+        of the vector field, computed lazily as sqrt(u^2 + v^2).
+
         Returns
         -------
         DimensionInfo or None
             Z dimension with values, units, name, and metadata.
-            None for 1D plots.
+            For vector fields, returns magnitude.
+            None for 1D plots or when no data is available.
         """
         if self._z_dimension is not None:
             return self._z_dimension
 
         self._extract()
 
+        # For vector fields, compute magnitude lazily
+        if self._u_coord_info is not None and self._v_coord_info is not None:
+            # Compute magnitude from u and v components
+            u_values = self._u_coord_info.values
+            v_values = self._v_coord_info.values
+            magnitude = np.sqrt(u_values**2 + v_values**2)
+
+            # Create a CoordinateInfo for magnitude
+            # Use u's metadata as a base, but update name and units
+            magnitude_info = CoordinateInfo(
+                values=magnitude,
+                name="magnitude",
+                source_units=self._u_coord_info.source_units,  # Assume same units as components
+                metadata={
+                    **self._u_coord_info.metadata,
+                    "long_name": "Vector magnitude",
+                },
+            )
+
+            # Determine target units with fallback
+            target_units = self._target_z_units
+            if target_units is None and self._generic_units is not None:
+                if self._context.is_2d:
+                    target_units = self._generic_units
+
+            # Build and cache the dimension
+            self._z_dimension = self._build_dimension(
+                "z", magnitude_info, target_units, "_z_dimension", silent=False
+            )
+            return self._z_dimension
+
+        # Regular scalar field case
         if self._z_coord_info is None:
             return None
 
@@ -385,22 +479,90 @@ class Source:
         )
 
     @property
+    def u(self) -> Optional[DimensionInfo]:
+        """
+        Get u component dimension information with metadata.
+
+        Returns
+        -------
+        DimensionInfo or None
+            U component with values, units, name, and metadata.
+            None if no vector data.
+        """
+        if self._u_dimension is not None:
+            return self._u_dimension
+
+        self._extract()
+
+        if self._u_coord_info is None:
+            return None
+
+        # Determine target units
+        target_units = self._target_u_units
+
+        return self._build_dimension(
+            "u", self._u_coord_info, target_units, "_u_dimension", silent=False
+        )
+
+    @property
+    def v(self) -> Optional[DimensionInfo]:
+        """
+        Get v component dimension information with metadata.
+
+        Returns
+        -------
+        DimensionInfo or None
+            V component with values, units, name, and metadata.
+            None if no vector data.
+        """
+        if self._v_dimension is not None:
+            return self._v_dimension
+
+        self._extract()
+
+        if self._v_coord_info is None:
+            return None
+
+        # Determine target units
+        target_units = self._target_v_units
+
+        return self._build_dimension(
+            "v", self._v_coord_info, target_units, "_v_dimension", silent=False
+        )
+
+    @property
     def u_values(self):
-        """Get u-component values (for vector plots)."""
-        # Not implemented in new architecture yet - return None for now
+        """Get u-component values (deprecated - use source.u.values instead)."""
+        import warnings
+
+        warnings.warn(
+            "u_values is deprecated. Use source.u.values instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if self.u is not None:
+            return self.u.values
         return None
 
     @property
     def v_values(self):
-        """Get v-component values (for vector plots)."""
-        # Not implemented in new architecture yet - return None for now
+        """Get v-component values (deprecated - use source.v.values instead)."""
+        import warnings
+
+        warnings.warn(
+            "v_values is deprecated. Use source.v.values instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if self.v is not None:
+            return self.v.values
         return None
 
     @property
     def magnitude(self):
         """Get magnitude of vector field (for backward compatibility)."""
-        if self.u_values is not None and self.v_values is not None:
-            return (self.u_values**2 + self.v_values**2) ** 0.5
+        if self.u is not None and self.v is not None:
+            return (self.u.values**2 + self.v.values**2) ** 0.5
         return None
 
     @property
@@ -531,6 +693,8 @@ def get_source(
     x=None,
     y=None,
     z=None,
+    u=None,
+    v=None,
     context=None,
     regrid=True,
     metadata=None,
@@ -538,6 +702,8 @@ def get_source(
     x_units=None,
     y_units=None,
     z_units=None,
+    u_units=None,
+    v_units=None,
     **kwargs,
 ):
     """
@@ -558,6 +724,12 @@ def get_source(
     z : numpy.ndarray or str, optional
         The z-coordinates of the data. If a string, it is assumed to be the name
         of the z-coordinate variable in data.
+    u : numpy.ndarray or str, optional
+        The u-component of the data (for vector plots). If a string, it is assumed
+        to be the name of the u-component variable in data.
+    v : numpy.ndarray or str, optional
+        The v-component of the data (for vector plots). If a string, it is assumed
+        to be the name of the v-component variable in data.
     context : PlotContext, optional
         Plot context to guide coordinate inference. If None, defaults to
         CARTESIAN_2D.
@@ -577,6 +749,10 @@ def get_source(
         Target units for y dimension. Overrides 'units' for y.
     z_units : str, optional
         Target units for z dimension. Overrides 'units' for z.
+    u_units : str, optional
+        Target units for u component. Overrides 'units' for u.
+    v_units : str, optional
+        Target units for v component. Overrides 'units' for v.
     **kwargs
         Additional metadata to merge with metadata dict.
 
@@ -616,6 +792,8 @@ def get_source(
         x=x,
         y=y,
         z=z,
+        u=u,
+        v=v,
         context=context,
         regrid=regrid,
         metadata=metadata,
@@ -623,4 +801,6 @@ def get_source(
         x_units=x_units,
         y_units=y_units,
         z_units=z_units,
+        u_units=u_units,
+        v_units=v_units,
     )
