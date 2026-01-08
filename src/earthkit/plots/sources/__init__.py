@@ -474,8 +474,11 @@ class Source:
         # Determine target units with fallback
         target_units = self._target_z_units
         if target_units is None and self._generic_units is not None:
-            # In 2D and geographic contexts, z is the data field
-            if self._context.is_2d:
+            # In 2D contexts, z is always the data field
+            # In 1D contexts with z (scatter/point_cloud), z is the color/data field
+            if self._context.is_2d or (
+                self._context.is_1d and self._z_coord_info is not None
+            ):
                 target_units = self._generic_units
 
         return self._build_dimension(
