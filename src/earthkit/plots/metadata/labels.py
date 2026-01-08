@@ -17,6 +17,10 @@ import warnings
 import numpy as np
 
 from earthkit.plots.metadata.formatters import TimeFormatter, format_month
+from earthkit.plots.utils.string_utils import (
+    list_to_human,
+    magnitude_string_from_components,
+)
 
 
 class LocationInfo:
@@ -262,6 +266,12 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         else:
             if issue_warnings:
                 warnings.warn(f'No key "{attr}" found in layer metadata.')
+
+        if isinstance(label, list):
+            if data.is_vector() and len(label) == 2:
+                label = magnitude_string_from_components(label[0], label[1])
+            else:
+                label = list_to_human(label)
 
         if remove_underscores:
             if isinstance(label, (list, tuple)):

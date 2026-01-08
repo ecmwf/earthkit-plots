@@ -30,6 +30,10 @@ from earthkit.plots.sources.extractors import (
 from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
+GRIDSPECS_TO_NOT_REGRID = [
+    "unknown",
+]
+
 
 class Source:
     """
@@ -172,7 +176,7 @@ class Source:
         # Apply regridding if needed
         if self._should_regrid and self._z_coord_info is not None:
             gridspec = self._extractor.get_gridspec()
-            if gridspec is not None:
+            if gridspec is not None and gridspec.name not in GRIDSPECS_TO_NOT_REGRID:
                 from earthkit.plots.sources.regrid import apply_regrid
 
                 x, y, z = apply_regrid(
@@ -564,6 +568,17 @@ class Source:
         if self.u is not None and self.v is not None:
             return (self.u.values**2 + self.v.values**2) ** 0.5
         return None
+
+    def is_vector(self) -> bool:
+        """
+        Check if this source represents vector data.
+
+        Returns
+        -------
+        bool
+            True if the source has both u and v components, False otherwise.
+        """
+        return self.u is not None and self.v is not None
 
     @property
     def crs(self):
