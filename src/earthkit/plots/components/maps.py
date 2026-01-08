@@ -19,6 +19,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
+from earthkit.plots.components.extractors import configure_style
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
@@ -741,6 +742,174 @@ class Map(Subplot):
                 list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels
             )
         return results
+
+    # @schema.choropleth.apply()
+    def choropleth(
+        self,
+        data,
+        *args,
+        z=None,
+        style=None,
+        units=None,
+        labels=False,
+        auto_style=True,
+        metadata=None,
+        **kwargs,
+    ):
+        """
+        Create a choropleth map from GeoDataFrame.
+
+        A choropleth map displays regions (polygons) colored according to
+        data values. Commonly used for visualizing statistics by geographic
+        region (e.g., population by country, temperature by state).
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame or GeometrySource
+            The data to plot. Can be:
+            - GeoDataFrame with geometry column and data columns
+            - GeometrySource object created from GeoDataFrame
+        column : str, optional
+            Name of the column containing data values for coloring.
+            If None, auto-detects first numeric column.
+        style : Style, optional
+            Style object for customizing appearance (colors, colormap, etc.)
+        units : str, optional
+            Target units for data values (e.g., "celsius", "kilometers")
+        labels : bool, optional
+            Whether to add labels to geometries. Default is False.
+        label_column : str, optional
+            Column name to use for labels. If None and labels=True,
+            auto-detects a suitable column (looks for 'name' in column names).
+        auto_style : bool, optional
+            Whether to automatically generate style. Default is True.
+        **kwargs
+            Additional keyword arguments:
+            - cmap : str - Colormap name (default: "viridis")
+            - vmin, vmax : float - Color scale limits
+            - edgecolor : color - Edge color for geometries (default: "black")
+            - linewidth : float - Edge line width (default: 0.5)
+            - alpha : float - Transparency (0-1)
+            - colorbar : bool - Whether to show colorbar (default: True)
+            - metadata : dict, optional
+                Additional metadata for the data source
+
+        Returns
+        -------
+        matplotlib collection
+            The matplotlib collection representing the choropleth
+        """
+        import cartopy.crs as ccrs
+        from matplotlib.cm import ScalarMappable
+
+        from earthkit.plots.components.layers import Layer
+        from earthkit.plots.sources import get_source
+        from earthkit.plots.sources.context import PlotContext
+        from earthkit.plots.sources.geometry import GeometrySource
+
+        if style is not None:
+            units = units or style.units
+
+        # Convert to GeometrySource if not already
+        if not isinstance(data, GeometrySource):
+            source = get_source(
+                data,
+                z=z,  # z parameter specifies the data column for geometry
+                context=PlotContext.GEOGRAPHIC_GEOMETRY,
+                units=units,
+                metadata=metadata,
+            )
+        else:
+            source = data
+
+        # Get geometries and data values
+        geometries = source.geometries
+        data_values = source.values
+
+        # Get CRS from source (or default to PlateCarree)
+        source_crs = source.crs
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
+
+        # Extract kwargs for matplotlib
+        style = configure_style(
+            "add_geometries", style, source, units, auto_style, kwargs
+        )
+        style_kwargs = style.to_add_geometries_kwargs(data_values)
+
+        # Prepare colors based on data values
+        if data_values is not None and auto_style:
+            # Store norm and cmap for colorbar
+            scalar_mappable = ScalarMappable(
+                norm=style_kwargs["norm"], cmap=style_kwargs["cmap"]
+            )
+            scalar_mappable.set_array(data_values)
+        else:
+            # No data values or no auto_style - use single color
+            scalar_mappable = None
+
+        # Render geometries
+        collection = self.ax.add_geometries(
+            geometries,
+            crs=source_crs,
+            **{**style_kwargs, **kwargs},
+        )
+
+        # Create layer for style/legend management
+        layer = Layer(source, collection, self, style)
+        if scalar_mappable is not None:
+            # Store scalar_mappable on layer for colorbar
+            layer._scalar_mappable = scalar_mappable
+            layer._units = source.units
+            layer._value_name = source.value_name
+        self.layers.append(layer)
+
+        # Add labels if requested
+        if labels:
+            label_column = labels if not isinstance(labels, bool) else None
+            self._add_choropleth_labels(source.data, label_column, **kwargs)
+
+        return collection
+
+    def _add_choropleth_labels(self, gdf, label_column=None, **kwargs):
+        """
+        Add labels to choropleth geometries.
+
+        Parameters
+        ----------
+        gdf : geopandas.GeoDataFrame
+            The GeoDataFrame with geometries and label data
+        label_column : str, optional
+            Column name to use for labels
+        **kwargs
+            Additional keyword arguments (e.g., adjust_labels)
+        """
+        from types import SimpleNamespace
+
+        # Determine label column
+        if label_column is None:
+            # Auto-detect: look for columns with 'name' in them
+            name_cols = [col for col in gdf.columns if "name" in col.lower()]
+            label_column = name_cols[0] if name_cols else None
+
+        if label_column is None:
+            # No suitable label column found
+            return
+
+        # Create records-like structure for _add_polygon_labels
+        records = []
+        for idx, row in gdf.iterrows():
+            record = SimpleNamespace()
+            record.geometry = row.geometry
+            record.attributes = {label_column: row[label_column]}
+            records.append(record)
+
+        # Use existing _add_polygon_labels infrastructure
+        self._add_polygon_labels(
+            records,
+            label_key=label_column,
+            adjust_labels=kwargs.get("adjust_labels", False),
+        )
 
     @schema.legend.apply()
     def legend(self, style=None, location=None, **kwargs):
