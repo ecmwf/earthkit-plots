@@ -18,6 +18,7 @@ dependencies:
 - matplotlib
 - pandas
 - cartopy
+- fiona
 - pint
 - pyyaml
 - numpy

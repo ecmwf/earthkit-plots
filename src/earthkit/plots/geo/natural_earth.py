@@ -247,3 +247,59 @@ class NaturalEarthDomain:
             ]
 
         return crs_bounds
+
+
+def load_layer(
+    config, resolution, ax, crs, max_resolution="high", min_resolution="low"
+):
+    """
+    Load Natural Earth layer data.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary with keys: category, name, attribute, label
+    resolution : str or None
+        Resolution to use (low/medium/high or specific resolution like "10m")
+    ax : matplotlib.axes.Axes
+        Axes to determine automatic resolution from
+    crs : cartopy.crs.CRS
+        CRS to determine automatic resolution from
+    max_resolution : str
+        Maximum resolution to use
+    min_resolution : str
+        Minimum resolution to use
+
+    Returns
+    -------
+    tuple
+        (records_list, attribute_key, label_key)
+    """
+    if resolution is None:
+        resolution = "medium"  # Default fallback
+
+    resolution = get_resolution(
+        resolution,
+        ax,
+        crs,
+        max_resolution,
+        min_resolution,
+    )
+
+    shape_name = config["name"]
+    if isinstance(shape_name, dict):
+        shape_name = shape_name[resolution]
+
+    shpfilename = shpreader.natural_earth(
+        resolution=resolution,
+        category=config["category"],
+        name=shape_name,
+    )
+    reader = shpreader.Reader(shpfilename)
+    records_list = list(reader.records())
+
+    # Use Natural Earth attribute names from configuration
+    attribute_key = config.get("attribute", "NAME_LONG")
+    label_key = config.get("label", "NAME_LONG")
+
+    return records_list, attribute_key, label_key
