@@ -752,6 +752,7 @@ class Map(Subplot):
         style=None,
         units=None,
         labels=False,
+        exclude_nan_labels=True,
         auto_style=True,
         metadata=None,
         **kwargs,
@@ -769,20 +770,30 @@ class Map(Subplot):
             The data to plot. Can be:
             - GeoDataFrame with geometry column and data columns
             - GeometrySource object created from GeoDataFrame
-        column : str, optional
+        z : str, optional
             Name of the column containing data values for coloring.
             If None, auto-detects first numeric column.
         style : Style, optional
             Style object for customizing appearance (colors, colormap, etc.)
         units : str, optional
             Target units for data values (e.g., "celsius", "kilometers")
-        labels : bool, optional
-            Whether to add labels to geometries. Default is False.
-        label_column : str, optional
-            Column name to use for labels. If None and labels=True,
-            auto-detects a suitable column (looks for 'name' in column names).
+        labels : bool or str, optional
+            Label configuration:
+            - False (default): No labels
+            - True: Use data values as labels
+            - str without {}: Column name to use for labels (e.g., "country_name")
+            - str with {}: Template string with Python format specifiers
+              Supports numeric formatting: "{temperature:.1f}°C", "{population:,.0f}"
+              Multi-column templates: "{name}: {value} units"
+              Metadata access: "{value:.1f} {units}", "{long_name}"
+              Unit formatting: "{units}" (default: ~E format) or "{units:E}" (E=LaTeX), "{units:R}" (raw)
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+            Default is True (NaN values are not labeled).
         auto_style : bool, optional
             Whether to automatically generate style. Default is True.
+        metadata : dict, optional
+            Additional metadata for the data source
         **kwargs
             Additional keyword arguments:
             - cmap : str - Colormap name (default: "viridis")
@@ -791,13 +802,59 @@ class Map(Subplot):
             - linewidth : float - Edge line width (default: 0.5)
             - alpha : float - Transparency (0-1)
             - colorbar : bool - Whether to show colorbar (default: True)
-            - metadata : dict, optional
-                Additional metadata for the data source
+            - adjust_labels : bool - Whether to adjust label positions to avoid overlap (default: False)
 
         Returns
         -------
         matplotlib collection
             The matplotlib collection representing the choropleth
+
+        Examples
+        --------
+        >>> import geopandas as gpd
+        >>> from earthkit.plots import Map
+        >>>
+        >>> # Basic choropleth with auto-detected data column
+        >>> gdf = gpd.read_file("countries.shp")
+        >>> map = Map(domain="global")
+        >>> map.choropleth(gdf)
+        >>> map.show()
+        >>>
+        >>> # Specify data column and colormap
+        >>> map.choropleth(gdf, z="population", cmap="YlOrRd")
+        >>>
+        >>> # With labels using data values (labels=True)
+        >>> map.choropleth(gdf, z="gdp", labels=True)
+        >>>
+        >>> # With labels using a specific column
+        >>> map.choropleth(gdf, z="population", labels="country_name")
+        >>>
+        >>> # With labels using template strings
+        >>> map.choropleth(gdf, z="storms", labels="{name}: {storms} storms")
+        >>>
+        >>> # With numeric formatting in labels
+        >>> map.choropleth(gdf, z="temp", labels="{region}: {temp:.1f}°C")
+        >>> map.choropleth(gdf, z="population", labels="{name}\n{population:,.0f}")
+        >>>
+        >>> # With metadata in labels (e.g., units from source)
+        >>> map.choropleth(
+        ...     gdf, z="temperature", labels="{name}: {temperature:.1f} {units}"
+        ... )
+        >>> map.choropleth(gdf, z="value", labels="{long_name}\n{value:.2f}")
+        >>>
+        >>> # With formatted units (LaTeX rendering)
+        >>> map.choropleth(
+        ...     gdf, z="wind_speed", labels="{name}\n{wind_speed:.1f} {units:E}"
+        ... )
+        >>> # Output: "Region A\n15.7 $m \\cdot s^{-1}$"
+        >>>
+        >>> # With unit conversion
+        >>> map.choropleth(gdf, z="temperature", units="celsius", cmap="RdBu_r")
+        >>>
+        >>> # With custom levels and style
+        >>> from earthkit.plots import Style
+        >>> style = Style(levels=[0, 10, 20, 30, 40], cmap="viridis")
+        >>> map.choropleth(gdf, z="value", style=style)
         """
         import cartopy.crs as ccrs
         from matplotlib.cm import ScalarMappable
@@ -866,27 +923,53 @@ class Map(Subplot):
 
         # Add labels if requested
         if labels:
-            label_column = labels if not isinstance(labels, bool) else None
-            self._add_choropleth_labels(source.data, label_column, **kwargs)
+            label_column = labels if not isinstance(labels, bool) else source._column
+            self._add_choropleth_labels(
+                source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs
+            )
 
         return collection
 
-    def _add_choropleth_labels(self, gdf, label_column=None, **kwargs):
+    def _add_choropleth_labels(
+        self, source, label_column=None, exclude_nan_labels=True, **kwargs
+    ):
         """
         Add labels to choropleth geometries.
 
         Parameters
         ----------
-        gdf : geopandas.GeoDataFrame
-            The GeoDataFrame with geometries and label data
+        source : GeometrySource
+            The GeometrySource with geometries, data, and metadata
         label_column : str, optional
-            Column name to use for labels
+            Column name to use for labels, or a template string with format
+            specifiers. Supports Python format specification mini-language for
+            numbers and can include metadata keys. Examples:
+            - "country_name" - Direct column reference
+            - "{country_name}" - Template with single column
+            - "{name}: {storms} storms" - Multi-column template
+            - "{temperature:.1f}°C" - Numeric formatting (1 decimal place)
+            - "Pop: {population:,.0f}" - Thousands separator, no decimals
+            - "{value:.1f} {units}" - Include metadata with default ~E formatting
+            - "{long_name}: {value:.2f}" - Include metadata long_name
+            - "{value:.1f} {units:E}" - Format units explicitly (E=LaTeX, R=raw)
+            - "{value:.1f} {units:R}" - Raw units (no formatting)
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+            Default is True.
         **kwargs
             Additional keyword arguments (e.g., adjust_labels)
         """
         from types import SimpleNamespace
 
-        # Determine label column
+        import numpy as np
+
+        gdf = source.data
+        data_values = source.values
+
+        # Check if label_column is a template string (contains curly braces)
+        is_template = label_column is not None and "{" in str(label_column)
+
+        # Determine label column or template
         if label_column is None:
             # Auto-detect: look for columns with 'name' in them
             name_cols = [col for col in gdf.columns if "name" in col.lower()]
@@ -896,18 +979,91 @@ class Map(Subplot):
             # No suitable label column found
             return
 
+        # Build metadata dict from source
+        # Common metadata keys users might want to access
+        metadata_keys = ["units", "long_name", "standard_name", "variable_name", "name"]
+        source_metadata = {}
+        for key in metadata_keys:
+            value = source.metadata(key)
+            if value is not None:
+                source_metadata[key] = value
+
+        # Parse template to detect units format spec
+        units_format_spec = None
+        has_units_placeholder = False
+        template_for_formatting = label_column
+        if is_template and "units" in source_metadata:
+            import re
+
+            # Check if {units} appears anywhere in the template
+            has_units_placeholder = (
+                re.search(r"\{units(?::[^}]+)?\}", label_column) is not None
+            )
+
+            # Look for {units:format_spec} pattern
+            units_match = re.search(r"\{units:([^}]+)\}", label_column)
+            if units_match:
+                units_format_spec = units_match.group(1)
+                # Remove the format spec from the template since we'll pre-format units
+                template_for_formatting = re.sub(
+                    r"\{units:[^}]+\}", "{units}", label_column
+                )
+            elif has_units_placeholder:
+                # {units} without format spec - use default format
+                units_format_spec = "~E"
+
         # Create records-like structure for _add_polygon_labels
         records = []
         for idx, row in gdf.iterrows():
+            # Skip this geometry if exclude_nan_labels is True and z-value is NaN
+            if exclude_nan_labels and data_values is not None:
+                if np.isnan(data_values[idx]):
+                    continue
+
             record = SimpleNamespace()
             record.geometry = row.geometry
-            record.attributes = {label_column: row[label_column]}
+
+            if is_template:
+                # Use template string with row data and metadata
+                # Create a formatter dict combining row data and metadata
+                formatter = {col: row[col] for col in gdf.columns if col != "geometry"}
+                # Add metadata to formatter (metadata takes precedence for conflicts)
+                formatter.update(source_metadata)
+
+                # Format units if units placeholder is present
+                if has_units_placeholder and "units" in formatter:
+                    from earthkit.plots.metadata import units as metadata_units
+
+                    formatter["units"] = metadata_units.format_units(
+                        formatter["units"], format=units_format_spec
+                    )
+
+                try:
+                    label_text = template_for_formatting.format(**formatter)
+                except KeyError as e:
+                    import warnings
+
+                    warnings.warn(
+                        f"Column/metadata key {e} not found for label template. "
+                        f"Available columns: {list(gdf.columns)} "
+                        f"Available metadata: {list(source_metadata.keys())}"
+                    )
+                    label_text = str(row.get(label_column, ""))
+
+                # Store the formatted label in a special key
+                record.attributes = {"__label__": label_text}
+                label_key_to_use = "__label__"
+            else:
+                # Use direct column value
+                record.attributes = {label_column: row[label_column]}
+                label_key_to_use = label_column
+
             records.append(record)
 
         # Use existing _add_polygon_labels infrastructure
         self._add_polygon_labels(
             records,
-            label_key=label_column,
+            label_key=label_key_to_use,
             adjust_labels=kwargs.get("adjust_labels", False),
         )
 

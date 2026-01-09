@@ -90,9 +90,7 @@ class GeometrySource:
     def _check_geopandas(self, data):
         """Verify this is a GeoDataFrame."""
         if data.__class__.__name__ != "GeoDataFrame":
-            raise TypeError(
-                f"GeometrySource requires a GeoDataFrame, got {type(data)}"
-            )
+            raise TypeError(f"GeometrySource requires a GeoDataFrame, got {type(data)}")
 
         if not hasattr(data, "geometry"):
             raise ValueError("GeoDataFrame must have a geometry column")
@@ -120,9 +118,7 @@ class GeometrySource:
 
         if self._column is not None:
             if self._column not in self._data.columns:
-                raise ValueError(
-                    f"Column '{self._column}' not found in GeoDataFrame"
-                )
+                raise ValueError(f"Column '{self._column}' not found in GeoDataFrame")
 
             self._value_name = self._column
             self._values = self._data[self._column].values
@@ -274,7 +270,7 @@ class GeometrySource:
             return None
 
         import cartopy.crs as ccrs
-        
+
         try:
             # Get the proj4 string from pyproj CRS
             with warnings.catch_warnings():
@@ -333,7 +329,7 @@ class GeometrySource:
         self._extract()
         if key in self._value_metadata:
             return self._value_metadata[key]
-        
+
         if key in ["name", "long_name", "standard_name", "variable_name"]:
             if isinstance(self._column, str):
                 return self._column
