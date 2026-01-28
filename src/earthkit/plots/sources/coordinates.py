@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -35,7 +34,7 @@ class CoordinateInfo:
     Empty string for auto-generated coordinates (e.g., indices).
     """
 
-    source_units: Optional[str] = None
+    source_units: str | None = None
     """Original units from the data source (e.g., from attrs['units'])."""
 
     metadata: dict = None
@@ -65,11 +64,11 @@ class ExtractedCoordinates:
     y: CoordinateInfo
     """Y coordinate information."""
 
-    z: Optional[CoordinateInfo] = None
+    z: CoordinateInfo | None = None
     """Z coordinate information (None for 1D plots)."""
 
-    u: Optional[CoordinateInfo] = None
+    u: CoordinateInfo | None = None
     """U component information (None for non-vector plots)."""
 
-    v: Optional[CoordinateInfo] = None
+    v: CoordinateInfo | None = None
     """V component information (None for non-vector plots)."""

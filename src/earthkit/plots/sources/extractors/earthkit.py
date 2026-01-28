@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Any
 
 import cartopy.crs as ccrs
 import numpy as np
@@ -32,11 +32,11 @@ class EarthkitExtractor(BaseExtractor):
 
     def extract_coordinates(
         self,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -271,7 +271,7 @@ class EarthkitExtractor(BaseExtractor):
 
         return default
 
-    def get_crs(self) -> Optional[Any]:
+    def get_crs(self) -> Any | None:
         """
         Extract CRS from earthkit data.
 
@@ -292,7 +292,7 @@ class EarthkitExtractor(BaseExtractor):
         # Default to PlateCarree for geographic data
         return ccrs.PlateCarree()
 
-    def get_gridspec(self) -> Optional[Any]:
+    def get_gridspec(self) -> Any | None:
         """
         Extract gridspec from earthkit data.
 
@@ -311,9 +311,9 @@ class EarthkitExtractor(BaseExtractor):
 
     def _extract_uv_components(
         self,
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
-    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
+    ) -> tuple[CoordinateInfo | None, CoordinateInfo | None]:
         """
         Extract U and V vector components with auto-detection.
 
@@ -403,7 +403,7 @@ class EarthkitExtractor(BaseExtractor):
 
     def _try_auto_detect_uv_from_fieldlist(
         self,
-    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+    ) -> tuple[CoordinateInfo | None, CoordinateInfo | None]:
         """
         Try to auto-detect U/V from earthkit FieldList.
 

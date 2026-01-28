@@ -26,7 +26,7 @@ The module is organized into three main categories:
 """
 
 import warnings
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 from cartopy.util import add_cyclic_point
@@ -82,21 +82,21 @@ def extract_plottables_1D(
     subplot: Any,
     method_name: str,
     args: tuple[Any, ...],
-    x: Optional[Union[str, np.ndarray, list[float]]] = None,
-    y: Optional[Union[str, np.ndarray, list[float]]] = None,
-    z: Optional[Union[str, np.ndarray, list[float]]] = None,
-    style: Optional[Style] = None,
+    x: str | np.ndarray | list[float] | None = None,
+    y: str | np.ndarray | list[float] | None = None,
+    z: str | np.ndarray | list[float] | None = None,
+    style: Style | None = None,
     no_style: bool = False,
-    units: Optional[str] = None,
-    x_units: Optional[str] = None,
-    y_units: Optional[str] = None,
-    z_units: Optional[str] = None,
-    every: Optional[int] = None,
-    source_units: Optional[str] = None,
+    units: str | None = None,
+    x_units: str | None = None,
+    y_units: str | None = None,
+    z_units: str | None = None,
+    every: int | None = None,
+    source_units: str | None = None,
     auto_style: bool = False,
     regrid: bool = False,
-    metadata: Optional[dict[str, Any]] = None,
-    label: Optional[str] = None,
+    metadata: dict[str, Any] | None = None,
+    label: str | None = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -353,21 +353,21 @@ def extract_plottables_2D(
     subplot: Any,
     method_name: str,
     args: tuple[Any, ...],
-    x: Optional[Union[str, np.ndarray, list[float]]] = None,
-    y: Optional[Union[str, np.ndarray, list[float]]] = None,
-    z: Optional[Union[str, np.ndarray, list[float]]] = None,
-    style: Optional[Style] = None,
+    x: str | np.ndarray | list[float] | None = None,
+    y: str | np.ndarray | list[float] | None = None,
+    z: str | np.ndarray | list[float] | None = None,
+    style: Style | None = None,
     no_style: bool = False,
-    units: Optional[str] = None,
-    x_units: Optional[str] = None,
-    y_units: Optional[str] = None,
-    z_units: Optional[str] = None,
-    every: Optional[int] = None,
-    source_units: Optional[str] = None,
+    units: str | None = None,
+    x_units: str | None = None,
+    y_units: str | None = None,
+    z_units: str | None = None,
+    every: int | None = None,
+    source_units: str | None = None,
     extract_domain: bool = False,
     auto_style: bool = False,
     regrid: bool = False,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -528,23 +528,23 @@ def extract_plottables_vector_2D(
     subplot: Any,
     method_name: str,
     args: tuple[Any, ...],
-    x: Optional[Union[str, np.ndarray, list[float]]] = None,
-    y: Optional[Union[str, np.ndarray, list[float]]] = None,
-    u: Optional[Union[str, np.ndarray, list[float]]] = None,
-    v: Optional[Union[str, np.ndarray, list[float]]] = None,
-    style: Optional[Style] = None,
+    x: str | np.ndarray | list[float] | None = None,
+    y: str | np.ndarray | list[float] | None = None,
+    u: str | np.ndarray | list[float] | None = None,
+    v: str | np.ndarray | list[float] | None = None,
+    style: Style | None = None,
     no_style: bool = False,
-    units: Optional[str] = None,
-    u_units: Optional[str] = None,
-    v_units: Optional[str] = None,
-    x_units: Optional[str] = None,
-    y_units: Optional[str] = None,
-    source_units: Optional[str] = None,
+    units: str | None = None,
+    u_units: str | None = None,
+    v_units: str | None = None,
+    x_units: str | None = None,
+    y_units: str | None = None,
+    source_units: str | None = None,
     extract_domain: bool = False,
     auto_style: bool = False,
-    resample: Optional[Any] = None,
+    resample: Any | None = None,
     colors: bool = False,
-    metadata: Optional[dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
     **kwargs: Any,
 ) -> Any:
     """
@@ -839,19 +839,19 @@ def extract_plottables_vector_2D(
 
 def extract_plottables_envelope(
     subplot: Any,
-    data: Optional[Union[np.ndarray, list[float]]] = None,
-    x: Optional[Union[str, np.ndarray, list[float]]] = None,
-    y: Optional[Union[str, np.ndarray, list[float]]] = None,
-    z: Optional[Union[str, np.ndarray, list[float]]] = None,
-    every: Optional[int] = None,
-    units: Optional[str] = None,
-    x_units: Optional[str] = None,
-    y_units: Optional[str] = None,
-    z_units: Optional[str] = None,
-    source_units: Optional[str] = None,
+    data: np.ndarray | list[float] | None = None,
+    x: str | np.ndarray | list[float] | None = None,
+    y: str | np.ndarray | list[float] | None = None,
+    z: str | np.ndarray | list[float] | None = None,
+    every: int | None = None,
+    units: str | None = None,
+    x_units: str | None = None,
+    y_units: str | None = None,
+    z_units: str | None = None,
+    source_units: str | None = None,
     extract_domain: bool = False,
     **kwargs: Any,
-) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     """
     Extract data for envelope plotting methods (e.g., fill_between).
 
@@ -953,9 +953,9 @@ def extract_plottables_envelope(
 
 def configure_style(
     method_name: str,
-    style: Optional[Style],
+    style: Style | None,
     source: Any,
-    units: Optional[str],
+    units: str | None,
     auto_style: bool,
     kwargs: dict[str, Any],
 ) -> Style:
@@ -1014,8 +1014,8 @@ def configure_style(
 
 
 def apply_scale_factor(
-    style: Style, source: Any, z: Optional[Union[str, np.ndarray, list[float]]]
-) -> Optional[np.ndarray]:
+    style: Style, source: Any, z: str | np.ndarray | list[float] | None
+) -> np.ndarray | None:
     """
     Process z values by applying scale factors.
 
@@ -1053,9 +1053,9 @@ def apply_scale_factor(
 def apply_sampling(
     x_values: np.ndarray,
     y_values: np.ndarray,
-    z_values: Optional[np.ndarray],
-    every: Optional[int],
-) -> tuple[np.ndarray, np.ndarray, Optional[np.ndarray]]:
+    z_values: np.ndarray | None,
+    every: int | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
     """
     Apply sampling to x, y, and z values if a sampling interval is specified.
 
@@ -1108,7 +1108,7 @@ def _handle_specialized_grids(
     style: Style,
     method_name: str,
     kwargs: dict[str, Any],
-) -> Optional[Any]:
+) -> Any | None:
     """
     Handle plotting for specialized grid types like healpix and octahedral.
 

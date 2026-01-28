@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Any
 
 import earthkit.data as ek_data
 import numpy as np
@@ -85,20 +85,20 @@ class Source:
         self,
         data: Any,
         *,
-        x: Optional[Union[str, np.ndarray]] = None,
-        y: Optional[Union[str, np.ndarray]] = None,
-        z: Optional[Union[str, np.ndarray]] = None,
-        u: Optional[Union[str, np.ndarray]] = None,
-        v: Optional[Union[str, np.ndarray]] = None,
+        x: str | np.ndarray | None = None,
+        y: str | np.ndarray | None = None,
+        z: str | np.ndarray | None = None,
+        u: str | np.ndarray | None = None,
+        v: str | np.ndarray | None = None,
         context: PlotContext = PlotContext.CARTESIAN_2D,
         regrid: bool = True,
-        metadata: Optional[dict] = None,
-        units: Optional[str] = None,
-        x_units: Optional[str] = None,
-        y_units: Optional[str] = None,
-        z_units: Optional[str] = None,
-        u_units: Optional[str] = None,
-        v_units: Optional[str] = None,
+        metadata: dict | None = None,
+        units: str | None = None,
+        x_units: str | None = None,
+        y_units: str | None = None,
+        z_units: str | None = None,
+        u_units: str | None = None,
+        v_units: str | None = None,
     ):
         self._extractor = _get_extractor(data, metadata)
         self._x_spec = x
@@ -121,24 +121,24 @@ class Source:
         self._target_v_units = v_units  # Explicit v units
 
         # Track which conversions actually succeeded (populated during conversion)
-        self._applied_x_units: Optional[str] = None
-        self._applied_y_units: Optional[str] = None
-        self._applied_z_units: Optional[str] = None
+        self._applied_x_units: str | None = None
+        self._applied_y_units: str | None = None
+        self._applied_z_units: str | None = None
 
         # Lazy extraction flags
         self._coords_extracted = False
-        self._x_coord_info: Optional[CoordinateInfo] = None
-        self._y_coord_info: Optional[CoordinateInfo] = None
-        self._z_coord_info: Optional[CoordinateInfo] = None
-        self._u_coord_info: Optional[CoordinateInfo] = None
-        self._v_coord_info: Optional[CoordinateInfo] = None
+        self._x_coord_info: CoordinateInfo | None = None
+        self._y_coord_info: CoordinateInfo | None = None
+        self._z_coord_info: CoordinateInfo | None = None
+        self._u_coord_info: CoordinateInfo | None = None
+        self._v_coord_info: CoordinateInfo | None = None
 
         # Cached DimensionInfo objects (created lazily)
-        self._x_dimension: Optional[DimensionInfo] = None
-        self._y_dimension: Optional[DimensionInfo] = None
-        self._z_dimension: Optional[DimensionInfo] = None
-        self._u_dimension: Optional[DimensionInfo] = None
-        self._v_dimension: Optional[DimensionInfo] = None
+        self._x_dimension: DimensionInfo | None = None
+        self._y_dimension: DimensionInfo | None = None
+        self._z_dimension: DimensionInfo | None = None
+        self._u_dimension: DimensionInfo | None = None
+        self._v_dimension: DimensionInfo | None = None
 
         # Backward compatibility properties
         self._data = data  # For backward compatibility
@@ -240,7 +240,7 @@ class Source:
     def _convert_values(
         self,
         values: np.ndarray,
-        source_units: Optional[str],
+        source_units: str | None,
         target_units: str,
         coord_name: str,
         silent: bool = False,
@@ -308,7 +308,7 @@ class Source:
         self,
         coord_name: str,
         coord_info: CoordinateInfo,
-        target_units: Optional[str],
+        target_units: str | None,
         cache_attr: str,
         silent: bool = True,
     ) -> DimensionInfo:
@@ -417,7 +417,7 @@ class Source:
         )
 
     @property
-    def z(self) -> Optional[DimensionInfo]:
+    def z(self) -> DimensionInfo | None:
         """
         Get z dimension information with metadata.
 
@@ -486,7 +486,7 @@ class Source:
         )
 
     @property
-    def u(self) -> Optional[DimensionInfo]:
+    def u(self) -> DimensionInfo | None:
         """
         Get u component dimension information with metadata.
 
@@ -512,7 +512,7 @@ class Source:
         )
 
     @property
-    def v(self) -> Optional[DimensionInfo]:
+    def v(self) -> DimensionInfo | None:
         """
         Get v component dimension information with metadata.
 
@@ -627,7 +627,7 @@ class Source:
         return self._metadata_resolver.get(key, default)
 
     @property
-    def units(self) -> Optional[str]:
+    def units(self) -> str | None:
         """
         Get units for the primary data dimension (context-dependent).
 
@@ -644,7 +644,7 @@ class Source:
             return None
 
     @property
-    def source_units(self) -> Optional[str]:
+    def source_units(self) -> str | None:
         """
         Get original source units before any conversion.
 
@@ -677,7 +677,7 @@ class Source:
         return {"base_time": None, "valid_time": None}
 
 
-def _get_extractor(data: Any, metadata: Optional[dict] = None) -> DataExtractor:
+def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     """
     Factory to create appropriate extractor for data type.
 

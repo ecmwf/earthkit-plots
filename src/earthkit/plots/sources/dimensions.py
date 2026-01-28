@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -53,8 +53,8 @@ class DimensionInfo:
         self,
         name: str,
         values: np.ndarray,
-        source_units: Optional[str],
-        applied_units: Optional[str],
+        source_units: str | None,
+        applied_units: str | None,
         metadata_dict: dict,
     ):
         self.name = name

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 
@@ -36,17 +36,17 @@ class NumpyExtractor(BaseExtractor):
         Optional metadata dict for the data.
     """
 
-    def __init__(self, data: Any, metadata: Optional[dict] = None):
+    def __init__(self, data: Any, metadata: dict | None = None):
         super().__init__(data)
         self._metadata = metadata or {}
 
     def extract_coordinates(
         self,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -122,8 +122,8 @@ class NumpyExtractor(BaseExtractor):
 
     def _extract_1d_coordinates(
         self,
-        x_arr: Optional[np.ndarray],
-        y_arr: Optional[np.ndarray],
+        x_arr: np.ndarray | None,
+        y_arr: np.ndarray | None,
     ) -> dict[str, CoordinateInfo]:
         """
         Extract coordinates for 1D plots (lines, bars etc).
@@ -175,11 +175,11 @@ class NumpyExtractor(BaseExtractor):
 
     def _extract_2d_coordinates(
         self,
-        x_arr: Optional[np.ndarray],
-        y_arr: Optional[np.ndarray],
-        z_arr: Optional[np.ndarray],
-        u_arr: Optional[np.ndarray],
-        v_arr: Optional[np.ndarray],
+        x_arr: np.ndarray | None,
+        y_arr: np.ndarray | None,
+        z_arr: np.ndarray | None,
+        u_arr: np.ndarray | None,
+        v_arr: np.ndarray | None,
     ) -> dict[str, CoordinateInfo]:
         """
         Extract coordinates for 2D plots including optional vector components.
