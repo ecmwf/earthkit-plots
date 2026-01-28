@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -26,7 +26,7 @@ def apply_regrid(
     z: np.ndarray,
     gridspec: Any,
     context: PlotContext,
-    target_resolution: Optional[float] = None,
+    target_resolution: float | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Apply regridding to data with special grid structure.

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Union
+from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -35,22 +35,22 @@ class XarrayExtractor(BaseExtractor):
         Xarray data structure.
     """
 
-    def __init__(self, data: Union[xr.DataArray, xr.Dataset]):
+    def __init__(self, data: xr.DataArray | xr.Dataset):
         super().__init__(data)
 
         # Remove singleton dimensions for easier handling
         self.data = data.squeeze()
 
         # Set up cache for selected DataArray (when data is Dataset)
-        self._selected_dataarray: Optional[xr.DataArray] = None
+        self._selected_dataarray: xr.DataArray | None = None
 
     def extract_coordinates(
         self,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
         context: PlotContext,
     ) -> ExtractedCoordinates:
         """
@@ -94,8 +94,8 @@ class XarrayExtractor(BaseExtractor):
     def _extract_1d_coordinates(
         self,
         da: xr.DataArray,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
         context: PlotContext,
     ) -> dict[str, CoordinateInfo]:
         """
@@ -307,11 +307,11 @@ class XarrayExtractor(BaseExtractor):
     def _extract_2d_coordinates(
         self,
         da: xr.DataArray,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
         context: PlotContext,
     ) -> dict[str, CoordinateInfo]:
         """
@@ -466,10 +466,10 @@ class XarrayExtractor(BaseExtractor):
     def _try_extract_geographic_2d(
         self,
         da: xr.DataArray,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-    ) -> Optional[dict[str, CoordinateInfo]]:
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+    ) -> dict[str, CoordinateInfo] | None:
         """
         Try to extract geographic coordinates for 2D plots.
 
@@ -636,8 +636,8 @@ class XarrayExtractor(BaseExtractor):
     def _resolve_coordinate_spec(
         self,
         da: xr.DataArray,
-        spec: Union[str, np.ndarray],
-    ) -> tuple[np.ndarray, str, dict, Optional[str]]:
+        spec: str | np.ndarray,
+    ) -> tuple[np.ndarray, str, dict, str | None]:
         """
         Resolve a coordinate specification to (values, name, metadata, units).
 
@@ -692,9 +692,9 @@ class XarrayExtractor(BaseExtractor):
 
     def _get_dataarray(
         self,
-        z: Optional[Union[str, np.ndarray]],
-        x: Optional[Union[str, np.ndarray]] = None,
-        y: Optional[Union[str, np.ndarray]] = None,
+        z: str | np.ndarray | None,
+        x: str | np.ndarray | None = None,
+        y: str | np.ndarray | None = None,
     ) -> xr.DataArray:
         """
         Get DataArray from Dataset if needed.
@@ -812,7 +812,7 @@ class XarrayExtractor(BaseExtractor):
 
         return default
 
-    def get_crs(self) -> Optional[Any]:
+    def get_crs(self) -> Any | None:
         """
         Extract CRS from xarray data.
 
@@ -855,7 +855,7 @@ class XarrayExtractor(BaseExtractor):
 
         return None
 
-    def get_gridspec(self) -> Optional[Any]:
+    def get_gridspec(self) -> Any | None:
         """
         Extract gridspec from xarray attrs.
 
@@ -872,9 +872,9 @@ class XarrayExtractor(BaseExtractor):
 
     def _extract_uv_components(
         self,
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
-    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
+    ) -> tuple[CoordinateInfo | None, CoordinateInfo | None]:
         """
         Extract U and V vector components with auto-detection.
 
@@ -933,7 +933,7 @@ class XarrayExtractor(BaseExtractor):
 
     def _try_auto_detect_uv_from_dataset(
         self,
-    ) -> tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]:
+    ) -> tuple[CoordinateInfo | None, CoordinateInfo | None]:
         """
         Try to auto-detect U/V component pairs from Dataset variables.
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional
+from typing import Any
 
 from earthkit.plots.sources.protocols import DataExtractor
 
@@ -27,7 +27,7 @@ class MetadataResolver:
     3. Defaults (lowest priority)
     """
 
-    def __init__(self, extractor: DataExtractor, user_metadata: Optional[dict] = None):
+    def __init__(self, extractor: DataExtractor, user_metadata: dict | None = None):
         """
         Initialize metadata resolver.
 
@@ -79,7 +79,7 @@ class MetadataResolver:
 
         return value
 
-    def get_units(self) -> Optional[str]:
+    def get_units(self) -> str | None:
         """
         Get units with special handling.
 
@@ -93,7 +93,7 @@ class MetadataResolver:
             return units[0]
         return units
 
-    def get_long_name(self) -> Optional[str]:
+    def get_long_name(self) -> str | None:
         """
         Get long name for labeling.
 

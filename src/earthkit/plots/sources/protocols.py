@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Optional, Protocol, Union
+from typing import Any, Protocol
 
 import numpy as np
 
@@ -30,11 +30,11 @@ class DataExtractor(Protocol):
 
     def extract_coordinates(
         self,
-        x: Optional[Union[str, np.ndarray]],
-        y: Optional[Union[str, np.ndarray]],
-        z: Optional[Union[str, np.ndarray]],
-        u: Optional[Union[str, np.ndarray]],
-        v: Optional[Union[str, np.ndarray]],
+        x: str | np.ndarray | None,
+        y: str | np.ndarray | None,
+        z: str | np.ndarray | None,
+        u: str | np.ndarray | None,
+        v: str | np.ndarray | None,
         context: PlotContext,
     ):
         """
@@ -85,7 +85,7 @@ class DataExtractor(Protocol):
         """
         ...
 
-    def get_crs(self) -> Optional[Any]:
+    def get_crs(self) -> Any | None:
         """
         Extract coordinate reference system.
 
@@ -96,7 +96,7 @@ class DataExtractor(Protocol):
         """
         ...
 
-    def get_gridspec(self) -> Optional[Any]:
+    def get_gridspec(self) -> Any | None:
         """
         Extract grid specification for regridding.
 

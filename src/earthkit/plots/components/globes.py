@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import io
 import uuid
 from pathlib import Path
 
@@ -141,7 +140,7 @@ def globe(
     coastlines = ancillary.load("coastlines", "geo")
 
     # The open "wt" parameters are: write, text mode;
-    with io.open(filepath, "wt", encoding="utf8") as outfile:
+    with open(filepath, "w", encoding="utf8") as outfile:
         # The data is passed in as a dictionary so we can pass different
         # arguments to the template
         outfile.write(
