@@ -21,6 +21,7 @@ import numpy as np
 
 from earthkit.plots import metadata
 from earthkit.plots.schemas import schema
+from earthkit.plots.sources.dimensions import DimensionInfo
 from earthkit.plots.utils import iter_utils, string_utils
 
 logger = logging.getLogger(__name__)
@@ -111,8 +112,7 @@ class BaseFormatter(Formatter):
                 # Check if result is a DimensionInfo object
                 elif (
                     len(result) == 1
-                    and hasattr(result[0], "__class__")
-                    and result[0].__class__.__name__ == "DimensionInfo"
+                    and isinstance(result[0], DimensionInfo)
                 ):
                     dim_info = result[0]
                     # Handle DimensionInfo attribute/method access
