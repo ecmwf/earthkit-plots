@@ -312,9 +312,7 @@ def _identify_primary_axis(source, x, y):
     return None
 
 
-def _apply_coordinate_unit_conversion(
-    source, units, x_units, y_units, x, y, method_name
-):
+def _apply_coordinate_unit_conversion(source):
     """
     Get x and y coordinate values from source (unit conversion already applied).
 
@@ -326,16 +324,6 @@ def _apply_coordinate_unit_conversion(
     ----------
     source : Source
         The data source object (already configured with target units).
-    units : str or None
-        (Unused - kept for API compatibility)
-    x_units : str or None
-        (Unused - kept for API compatibility)
-    y_units : str or None
-        (Unused - kept for API compatibility)
-    x, y : str, array-like, or None
-        (Unused - kept for API compatibility)
-    method_name : str
-        (Unused - kept for API compatibility)
 
     Returns
     -------
