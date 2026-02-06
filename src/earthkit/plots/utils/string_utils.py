@@ -127,7 +127,7 @@ def magnitude_string_from_components(u_name, v_name):
         # "U component of X" / "u_component_of_X" -> "X"
         # Also handles "X u component of Y" -> "X Y"
         (rf"(.+?){SEP}[uv]{SEP}component{SEP}of{SEP}(.+)", r"\1 \2"),
-        # "u component of X" with no prefix
+        # "u component of X" with no prefix -> "X"
         (rf"^[uv]{SEP}component{SEP}of{SEP}(.+)", r"\1"),
         # "X U component" / "X_u_component" -> "X"
         (rf"(.+?){SEP}[uv]{SEP}component$", r"\1"),
