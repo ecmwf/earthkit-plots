@@ -255,7 +255,7 @@ class BaseFormatter(Formatter):
 
 class SourceFormatter(BaseFormatter):
     """
-    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
+    Formatter of earthkit-plots `Layers`, enabling convenient titles and labels.
 
     Supports dimension access like {x.units}, {y.variable_name}, {z.units}.
     """
