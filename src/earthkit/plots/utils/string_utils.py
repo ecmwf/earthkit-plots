@@ -184,9 +184,7 @@ def magnitude_string_from_components(u_name, v_name):
         # Remove multiple spaces (including leading/trailing)
         magnitude = re.sub(r"\s+", " ", magnitude).strip()
 
-        if not magnitude:
-            magnitude = f"{u_name} and {v_name}"
-    else:
+    if not magnitude:
         # If we couldn't extract a common name, use both component names
         magnitude = f"{u_name} and {v_name}"
 
