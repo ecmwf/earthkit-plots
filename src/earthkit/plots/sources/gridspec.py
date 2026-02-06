@@ -218,8 +218,12 @@ class GridSpec:
         The data object containing the grid metadata.
     """
 
-    def __init__(self, grid):
-        self._grid = grid
+    def __init__(self, gs: dict | str):
+        from eckit.geo import Grid
+
+        self._grid = Grid(gs)
+        # TODO: we need to store the original grid spec because Grid.spec failing at the moment
+        self._grid_spec_in = gs
 
     @staticmethod
     def from_data(data):
@@ -253,8 +257,6 @@ class GridSpec:
                         pass
 
         if gs is not None:
-            from eckit.geo import Grid
-
             # TODO: converting legacy earthkit-data gridspec object to dict
             if not isinstance(gs, dict):
                 if hasattr(gs, "_d"):
@@ -268,7 +270,7 @@ class GridSpec:
                     ]:
                         gs.pop(k, None)
             LOG.debug("Creating Grid from gridspec:", type(gs))
-            return GridSpec(Grid(gs))
+            return GridSpec(gs)
 
         return None
 
@@ -283,20 +285,43 @@ class GridSpec:
         # This is a temporary solution because the order/ordering default
         # is "nested" in eckit.geo.Grid but it is "ring" in the matrix interface of
         # earthkit-regrid.
-        if self.name == "healpix":
+
+        try:
             spec = self._grid.spec.copy()
+
+        except Exception:
+            # fallback to the original grid spec if Grid.spec is not working
+            if isinstance(self._grid_spec_in, dict):
+                spec = self._grid_spec_in.copy()
+            else:
+                import json
+
+                spec = json.loads(self._grid_spec_in)
+
+        if self.name == "healpix":
             if any(k in spec for k in ("ordering", "order")):
                 return spec
             else:
                 spec["order"] = "nested"
                 return spec
 
-        return self._grid.spec
+        return spec
 
     @property
     def name(self):
         # TODO: refactor this
-        grid = self._grid.spec.get("grid")
+
+        # NOTE: Grid.spec failing at the moment, we need to use the original grid spec to guess the grid type for now
+        try:
+            grid = self._grid.spec.get("grid")
+        except Exception:
+            if isinstance(self._grid_spec_in, str):
+                import json
+
+                grid = json.loads(self._grid_spec_in).get("grid")
+            elif isinstance(self._grid_spec_in, dict):
+                grid = self._grid_spec_in.get("grid")
+
         if grid:
             if isinstance(grid, str):
                 if HEALPIX_PATTERN.match(grid):
