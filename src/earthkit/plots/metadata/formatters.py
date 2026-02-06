@@ -124,11 +124,7 @@ class BaseFormatter(Formatter):
                         attr_value = getattr(dim_info, method)
                         # If it's a callable (like metadata()), we can't call it without args
                         # Otherwise, get the attribute value
-                        if callable(attr_value):
-                            # metadata() is special - return a function that can be called
-                            result = [attr_value]
-                        else:
-                            result = [attr_value]
+                        result = [attr_value]
                     elif method in metadata.labels.MAGIC_KEYS:
                         # Handle magic keys by calling metadata() on the dimension
                         # Get the preference list for this magic key
