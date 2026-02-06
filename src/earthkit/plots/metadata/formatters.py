@@ -110,10 +110,7 @@ class BaseFormatter(Formatter):
                 if method in SPECIAL_METHODS:
                     result = SPECIAL_METHODS[method](result)
                 # Check if result is a DimensionInfo object
-                elif (
-                    len(result) == 1
-                    and isinstance(result[0], DimensionInfo)
-                ):
+                elif len(result) == 1 and isinstance(result[0], DimensionInfo):
                     dim_info = result[0]
                     # Handle DimensionInfo attribute/method access
                     if method == "metadata":
