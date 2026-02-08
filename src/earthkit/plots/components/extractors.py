@@ -172,9 +172,7 @@ def extract_plottables_1D(
         z_values = None
 
     # Step 4: Apply unit conversion to x and y values if needed
-    x_values, y_values = _apply_coordinate_unit_conversion(
-        source, units, x_units, y_units, x, y, method_name
-    )
+    x_values, y_values = _apply_coordinate_unit_conversion(source)
 
     # Step 5: Apply sampling if specified
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
