@@ -446,15 +446,18 @@ class EarthkitExtractor(BaseExtractor):
         u_param, v_param = uv_pair
 
         # Extract fields
-        try:
-            u_field = self.data.sel(param=u_param)
-            v_field = self.data.sel(param=v_param)
-        except (AttributeError, KeyError):
+        u_field = None
+        v_field = None
+        for key in ["param", "short_name"]:
             try:
-                u_field = self.data.sel(short_name=u_param)
-                v_field = self.data.sel(short_name=v_param)
+                u_field = self.data.sel(**{key: u_param})
+                v_field = self.data.sel(**{key: v_param})
+                break
             except (AttributeError, KeyError):
-                return None, None
+                continue
+
+        if u_field is None or v_field is None:
+            return None, None
 
         # Build CoordinateInfo objects
         u_values = u_field.to_numpy(flatten=False)
