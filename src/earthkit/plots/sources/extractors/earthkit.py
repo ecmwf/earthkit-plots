@@ -424,17 +424,13 @@ class EarthkitExtractor(BaseExtractor):
             # Try to get all parameters from the FieldList
             params = []
             for i in range(len(self.data)):
-                try:
-                    param = self.data[i].metadata("param")
-                    if param:
-                        params.append(param)
-                except (AttributeError, KeyError):
-                    try:
-                        param = self.data[i].metadata("shortName")
-                        if param:
-                            params.append(param)
-                    except (AttributeError, KeyError):
-                        pass
+				for key in ["param", "shortName"]:
+	                try:
+	                    param = self.data[i].metadata(key)
+	                    if param:
+	                        params.append(param)
+	                except (AttributeError, KeyError):
+	                    continue
         except (TypeError, AttributeError):
             return None, None
 
