@@ -85,7 +85,7 @@ def extract_plottables_1D(
     x: str | np.ndarray | list[float] | None = None,
     y: str | np.ndarray | list[float] | None = None,
     z: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     x_units: str | None = None,
@@ -115,8 +115,9 @@ def extract_plottables_1D(
         Positional arguments passed to the plotting method.
     x, y, z : str, array-like, or None, optional
         Data coordinates. If strings, they are treated as coordinate names.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -126,7 +127,7 @@ def extract_plottables_1D(
     source_units : str, optional
         Units of the source data.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     regrid : bool, default=False
         Whether to enable regridding for the data source.
     metadata : dict, optional
@@ -145,6 +146,15 @@ def extract_plottables_1D(
     --------
     >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
+    # Step 0: Handle deprecation of auto_style parameter
+    if auto_style:
+        warnings.warn(
+            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
+            "Please use style='auto' instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
     # Step 1: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
     source = get_source(
@@ -342,7 +352,7 @@ def extract_plottables_2D(
     x: str | np.ndarray | list[float] | None = None,
     y: str | np.ndarray | list[float] | None = None,
     z: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     x_units: str | None = None,
@@ -373,8 +383,9 @@ def extract_plottables_2D(
         Positional arguments passed to the plotting method.
     x, y, z : str, array-like, or None, optional
         Data coordinates. If strings, they are treated as coordinate names.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -386,7 +397,7 @@ def extract_plottables_2D(
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     regrid : bool, default=False
         Whether to enable regridding for the data source.
     metadata : dict, optional
@@ -405,6 +416,15 @@ def extract_plottables_2D(
     ...     subplot, "pcolormesh", (), x=[1, 2, 3], y=[4, 5, 6], z=[[1, 2], [3, 4]]
     ... )
     """
+    # Step 0: Handle deprecation of auto_style parameter
+    if auto_style:
+        warnings.warn(
+            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
+            "Please use style='auto' instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+
     # Step 1: Enable regridding for contour methods
     if method_name.startswith("contour"):
         regrid = True
@@ -518,7 +538,7 @@ def extract_plottables_vector_2D(
     y: str | np.ndarray | list[float] | None = None,
     u: str | np.ndarray | list[float] | None = None,
     v: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     u_units: str | None = None,
@@ -555,8 +575,9 @@ def extract_plottables_vector_2D(
         Data coordinates. If strings, they are treated as coordinate names.
     u, v : str, array-like, or None, optional
         U and V components. Can be variable names or arrays.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -570,7 +591,7 @@ def extract_plottables_vector_2D(
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     resample : Resample or None, optional
         Resampling strategy for the vector field.
     colors : bool, default=False
@@ -601,6 +622,15 @@ def extract_plottables_vector_2D(
     # Support deprecated source_units parameter
     if source_units is not None and units is None:
         units = source_units
+
+    # Handle deprecation of auto_style parameter
+    if auto_style:
+        warnings.warn(
+            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
+            "Please use style='auto' instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
 
     # Step 1: Handle different argument patterns and create a unified source
     source = None
@@ -939,7 +969,7 @@ def extract_plottables_envelope(
 
 def configure_style(
     method_name: str,
-    style: Style | None,
+    style: Style | str | None,
     source: Any,
     units: str | None,
     auto_style: bool,
@@ -957,7 +987,8 @@ def configure_style(
     method_name : str
         The name of the plotting method.
     style : Style or None
-        An existing style object, or None to create a new one.
+        An existing style object, or None to create a new one. If the string "auto",
+        automatic style detection will be used.
     source : Any
         The data source object.
     units : str or None
@@ -976,6 +1007,11 @@ def configure_style(
     --------
     >>> style = configure_style("contour", None, source, "K", False, {})
     """
+    # Handle style="auto" as an alternative to auto_style=True
+    if style == "auto":
+        auto_style = True
+        style = None
+
     if style is not None:
         return style
 

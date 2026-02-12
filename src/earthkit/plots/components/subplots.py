@@ -429,6 +429,11 @@ class Subplot:
 
     def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
         """Configures style based on method name, style, source, and units."""
+        # Handle style="auto" as an alternative to auto_style=True
+        if style == "auto":
+            auto_style = True
+            style = None
+
         if style:
             return style
         style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
