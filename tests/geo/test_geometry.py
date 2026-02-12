@@ -14,8 +14,8 @@
 
 import math
 
-from shapely.geometry import LineString, Point, Polygon
 import cartopy.crs as ccrs
+from shapely.geometry import LineString, Point, Polygon
 
 from earthkit.plots.geo import geometry
 
