@@ -17,6 +17,10 @@ import warnings
 import numpy as np
 
 from earthkit.plots.metadata.formatters import TimeFormatter, format_month
+from earthkit.plots.utils.string_utils import (
+    list_to_human,
+    magnitude_string_from_components,
+)
 
 
 class LocationInfo:
@@ -79,9 +83,9 @@ def get_location(data):
     # Method 2: Try coordinate values (take first/mean if arrays)
     if lat is None or lon is None:
         try:
-            if hasattr(data, "y_values") and hasattr(data, "x_values"):
-                y_vals = data.y_values
-                x_vals = data.x_values
+            if hasattr(data, "y") and hasattr(data, "x"):
+                y_vals = data.y.values
+                x_vals = data.x.values
                 if isinstance(y_vals, np.ndarray):
                     lat = (
                         float(np.mean(y_vals))
@@ -227,10 +231,12 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
 
     else:
         if axis is not None:
-            metadata = getattr(data, f"{axis}_metadata")
+            # Get the dimension object (e.g., data.x, data.y, data.z)
+            dimension = getattr(data, axis)
 
             def search(x, default):
-                return metadata.get(x, default)
+                # Use the dimension's metadata() method
+                return dimension.metadata(x, default)
 
         elif hasattr(data, "metadata"):
             search = data.metadata
@@ -260,6 +266,12 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         else:
             if issue_warnings:
                 warnings.warn(f'No key "{attr}" found in layer metadata.')
+
+        if isinstance(label, list):
+            if data.is_vector() and len(label) == 2:
+                label = magnitude_string_from_components(label[0], label[1])
+            else:
+                label = list_to_human(label)
 
         if remove_underscores:
             if isinstance(label, (list, tuple)):

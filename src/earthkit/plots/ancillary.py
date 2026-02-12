@@ -65,7 +65,7 @@ def load(source, data_type=None):
     if reader is None:
         raise KeyError(f"no reader for file with extension {path.suffix}")
 
-    with open(path, "r") as f:
+    with open(path) as f:
         return reader(f)
 
 
