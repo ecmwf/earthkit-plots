@@ -82,10 +82,10 @@ def timeseries(
         Units for the primary axis. Default is None (automatic based on data).
         The primary axis is guessed based on the structure of the data; if you
         want to specify the units for a specific axis, you can do so with the
-        xunits and yunits parameters.
-    xunits : str, optional
+        x_units and y_units parameters.
+    x_units : str, optional
         Units for the x-axis. Default is None (automatic based on data).
-    yunits : str, optional
+    y_units : str, optional
         Units for the y-axis. Default is None (automatic based on data).
     plot : str, optional
         Plotting method to use. Options include "line", "scatter", "bar", etc.

@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import re
 from abc import ABCMeta, abstractmethod
-from functools import cached_property
-
-LOG = logging.getLogger(__name__)
 
 HEALPIX_PATTERN = re.compile(r"^[Hh]\d+$")
 RGG_PATTERN = re.compile(r"^[OoNn]\d+$")
@@ -25,7 +21,7 @@ RGG_PATTERN = re.compile(r"^[OoNn]\d+$")
 # TODO: refactor this when the gridSpec is implemented in earthkit
 
 
-class LegacyGridSpec(metaclass=ABCMeta):
+class GridSpec(metaclass=ABCMeta):
     """
     A specification of a grid used in a Source.
 
@@ -40,7 +36,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
     @classmethod
     def from_data(cls, data):
         """
-        Identify and create a LegacyGridSpec object from the given data.
+        Identify and create a GridSpec object from the given data.
 
         Parameters
         ----------
@@ -48,7 +44,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
             The data object containing the grid metadata.
         """
         d = cls._first(data)
-        for gs in LEGACY_GRIDSPECS:
+        for gs in GRIDSPECS:
             if gs.type_match(d):
                 return gs(d)
 
@@ -71,7 +67,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
 
             return data.get("gridType")
 
-        data = LegacyGridSpec._first(data)
+        data = GridSpec._first(data)
 
         # ecCodes does not yet support the gridSpec key and prints a warning
         # when accessing it. We only try to get it for a non-GRIB field
@@ -127,7 +123,7 @@ class LegacyGridSpec(metaclass=ABCMeta):
         return self.NAME
 
 
-class ReducedGG(LegacyGridSpec):
+class ReducedGG(GridSpec):
     """A reduced Gaussian grid specification."""
 
     GRIDSPEC_KEYS = ["grid"]
@@ -150,14 +146,14 @@ class ReducedGG(LegacyGridSpec):
 
             return {"grid": g}
 
-        grid = LegacyGridSpec._guess_grid(d)
+        grid = GridSpec._guess_grid(d)
         if isinstance(grid, str) and RGG_PATTERN.match(grid):
             return {"grid": grid.upper()}
 
     @staticmethod
     def type_match(data):
         try:
-            grid = LegacyGridSpec._guess_grid(data)
+            grid = GridSpec._guess_grid(data)
             if isinstance(grid, str):
                 if grid == "reduced_gg":
                     return True
@@ -169,7 +165,7 @@ class ReducedGG(LegacyGridSpec):
         return False
 
 
-class HEALPix(LegacyGridSpec):
+class HEALPix(GridSpec):
     """A HEALPix grid specification."""
 
     GRIDSPEC_KEYS = ["grid", "ordering"]
@@ -194,7 +190,7 @@ class HEALPix(LegacyGridSpec):
     @staticmethod
     def type_match(data):
         try:
-            grid = LegacyGridSpec._guess_grid(data)
+            grid = GridSpec._guess_grid(data)
             if isinstance(grid, str):
                 if grid == "healpix":
                     return True
@@ -205,152 +201,4 @@ class HEALPix(LegacyGridSpec):
         return False
 
 
-LEGACY_GRIDSPECS = [HEALPix, ReducedGG]
-
-
-class GridSpec:
-    """
-    A specification of a grid used in a Source.
-
-    Parameters
-    ----------
-    data : earthkit.plots.sources.Source
-        The data object containing the grid metadata.
-    """
-
-    def __init__(self, gs: dict | str):
-        from eckit.geo import Grid
-
-        self._grid = Grid(gs)
-        # TODO: we need to store the original grid spec because Grid.spec failing at the moment
-        self._grid_spec_in = gs
-
-    @staticmethod
-    def from_data(data):
-        def _get_one(d_data, keys):
-            for key in keys:
-                value = d_data.get(key)
-                if value is not None:
-                    return value
-            return None
-
-        gs = None
-
-        if isinstance(data, dict):
-            gs = _get_one(data, ["grid_spec", "gridSpec"])
-        else:
-            data = GridSpec._first(data)
-
-            if hasattr(data, "grid_spec"):
-                gs = data.grid_spec
-            else:
-                md = data.metadata()
-                if hasattr(md, "grid_spec"):
-                    gs = md.grid_spec
-                else:
-                    gs = md.geography.grid_spec()
-
-                if gs is None:
-                    try:
-                        gs = _get_one(md, ["grid_spec", "gridSpec"])
-                    except Exception:
-                        pass
-
-        if gs is not None:
-            # TODO: converting legacy earthkit-data gridspec object to dict
-            if not isinstance(gs, dict):
-                if hasattr(gs, "_d"):
-                    gs = dict(**gs._d)
-                    # remove unsupported keys
-                    for k in [
-                        "j_points_consecutive",
-                        "i_scans_negatively",
-                        "j_scans_positively",
-                        "type",
-                    ]:
-                        gs.pop(k, None)
-            LOG.debug("Creating Grid from gridspec:", type(gs))
-            return GridSpec(gs)
-
-        return None
-
-    @staticmethod
-    def _first(data):
-        if hasattr(data, "__len__"):
-            return data[0]
-        return data
-
-    def to_dict(self):
-        # TODO: refactor this
-        # This is a temporary solution because the order/ordering default
-        # is "nested" in eckit.geo.Grid but it is "ring" in the matrix interface of
-        # earthkit-regrid.
-
-        try:
-            spec = self._grid.spec.copy()
-
-        except Exception:
-            # fallback to the original grid spec if Grid.spec is not working
-            if isinstance(self._grid_spec_in, dict):
-                spec = self._grid_spec_in.copy()
-            else:
-                import json
-
-                spec = json.loads(self._grid_spec_in)
-
-        if self.name == "healpix":
-            if any(k in spec for k in ("ordering", "order")):
-                return spec
-            else:
-                spec["order"] = "nested"
-                return spec
-
-        return spec
-
-    @property
-    def name(self):
-        # TODO: refactor this
-
-        # NOTE: Grid.spec failing at the moment, we need to use the original grid spec to guess the grid type for now
-        try:
-            grid = self._grid.spec.get("grid")
-        except Exception:
-            if isinstance(self._grid_spec_in, str):
-                import json
-
-                grid = json.loads(self._grid_spec_in).get("grid")
-            elif isinstance(self._grid_spec_in, dict):
-                grid = self._grid_spec_in.get("grid")
-
-        if grid:
-            if isinstance(grid, str):
-                if HEALPIX_PATTERN.match(grid):
-                    return "healpix"
-                if RGG_PATTERN.match(grid):
-                    return "reduced_gg"
-        return "unknown"
-
-
-class GridSpecAccessor:
-    # from Python 3.12 onwards, cached_property is not thread safe.
-    # Consider making this call thread safe if needed in future.
-    @cached_property
-    def has_grid(self):
-        try:
-            from earthkit.data.core.geography import Geography
-
-            if hasattr(Geography, "grid_spec"):
-                from eckit.geo import Grid  # noqa: F401
-
-                return True
-        except Exception:
-            return False
-
-    def __call__(self, data):
-        if self.has_grid:
-            return GridSpec.from_data(data)
-        else:
-            return LegacyGridSpec.from_data(data)
-
-
-get_grid_spec = GridSpecAccessor()
+GRIDSPECS = [HEALPix, ReducedGG]

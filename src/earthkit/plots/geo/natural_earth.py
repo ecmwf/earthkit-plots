@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import warnings
+
 import cartopy.io.shapereader as shpreader
 
 from earthkit.plots.geo.bounds import BoundingBox
@@ -98,6 +100,70 @@ def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="l
     return resolution
 
 
+def reproject_geometries(geometries, src_crs, target_crs):
+    """
+    Reproject a list of shapely geometries from source CRS to target CRS.
+
+    This is used as a performance optimisation to avoid on-the-fly reprojection
+    during matplotlib rendering. It's suitable for features with many small
+    segments (like coastlines) but not always for features with long straight lines
+    that should be curved on the target projection (like political boundaries).
+
+    Parameters
+    ----------
+    geometries : list
+        List of shapely geometries to reproject.
+    src_crs : cartopy.crs.CRS
+        Source coordinate reference system.
+    target_crs : cartopy.crs.CRS
+        Target coordinate reference system.
+
+    Returns
+    -------
+    list
+        List of reprojected shapely geometries in target_crs.
+    """
+    import pyproj
+    from shapely.ops import transform
+
+    try:
+        # Get proj4 strings for both CRS
+        src_proj = getattr(src_crs, "proj4_init", None) or src_crs.proj4_params
+        target_proj = getattr(target_crs, "proj4_init", None) or target_crs.proj4_params
+
+        transformer = pyproj.Transformer.from_crs(
+            src_proj if isinstance(src_proj, str) else pyproj.CRS.from_proj4(src_proj),
+            target_proj
+            if isinstance(target_proj, str)
+            else pyproj.CRS.from_proj4(target_proj),
+            always_xy=True,
+        )
+
+        reprojected = []
+        for geom in geometries:
+            try:
+                reprojected_geom = transform(transformer.transform, geom)
+                if not reprojected_geom.is_empty:
+                    reprojected.append(reprojected_geom)
+            except Exception as e:
+                # If a single geometry fails, warn but continue with others
+                warnings.warn(
+                    f"Failed to reproject geometry: {e}. Skipping this geometry.",
+                    RuntimeWarning,
+                )
+                continue
+
+        return reprojected
+
+    except Exception as e:
+        # If reprojection fails entirely, warn and return original geometries
+        warnings.warn(
+            f"Geometry reprojection failed: {e}. Falling back to cartopy reprojection.",
+            RuntimeWarning,
+        )
+        return geometries
+
+
 class NaturalEarthDomain:
     """
     Class for building map domains and CRS based on a Natural Earth shape.
@@ -181,3 +247,59 @@ class NaturalEarthDomain:
             ]
 
         return crs_bounds
+
+
+def load_layer(
+    config, resolution, ax, crs, max_resolution="high", min_resolution="low"
+):
+    """
+    Load Natural Earth layer data.
+
+    Parameters
+    ----------
+    config : dict
+        Configuration dictionary with keys: category, name, attribute, label
+    resolution : str or None
+        Resolution to use (low/medium/high or specific resolution like "10m")
+    ax : matplotlib.axes.Axes
+        Axes to determine automatic resolution from
+    crs : cartopy.crs.CRS
+        CRS to determine automatic resolution from
+    max_resolution : str
+        Maximum resolution to use
+    min_resolution : str
+        Minimum resolution to use
+
+    Returns
+    -------
+    tuple
+        (records_list, attribute_key, label_key)
+    """
+    if resolution is None:
+        resolution = "medium"  # Default fallback
+
+    resolution = get_resolution(
+        resolution,
+        ax,
+        crs,
+        max_resolution,
+        min_resolution,
+    )
+
+    shape_name = config["name"]
+    if isinstance(shape_name, dict):
+        shape_name = shape_name[resolution]
+
+    shpfilename = shpreader.natural_earth(
+        resolution=resolution,
+        category=config["category"],
+        name=shape_name,
+    )
+    reader = shpreader.Reader(shpfilename)
+    records_list = list(reader.records())
+
+    # Use Natural Earth attribute names from configuration
+    attribute_key = config.get("attribute", "NAME_LONG")
+    label_key = config.get("label", "NAME_LONG")
+
+    return records_list, attribute_key, label_key

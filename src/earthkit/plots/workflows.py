@@ -57,7 +57,7 @@ class DictParser(Parser):
 
 class JSONParser(Parser):
     def to_dict(self, *args, **kwargs):
-        with open(self.workflow, "r") as f:
+        with open(self.workflow) as f:
             return json.load(f)
 
 
