@@ -428,16 +428,30 @@ class Subplot:
         self.ax.xaxis.set_minor_formatter(formatter)
 
     def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
-        """Configures style based on method name, style, source, and units."""
+        """
+        Configures style based on method name, style, source, and units.
+
+        If a style is provided along with additional style kwargs, the kwargs will
+        override the corresponding attributes without modifying the original style.
+        """
         # Handle style="auto" as an alternative to auto_style=True
         if style == "auto":
             auto_style = True
             style = None
 
+        # Extract style-specific keyword arguments
+        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+
+        # If a style is provided and we have style kwargs to override
+        if style and style_kwargs:
+            # Create a copy with overrides without modifying the original
+            return style.with_overrides(**style_kwargs)
+
+        # If a style is provided without overrides, return it as-is
         if style:
             return style
-        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-        # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
+
+        # Create a new style
         style_class = get_style_class(method_name)
         style = (
             style_class(**{**style_kwargs, "units": units})

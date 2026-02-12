@@ -194,6 +194,69 @@ class Style:
         keys = ["_levels", "_colors"]
         return compare_attributes(self, other, keys)
 
+    def with_overrides(self, **overrides):
+        """
+        Create a copy of this style with some parameters overridden.
+
+        This method creates a new Style instance with the same configuration
+        as the current one, but with specific parameters overridden. The original
+        style is not modified.
+
+        Parameters
+        ----------
+        **overrides : dict
+            Keyword arguments to override in the new style. Common parameters include:
+            - colors: color scheme or colormap
+            - levels: contour levels
+            - gradients: gradient steps between levels
+            - normalize: whether to normalize colors
+            - units: data units
+            - legend_style: type of legend
+            - categories: categorical labels
+            - ticks: tick locations
+
+        Returns
+        -------
+        Style
+            A new Style instance with overridden parameters.
+
+        Examples
+        --------
+        >>> style = Style(colors="viridis", levels=[0, 10, 20, 30])
+        >>> new_style = style.with_overrides(levels=[0, 5, 10, 15, 20])
+        >>> # original style is unchanged
+        """
+        import copy
+
+        # Get current configuration
+        config = {
+            "colors": self._colors,
+            "levels": self._levels._levels
+            if hasattr(self._levels, "_levels")
+            else None,
+            "gradients": self.gradients,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            "units_label": self._units_label,
+            "legend_style": self._legend_style,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
+            if self._legend_kwargs
+            else None,
+            "categories": self._bin_labels,
+            "preferred_method": self._preferred_method,
+            "resample": self.resample,
+        }
+
+        # Add any extra kwargs stored in self._kwargs
+        config.update(copy.deepcopy(self._kwargs))
+
+        # Apply overrides
+        config.update(overrides)
+
+        # Create new instance of the same class
+        return self.__class__(**config)
+
     def levels(self, data=None):
         """
         Generate levels specific to some data.
@@ -1046,6 +1109,68 @@ class Contour(Style):
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
         self._kwargs["linewidths"] = kwargs.get("linewidths", 0.75)
+
+    def with_overrides(self, **overrides):
+        """
+        Create a copy of this contour style with some parameters overridden.
+
+        This method creates a new Contour instance with the same configuration
+        as the current one, but with specific parameters overridden. The original
+        style is not modified.
+
+        Parameters
+        ----------
+        **overrides : dict
+            Keyword arguments to override in the new style. In addition to Style
+            parameters, Contour-specific parameters include:
+            - linecolors: colors for contour lines
+            - labels: whether to show contour labels
+            - label_kwargs: kwargs for contour labels
+            - interpolate: whether to interpolate data
+
+        Returns
+        -------
+        Contour
+            A new Contour instance with overridden parameters.
+        """
+        import copy
+
+        # Get base configuration from parent class
+        config = {
+            "colors": self._colors,
+            "levels": self._levels._levels
+            if hasattr(self._levels, "_levels")
+            else None,
+            "gradients": self.gradients,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            "units_label": self._units_label,
+            "legend_style": self._legend_style,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
+            if self._legend_kwargs
+            else None,
+            "categories": self._bin_labels,
+            "preferred_method": self._preferred_method,
+            "resample": self.resample,
+        }
+
+        # Add Contour-specific configuration
+        config["linecolors"] = self._linecolors
+        config["labels"] = self.labels
+        config["label_kwargs"] = (
+            copy.deepcopy(self._label_kwargs) if self._label_kwargs else None
+        )
+        config["interpolate"] = self._interpolate
+
+        # Add any extra kwargs stored in self._kwargs
+        config.update(copy.deepcopy(self._kwargs))
+
+        # Apply overrides
+        config.update(overrides)
+
+        # Create new instance of the same class
+        return self.__class__(**config)
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""

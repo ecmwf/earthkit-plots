@@ -155,6 +155,12 @@ def extract_plottables_1D(
             stacklevel=3,
         )
 
+    # Step 0.5: Extract units from style if not provided in function call
+    # This ensures that if a style defines units, they are used for unit conversion
+    if units is None and style is not None and style != "auto":
+        if hasattr(style, "_units") and style._units is not None:
+            units = style._units
+
     # Step 1: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
     source = get_source(
@@ -163,7 +169,7 @@ def extract_plottables_1D(
         y=y,
         z=z,
         context=context,
-        units=units,  # Target units for unit conversion
+        units=units,  # Target units for unit conversion (from call or style)
         x_units=x_units,  # Target units for x coordinates
         y_units=y_units,  # Target units for y coordinates
         z_units=z_units,  # Target units for z coordinates
@@ -429,6 +435,12 @@ def extract_plottables_2D(
     if method_name.startswith("contour"):
         regrid = True
 
+    # Step 1.5: Extract units from style if not provided in function call
+    # This ensures that if a style defines units, they are used for unit conversion
+    if units is None and style is not None and style != "auto":
+        if hasattr(style, "_units") and style._units is not None:
+            units = style._units
+
     # Step 2: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
     source = get_source(
@@ -437,7 +449,7 @@ def extract_plottables_2D(
         y=y,
         z=z,
         context=context,
-        units=units,  # Target units for unit conversion
+        units=units,  # Target units for unit conversion (from call or style)
         x_units=x_units,  # Target units for x coordinates
         y_units=y_units,  # Target units for y coordinates
         z_units=z_units,  # Target units for z coordinates
@@ -631,6 +643,12 @@ def extract_plottables_vector_2D(
             DeprecationWarning,
             stacklevel=3,
         )
+
+    # Extract units from style if not provided in function call
+    # This ensures that if a style defines units, they are used for unit conversion
+    if units is None and style is not None and style != "auto":
+        if hasattr(style, "_units") and style._units is not None:
+            units = style._units
 
     # Step 1: Handle different argument patterns and create a unified source
     source = None
@@ -982,13 +1000,18 @@ def configure_style(
     instance with the given parameters. It handles automatic style selection
     and parameter extraction from kwargs.
 
+    If a style is provided along with additional style-related kwargs, the kwargs
+    will override the corresponding attributes in the style without modifying the
+    original style object.
+
     Parameters
     ----------
     method_name : str
         The name of the plotting method.
     style : Style or None
         An existing style object, or None to create a new one. If the string "auto",
-        automatic style detection will be used.
+        automatic style detection will be used. If a Style object is provided along
+        with additional style kwargs, a copy with overrides will be created.
     source : Any
         The data source object.
     units : str or None
@@ -996,7 +1019,8 @@ def configure_style(
     auto_style : bool
         Whether to automatically guess the appropriate style.
     kwargs : dict
-        Keyword arguments that may contain style parameters.
+        Keyword arguments that may contain style parameters. Style parameters will
+        override attributes in the provided style without modifying the original.
 
     Returns
     -------
@@ -1006,17 +1030,27 @@ def configure_style(
     Examples
     --------
     >>> style = configure_style("contour", None, source, "K", False, {})
+    >>> # Override levels in existing style
+    >>> style_with_overrides = configure_style(
+    ...     "contour", my_style, source, None, False, {"levels": [0, 10, 20]}
+    ... )
     """
     # Handle style="auto" as an alternative to auto_style=True
     if style == "auto":
         auto_style = True
         style = None
 
-    if style is not None:
-        return style
-
     # Extract style-specific keyword arguments
     style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+
+    # If a style is provided and we have style kwargs to override
+    if style is not None and style_kwargs:
+        # Create a copy with overrides without modifying the original
+        return style.with_overrides(**style_kwargs)
+
+    # If a style is provided without overrides, return it as-is
+    if style is not None:
+        return style
 
     # Determine the appropriate style class based on method name
     if method_name.startswith("contour"):
