@@ -27,7 +27,9 @@ GISCO_GEOMETRY_TYPES = {
     "points": "LB",
 }
 
-GISCO_URL_TEMPLATE = "https://gisco-services.ec.europa.eu" "/distribution/v2/{category}/shp"
+GISCO_URL_TEMPLATE = (
+    "https://gisco-services.ec.europa.eu" "/distribution/v2/{category}/shp"
+)
 
 AVAILABLE_YEARS = {
     "nuts": [2024, 2021, 2016, 2013, 2010, 2006, 2003],
@@ -118,7 +120,9 @@ def _load_with_earthkit_data(path):
     try:
         import earthkit.data
     except ImportError:
-        warnings.warn("The 'earthkit.data' package is not installed; returning the file path instead.")
+        warnings.warn(
+            "The 'earthkit.data' package is not installed; returning the file path instead."
+        )
         return path
     else:
         return earthkit.data.from_source("file", path)
@@ -128,7 +132,9 @@ class DownloadWarning(Warning):
     """Warning for download operations."""
 
 
-def _download_and_cache_gisco(name, category, geometry_type, resolution, suffix="", year=2024):
+def _download_and_cache_gisco(
+    name, category, geometry_type, resolution, suffix="", year=2024
+):
     """
     Download (if needed) and unzip the GISCO shapefile for a given
     country code `name` and resolution. Returns the path to the .shp file.
@@ -160,7 +166,11 @@ def _download_and_cache_gisco(name, category, geometry_type, resolution, suffix=
 
     cache_dir = _get_gisco_cache_dir()
     zip_path = cache_dir / filename
-    extract_dir = cache_dir / "_".join([name, resolution_str]) if resolution_str else cache_dir / name
+    extract_dir = (
+        cache_dir / "_".join([name, resolution_str])
+        if resolution_str
+        else cache_dir / name
+    )
     shp_path = extract_dir / filename.replace(".zip", "")
 
     # Download and extract if needed
