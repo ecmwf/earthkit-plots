@@ -142,6 +142,14 @@ class Style:
         resample=None,
         **kwargs,
     ):
+        # Handle cmap as an alias for colors
+        if "cmap" in kwargs:
+            if colors != schema.default_cmap:
+                raise ValueError(
+                    "Cannot specify both 'colors' and 'cmap'. They are aliases for the same parameter."
+                )
+            colors = kwargs.pop("cmap")
+
         if categories is not None and levels is None:
             levels = range(len(categories) + 1)
         self._colors = colors
@@ -206,7 +214,7 @@ class Style:
         ----------
         **overrides : dict
             Keyword arguments to override in the new style. Common parameters include:
-            - colors: color scheme or colormap
+            - colors (or cmap): color scheme or colormap
             - levels: contour levels
             - gradients: gradient steps between levels
             - normalize: whether to normalize colors
@@ -227,6 +235,14 @@ class Style:
         >>> # original style is unchanged
         """
         import copy
+
+        # Handle cmap as an alias for colors
+        if "cmap" in overrides and "colors" in overrides:
+            raise ValueError(
+                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
+            )
+        if "cmap" in overrides:
+            overrides["colors"] = overrides.pop("cmap")
 
         # Get current configuration
         config = {
@@ -1134,6 +1150,14 @@ class Contour(Style):
             A new Contour instance with overridden parameters.
         """
         import copy
+
+        # Handle cmap as an alias for colors
+        if "cmap" in overrides and "colors" in overrides:
+            raise ValueError(
+                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
+            )
+        if "cmap" in overrides:
+            overrides["colors"] = overrides.pop("cmap")
 
         # Get base configuration from parent class
         config = {

@@ -1040,6 +1040,14 @@ def configure_style(
         auto_style = True
         style = None
 
+    # Handle cmap as an alias for colors
+    if "cmap" in kwargs and "colors" in kwargs:
+        raise ValueError(
+            "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
+        )
+    if "cmap" in kwargs:
+        kwargs["colors"] = kwargs.pop("cmap")
+
     # Extract style-specific keyword arguments
     style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
 
@@ -1065,6 +1073,9 @@ def configure_style(
         style = style_class(**{**style_kwargs, "units": units})
     else:
         style = auto.guess_style(source, units=units or source.units)
+        # Apply any style kwargs as overrides to the auto-detected style
+        if style_kwargs and style is not None:
+            style = style.with_overrides(**style_kwargs)
 
     return style
 

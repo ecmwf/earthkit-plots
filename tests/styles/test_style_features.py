@@ -19,7 +19,7 @@ import pytest
 import xarray as xr
 
 from earthkit.plots import Subplot
-from earthkit.plots.styles import Contour, Style
+from earthkit.plots.styles import Style
 
 
 @pytest.fixture
@@ -68,6 +68,16 @@ class TestStyleAuto:
         assert len(chart1.layers) == 1
         assert len(chart2.layers) == 1
 
+    def test_style_auto_with_overrides(self, sample_data):
+        """Test that style='auto' works with parameter overrides."""
+        chart = Subplot()
+        chart.pcolormesh(sample_data, style="auto", levels=[250, 260, 270, 280, 290])
+
+        # Should have auto-detected a style and applied the level overrides
+        assert len(chart.layers) == 1
+        used_style = chart.layers[0].style
+        assert used_style._levels._levels == [250, 260, 270, 280, 290]
+
 
 class TestStyleOverrides:
     """Test style override functionality."""
@@ -78,7 +88,9 @@ class TestStyleOverrides:
         original_levels = original_style._levels._levels
 
         chart = Subplot()
-        chart.pcolormesh(sample_data, style=original_style, levels=[250, 260, 270, 280, 290])
+        chart.pcolormesh(
+            sample_data, style=original_style, levels=[250, 260, 270, 280, 290]
+        )
 
         # Original style should be unchanged
         assert original_style._levels._levels == original_levels
@@ -122,7 +134,7 @@ class TestStyleOverrides:
 
         # Override style should have new levels
         assert override_style._levels._levels == [0, 50, 100, 150, 200]
-        
+
 
 class TestStyleUnits:
     """Test automatic units from styles."""
@@ -154,7 +166,6 @@ class TestStyleUnits:
         assert z_values.min() > -5  # Should be around 0°C
         assert z_values.max() < 35  # Should be around 30°C
 
-
     def test_style_units_with_level_override(self):
         """Test that units from style work with level overrides."""
         data_kelvin = xr.DataArray(
@@ -164,9 +175,7 @@ class TestStyleUnits:
             attrs={"units": "K"},
         )
 
-        style_combo = Style(
-            units="celsius", levels=[-30, -10, 10, 30], colors="RdBu_r"
-        )
+        style_combo = Style(units="celsius", levels=[-30, -10, 10, 30], colors="RdBu_r")
 
         chart = Subplot()
         # Override levels but keep units from style
@@ -186,3 +195,85 @@ class TestStyleUnits:
         z_values = layer.sources[0].z.values
         assert z_values.min() > -5
         assert z_values.max() < 35
+
+
+class TestCmapAlias:
+    """Test that cmap and colors are treated as aliases."""
+
+    def test_cmap_overrides_style_colors(self):
+        """Test that cmap parameter overrides colors in style."""
+        sample_data = xr.DataArray(
+            np.random.rand(10, 10) * 50 + 250,
+            dims=["lat", "lon"],
+            coords={"lat": np.linspace(-90, 90, 10), "lon": np.linspace(-180, 180, 10)},
+            attrs={"units": "K"},
+        )
+
+        original_style = Style(colors="viridis", levels=[250, 260, 270, 280, 290])
+
+        chart = Subplot()
+        chart.pcolormesh(sample_data, style=original_style, cmap="plasma")
+
+        # Original style should be unchanged
+        assert original_style._colors == "viridis"
+
+        # Used style should have cmap (colors) overridden
+        used_style = chart.layers[0].style
+        assert used_style._colors == "plasma"
+
+    def test_cmap_and_colors_together_raises_error(self):
+        """Test that using both cmap and colors raises an error."""
+        sample_data = xr.DataArray(
+            np.random.rand(10, 10) * 50 + 250,
+            dims=["lat", "lon"],
+            coords={"lat": np.linspace(-90, 90, 10), "lon": np.linspace(-180, 180, 10)},
+            attrs={"units": "K"},
+        )
+
+        with pytest.raises(ValueError, match="Cannot specify both 'cmap' and 'colors'"):
+            chart = Subplot()
+            chart.pcolormesh(sample_data, cmap="viridis", colors="plasma")
+
+    def test_cmap_with_auto_style(self):
+        """Test that cmap works with style='auto'."""
+        sample_data = xr.DataArray(
+            np.random.rand(10, 10) * 50 + 250,
+            dims=["lat", "lon"],
+            coords={"lat": np.linspace(-90, 90, 10), "lon": np.linspace(-180, 180, 10)},
+            attrs={"units": "K"},
+        )
+
+        chart = Subplot()
+        chart.pcolormesh(sample_data, style="auto", cmap="coolwarm")
+
+        # Should have auto-detected a style and applied the cmap
+        used_style = chart.layers[0].style
+        assert used_style._colors == "coolwarm"
+
+    def test_style_init_with_cmap(self):
+        """Test that Style can be initialized with cmap parameter."""
+        style = Style(cmap="viridis", levels=[0, 10, 20])
+        assert style._colors == "viridis"
+
+    def test_style_init_with_both_raises_error(self):
+        """Test that initializing Style with both cmap and colors raises an error."""
+        with pytest.raises(ValueError, match="Cannot specify both 'colors' and 'cmap'"):
+            Style(colors="viridis", cmap="plasma")
+
+    def test_with_overrides_cmap(self):
+        """Test that with_overrides accepts cmap parameter."""
+        base_style = Style(colors="viridis", levels=[0, 10, 20])
+        override_style = base_style.with_overrides(cmap="plasma")
+
+        # Base style should be unchanged
+        assert base_style._colors == "viridis"
+
+        # Override style should have new colors
+        assert override_style._colors == "plasma"
+
+    def test_with_overrides_both_raises_error(self):
+        """Test that with_overrides raises error for both cmap and colors."""
+        base_style = Style(colors="viridis", levels=[0, 10, 20])
+
+        with pytest.raises(ValueError, match="Cannot specify both 'cmap' and 'colors'"):
+            base_style.with_overrides(cmap="plasma", colors="coolwarm")
