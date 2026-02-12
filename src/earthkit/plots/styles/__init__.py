@@ -245,11 +245,30 @@ class Style:
             overrides["colors"] = overrides.pop("cmap")
 
         # Get current configuration
+        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
+        levels_config = None
+        if hasattr(self._levels, "_levels"):
+            # Check if this is a Levels object with dynamic configuration
+            if hasattr(self._levels, "_step") and self._levels._step is not None:
+                # Preserve step-based configuration
+                levels_config = {"step": self._levels._step}
+                if (
+                    hasattr(self._levels, "_reference")
+                    and self._levels._reference is not None
+                ):
+                    levels_config["reference"] = self._levels._reference
+                if (
+                    hasattr(self._levels, "_divergence_point")
+                    and self._levels._divergence_point is not None
+                ):
+                    levels_config["divergence_point"] = self._levels._divergence_point
+            else:
+                # Static levels - use the actual level values
+                levels_config = self._levels._levels
+
         config = {
             "colors": self._colors,
-            "levels": self._levels._levels
-            if hasattr(self._levels, "_levels")
-            else None,
+            "levels": levels_config,
             "gradients": self.gradients,
             "normalize": self.normalize,
             "units": self._units,
@@ -1160,11 +1179,30 @@ class Contour(Style):
             overrides["colors"] = overrides.pop("cmap")
 
         # Get base configuration from parent class
+        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
+        levels_config = None
+        if hasattr(self._levels, "_levels"):
+            # Check if this is a Levels object with dynamic configuration
+            if hasattr(self._levels, "_step") and self._levels._step is not None:
+                # Preserve step-based configuration
+                levels_config = {"step": self._levels._step}
+                if (
+                    hasattr(self._levels, "_reference")
+                    and self._levels._reference is not None
+                ):
+                    levels_config["reference"] = self._levels._reference
+                if (
+                    hasattr(self._levels, "_divergence_point")
+                    and self._levels._divergence_point is not None
+                ):
+                    levels_config["divergence_point"] = self._levels._divergence_point
+            else:
+                # Static levels - use the actual level values
+                levels_config = self._levels._levels
+
         config = {
             "colors": self._colors,
-            "levels": self._levels._levels
-            if hasattr(self._levels, "_levels")
-            else None,
+            "levels": levels_config,
             "gradients": self.gradients,
             "normalize": self.normalize,
             "units": self._units,

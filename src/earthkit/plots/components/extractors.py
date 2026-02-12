@@ -157,6 +157,7 @@ def extract_plottables_1D(
 
     # Step 0.5: Extract units from style if not provided in function call
     # This ensures that if a style defines units, they are used for unit conversion
+    # Note: For style="auto", units will be extracted from the detected style later
     if units is None and style is not None and style != "auto":
         if hasattr(style, "_units") and style._units is not None:
             units = style._units
@@ -437,6 +438,7 @@ def extract_plottables_2D(
 
     # Step 1.5: Extract units from style if not provided in function call
     # This ensures that if a style defines units, they are used for unit conversion
+    # Note: For style="auto", units will be extracted from the detected style later
     if units is None and style is not None and style != "auto":
         if hasattr(style, "_units") and style._units is not None:
             units = style._units
@@ -646,6 +648,7 @@ def extract_plottables_vector_2D(
 
     # Extract units from style if not provided in function call
     # This ensures that if a style defines units, they are used for unit conversion
+    # Note: For style="auto", units extraction is not supported for auto-detected styles
     if units is None and style is not None and style != "auto":
         if hasattr(style, "_units") and style._units is not None:
             units = style._units

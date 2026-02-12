@@ -135,6 +135,21 @@ class TestStyleOverrides:
         # Override style should have new levels
         assert override_style._levels._levels == [0, 50, 100, 150, 200]
 
+    def test_with_overrides_preserves_step_config(self):
+        """Test that with_overrides preserves step-based level configuration."""
+        # Create a style with step-based levels
+        base_style = Style(colors="viridis", levels={"step": 4})
+
+        # Override colors but keep the step configuration
+        override_style = base_style.with_overrides(colors="plasma")
+
+        # Base style should be unchanged
+        assert base_style._levels._step == 4
+
+        # Override style should preserve the step configuration
+        assert override_style._levels._step == 4
+        assert override_style._colors == "plasma"
+
 
 class TestStyleUnits:
     """Test automatic units from styles."""
