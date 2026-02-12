@@ -204,7 +204,7 @@ class Map(Subplot):
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
         crs = source.crs or ccrs.PlateCarree()
-        for label, x, y in zip(labels, source.x_values, source.y_values):
+        for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), transform=crs, **kwargs)
 
     @schema.point_cloud.apply()
@@ -1136,13 +1136,15 @@ class Map(Subplot):
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
         """
         from earthkit.plots.components.layers import Layer
-        from earthkit.plots.sources import NumpySource
+        from earthkit.plots.sources import get_source
 
         legends = []
         if style is not None:
             dummy = [[1, 2], [3, 4]]
             mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
-            layer = Layer(NumpySource(), mappable, self, style)
+            # Create a dummy source for legend creation
+            dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
+            layer = Layer(dummy_source, mappable, self, style)
             legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
             legends.append(legend)
         else:

@@ -344,7 +344,7 @@ class Schema(dict):
         else:
             file_name = PLUGINS[name]["schema"]
 
-        with open(file_name, "r") as f:
+        with open(file_name) as f:
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
         self._reset(**kwargs)

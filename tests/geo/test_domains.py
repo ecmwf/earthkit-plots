@@ -109,7 +109,7 @@ class TestDomainExtract:
 
         x = np.linspace(-20, 20, 41)
         y = np.linspace(-20, 20, 41)
-        values = np.random.random((41))
+        values = np.random.random(41)
 
         x_ext, y_ext, values_ext = domain.extract(x, y, values)
 
