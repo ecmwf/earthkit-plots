@@ -78,6 +78,30 @@ def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
         return PlotContext.CARTESIAN_1D if is_1d else PlotContext.CARTESIAN_2D
 
 
+def _prepare_style_and_units(style, units, auto_style):
+    """
+    Handle common style/units preparation shared by all extraction functions.
+
+    Emits a deprecation warning for auto_style, and extracts units from a
+    provided Style object when not already supplied by the caller.
+
+    Returns the (possibly updated) units value.
+    """
+    if auto_style:
+        warnings.warn(
+            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
+            "Please use style='auto' instead.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+    if units is None and style is not None and style != "auto":
+        if hasattr(style, "_units") and style._units is not None:
+            units = style._units
+
+    return units
+
+
 def extract_plottables_1D(
     subplot: Any,
     method_name: str,
@@ -85,7 +109,7 @@ def extract_plottables_1D(
     x: str | np.ndarray | list[float] | None = None,
     y: str | np.ndarray | list[float] | None = None,
     z: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     x_units: str | None = None,
@@ -115,8 +139,9 @@ def extract_plottables_1D(
         Positional arguments passed to the plotting method.
     x, y, z : str, array-like, or None, optional
         Data coordinates. If strings, they are treated as coordinate names.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -126,7 +151,7 @@ def extract_plottables_1D(
     source_units : str, optional
         Units of the source data.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     regrid : bool, default=False
         Whether to enable regridding for the data source.
     metadata : dict, optional
@@ -145,6 +170,9 @@ def extract_plottables_1D(
     --------
     >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
+    # Step 0: Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
+
     # Step 1: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
     source = get_source(
@@ -153,7 +181,7 @@ def extract_plottables_1D(
         y=y,
         z=z,
         context=context,
-        units=units,  # Target units for unit conversion
+        units=units,  # Target units for unit conversion (from call or style)
         x_units=x_units,  # Target units for x coordinates
         y_units=y_units,  # Target units for y coordinates
         z_units=z_units,  # Target units for z coordinates
@@ -342,7 +370,7 @@ def extract_plottables_2D(
     x: str | np.ndarray | list[float] | None = None,
     y: str | np.ndarray | list[float] | None = None,
     z: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     x_units: str | None = None,
@@ -373,8 +401,9 @@ def extract_plottables_2D(
         Positional arguments passed to the plotting method.
     x, y, z : str, array-like, or None, optional
         Data coordinates. If strings, they are treated as coordinate names.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -386,7 +415,7 @@ def extract_plottables_2D(
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     regrid : bool, default=False
         Whether to enable regridding for the data source.
     metadata : dict, optional
@@ -405,6 +434,9 @@ def extract_plottables_2D(
     ...     subplot, "pcolormesh", (), x=[1, 2, 3], y=[4, 5, 6], z=[[1, 2], [3, 4]]
     ... )
     """
+    # Step 0: Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
+
     # Step 1: Enable regridding for contour methods
     if method_name.startswith("contour"):
         regrid = True
@@ -417,7 +449,7 @@ def extract_plottables_2D(
         y=y,
         z=z,
         context=context,
-        units=units,  # Target units for unit conversion
+        units=units,  # Target units for unit conversion (from call or style)
         x_units=x_units,  # Target units for x coordinates
         y_units=y_units,  # Target units for y coordinates
         z_units=z_units,  # Target units for z coordinates
@@ -518,7 +550,7 @@ def extract_plottables_vector_2D(
     y: str | np.ndarray | list[float] | None = None,
     u: str | np.ndarray | list[float] | None = None,
     v: str | np.ndarray | list[float] | None = None,
-    style: Style | None = None,
+    style: Style | str | None = None,
     no_style: bool = False,
     units: str | None = None,
     u_units: str | None = None,
@@ -555,8 +587,9 @@ def extract_plottables_vector_2D(
         Data coordinates. If strings, they are treated as coordinate names.
     u, v : str, array-like, or None, optional
         U and V components. Can be variable names or arrays.
-    style : Style, optional
+    style : Style, str, or None, optional
         The style object to use for plotting. If None, one will be created.
+        If the string "auto", automatic style detection will be used.
     no_style : bool, default=False
         Whether to skip style processing and use raw matplotlib methods.
     units : str, optional
@@ -570,7 +603,7 @@ def extract_plottables_vector_2D(
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
-        Whether to automatically guess the appropriate style.
+        Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     resample : Resample or None, optional
         Resampling strategy for the vector field.
     colors : bool, default=False
@@ -601,6 +634,9 @@ def extract_plottables_vector_2D(
     # Support deprecated source_units parameter
     if source_units is not None and units is None:
         units = source_units
+
+    # Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Handle different argument patterns and create a unified source
     source = None
@@ -939,7 +975,7 @@ def extract_plottables_envelope(
 
 def configure_style(
     method_name: str,
-    style: Style | None,
+    style: Style | str | None,
     source: Any,
     units: str | None,
     auto_style: bool,
@@ -952,12 +988,18 @@ def configure_style(
     instance with the given parameters. It handles automatic style selection
     and parameter extraction from kwargs.
 
+    If a style is provided along with additional style-related kwargs, the kwargs
+    will override the corresponding attributes in the style without modifying the
+    original style object.
+
     Parameters
     ----------
     method_name : str
         The name of the plotting method.
     style : Style or None
-        An existing style object, or None to create a new one.
+        An existing style object, or None to create a new one. If the string "auto",
+        automatic style detection will be used. If a Style object is provided along
+        with additional style kwargs, a copy with overrides will be created.
     source : Any
         The data source object.
     units : str or None
@@ -965,7 +1007,8 @@ def configure_style(
     auto_style : bool
         Whether to automatically guess the appropriate style.
     kwargs : dict
-        Keyword arguments that may contain style parameters.
+        Keyword arguments that may contain style parameters. Style parameters will
+        override attributes in the provided style without modifying the original.
 
     Returns
     -------
@@ -975,12 +1018,35 @@ def configure_style(
     Examples
     --------
     >>> style = configure_style("contour", None, source, "K", False, {})
+    >>> # Override levels in existing style
+    >>> style_with_overrides = configure_style(
+    ...     "contour", my_style, source, None, False, {"levels": [0, 10, 20]}
+    ... )
     """
-    if style is not None:
-        return style
+    # Handle style="auto" as an alternative to auto_style=True
+    if style == "auto":
+        auto_style = True
+        style = None
+
+    # Handle cmap as an alias for colors
+    if "cmap" in kwargs and "colors" in kwargs:
+        raise ValueError(
+            "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
+        )
+    if "cmap" in kwargs:
+        kwargs["colors"] = kwargs.pop("cmap")
 
     # Extract style-specific keyword arguments
     style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+
+    # If a style is provided and we have style kwargs to override
+    if style is not None and style_kwargs:
+        # Create a copy with overrides without modifying the original
+        return style.with_overrides(**style_kwargs)
+
+    # If a style is provided without overrides, return it as-is
+    if style is not None:
+        return style
 
     # Determine the appropriate style class based on method name
     if method_name.startswith("contour"):
@@ -995,6 +1061,9 @@ def configure_style(
         style = style_class(**{**style_kwargs, "units": units})
     else:
         style = auto.guess_style(source, units=units or source.units)
+        # Apply any style kwargs as overrides to the auto-detected style
+        if style_kwargs and style is not None:
+            style = style.with_overrides(**style_kwargs)
 
     return style
 
