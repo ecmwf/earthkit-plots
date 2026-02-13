@@ -1,6 +1,39 @@
 Version 0.6 Updates
 ///////////////////
 
+Version 0.6.1
+=============
+
+New features
+++++++++++++
+
+- **style="auto" parameter**: A new cleaner syntax for automatic style detection. Instead of ``auto_style=True``,
+  users can now pass ``style="auto"`` to plotting methods. The ``auto_style`` parameter is now deprecated and will
+  be removed in a future version.
+
+  .. code-block:: python
+
+      # New syntax (recommended)
+      chart.pcolormesh(data, style="auto")
+
+      # Old syntax (deprecated)
+      chart.pcolormesh(data, auto_style=True)
+
+- **cmap as alias for colors**: The ``cmap`` parameter can now be used interchangeably with ``colors`` in all
+  plotting methods and in ``Style`` initialisation. An error is raised only when both are specified together.
+
+  .. code-block:: python
+
+      # These are equivalent
+      chart.pcolormesh(data, colors="viridis")
+      chart.pcolormesh(data, cmap="viridis")
+
+      # Also works in Style initialisation
+      style = Style(cmap="plasma", levels=[0, 10, 20])
+
+      # Error only when both specified
+      chart.pcolormesh(data, cmap="viridis", colors="plasma")  # ValueError
+
 Version 0.6.0
 =============
 
