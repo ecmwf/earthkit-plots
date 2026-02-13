@@ -78,6 +78,30 @@ def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
         return PlotContext.CARTESIAN_1D if is_1d else PlotContext.CARTESIAN_2D
 
 
+def _prepare_style_and_units(style, units, auto_style):
+    """
+    Handle common style/units preparation shared by all extraction functions.
+
+    Emits a deprecation warning for auto_style, and extracts units from a
+    provided Style object when not already supplied by the caller.
+
+    Returns the (possibly updated) units value.
+    """
+    if auto_style:
+        warnings.warn(
+            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
+            "Please use style='auto' instead.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+    if units is None and style is not None and style != "auto":
+        if hasattr(style, "_units") and style._units is not None:
+            units = style._units
+
+    return units
+
+
 def extract_plottables_1D(
     subplot: Any,
     method_name: str,
@@ -146,21 +170,8 @@ def extract_plottables_1D(
     --------
     >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
-    # Step 0: Handle deprecation of auto_style parameter
-    if auto_style:
-        warnings.warn(
-            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
-            "Please use style='auto' instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-
-    # Step 0.5: Extract units from style if not provided in function call
-    # This ensures that if a style defines units, they are used for unit conversion
-    # Note: For style="auto", units will be extracted from the detected style later
-    if units is None and style is not None and style != "auto":
-        if hasattr(style, "_units") and style._units is not None:
-            units = style._units
+    # Step 0: Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
@@ -423,25 +434,12 @@ def extract_plottables_2D(
     ...     subplot, "pcolormesh", (), x=[1, 2, 3], y=[4, 5, 6], z=[[1, 2], [3, 4]]
     ... )
     """
-    # Step 0: Handle deprecation of auto_style parameter
-    if auto_style:
-        warnings.warn(
-            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
-            "Please use style='auto' instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
+    # Step 0: Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Enable regridding for contour methods
     if method_name.startswith("contour"):
         regrid = True
-
-    # Step 1.5: Extract units from style if not provided in function call
-    # This ensures that if a style defines units, they are used for unit conversion
-    # Note: For style="auto", units will be extracted from the detected style later
-    if units is None and style is not None and style != "auto":
-        if hasattr(style, "_units") and style._units is not None:
-            units = style._units
 
     # Step 2: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
@@ -637,21 +635,8 @@ def extract_plottables_vector_2D(
     if source_units is not None and units is None:
         units = source_units
 
-    # Handle deprecation of auto_style parameter
-    if auto_style:
-        warnings.warn(
-            "The 'auto_style' parameter is deprecated and will be removed in a future version. "
-            "Please use style='auto' instead.",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-
-    # Extract units from style if not provided in function call
-    # This ensures that if a style defines units, they are used for unit conversion
-    # Note: For style="auto", units extraction is not supported for auto-detected styles
-    if units is None and style is not None and style != "auto":
-        if hasattr(style, "_units") and style._units is not None:
-            units = style._units
+    # Handle deprecation and extract units from style
+    units = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Handle different argument patterns and create a unified source
     source = None
