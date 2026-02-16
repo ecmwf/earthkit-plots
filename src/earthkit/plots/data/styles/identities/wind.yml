@@ -1,0 +1,7 @@
+id: wind
+
+criteria:
+- {shortName: [10u, 10v]}
+- {paramId: [165, 166]}
+- {shortName: [u, v]}
+- {paramId: [500028, 500030]}

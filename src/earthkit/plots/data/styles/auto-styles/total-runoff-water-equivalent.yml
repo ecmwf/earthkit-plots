@@ -1,0 +1,12 @@
+---
+id: total-runoff-water-equivalent
+optimal: TOTAL_RUNOFF_WATER_EQUIVALENT_IN_KG_M-2
+
+styles:
+
+  TOTAL_RUNOFF_WATER_EQUIVALENT_IN_KG_M-2:
+    type: Style
+    colors: Blues
+    levels: [0.1, 1, 2, 5, 7, 10, 15, 30, 50, 75, 100, 150, 200]
+    extend: max
+    units: kg m**-2

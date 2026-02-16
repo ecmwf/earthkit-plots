@@ -1,0 +1,26 @@
+---
+id: total-precipitation
+optimal: TOTAL_PRECIPITATION_IN_MM
+
+styles:
+
+  TOTAL_PRECIPITATION_IN_MM:
+    type: Style
+    colors: turbo
+    extend: max
+    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
+    units: mm
+
+  TOTAL_PRECIPITATION_IN_M:
+    type: Style
+    colors: turbo
+    extend: max
+    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
+    units: m
+
+  TOTAL_PRECIPITATION_IN_KG_M-2:
+    type: Style
+    colors: turbo
+    extend: max
+    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
+    units: kg m-2

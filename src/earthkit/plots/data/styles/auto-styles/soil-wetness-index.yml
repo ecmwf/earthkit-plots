@@ -1,0 +1,10 @@
+---
+id: soil-wetness-index
+optimal: SOIL_WETNESS_INDEX_GREENS
+
+styles:
+  SOIL_WETNESS_INDEX_GREENS:
+    type: Style    
+    colors: [white, lime, green, darkgreen]
+    levels: [0, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1]
+    extend: max

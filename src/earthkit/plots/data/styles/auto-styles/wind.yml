@@ -1,0 +1,10 @@
+---
+id: wind
+optimal: WIND_IN_M_S-2
+
+styles:
+
+  WIND_IN_M_S-2:
+    type: Quiver
+    units: m s-1
+    preferred_method: 'quiver'

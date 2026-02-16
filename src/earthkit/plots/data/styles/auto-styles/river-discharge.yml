@@ -1,0 +1,19 @@
+---
+id: river-discharge
+optimal: RIVER_DISCHARGE_GLOBAL_IN_M3_S-1
+
+styles:
+
+  RIVER_DISCHARGE_EUROPE_IN_M3_S-1:
+    type: Style
+    colors: Blues
+    levels: [0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 500, 1000, 2000]
+    extend: max
+    units: m3 s-1
+
+  RIVER_DISCHARGE_GLOBAL_IN_M3_S-1:
+    type: Style
+    colors: Blues
+    levels: [0.1, 10, 50, 200, 1000, 3000, 7500, 10000, 30000, 70000, 100000, 200000]
+    extend: max
+    units: m3 s-1
