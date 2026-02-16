@@ -15,13 +15,14 @@
 import glob
 import os
 
+import matplotlib.pyplot as plt
 from matplotlib import font_manager
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.definitions import FONTS_DIR
+from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.shortcuts import timeseries
@@ -50,7 +51,8 @@ __all__ = [
 ]
 
 
-def register_fonts():
+def _register_fonts():
+    """Register bundled fonts with matplotlib's font manager."""
     fontpaths = glob.glob(os.path.join(FONTS_DIR, "*"))
     for fontpath in fontpaths:
         font_files = glob.glob(os.path.join(fontpath, "*.ttf"))
@@ -58,4 +60,15 @@ def register_fonts():
             font_manager.fontManager.addfont(font_file)
 
 
-register_fonts()
+def _register_styles():
+    """Register bundled .mplstyle files with matplotlib's style library."""
+    import matplotlib
+
+    for mplstyle in DEFAULT_STYLES_DIR.glob("*.mplstyle"):
+        rc = matplotlib.rc_params_from_file(str(mplstyle), use_default_template=False)
+        plt.style.core.library[mplstyle.stem] = rc
+    plt.style.core.available[:] = sorted(plt.style.core.library.keys())
+
+
+_register_fonts()
+_register_styles()
