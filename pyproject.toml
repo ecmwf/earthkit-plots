@@ -22,7 +22,6 @@ classifiers = [
 ]
 dependencies = [
   "earthkit-data",
-  "earthkit-plots-default-styles>=0.1.3",
   "cartopy>=0.22.0",
   "fiona",
   "pint",
@@ -77,9 +76,18 @@ add_ignore = [
 ]
 convention = "numpy"
 
+[tool.setuptools.package-data]
+"earthkit.plots" = [
+  "data/styles/*.mplstyle",
+  "data/styles/*.yml",
+  "data/styles/auto-styles/*.yml",
+  "data/styles/identities/*.yml"
+]
+
 [tool.setuptools.packages.find]
 include = [
-  "earthkit.plots"
+  "earthkit.plots",
+  "earthkit.plots.*"
 ]
 where = [
   "src/"
