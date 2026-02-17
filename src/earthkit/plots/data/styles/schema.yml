@@ -13,6 +13,15 @@
 ## the style sheet.
 style_sheet: earthkit
 
+# rcParams that must also be available when the style sheet is excluded
+# (e.g. when pytest-mpl applies the schema dict directly). Values here
+# mirror what is set in earthkit.mplstyle and take precedence over it.
+figure:
+  figsize: [8, 7]
+  dpi: 100
+font:
+  family: Roboto
+
 
 # *************************************************************************** #
 # * STYLES                                                                  * #
