@@ -24,7 +24,7 @@ default_cmap: plasma
 default_style_levels: 12
 
 # The style library to use for automatic styling
-style_library: default
+style_library: earthkit-plots
 
 # The color mode - if "magics" will use named colors from the Magics library
 color_mode:

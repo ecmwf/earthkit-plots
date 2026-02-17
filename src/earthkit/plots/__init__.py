@@ -15,8 +15,8 @@
 import glob
 import os
 
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import font_manager
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
@@ -57,14 +57,13 @@ def _register_fonts():
     for fontpath in fontpaths:
         font_files = glob.glob(os.path.join(fontpath, "*.ttf"))
         for font_file in font_files:
-            font_manager.fontManager.addfont(font_file)
+            matplotlib.font_manager.fontManager.addfont(font_file)
 
 
 def _register_styles():
     """Register bundled .mplstyle files with matplotlib's style library."""
-    import matplotlib
-
     for mplstyle in DEFAULT_STYLES_DIR.glob("*.mplstyle"):
+        print(mplstyle)
         rc = matplotlib.rc_params_from_file(str(mplstyle), use_default_template=False)
         plt.style.core.library[mplstyle.stem] = rc
     plt.style.core.available[:] = sorted(plt.style.core.library.keys())
