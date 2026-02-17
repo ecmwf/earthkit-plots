@@ -13,14 +13,32 @@
 ## the style sheet.
 style_sheet: earthkit
 
-# rcParams that must also be available when the style sheet is excluded
-# (e.g. when pytest-mpl applies the schema dict directly). Values here
-# mirror what is set in earthkit.mplstyle and take precedence over it.
+# rcParams mirror what is set in earthkit.mplstyle. Duplicating them here
+# ensures they apply even when the style sheet is excluded (e.g. in pytest-mpl).
 figure:
   figsize: [8, 7]
   dpi: 100
+axes:
+  linewidth: 1
+  edgecolor: "#AAAAAA"
+  grid: true
+  xmargin: 0.02
+  ymargin: 0.02
+  prop_cycle: "cycler('color', ['#545FA4', '#EB702D', '#FABC20', '#9aa1cb', '#f6bfa2', '#fde19b'])"
+xtick:
+  top: false
+  bottom: false
+  color: "#333333"
+ytick:
+  left: false
+  right: false
+  color: "#333333"
+grid:
+  color: "#F2F2F2"
 font:
   family: Roboto
+text:
+  color: "#333333"
 
 
 # *************************************************************************** #
