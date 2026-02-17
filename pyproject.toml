@@ -81,7 +81,9 @@ convention = "numpy"
   "data/styles/*.mplstyle",
   "data/styles/*.yml",
   "data/styles/auto-styles/*.yml",
-  "data/styles/identities/*.yml"
+  "data/styles/identities/*.yml",
+  "data/static/fonts/**/*.ttf",
+  "data/static/symbols/**/*"
 ]
 
 [tool.setuptools.packages.find]
