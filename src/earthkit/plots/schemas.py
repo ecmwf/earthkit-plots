@@ -127,8 +127,6 @@ class Schema(dict):
             self[key] = value
         except KeyError:
             raise AttributeError(key)
-        if self._parent in RCPARAMS and key not in Schema.PROTECTED_KEYS:
-            rcParams[".".join((self._parent, key))] = value
 
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -284,6 +282,21 @@ class Schema(dict):
 
         # Default: just the rc dict
         return rc
+
+    def style_context(self):
+        """Return a matplotlib style context scoped to this schema.
+
+        Use this to apply earthkit-plots styles only within a specific block,
+        without permanently mutating matplotlib's global rcParams.
+
+        Example
+        -------
+        >>> with schema.style_context():
+        ...     fig, ax = plt.subplots()
+        ...     ax.plot(x, y)
+        ...
+        """
+        return plt.style.context(self.to_stylesheet())
 
     def _to_dict(self):
         d = dict()

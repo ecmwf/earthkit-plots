@@ -65,6 +65,7 @@ class Figure:
 
         self.fig = None
         self.gridspec = None
+        self._style_context = None
 
         self._row = 0
         self._col = 0
@@ -852,6 +853,12 @@ class Figure:
                 ax_logo.axis("off")
         return self
 
+    def _exit_style_context(self):
+        """Exit the style context if one is active, restoring global rcParams."""
+        if self._style_context is not None:
+            self._style_context.__exit__(None, None, None)
+            self._style_context = None
+
     def show(self, *args, **kwargs):
         """
         Display the figure.
@@ -879,12 +886,10 @@ class Figure:
         """
         self._release_queue()
         try:
-            from matplotlib import rcParams as _rc
-
             return plt.savefig(
                 *args,
                 bbox_inches=bbox_inches,
-                dpi=kwargs.pop("dpi", _rc["figure.dpi"]),
+                dpi=kwargs.pop("dpi", schema.figure.dpi),
                 **kwargs,
             )
         finally:
