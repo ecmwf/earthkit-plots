@@ -65,6 +65,7 @@ class Figure:
 
         self.fig = None
         self.gridspec = None
+        self._style_context = None
 
         self._row = 0
         self._col = 0
@@ -90,6 +91,8 @@ class Figure:
 
     def _setup(self):
         """Set up the figure the first time it is needed."""
+        self._style_context = schema.style_context()
+        self._style_context.__enter__()
         self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
         self.gridspec = self.fig.add_gridspec(
             self.rows, self.columns, **self._gridspec_kwargs
@@ -840,6 +843,12 @@ class Figure:
                 ax_logo.axis("off")
         return self
 
+    def _exit_style_context(self):
+        """Exit the style context if one is active, restoring global rcParams."""
+        if self._style_context is not None:
+            self._style_context.__exit__(None, None, None)
+            self._style_context = None
+
     def show(self, *args, **kwargs):
         """
         Display the figure.
@@ -847,7 +856,10 @@ class Figure:
         This calls :func:`matplotlib.pyplot.show` to display the figure.
         """
         self._release_queue()
-        return plt.show(*args, **kwargs)
+        try:
+            return plt.show(*args, **kwargs)
+        finally:
+            self._exit_style_context()
 
     def save(self, *args, bbox_inches="tight", **kwargs):
         """
@@ -863,12 +875,15 @@ class Figure:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.savefig`.
         """
         self._release_queue()
-        return plt.savefig(
-            *args,
-            bbox_inches=bbox_inches,
-            dpi=kwargs.pop("dpi", schema.figure.dpi),
-            **kwargs,
-        )
+        try:
+            return plt.savefig(
+                *args,
+                bbox_inches=bbox_inches,
+                dpi=kwargs.pop("dpi", schema.figure.dpi),
+                **kwargs,
+            )
+        finally:
+            self._exit_style_context()
 
     def _resize(self):
         """Resize the figure to fit its axes."""
