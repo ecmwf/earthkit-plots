@@ -22,4 +22,3 @@ dependencies:
 - plotly
 - pip:
   - adjustText
-  - earthkit-plots-default-styles>=0.1.3

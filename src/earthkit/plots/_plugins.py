@@ -15,6 +15,8 @@
 from importlib.metadata import entry_points
 from pathlib import Path
 
+from earthkit.plots.definitions import DEFAULT_STYLES_DIR
+
 
 def register_plugins():
     plugins = dict()
@@ -44,6 +46,14 @@ def register_plugins():
         for key, value in plugins[plugin.name].items():
             if not value.exists():
                 plugins[plugin.name][key] = None
+
+    # The bundled styles are always registered under "earthkit-plots" and cannot
+    # be overridden by an external plugin.
+    plugins["earthkit-plots"] = {
+        "identities": DEFAULT_STYLES_DIR / "identities",
+        "schema": DEFAULT_STYLES_DIR / "schema.yml",
+        "styles": DEFAULT_STYLES_DIR / "auto-styles",
+    }
 
     return plugins
 
