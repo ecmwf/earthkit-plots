@@ -86,6 +86,8 @@ class Figure:
         self.attributions = []
         self.logos = []
 
+        self._style_context = None
+
         if None not in (self.rows, self.columns):
             self._setup()
 
@@ -97,6 +99,12 @@ class Figure:
         self.gridspec = self.fig.add_gridspec(
             self.rows, self.columns, **self._gridspec_kwargs
         )
+
+    def _exit_style_context(self):
+        """Exit the style context, restoring matplotlib's global rcParams."""
+        if self._style_context is not None:
+            self._style_context.__exit__(None, None, None)
+            self._style_context = None
 
     def _defer_until_setup(method):
         """Decorator to defer calling a method until the figure is setup."""
@@ -141,7 +149,9 @@ class Figure:
                         value, units = match.groups()
                         value = float(value)
                         if units == "px":
-                            length = value / schema.figure.dpi
+                            from matplotlib import rcParams as _rc
+
+                            length = value / _rc["figure.dpi"]
                         elif units == "cm":
                             length = value * 2.54
                 figsize.append(length)

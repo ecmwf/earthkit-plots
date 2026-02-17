@@ -1,0 +1,39 @@
+## Earthkit-plots default matplotlib style sheet.
+##
+## This file contains the matplotlib rcParams for earthkit-plots' default visual
+## style. It is applied automatically when an earthkit-plots Figure is created,
+## and is restored to its previous state when the figure is shown or saved.
+##
+## You can also use this style independently:
+##   import matplotlib.pyplot as plt
+##   plt.style.use("earthkit")
+
+## Figure
+figure.figsize: 8, 7
+figure.dpi: 100
+
+## Axes
+axes.linewidth: 1
+axes.edgecolor: AAAAAA
+axes.grid: True
+axes.xmargin: 0.02
+axes.ymargin: 0.02
+axes.prop_cycle: cycler('color', ['545FA4', 'EB702D', 'FABC20', '9aa1cb', 'f6bfa2', 'fde19b'])
+
+## Ticks
+xtick.top: False
+xtick.bottom: False
+xtick.color: 333333
+ytick.left: False
+ytick.right: False
+ytick.color: 333333
+
+## Grid
+grid.color: F2F2F2
+
+## Font
+## Note: Roboto is bundled with earthkit-plots and registered at import time.
+font.family: Roboto
+
+## Text
+text.color: 333333

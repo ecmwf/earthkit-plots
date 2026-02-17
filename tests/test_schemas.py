@@ -16,7 +16,7 @@ import unittest.mock as mock
 
 import pytest
 
-from earthkit.plots.schemas import Schema
+from earthkit.plots.schemas import Schema, schema
 
 
 def test_schema_init():
@@ -369,6 +369,25 @@ def test_schema_apply_empty_schema():
     assert result["color"] == "red"
 
 
+def test_schema_reset_restores_defaults():
+    """Test that reset() restores the earthkit-plots built-in defaults."""
+    original = schema.style_library
+
+    schema.style_library = "something-else"
+    assert schema.style_library == "something-else"
+
+    schema.reset()
+    assert schema.style_library == original
+
+
+def test_schema_reset_removes_added_keys():
+    """Test that reset() removes keys that were added after initialisation."""
+    schema.reset()
+    schema.my_custom_key = "custom-value"
+    assert "my_custom_key" in schema
+
+    schema.reset()
+    assert "my_custom_key" not in schema
 def test_import_does_not_mutate_rcparams():
     """Importing earthkit.plots must not change matplotlib's global rcParams."""
     import matplotlib
