@@ -63,7 +63,6 @@ def _register_fonts():
 def _register_styles():
     """Register bundled .mplstyle files with matplotlib's style library."""
     for mplstyle in DEFAULT_STYLES_DIR.glob("*.mplstyle"):
-        print(mplstyle)
         rc = matplotlib.rc_params_from_file(str(mplstyle), use_default_template=False)
         plt.style.core.library[mplstyle.stem] = rc
     plt.style.core.available[:] = sorted(plt.style.core.library.keys())
