@@ -47,14 +47,13 @@ def register_plugins():
             if not value.exists():
                 plugins[plugin.name][key] = None
 
-    # If no external plugin claimed the "default" name, fall back to the bundled
-    # default styles shipped with earthkit-plots.
-    if "default" not in plugins:
-        plugins["default"] = {
-            "identities": DEFAULT_STYLES_DIR / "identities",
-            "schema": DEFAULT_STYLES_DIR / "schema.yml",
-            "styles": DEFAULT_STYLES_DIR / "auto-styles",
-        }
+    # The bundled styles are always registered under "earthkit-plots" and cannot
+    # be overridden by an external plugin.
+    plugins["earthkit-plots"] = {
+        "identities": DEFAULT_STYLES_DIR / "identities",
+        "schema": DEFAULT_STYLES_DIR / "schema.yml",
+        "styles": DEFAULT_STYLES_DIR / "auto-styles",
+    }
 
     return plugins
 

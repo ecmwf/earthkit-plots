@@ -24,7 +24,7 @@ from earthkit.plots.definitions import DEFAULT_STYLES_DIR
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 
-_DEFAULT_SCHEMA = "default"
+_DEFAULT_SCHEMA = "earthkit-plots"
 
 
 RCPARAMS = [
@@ -333,6 +333,17 @@ class Schema(dict):
         """
         return getattr(self, key)
 
+    def reset(self):
+        """
+        Reset the schema to the earthkit-plots built-in defaults.
+
+        Example
+        -------
+        >>> schema.use("my-plugin")
+        >>> schema.reset()  # back to earthkit-plots defaults
+        """
+        self.use(_DEFAULT_SCHEMA)
+
     def use(self, name):
         """
         Use a named schema.
@@ -344,7 +355,7 @@ class Schema(dict):
 
         Example
         -------
-        >>> schema.use("default")
+        >>> schema.use("my-plugin")
         >>> schema.use("~/custom.yaml")
         """
         if isinstance(name, Path):
@@ -384,6 +395,7 @@ class Schema(dict):
         return plt.style.context(self.to_stylesheet())
 
     def _reset(self, **kwargs):
+        self.clear()
         self.__init__(**kwargs)
 
 
