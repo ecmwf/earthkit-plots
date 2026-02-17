@@ -18,6 +18,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import yaml
 from matplotlib import rcParams
+from matplotlib.style.core import StyleContext
 
 from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR
@@ -374,7 +375,7 @@ class Schema(dict):
 
         self._reset(**kwargs)
 
-    def style_context(self):
+    def style_context(self) -> StyleContext:
         """Return a matplotlib style context for this schema.
 
         The context applies the schema's style sheet and any inline rcParams
