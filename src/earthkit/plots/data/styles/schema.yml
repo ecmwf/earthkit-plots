@@ -27,7 +27,7 @@ default_style_levels: 12
 style_library: default
 
 # The color mode - if "magics" will use named colors from the Magics library
-color_mode: null
+color_mode:
 
 # If true, will attempt to use automatic stlying whenever no style is passed
 automatic_styles: true
@@ -77,19 +77,19 @@ interactive_layout:
     showline: true
     zeroline: false
   height: 750
-  showlegend: False
+  showlegend: false
 
 
 # *************************************************************************** #
 # * QUICKPLOT WORKFLOW                                                      * #
 # *************************************************************************** #
 quickmap_subplot_workflow:
-  - title
+- title
 
 quickmap_figure_workflow:
-  - coastlines
-  - gridlines
-  - legend
+- coastlines
+- gridlines
+- legend
 
 quickplot_workflow: []
 
@@ -109,7 +109,7 @@ reference_crs: PlateCarree
 # *************************************************************************** #
 date_format: "%Y-%m-%d"
 time_format: "%H:%M"
-time_zone: null
+time_zone:
 
 
 # *************************************************************************** #
@@ -164,15 +164,15 @@ scatter:
 grid_points:
   s: 8
   marker: .
-  edgecolors: null
-  missing_values: null
+  edgecolors:
+  missing_values:
   z: false
   c: red
-  legend_style: null
+  legend_style:
 point_cloud:
   s: 5
   marker: o
-  edgecolors: null
+  edgecolors:
 boxplot:
   sym: x
 
@@ -189,14 +189,14 @@ borders:
   edgecolor: "#999999"
   facecolor: none
   special_styles:
-    - key: BRK_A3
-      values: ["B57"]
-      kwargs:
-        linestyle: "dotted"
-    - key: BRK_A3
-      values: ["B89"]
-      kwargs:
-        linestyle: "dotted"
+  - key: BRK_A3
+    values: ["B57"]
+    kwargs:
+      linestyle: "dotted"
+  - key: BRK_A3
+    values: ["B89"]
+    kwargs:
+      linestyle: "dotted"
 countries:
   zorder: 0
   linestyle: "-"
