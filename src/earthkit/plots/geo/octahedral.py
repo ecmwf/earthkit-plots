@@ -70,7 +70,7 @@ def nnshow(lons, lats, data, ax, nx=1000, ny=1000, style=None, **kwargs):
     unique_lats, row_starts, row_counts = _build_row_index(lats)
 
     lat_bounds = _lat_boundaries(unique_lats)
-    
+
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
     if xlims == (0.0, 1.0) and ylims == (0.0, 1.0):

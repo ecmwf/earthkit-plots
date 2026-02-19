@@ -1,8 +1,9 @@
-import numpy as np
-import time
 import logging
+import time
+
+import numpy as np
 from pyproj import Transformer
-from scipy.interpolate import RegularGridInterpolator, LinearNDInterpolator
+from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
 
 logger = logging.getLogger(__name__)
 ENABLE_TIMING = True
@@ -10,7 +11,10 @@ ENABLE_TIMING = True
 # Try to import CuPy for GPU acceleration
 try:
     import cupy as cp
-    from cupyx.scipy.interpolate import RegularGridInterpolator as CuPyRegularGridInterpolator
+    from cupyx.scipy.interpolate import (
+        RegularGridInterpolator as CuPyRegularGridInterpolator,
+    )
+
     HAS_CUPY = True
     logger.info("CuPy detected - GPU acceleration available for reprojection")
 except ImportError:
@@ -37,13 +41,17 @@ def enable_gpu_acceleration():
         USE_GPU = True
         logger.info("GPU acceleration ENABLED for reprojection")
     else:
-        logger.warning("GPU acceleration requested but CuPy is not available. Install cupy to enable GPU support.")
+        logger.warning(
+            "GPU acceleration requested but CuPy is not available. Install cupy to enable GPU support."
+        )
+
 
 def disable_gpu_acceleration():
     """Disable GPU acceleration for reprojection (use CPU)."""
     global USE_GPU
     USE_GPU = False
     logger.info("GPU acceleration DISABLED for reprojection")
+
 
 def _get_crs_cache_key(crs):
     """
@@ -53,6 +61,7 @@ def _get_crs_cache_key(crs):
     all CRS types without needing per-projection special cases.
     """
     return crs.to_wkt()
+
 
 def _get_cached_transformer(crs_src, crs_target):
     """
@@ -72,12 +81,17 @@ def _get_cached_transformer(crs_src, crs_target):
         transformer = Transformer.from_crs(crs_target, crs_src, always_xy=True)
         _TRANSFORMER_CACHE[cache_key] = transformer
         if ENABLE_TIMING:
-            logger.info(f"  [TIMING] reproject: Created NEW transformer for {type(crs_src).__name__} → {type(crs_target).__name__} (cache size: {len(_TRANSFORMER_CACHE)})")
+            logger.info(
+                f"  [TIMING] reproject: Created NEW transformer for {type(crs_src).__name__} → {type(crs_target).__name__} (cache size: {len(_TRANSFORMER_CACHE)})"
+            )
     else:
         if ENABLE_TIMING:
-            logger.info(f"  [TIMING] reproject: Using CACHED transformer for {type(crs_src).__name__} → {type(crs_target).__name__}")
+            logger.info(
+                f"  [TIMING] reproject: Using CACHED transformer for {type(crs_src).__name__} → {type(crs_target).__name__}"
+            )
 
     return _TRANSFORMER_CACHE[cache_key]
+
 
 def _transform_coordinates_parallel(transformer, x_tgt, y_tgt, num_chunks=4):
     """
@@ -101,6 +115,7 @@ def _transform_coordinates_parallel(transformer, x_tgt, y_tgt, num_chunks=4):
         Transformed coordinates
     """
     from concurrent.futures import ThreadPoolExecutor
+
     import numpy as np
 
     ny, nx = x_tgt.shape
@@ -112,7 +127,9 @@ def _transform_coordinates_parallel(transformer, x_tgt, y_tgt, num_chunks=4):
         return transformer.transform(x_chunk, y_chunk)
 
     # Create chunk ranges
-    chunks = [(i * chunk_size, min((i + 1) * chunk_size, ny)) for i in range(num_chunks)]
+    chunks = [
+        (i * chunk_size, min((i + 1) * chunk_size, ny)) for i in range(num_chunks)
+    ]
 
     # Transform chunks in parallel
     with ThreadPoolExecutor(max_workers=num_chunks) as executor:
@@ -124,10 +141,16 @@ def _transform_coordinates_parallel(transformer, x_tgt, y_tgt, num_chunks=4):
 
     return x_src_reproj, y_src_reproj
 
+
 def reproject_to_grid(
-    x_src, y_src, z_src, crs_src,
-    bbox_target, crs_target,
-    nx=500, ny=500,
+    x_src,
+    y_src,
+    z_src,
+    crs_src,
+    bbox_target,
+    crs_target,
+    nx=500,
+    ny=500,
     use_gpu=None,
 ):
     """
@@ -173,7 +196,7 @@ def reproject_to_grid(
         gpu_enabled = False
 
     if ENABLE_TIMING and gpu_enabled:
-        logger.info(f"  [TIMING] reproject: Using GPU acceleration")
+        logger.info("  [TIMING] reproject: Using GPU acceleration")
 
     # Choose array library based on GPU setting
     xp = cp if gpu_enabled else np
@@ -185,14 +208,18 @@ def reproject_to_grid(
     y_tgt_1d = xp.linspace(ymin, ymax, ny)
     x_tgt, y_tgt = xp.meshgrid(x_tgt_1d, y_tgt_1d)
     if ENABLE_TIMING:
-        logger.info(f"  [TIMING] reproject: Build target grid: {(time.time() - t0)*1000:.2f}ms")
+        logger.info(
+            f"  [TIMING] reproject: Build target grid: {(time.time() - t0)*1000:.2f}ms"
+        )
 
     # Get cached transformer: target CRS → source CRS
     # This is expensive (100-300ms) so we cache transformers by CRS type + parameters
     t0 = time.time() if ENABLE_TIMING else None
     transformer = _get_cached_transformer(crs_src, crs_target)
     if ENABLE_TIMING:
-        logger.info(f"  [TIMING] reproject: Get/create transformer: {(time.time() - t0)*1000:.2f}ms")
+        logger.info(
+            f"  [TIMING] reproject: Get/create transformer: {(time.time() - t0)*1000:.2f}ms"
+        )
 
     # Transform the target grid into source coordinates
     # Note: pyproj transformer works with CPU arrays, so convert if using GPU
@@ -206,24 +233,38 @@ def reproject_to_grid(
         x_tgt_cpu = cp.asnumpy(x_tgt)
         y_tgt_cpu = cp.asnumpy(y_tgt)
         if use_parallel:
-            x_src_reproj_cpu, y_src_reproj_cpu = _transform_coordinates_parallel(transformer, x_tgt_cpu, y_tgt_cpu)
+            x_src_reproj_cpu, y_src_reproj_cpu = _transform_coordinates_parallel(
+                transformer, x_tgt_cpu, y_tgt_cpu
+            )
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Transform coordinates (parallel, {grid_size} points): {(time.time() - t0)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Transform coordinates (parallel, {grid_size} points): {(time.time() - t0)*1000:.2f}ms"
+                )
         else:
-            x_src_reproj_cpu, y_src_reproj_cpu = transformer.transform(x_tgt_cpu, y_tgt_cpu)
+            x_src_reproj_cpu, y_src_reproj_cpu = transformer.transform(
+                x_tgt_cpu, y_tgt_cpu
+            )
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Transform coordinates (serial, {grid_size} points): {(time.time() - t0)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Transform coordinates (serial, {grid_size} points): {(time.time() - t0)*1000:.2f}ms"
+                )
         x_src_reproj = cp.asarray(x_src_reproj_cpu)
         y_src_reproj = cp.asarray(y_src_reproj_cpu)
     else:
         if use_parallel:
-            x_src_reproj, y_src_reproj = _transform_coordinates_parallel(transformer, x_tgt, y_tgt)
+            x_src_reproj, y_src_reproj = _transform_coordinates_parallel(
+                transformer, x_tgt, y_tgt
+            )
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Transform coordinates (parallel, {grid_size} points): {(time.time() - t0)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Transform coordinates (parallel, {grid_size} points): {(time.time() - t0)*1000:.2f}ms"
+                )
         else:
             x_src_reproj, y_src_reproj = transformer.transform(x_tgt, y_tgt)
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Transform coordinates (serial, {grid_size} points): {(time.time() - t0)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Transform coordinates (serial, {grid_size} points): {(time.time() - t0)*1000:.2f}ms"
+                )
 
     # Interpolation
     # Transfer source data to GPU if needed
@@ -276,12 +317,12 @@ def reproject_to_grid(
         # one extra grid step.  Both cases are treated as globally periodic.
         x_diff = float(x_src[-1] - x_src[0])
         dx = float(x_src[1] - x_src[0]) if len(x_src) > 1 else 0.0
-        _span_with_step = x_diff + dx   # span if the endpoint were included
+        _span_with_step = x_diff + dx  # span if the endpoint were included
         is_periodic = (
-            np.isclose(x_diff          % 360, 0, atol=1e-3)
+            np.isclose(x_diff % 360, 0, atol=1e-3)
             or np.isclose(_span_with_step % 360, 0, atol=1e-3)
-            or np.isclose(x_diff          % (2*np.pi), 0, atol=1e-5)
-            or np.isclose(_span_with_step % (2*np.pi), 0, atol=1e-5)
+            or np.isclose(x_diff % (2 * np.pi), 0, atol=1e-5)
+            or np.isclose(_span_with_step % (2 * np.pi), 0, atol=1e-5)
         )
         # Always use the full 360° period for modulo normalisation so that
         # target coordinates from any longitude convention are correctly
@@ -296,18 +337,30 @@ def reproject_to_grid(
 
             x_reproj_norm = (x_src_reproj - x0) % x_diff + x0
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Coordinate normalization (NumPy): {(time.time() - t1)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Coordinate normalization (NumPy): {(time.time() - t1)*1000:.2f}ms"
+                )
 
             # Extend source arrays for seamless interpolation
-            x_ext = xp.hstack([x_src_gpu[0] - (x_src_gpu[1] - x_src_gpu[0]),
-                               x_src_gpu,
-                               x_src_gpu[-1] + (x_src_gpu[1] - x_src_gpu[0])])
+            x_ext = xp.hstack(
+                [
+                    x_src_gpu[0] - (x_src_gpu[1] - x_src_gpu[0]),
+                    x_src_gpu,
+                    x_src_gpu[-1] + (x_src_gpu[1] - x_src_gpu[0]),
+                ]
+            )
 
-            z_ext = xp.hstack([z_src_gpu[:, -1][:, None],  # last column appended left
-                               z_src_gpu,
-                               z_src_gpu[:, 0][:, None]])  # first column appended right
+            z_ext = xp.hstack(
+                [
+                    z_src_gpu[:, -1][:, None],  # last column appended left
+                    z_src_gpu,
+                    z_src_gpu[:, 0][:, None],
+                ]
+            )  # first column appended right
             if ENABLE_TIMING:
-                logger.info(f"  [TIMING] reproject: Prepare periodic wrapping: {(time.time() - t1)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: Prepare periodic wrapping: {(time.time() - t1)*1000:.2f}ms"
+                )
 
             t1 = time.time() if ENABLE_TIMING else None
             if gpu_enabled:
@@ -317,22 +370,21 @@ def reproject_to_grid(
                     (cp.asnumpy(y_src_gpu), cp.asnumpy(x_ext)),
                     z_ext,
                     bounds_error=False,
-                    fill_value=float('nan')
+                    fill_value=float("nan"),
                 )
                 pts = xp.column_stack([y_src_reproj.ravel(), x_reproj_norm.ravel()])
                 z_tgt = interp(cp.asnumpy(pts)).reshape(ny, nx)
             else:
                 interp = RegularGridInterpolator(
-                    (y_src_gpu, x_ext),
-                    z_ext,
-                    bounds_error=False,
-                    fill_value=np.nan
+                    (y_src_gpu, x_ext), z_ext, bounds_error=False, fill_value=np.nan
                 )
                 pts = xp.column_stack([y_src_reproj.ravel(), x_reproj_norm.ravel()])
                 z_tgt = interp(pts).reshape(ny, nx)
             if ENABLE_TIMING:
                 device_str = "GPU" if gpu_enabled else "CPU"
-                logger.info(f"  [TIMING] reproject: RegularGridInterpolator ({device_str}, periodic): {(time.time() - t1)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: RegularGridInterpolator ({device_str}, periodic): {(time.time() - t1)*1000:.2f}ms"
+                )
 
         else:
             # Non-periodic case
@@ -343,7 +395,7 @@ def reproject_to_grid(
                     (cp.asnumpy(y_src_gpu), cp.asnumpy(x_src_gpu)),
                     z_src_gpu,
                     bounds_error=False,
-                    fill_value=float('nan')
+                    fill_value=float("nan"),
                 )
                 pts = xp.column_stack([y_src_reproj.ravel(), x_src_reproj.ravel()])
                 z_tgt = interp(cp.asnumpy(pts)).reshape(ny, nx)
@@ -352,20 +404,24 @@ def reproject_to_grid(
                     (y_src_gpu, x_src_gpu),
                     z_src_gpu,
                     bounds_error=False,
-                    fill_value=np.nan
+                    fill_value=np.nan,
                 )
                 pts = xp.column_stack([y_src_reproj.ravel(), x_src_reproj.ravel()])
                 z_tgt = interp(pts).reshape(ny, nx)
             if ENABLE_TIMING:
                 device_str = "GPU" if gpu_enabled else "CPU"
-                logger.info(f"  [TIMING] reproject: RegularGridInterpolator ({device_str}, non-periodic): {(time.time() - t1)*1000:.2f}ms")
+                logger.info(
+                    f"  [TIMING] reproject: RegularGridInterpolator ({device_str}, non-periodic): {(time.time() - t1)*1000:.2f}ms"
+                )
 
     else:
         # Curvilinear grid → need scattered interpolation
         # GPU doesn't support LinearNDInterpolator well, so fall back to CPU
         t1 = time.time() if ENABLE_TIMING else None
         if gpu_enabled:
-            logger.warning("GPU acceleration not supported for curvilinear grids, falling back to CPU for interpolation")
+            logger.warning(
+                "GPU acceleration not supported for curvilinear grids, falling back to CPU for interpolation"
+            )
             x_src_cpu = cp.asnumpy(x_src_gpu) if gpu_enabled else x_src_gpu
             y_src_cpu = cp.asnumpy(y_src_gpu) if gpu_enabled else y_src_gpu
             z_src_cpu = cp.asnumpy(z_src_gpu) if gpu_enabled else z_src_gpu
@@ -381,7 +437,7 @@ def reproject_to_grid(
         interp = LinearNDInterpolator(
             np.column_stack([x_src_cpu.flatten(), y_src_cpu.flatten()]),
             z_src_cpu.flatten(),
-            fill_value=np.nan
+            fill_value=np.nan,
         )
         pts = np.column_stack([x_src_reproj_cpu.ravel(), y_src_reproj_cpu.ravel()])
         z_tgt_cpu = interp(pts).reshape(ny, nx)
@@ -389,10 +445,14 @@ def reproject_to_grid(
         # Convert back to GPU if needed
         z_tgt = cp.asarray(z_tgt_cpu) if gpu_enabled else z_tgt_cpu
         if ENABLE_TIMING:
-            logger.info(f"  [TIMING] reproject: LinearNDInterpolator (curvilinear, CPU): {(time.time() - t1)*1000:.2f}ms")
+            logger.info(
+                f"  [TIMING] reproject: LinearNDInterpolator (curvilinear, CPU): {(time.time() - t1)*1000:.2f}ms"
+            )
 
     if ENABLE_TIMING:
-        logger.info(f"  [TIMING] reproject: TOTAL interpolation: {(time.time() - t0)*1000:.2f}ms")
+        logger.info(
+            f"  [TIMING] reproject: TOTAL interpolation: {(time.time() - t0)*1000:.2f}ms"
+        )
 
     # Convert GPU arrays back to CPU for return
     if gpu_enabled:
@@ -401,10 +461,14 @@ def reproject_to_grid(
         y_tgt = cp.asnumpy(y_tgt)
         z_tgt = cp.asnumpy(z_tgt)
         if ENABLE_TIMING:
-            logger.info(f"  [TIMING] reproject: GPU→CPU transfer: {(time.time() - t0)*1000:.2f}ms")
+            logger.info(
+                f"  [TIMING] reproject: GPU→CPU transfer: {(time.time() - t0)*1000:.2f}ms"
+            )
 
     if ENABLE_TIMING:
-        logger.info(f"  [TIMING] reproject: === TOTAL reproject_to_grid: {(time.time() - t_start)*1000:.2f}ms ===")
+        logger.info(
+            f"  [TIMING] reproject: === TOTAL reproject_to_grid: {(time.time() - t_start)*1000:.2f}ms ==="
+        )
 
     return x_tgt, y_tgt, z_tgt
 

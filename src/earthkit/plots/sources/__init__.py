@@ -30,6 +30,7 @@ from earthkit.plots.sources.extractors import (
 from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
+
 class Source:
     """
     Unified data source for plotting.
