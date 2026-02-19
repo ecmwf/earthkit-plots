@@ -494,8 +494,8 @@ def _reproject_nn(
 
     This is O(nx×ny) and produces crisp cell-boundary edges with no
     interpolation blurring — equivalent to the approach used by
-    :func:`~earthkit.plots.geo.healpix.nnshow` and
-    :func:`~earthkit.plots.geo.octahedral.nnshow` but generalised to arbitrary
+    :func:`~earthkit.plots.resample.healpix.nnshow` and
+    :func:`~earthkit.plots.resample.octahedral.nnshow` but generalised to arbitrary
     regular rectilinear source grids.
 
     Parameters

@@ -33,9 +33,9 @@ import numpy as np
 from cartopy.util import add_cyclic_point
 
 from earthkit.plots.geo import coordinate_reference_systems
-from earthkit.plots.geo.grids import needs_cyclic_point
 from earthkit.plots.identifiers import identify_primary
 from earthkit.plots.resample import Interpolate
+from earthkit.plots.resample.grids import needs_cyclic_point
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
@@ -666,7 +666,7 @@ def extract_plottables_2D(
                     else:
                         bbox_target = (-180, 180, -90, 90)
 
-                nx, ny = _pixel_sampler.resolve(bbox_target)
+                nx, ny = _pixel_sampler.resolve(bbox_target, crs=target_crs)
 
                 if isinstance(_pixel_sampler, NearestNeighbour):
                     # NearestNeighbour path: only valid for regular rectilinear
@@ -678,7 +678,7 @@ def extract_plottables_2D(
                         and np.allclose(y_values.T, y_values[:, 0])
                     )
                     if is_regular:
-                        from earthkit.plots.geo.reproject import _reproject_nn
+                        from earthkit.plots.resample.reproject import _reproject_nn
 
                         image, extent = _reproject_nn(
                             x_values[0, :],
@@ -702,7 +702,7 @@ def extract_plottables_2D(
 
                 if not will_reproject:
                     # Bilinear (or NearestNeighbour fallback for curvilinear grids)
-                    from earthkit.plots.geo.reproject import reproject_to_grid
+                    from earthkit.plots.resample.reproject import reproject_to_grid
 
                     # Extract 1D coordinate arrays if data came as a regular meshgrid.
                     # For curvilinear (2D) grids, pass the 2D arrays directly so
@@ -1555,7 +1555,7 @@ def _handle_regular_grid_nn(
         else:
             bbox_target = (-180, 180, -90, 90)
 
-    from earthkit.plots.geo.reproject import _reproject_nn
+    from earthkit.plots.resample.reproject import _reproject_nn
 
     image, extent = _reproject_nn(
         x_src_1d,

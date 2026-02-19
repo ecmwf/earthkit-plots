@@ -63,6 +63,6 @@ def apply_regrid(
     resampler = Regrid(
         resolution=target_resolution,
         method=method or "linear",
-        source_grid=gridspec,
+        in_grid=gridspec,
     )
     return resampler.apply(x, y, z, gridspec=gridspec, context=context)
