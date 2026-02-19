@@ -30,17 +30,12 @@ from earthkit.plots.sources.extractors import (
 from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
-GRIDSPECS_TO_NOT_REGRID = [
-    "unknown",
-]
-
-
 class Source:
     """
     Unified data source for plotting.
 
     Wraps different data types via extractors and provides a consistent
-    interface for coordinate extraction, metadata access, and regridding.
+    interface for coordinate extraction and metadata access.
 
     Parameters
     ----------
@@ -59,9 +54,6 @@ class Source:
     context : PlotContext, optional
         Plot context to guide coordinate inference.
         Defaults to CARTESIAN_2D.
-    regrid : bool, optional
-        Whether to apply regridding if data has special grid structure.
-        Defaults to True.
     metadata : dict, optional
         User-provided metadata.
     units : str, optional
@@ -91,7 +83,6 @@ class Source:
         u: str | np.ndarray | None = None,
         v: str | np.ndarray | None = None,
         context: PlotContext = PlotContext.CARTESIAN_2D,
-        regrid: bool = True,
         metadata: dict | None = None,
         units: str | None = None,
         x_units: str | None = None,
@@ -107,7 +98,6 @@ class Source:
         self._u_spec = u
         self._v_spec = v
         self._context = context
-        self._should_regrid = regrid
         self._metadata_resolver = MetadataResolver(self._extractor, metadata)
 
         # Unit conversion tracking
@@ -142,10 +132,9 @@ class Source:
 
         # Backward compatibility properties
         self._data = data  # For backward compatibility
-        self.regrid = regrid  # For backward compatibility
 
     def _extract(self):
-        """Lazy coordinate extraction with optional regridding."""
+        """Lazy coordinate extraction."""
         if self._coords_extracted:
             return
 
@@ -172,68 +161,6 @@ class Source:
         self._z_coord_info = extracted.z
         self._u_coord_info = extracted.u
         self._v_coord_info = extracted.v
-
-        # Apply regridding if needed
-        if self._should_regrid and self._z_coord_info is not None:
-            gridspec = self._extractor.get_gridspec()
-            if gridspec is not None and gridspec.name not in GRIDSPECS_TO_NOT_REGRID:
-                from earthkit.plots.sources.regrid import apply_regrid
-
-                x, y, z = apply_regrid(
-                    self._x_coord_info.values,
-                    self._y_coord_info.values,
-                    self._z_coord_info.values,
-                    gridspec,
-                    self._context,
-                )
-                # Update coordinate info with regridded values
-                self._x_coord_info = CoordinateInfo(
-                    values=x,
-                    name=self._x_coord_info.name,
-                    source_units=self._x_coord_info.source_units,
-                    metadata=self._x_coord_info.metadata,
-                )
-                self._y_coord_info = CoordinateInfo(
-                    values=y,
-                    name=self._y_coord_info.name,
-                    source_units=self._y_coord_info.source_units,
-                    metadata=self._y_coord_info.metadata,
-                )
-                self._z_coord_info = CoordinateInfo(
-                    values=z,
-                    name=self._z_coord_info.name,
-                    source_units=self._z_coord_info.source_units,
-                    metadata=self._z_coord_info.metadata,
-                )
-
-                # Regrid u and v if present
-                if self._u_coord_info is not None and self._v_coord_info is not None:
-                    _, _, u = apply_regrid(
-                        self._x_coord_info.values,
-                        self._y_coord_info.values,
-                        self._u_coord_info.values,
-                        gridspec,
-                        self._context,
-                    )
-                    _, _, v = apply_regrid(
-                        self._x_coord_info.values,
-                        self._y_coord_info.values,
-                        self._v_coord_info.values,
-                        gridspec,
-                        self._context,
-                    )
-                    self._u_coord_info = CoordinateInfo(
-                        values=u,
-                        name=self._u_coord_info.name,
-                        source_units=self._u_coord_info.source_units,
-                        metadata=self._u_coord_info.metadata,
-                    )
-                    self._v_coord_info = CoordinateInfo(
-                        values=v,
-                        name=self._v_coord_info.name,
-                        source_units=self._v_coord_info.source_units,
-                        metadata=self._v_coord_info.metadata,
-                    )
 
         self._coords_extracted = True
 
@@ -714,7 +641,6 @@ def get_source(
     u=None,
     v=None,
     context=None,
-    regrid=True,
     metadata=None,
     units=None,
     x_units=None,
@@ -751,9 +677,6 @@ def get_source(
     context : PlotContext, optional
         Plot context to guide coordinate inference. If None, defaults to
         CARTESIAN_2D.
-    regrid : bool, optional
-        Whether to apply regridding if data has special grid structure.
-        Defaults to True.
     metadata : dict, optional
         User-provided metadata.
     units : str, optional
@@ -813,7 +736,6 @@ def get_source(
         u=u,
         v=v,
         context=context,
-        regrid=regrid,
         metadata=metadata,
         units=units,
         x_units=x_units,

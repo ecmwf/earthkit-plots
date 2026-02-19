@@ -30,7 +30,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Regrid
+from earthkit.plots.resample import Bilinear, Regrid, _AUTO
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
@@ -82,7 +82,7 @@ def plot_1D(method_name=None):
     return decorator
 
 
-def plot_2D(method_name=None, extract_domain=False):
+def plot_2D(method_name=None, extract_domain=False, default_resample=_AUTO):
     def decorator(method):
         @functools.wraps(method)
         def wrapper(
@@ -94,8 +94,21 @@ def plot_2D(method_name=None, extract_domain=False):
             style=None,
             every=None,
             auto_style=False,
+            resample=_AUTO,
             **kwargs,
         ):
+            if resample is _AUTO:
+                # "auto": resolved later in extract_plottables_2D once the
+                # source gridspec is known (Regrid for HEALPix/reduced_gg,
+                # Bilinear for everything else).
+                if default_resample is False:
+                    resample = False  # method explicitly opts out of resampling
+                # else: keep _AUTO — the pipeline will resolve it
+            elif resample is True:
+                resample = Bilinear()
+            elif isinstance(resample, list):
+                from earthkit.plots.resample import Chain
+                resample = Chain(resample)
             return extract_plottables_2D(
                 subplot=self,
                 method_name=method_name or method.__name__,
@@ -107,6 +120,7 @@ def plot_2D(method_name=None, extract_domain=False):
                 every=every,
                 auto_style=auto_style,
                 extract_domain=extract_domain,
+                resample=resample,
                 **kwargs,
             )
 
@@ -684,7 +698,7 @@ class Subplot:
             if auto_style is not None:
                 method = getattr(self, auto_style._preferred_method)
             else:
-                method = self.grid_cells
+                method = getattr(self, "grid_cells", self.pcolormesh)
         else:
             method = getattr(self, style._preferred_method)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
@@ -720,7 +734,7 @@ class Subplot:
             if auto_style is not None:
                 method = getattr(self, auto_style._preferred_method)
             else:
-                method = self.grid_cells
+                method = getattr(self, "grid_cells", self.pcolormesh)
         else:
             method = getattr(self, style._preferred_method)
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
@@ -899,7 +913,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
-    @plot_2D(extract_domain=True)
+    @plot_2D(extract_domain=True, default_resample=False)
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
@@ -922,13 +936,12 @@ class Subplot:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
-            by detecting the resolution of the data.
+        resample : earthkit.plots.resample.Resample, bool, or dict, optional
+            Controls resampling of data before plotting. Pass a
+            :class:`~earthkit.plots.resample.Interpolate` (or subclass) instance to
+            interpolate unstructured data onto a regular grid, a dict of keyword
+            arguments to construct one, or ``True`` for defaults. Default is ``False``
+            for pcolormesh.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
         """
@@ -957,6 +970,11 @@ class Subplot:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+        resample : earthkit.plots.resample.Resample, bool, or False, optional
+            Controls resampling before plotting. Pass a
+            :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
+            defaults) to reproject onto a regular target grid, or ``False`` to
+            disable. Default is ``Bilinear()`` (1000 × 1000 pixels).
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contour`.
         """
@@ -985,13 +1003,13 @@ class Subplot:
             automatically generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
-            by detecting the resolution of the data.
+        resample : earthkit.plots.resample.Resample, bool, or False, optional
+            Controls resampling before plotting. Pass a
+            :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
+            defaults) to reproject onto a regular target grid, or ``False`` to
+            disable. Default is ``Bilinear()`` (1000 × 1000 pixels). Pass an
+            :class:`~earthkit.plots.resample.Interpolate` instance to interpolate
+            unstructured data onto a structured grid instead.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
@@ -1173,7 +1191,7 @@ class Subplot:
         """
         Plot a pcolormesh on the Subplot.
 
-        Deprecated: Use :meth:`pcolormesh` or :meth:`grid_cells` instead.
+        Deprecated: Use :meth:`pcolormesh` instead.
 
         Parameters
         ----------
@@ -1188,11 +1206,9 @@ class Subplot:
 
         warnings.warn(
             "block is deprecated and will be removed in a future release. "
-            "Please use grid_cells instead."
+            "Please use pcolormesh instead."
         )
         return self.pcolormesh(*args, **kwargs)
-
-    grid_cells = pcolormesh
 
     def legend(self, label=None, *args, **kwargs):
         """

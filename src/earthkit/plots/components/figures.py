@@ -84,6 +84,7 @@ class Figure:
 
         self.attributions = []
         self.logos = []
+        self._ancillary_cache = {}
 
         if None not in (self.rows, self.columns):
             self._setup()

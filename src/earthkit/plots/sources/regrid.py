@@ -16,7 +16,6 @@ from typing import Any
 
 import numpy as np
 
-from earthkit.plots.schemas import schema
 from earthkit.plots.sources.context import PlotContext
 
 
@@ -27,91 +26,43 @@ def apply_regrid(
     gridspec: Any,
     context: PlotContext,
     target_resolution: float | None = None,
+    method: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Apply regridding to data with special grid structure.
+    Apply regridding to data with a structured grid specification.
 
-    This centralized regridding function works for any source type that
-    provides a gridspec (HEALPix, Reduced Gaussian Grid, etc.).
+    Delegates to :class:`~earthkit.plots.resample.Regrid` so that all
+    regridding logic lives in one place.
 
     Parameters
     ----------
-    x : np.ndarray
-        Current x coordinates (longitude).
-    y : np.ndarray
-        Current y coordinates (latitude).
+    x, y : np.ndarray
+        Source coordinate arrays (passed through; regridder uses gridspec).
     z : np.ndarray
         Field values to regrid.
-    gridspec : GridSpec or dict
-        Grid specification from source.
+    gridspec : dict or GridSpec
+        Grid specification from the source (HEALPix, reduced Gaussian, …).
     context : PlotContext
-        Plot context (only regrid for geographic plots).
+        Only geographic plots are regridded.
     target_resolution : float, optional
-        Target grid resolution in degrees. If None, uses schema default.
+        Output grid spacing in degrees.  Defaults to the schema value.
+    method : str, optional
+        Interpolation method (``'linear'`` or ``'nearest-neighbour'``).
 
     Returns
     -------
     tuple[np.ndarray, np.ndarray, np.ndarray]
-        Regridded (x, y, z) coordinates.
-
-    Raises
-    ------
-    ImportError
-        If earthkit-regrid is not available.
+        ``(lon_2d, lat_2d, z_2d)`` on the regular lat/lon output grid.
     """
-    # Only regrid geographic plots
-    if not context.is_geographic:
-        return x, y, z
+    from earthkit.plots.resample import Regrid
+    from earthkit.plots.schemas import schema
 
-    # Check if regridding is available
-    from earthkit.plots.geo.regrid import can_regrid
-
-    if not can_regrid():
-        raise ImportError(
-            f"earthkit-regrid is required for plotting data on a "
-            f"'{gridspec.__class__.__name__}' grid. "
-            "Please install: pip install earthkit-regrid"
-        )
-
-    # Get target resolution
     if target_resolution is None:
         target_resolution = schema.interpolate_target_resolution
 
-    # Generate target regular lat/lon grid
-    x_new, y_new = _generate_latlon_grid(target_resolution)
-
-    # Import regridding function
-    from earthkit.plots.geo.regrid import regrid
-
-    # Prepare output grid spec
-    out_grid = {"grid": [target_resolution, target_resolution]}
-
-    z_new = regrid(z, in_grid=gridspec, out_grid=out_grid)
-
-    return x_new, y_new, z_new
-
-
-def _generate_latlon_grid(
-    resolution: float,
-) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Generate regular latitude/longitude grid.
-
-    Parameters
-    ----------
-    resolution : float
-        Grid resolution in degrees.
-
-    Returns
-    -------
-    tuple[np.ndarray, np.ndarray]
-        (longitude, latitude) 2D mesh grids.
-    """
-    # Generate lat/lon vectors
-    lat_v = np.linspace(90, -90, int(180 / resolution) + 1)
-    lon_v = np.linspace(0, 360 - resolution, int(360 / resolution))
-
-    # Create mesh grids
-    lon, lat = np.meshgrid(lon_v, lat_v)
-
-    return lon, lat
+    resampler = Regrid(
+        resolution=target_resolution,
+        method=method or "linear",
+        source_grid=gridspec,
+    )
+    return resampler.apply(x, y, z, gridspec=gridspec, context=context)

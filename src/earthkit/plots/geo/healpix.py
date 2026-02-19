@@ -33,6 +33,10 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
+    if xlims == (0.0, 1.0) and ylims == (0.0, 1.0):
+        ax.set_global()
+        xlims = ax.get_xlim()
+        ylims = ax.get_ylim()
     # NOTE: we want the center coordinate of each pixel, thus we have to
     # compute the linspace over halve a pixel size less than the plot's limits
     dx = (xlims[1] - xlims[0]) / nx
