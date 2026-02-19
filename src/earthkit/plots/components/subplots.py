@@ -30,7 +30,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Bilinear, Regrid, _AUTO
+from earthkit.plots.resample import _AUTO, Bilinear, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
@@ -108,6 +108,7 @@ def plot_2D(method_name=None, extract_domain=False, default_resample=_AUTO):
                 resample = Bilinear()
             elif isinstance(resample, list):
                 from earthkit.plots.resample import Chain
+
                 resample = Chain(resample)
             return extract_plottables_2D(
                 subplot=self,

@@ -66,6 +66,7 @@ _USE_NN = object()
 # method_name is matched by prefix so "contourf" matches "contour".
 # ---------------------------------------------------------------------------
 
+
 def _auto_resample_policy(method_name: str, is_structured: bool):
     """
     Return the resample object to use when ``resample='auto'``.
@@ -553,7 +554,10 @@ def extract_plottables_2D(
     # which contains the full policy table (see top of this module).
     if _resample_is_auto:
         from earthkit.plots.resample import _is_structured_grid
-        resample = _auto_resample_policy(method_name, _is_structured_grid(source.gridspec))
+
+        resample = _auto_resample_policy(
+            method_name, _is_structured_grid(source.gridspec)
+        )
 
     # Step 3: Configure the plotting style
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
@@ -631,10 +635,13 @@ def extract_plottables_2D(
         # time.  All other Resample subclasses were already applied in Step 6.5.
         will_reproject = False
         from earthkit.plots.resample import Chain, NearestNeighbour, _PixelSampler
+
         # Extract the effective pixel sampler — handles plain sampler and Chain.
         _pixel_sampler = (
-            resample.pixel_step if isinstance(resample, Chain)
-            else resample if isinstance(resample, _PixelSampler)
+            resample.pixel_step
+            if isinstance(resample, Chain)
+            else resample
+            if isinstance(resample, _PixelSampler)
             else None
         )
         if (
@@ -1449,19 +1456,31 @@ def _handle_specialized_grids(
     # to Step 6.5.  Otherwise raise a clear error rather than letting matplotlib
     # crash with a cryptic shape mismatch.
     if gridspec is not None and resample is not _USE_NN:
-        from earthkit.plots.resample import Chain, Regrid as _Regrid, _is_structured_grid
+        from earthkit.plots.resample import Chain
+        from earthkit.plots.resample import Regrid as _Regrid
+        from earthkit.plots.resample import _is_structured_grid
+
         if _is_structured_grid(gridspec):
             # Check whether the supplied resample will handle the structured grid
-            _has_regrid = (
-                isinstance(resample, _Regrid)
-                or (isinstance(resample, Chain) and any(isinstance(s, _Regrid) for s in resample.data_steps))
+            _has_regrid = isinstance(resample, _Regrid) or (
+                isinstance(resample, Chain)
+                and any(isinstance(s, _Regrid) for s in resample.data_steps)
             )
             if not _has_regrid:
+                _grid_label = {
+                    "healpix": "HEALPix",
+                    "reduced_gg": "reduced Gaussian",
+                }.get(gridspec.name, gridspec.name)
                 raise ValueError(
-                    f"pcolormesh cannot render {gridspec.name!r} data directly. "
-                    "Pass an explicit resample strategy, e.g. resample=Regrid() to "
-                    "convert to a regular lat/lon grid first, or use grid_cells() for "
-                    "automatic nearest-neighbour cell rendering."
+                    f"Input data was identified as a {_grid_label} grid "
+                    f"({gridspec.name!r}), which must be regridded onto a regular "
+                    "lat/lon grid before it can be visualised with pcolormesh. "
+                    "Pass resample=Regrid() (or a Chain that includes Regrid as its "
+                    "first data step) to perform the regridding explicitly, or pass "
+                    "resample='auto' to let earthkit-plots choose the best approach "
+                    "automatically. For all available options see the "
+                    "earthkit.plots.resample module documentation. "
+                    "Alternatively, use grid_cells() for automatic cell rendering."
                 )
 
     # Specialised grid backends (HEALPix, octahedral reduced Gaussian).

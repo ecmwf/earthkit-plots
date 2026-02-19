@@ -171,12 +171,10 @@ def _is_structured_grid(gridspec):
         return False
 
     import re
+
     grid_lower = grid_value.lower()
     # H<N> = HEALPix,  O<N> or N<N> = reduced Gaussian
-    return bool(
-        re.match(r"^h\d+", grid_lower)
-        or re.match(r"^[on]\d+", grid_lower)
-    )
+    return bool(re.match(r"^h\d+", grid_lower) or re.match(r"^[on]\d+", grid_lower))
 
 
 class _LegacyRegridExecutor:
@@ -186,6 +184,7 @@ class _LegacyRegridExecutor:
     def is_valid():
         try:
             from earthkit.regrid import interpolate  # noqa: F401
+
             return True
         except ImportError:
             return False
@@ -193,6 +192,7 @@ class _LegacyRegridExecutor:
     @staticmethod
     def call(array, in_grid, out_grid):
         from earthkit.regrid import interpolate
+
         return interpolate(array, in_grid=in_grid, out_grid=out_grid)
 
 
@@ -203,6 +203,7 @@ class _MirRegridExecutor:
     def is_valid():
         try:
             from earthkit.regrid.array import regrid  # noqa: F401
+
             try:
                 import mir  # noqa: F401
             except Exception:
@@ -214,6 +215,7 @@ class _MirRegridExecutor:
     @staticmethod
     def call(array, in_grid, out_grid):
         import logging
+
         from earthkit.regrid.array import regrid
 
         LOG = logging.getLogger(__name__)
@@ -258,9 +260,9 @@ class Regrid(Resample):
 
     Examples
     --------
-    >>> Regrid()                                    # 0.25° lat/lon, linear
-    >>> Regrid(resolution=1.0)                      # 1° lat/lon
-    >>> Regrid(resolution=0.5, method='nearest')
+    >>> Regrid()  # 0.25° lat/lon, linear
+    >>> Regrid(resolution=1.0)  # 1° lat/lon
+    >>> Regrid(resolution=0.5, method="nearest")
     >>> Regrid(source_grid={"grid": "healpix", "ordering": "ring", "nside": 32})
     >>> Regrid.at_resolution(0.1)
     """
@@ -268,7 +270,9 @@ class Regrid(Resample):
     DEFAULT_RESOLUTION = 0.25
 
     def __init__(self, resolution=None, method="linear", source_grid=None):
-        self._resolution = float(resolution) if resolution is not None else self.DEFAULT_RESOLUTION
+        self._resolution = (
+            float(resolution) if resolution is not None else self.DEFAULT_RESOLUTION
+        )
 
         method = _REGRID_METHOD_ALIASES.get(method, method)
         if method not in _VALID_REGRID_METHODS:
@@ -379,7 +383,9 @@ class Regrid(Resample):
         if self.method == "nearest-neighbour":
             out_grid_spec["interpolation"] = "nearest-neighbour"
 
-        z_new = self._call_regrid(z_values, in_grid=in_grid_spec, out_grid=out_grid_spec)
+        z_new = self._call_regrid(
+            z_values, in_grid=in_grid_spec, out_grid=out_grid_spec
+        )
         lon_2d, lat_2d = _generate_latlon_grid(self._resolution)
         return lon_2d, lat_2d, z_new
 
@@ -401,7 +407,7 @@ class Chain(Resample):
 
     Examples
     --------
-    >>> Chain(Regrid(5), Bilinear())   # regrid to 5° then pixel-sample
+    >>> Chain(Regrid(5), Bilinear())  # regrid to 5° then pixel-sample
     >>> Chain([Regrid(), Bilinear()])  # same via list
     """
 
@@ -542,9 +548,9 @@ class _PixelSampler(Resample):
 
         Examples
         --------
-        >>> Bilinear.at_resolution(1.0)          # 1° × 1° pixels
-        >>> NearestNeighbour.at_resolution(0.25) # quarter-degree pixels
-        >>> Bilinear.at_resolution(5000, 5000)   # 5 km × 5 km pixels (projected)
+        >>> Bilinear.at_resolution(1.0)  # 1° × 1° pixels
+        >>> NearestNeighbour.at_resolution(0.25)  # quarter-degree pixels
+        >>> Bilinear.at_resolution(5000, 5000)  # 5 km × 5 km pixels (projected)
         """
         if dy is None:
             dy = dx
@@ -619,10 +625,10 @@ class Bilinear(_PixelSampler):
 
     Examples
     --------
-    >>> Bilinear()                      # 1000 × 1000 pixels
-    >>> Bilinear(nx=2000, ny=1000)      # fixed pixel count
-    >>> Bilinear(resolution=1.0)        # 1-degree pixels (PlateCarree)
-    >>> Bilinear(resolution=(1.0, 0.5)) # 1° × 0.5° pixels
+    >>> Bilinear()  # 1000 × 1000 pixels
+    >>> Bilinear(nx=2000, ny=1000)  # fixed pixel count
+    >>> Bilinear(resolution=1.0)  # 1-degree pixels (PlateCarree)
+    >>> Bilinear(resolution=(1.0, 0.5))  # 1° × 0.5° pixels
     """
 
 
@@ -663,15 +669,16 @@ class NearestNeighbour(_PixelSampler):
 
     Examples
     --------
-    >>> NearestNeighbour()                      # 1000 × 1000 pixels
-    >>> NearestNeighbour(nx=500, ny=500)        # fixed pixel count
-    >>> NearestNeighbour(resolution=1.0)        # 1-degree pixels (PlateCarree)
-    >>> NearestNeighbour(resolution=(1.0, 0.5)) # 1° × 0.5° pixels
+    >>> NearestNeighbour()  # 1000 × 1000 pixels
+    >>> NearestNeighbour(nx=500, ny=500)  # fixed pixel count
+    >>> NearestNeighbour(resolution=1.0)  # 1-degree pixels (PlateCarree)
+    >>> NearestNeighbour(resolution=(1.0, 0.5))  # 1° × 0.5° pixels
     """
 
 
 # Backwards-compatible alias
 GridSample = Bilinear
+
 
 class Interpolate(Resample):
     """

@@ -19,7 +19,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
-from earthkit.plots.components.subplots import Subplot, plot_2D
+from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
@@ -27,6 +27,7 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
+
 
 class Map(Subplot):
     """
@@ -135,7 +136,18 @@ class Map(Subplot):
             self._crs = source.crs or ccrs.PlateCarree()
         return {"transform": source.crs or ccrs.PlateCarree()}
 
-    def grid_cells(self, *args, x=None, y=None, z=None, style=None, every=None, auto_style=False, resample=None, **kwargs):
+    def grid_cells(
+        self,
+        *args,
+        x=None,
+        y=None,
+        z=None,
+        style=None,
+        every=None,
+        auto_style=False,
+        resample=None,
+        **kwargs,
+    ):
         """
         Plot data as grid cells using the specialised nnshow backends.
 
@@ -161,7 +173,8 @@ class Map(Subplot):
                 "grid_cells does not support the 'resample' argument. "
                 "Use pcolormesh with resample=Bilinear(...) or resample=NearestNeighbour(...) instead."
             )
-        from earthkit.plots.components.extractors import extract_plottables_2D, _USE_NN
+        from earthkit.plots.components.extractors import _USE_NN, extract_plottables_2D
+
         return extract_plottables_2D(
             subplot=self,
             method_name="pcolormesh",
@@ -194,7 +207,9 @@ class Map(Subplot):
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
         if "resample" in kwargs:
-            raise ValueError("The 'resample' argument is not supported for grid_points.")
+            raise ValueError(
+                "The 'resample' argument is not supported for grid_points."
+            )
         popped_kwargs = []
         for key in ["style", "levels", "units", "colors"]:
             if key in kwargs:
@@ -565,7 +580,10 @@ class Map(Subplot):
                             )
 
                 if hasattr(self.figure, "_ancillary_cache"):
-                    self.figure._ancillary_cache[cache_key] = (feature, special_features)
+                    self.figure._ancillary_cache[cache_key] = (
+                        feature,
+                        special_features,
+                    )
 
                 result = self.ax.add_feature(feature, *args, **kwargs)
                 for sf, sf_kwargs in special_features:
