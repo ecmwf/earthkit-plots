@@ -19,7 +19,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
-from earthkit.plots.components.subplots import Subplot
+from earthkit.plots.components.subplots import Subplot, plot_2D
 from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
@@ -27,7 +27,6 @@ from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
-
 
 class Map(Subplot):
     """
@@ -136,6 +135,48 @@ class Map(Subplot):
             self._crs = source.crs or ccrs.PlateCarree()
         return {"transform": source.crs or ccrs.PlateCarree()}
 
+    def grid_cells(self, *args, x=None, y=None, z=None, style=None, every=None, auto_style=False, resample=None, **kwargs):
+        """
+        Plot data as grid cells using the specialised nnshow backends.
+
+        For HEALPix and octahedral reduced Gaussian grids the fast pixel-
+        sampling ``nnshow`` backends are used automatically.  For other grid
+        types, plain pcolormesh rendering is used.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data to plot.
+        x, y, z : str, array-like, or None, optional
+            Explicit coordinates / values.
+        style : earthkit.plots.styles.Style, optional
+            Style to apply.
+        units : str, optional
+            Units to convert the data to.
+        **kwargs
+            Additional keyword arguments forwarded to the underlying plot method.
+        """
+        if resample is not None:
+            raise ValueError(
+                "grid_cells does not support the 'resample' argument. "
+                "Use pcolormesh with resample=Bilinear(...) or resample=NearestNeighbour(...) instead."
+            )
+        from earthkit.plots.components.extractors import extract_plottables_2D, _USE_NN
+        return extract_plottables_2D(
+            subplot=self,
+            method_name="pcolormesh",
+            args=args,
+            x=x,
+            y=y,
+            z=z,
+            style=style,
+            every=every,
+            auto_style=auto_style,
+            extract_domain=True,
+            resample=_USE_NN,
+            **kwargs,
+        )
+
     @schema.grid_points.apply()
     def grid_points(self, *args, **kwargs):
         """
@@ -152,6 +193,8 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
+        if "resample" in kwargs:
+            raise ValueError("The 'resample' argument is not supported for grid_points.")
         popped_kwargs = []
         for key in ["style", "levels", "units", "colors"]:
             if key in kwargs:
@@ -398,6 +441,30 @@ class Map(Subplot):
                     if "color" in kwargs:
                         kwargs["edgecolor"] = kwargs.pop("color")
 
+                # Build a cache key from everything that determines the geometry set.
+                # kwargs is excluded — only the geometry/projection inputs matter.
+                # The extent is not part of the key because reproject_geometries
+                # operates on the full global geometry; clipping to the axes extent
+                # happens at render time by matplotlib/cartopy.
+                cache_key = (
+                    method.__name__,
+                    source,
+                    resolution,
+                    tuple(sorted(include)) if include is not None else None,
+                    tuple(sorted(exclude)) if exclude is not None else None,
+                    str(special_styles),
+                    _transform_first,
+                    type(self.crs).__name__,
+                )
+                cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
+
+                if cached is not None:
+                    feature, special_features = cached
+                    result = self.ax.add_feature(feature, *args, **kwargs)
+                    for sf, sf_kwargs in special_features:
+                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                    return result
+
                 filtered_records = []
                 special_records = []
 
@@ -485,16 +552,24 @@ class Map(Subplot):
                     # Let cartopy handle reprojection (needed for proper line interpolation)
                     feature_crs = src_crs
 
-                # Add optimized features
+                # Build and cache the ShapelyFeature so subsequent subplots with
+                # the same domain/CRS can skip geometry loading and reprojection.
                 feature = cfeature.ShapelyFeature(geometries, feature_crs)
-                result = self.ax.add_feature(feature, *args, **kwargs)
-
+                special_features = []
                 if special_styles is not None:
-                    for record, style in special_records:
+                    for record, sf_kwargs in special_records:
                         geom = record.geometry
                         if not geom.is_empty:
-                            feature = cfeature.ShapelyFeature([geom], self.crs)
-                            self.ax.add_feature(feature, *args, **{**kwargs, **style})
+                            special_features.append(
+                                (cfeature.ShapelyFeature([geom], self.crs), sf_kwargs)
+                            )
+
+                if hasattr(self.figure, "_ancillary_cache"):
+                    self.figure._ancillary_cache[cache_key] = (feature, special_features)
+
+                result = self.ax.add_feature(feature, *args, **kwargs)
+                for sf, sf_kwargs in special_features:
+                    self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
 
                 return result
 
