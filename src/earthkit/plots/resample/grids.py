@@ -279,7 +279,12 @@ def interpolate_unstructured(
         method=method,
     )
 
-    if np.isnan(grid_z).any() and is_global(x, y, np.max(np.diff(np.unique(y))) * 2):
+    if (
+        method != "nearest"
+        and distance_threshold is None
+        and np.isnan(grid_z).any()
+        and is_global(x, y, np.max(np.diff(np.unique(y))) * 2)
+    ):
         warnings.warn(
             "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
         )

@@ -12,4 +12,5 @@ criteria:
 - {long_name: 2 metre temperature}
 - {long_name: Mean 2 metre temperature}
 - {long_name: screen level temperature}
+- {long_name: 2t}
 - {stash_code: 3236}

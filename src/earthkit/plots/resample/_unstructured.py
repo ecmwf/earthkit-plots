@@ -81,7 +81,7 @@ class Unstructured(Resample):
         ny=None,
         resolution=None,
         method: str = "linear",
-        distance_threshold=None,
+        distance_threshold="auto",
         transform: bool = True,
     ):
         if args:
