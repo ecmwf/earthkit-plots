@@ -34,7 +34,7 @@ from cartopy.util import add_cyclic_point
 
 from earthkit.plots.geo import coordinate_reference_systems
 from earthkit.plots.identifiers import identify_primary
-from earthkit.plots.resample import Interpolate
+from earthkit.plots.resample import Unstructured
 from earthkit.plots.resample.grids import needs_cyclic_point
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
@@ -532,6 +532,22 @@ def extract_plottables_2D(
 
     from earthkit.plots.resample import _AUTO
 
+    # Translate legacy `interpolate` kwarg to `resample`
+    if "interpolate" in kwargs and resample is None:
+        interp = kwargs.pop("interpolate")
+        warnings.warn(
+            "The 'interpolate' keyword argument is deprecated. "
+            "Use 'resample=Unstructured(...)' instead.",
+            DeprecationWarning,
+            stacklevel=5,
+        )
+        if interp is True:
+            resample = Unstructured()
+        elif isinstance(interp, dict):
+            resample = Unstructured(**interp)
+        elif isinstance(interp, Unstructured):
+            resample = interp
+
     _resample_is_auto = resample == _AUTO
 
     # Step 2: Infer plot context and initialize the data source
@@ -614,6 +630,24 @@ def extract_plottables_2D(
                         gridspec=source.gridspec,
                         context=context,
                     )
+                elif isinstance(step, Unstructured):
+                    # Unstructured needs CRS context to transform coordinates
+                    # before building the output grid.
+                    x_values, y_values, z_values = step.apply(
+                        x_values,
+                        y_values,
+                        z_values,
+                        source_crs=source.crs,
+                        target_crs=subplot.crs,
+                    )
+                    # The output is already in the target CRS, so drop any
+                    # cartopy transform kwarg to avoid a double-transformation,
+                    # and skip domain extraction (coordinates are already clipped
+                    # to the valid projection area by the non-finite filter).
+                    if step.transform:
+                        kwargs.pop("transform", None)
+                        kwargs.pop("transform_first", None)
+                        extract_domain = False
                 elif isinstance(step, Resample):
                     x_values, y_values, z_values = step.apply(
                         x_values, y_values, z_values
@@ -744,19 +778,12 @@ def extract_plottables_2D(
         # Step 10: Handle coordinate transformation settings
         kwargs = _handle_transform_settings(subplot, kwargs)
 
-        # Step 11: Create the plot with or without interpolation
+        # Step 11: Create the plot
         # (skipped when the NearestNeighbour path already produced a mappable)
         if not mappable:
             if not no_style:
-                mappable = plot_with_interpolation(
-                    subplot,
-                    style,
-                    method_name,
-                    x_values,
-                    y_values,
-                    z_values,
-                    source.crs,
-                    kwargs,
+                mappable = getattr(style, method_name)(
+                    subplot.ax, x_values, y_values, z_values, **kwargs
                 )
             else:
                 warnings.warn("Style not set - using raw matplotlib method.")
@@ -1742,84 +1769,3 @@ def _handle_transform_settings(subplot: Any, kwargs: dict[str, Any]) -> dict[str
             kwargs["transform_first"] = False
 
     return kwargs
-
-
-def plot_with_interpolation(
-    subplot: Any,
-    style: Style,
-    method_name: str,
-    x_values: np.ndarray,
-    y_values: np.ndarray,
-    z_values: np.ndarray,
-    source_crs: Any,
-    kwargs: dict[str, Any],
-) -> Any:
-    """
-    Attempt to plot with or without interpolation as needed.
-
-    This function first tries to plot the raw data. If that fails, it
-    automatically falls back to interpolation to create a structured grid.
-
-    Parameters
-    ----------
-    subplot : Subplot
-        The subplot instance to plot on.
-    style : Style
-        The style object for plotting.
-    method_name : str
-        The name of the plotting method.
-    x_values, y_values, z_values : array-like
-        The coordinate and value arrays.
-    source_crs : Any
-        The coordinate reference system of the source data.
-    kwargs : dict
-        Keyword arguments for plotting.
-
-    Returns
-    -------
-    Any
-        The matplotlib mappable object.
-
-    Examples
-    --------
-    >>> mappable = plot_with_interpolation(
-    ...     subplot, style, "pcolormesh", x, y, z, crs, {}
-    ... )
-    """
-    # Try plotting without resampling first
-    if "resample" not in kwargs:
-        try:
-            return getattr(style, method_name)(
-                subplot.ax, x_values, y_values, z_values, **kwargs
-            )
-        except (ValueError, TypeError):
-            warnings.warn(
-                f"{method_name} failed with raw data, attempting interpolation "
-                f"to structured grid with default interpolation options."
-            )
-
-    # Handle resample parameters
-    resample = kwargs.pop("resample", dict())
-    if resample is True:
-        resample = Interpolate()
-    elif isinstance(resample, dict):
-        resample = Interpolate(**resample)
-
-    # Apply resampling
-    x_values, y_values, z_values = resample.apply(
-        x_values,
-        y_values,
-        z_values,
-        source_crs=source_crs,
-        target_crs=subplot.crs,
-    )
-
-    # Handle transform settings after resampling
-    _ = kwargs.pop("transform_first", None)
-    if resample.transform:
-        _ = kwargs.pop("transform", None)
-
-    # Plot the interpolated data
-    return getattr(style, method_name)(
-        subplot.ax, x_values, y_values, z_values, **kwargs
-    )
