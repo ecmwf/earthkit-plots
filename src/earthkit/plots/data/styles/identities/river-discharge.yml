@@ -1,0 +1,10 @@
+id: river-discharge
+
+criteria:
+- {long_name: Mean discharge in the last 6 hours}
+- {long_name: Mean discharge in the last 24 hours}
+- {name: Mean discharge in the last 24 hours}
+- {name: Mean discharge in the last 6 hours}
+- {name: dis24}
+- {name: dis06}
+- {paramId: 240023}

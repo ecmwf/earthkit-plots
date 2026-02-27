@@ -1,0 +1,6 @@
+id: total-runoff-water-equivalent
+
+criteria:
+- {paramId: 231002, shortName: rowe}
+- {name: Runoff water equivalent (surface plus subsurface)}
+- {shortName: rowe}
