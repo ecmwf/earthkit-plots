@@ -67,7 +67,7 @@ _USE_NN = object()
 # ---------------------------------------------------------------------------
 
 
-def _auto_resample_policy(method_name: str, is_structured: bool):
+def _auto_resample_policy(method_name: str, is_structured: bool, is_unstructured: bool = False):
     """
     Return the resample object to use when ``resample='auto'``.
 
@@ -79,9 +79,13 @@ def _auto_resample_policy(method_name: str, is_structured: bool):
     +==========================+===================+==================================+
     | contour / contourf       | structured        | Chain(Regrid(), Bilinear())      |
     +--------------------------+-------------------+----------------------------------+
+    | contour / contourf       | unstructured      | Unstructured()                   |
+    +--------------------------+-------------------+----------------------------------+
     | contour / contourf       | regular           | Bilinear()                       |
     +--------------------------+-------------------+----------------------------------+
     | pcolormesh               | structured        | error — must be explicit         |
+    +--------------------------+-------------------+----------------------------------+
+    | pcolormesh               | unstructured      | Unstructured()                   |
     +--------------------------+-------------------+----------------------------------+
     | pcolormesh               | regular           | False (native pcolormesh)        |
     +--------------------------+-------------------+----------------------------------+
@@ -92,6 +96,9 @@ def _auto_resample_policy(method_name: str, is_structured: bool):
         The name of the plotting method (e.g. ``"contourf"``, ``"pcolormesh"``).
     is_structured : bool
         Whether the source data is on a structured grid (HEALPix / reduced Gaussian).
+    is_unstructured : bool
+        Whether the source data is on a scattered/unstructured grid (not regular
+        rectilinear and not HEALPix/reduced Gaussian).
 
     Returns
     -------
@@ -114,8 +121,9 @@ def _auto_resample_policy(method_name: str, is_structured: bool):
             # Regrid to a regular lat/lon grid first, then pixel-sample onto
             # the target projection for smooth rendering.
             return Chain(Regrid(), Bilinear())
-        else:
-            return Bilinear()
+        if is_unstructured:
+            return Unstructured()
+        return Bilinear()
 
     if is_pcolormesh:
         if is_structured:
@@ -125,6 +133,8 @@ def _auto_resample_policy(method_name: str, is_structured: bool):
                 "e.g. resample=Regrid() to convert to a regular grid first, or use "
                 "grid_cells() for automatic nearest-neighbour cell rendering."
             )
+        if is_unstructured:
+            return Unstructured()
         # Regular grid: pcolormesh renders natively via transform=PlateCarree().
         return False
 
@@ -570,13 +580,30 @@ def extract_plottables_2D(
     # which contains the full policy table (see top of this module).
     if _resample_is_auto:
         from earthkit.plots.resample import _is_structured_grid
+        from earthkit.plots.resample.grids import is_structured as _is_regular_grid
+
+        _healpix_structured = _is_structured_grid(source.gridspec)
+        # Only check regularity when it's not already a HEALPix/reduced-Gaussian
+        # grid, and only when the source coordinates are available.
+        _unstructured = False
+        if not _healpix_structured:
+            try:
+                _unstructured = not _is_regular_grid(
+                    source.x.values, source.y.values
+                )
+            except Exception:
+                pass
 
         resample = _auto_resample_policy(
-            method_name, _is_structured_grid(source.gridspec)
+            method_name, _healpix_structured, is_unstructured=_unstructured
         )
 
     # Step 3: Configure the plotting style
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
+
+    # Strip internal earthkit-plots keys injected by schema defaults that are
+    # not valid matplotlib kwargs (e.g. 'regrid' from contour/contourf schema).
+    kwargs.pop("regrid", None)
 
     # Step 4: Process z values (convert units, apply scale factors)
     z_values = apply_scale_factor(style, source, z)

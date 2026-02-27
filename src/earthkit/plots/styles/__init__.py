@@ -187,6 +187,8 @@ class Style:
         if "extend" in kwargs:
             self._legend_kwargs["extend"] = kwargs["extend"]
 
+        # Strip internal earthkit-plots keys that are not valid matplotlib kwargs.
+        kwargs.pop("regrid", None)
         self._kwargs = kwargs
         self._preferred_method = preferred_method
 
