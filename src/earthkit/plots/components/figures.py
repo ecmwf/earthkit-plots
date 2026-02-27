@@ -471,12 +471,12 @@ class Figure:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
@@ -528,12 +528,12 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
@@ -562,12 +562,12 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
@@ -596,12 +596,12 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.

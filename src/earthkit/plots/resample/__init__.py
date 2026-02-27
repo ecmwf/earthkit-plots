@@ -23,7 +23,7 @@ Regrid           -- regrid HEALPix / reduced Gaussian data to regular lat/lon
 Chain            -- apply two or more resamplers in sequence
 Bilinear         -- pixel-space bilinear interpolation (smooth contours)
 NearestNeighbour -- pixel-space nearest-neighbour lookup (sharp cell edges)
-Interpolate      -- unstructured → structured grid interpolation
+Unstructured     -- unstructured → structured grid interpolation
 
 Internal helpers
 ----------------
@@ -36,7 +36,6 @@ _call_regrid_compat -- legacy shim for geo.regrid module
 
 from earthkit.plots.resample._base import _AUTO, Resample, Subsample
 from earthkit.plots.resample._chain import Chain
-from earthkit.plots.resample._interpolate import Interpolate
 from earthkit.plots.resample._pixel_sampler import (
     Bilinear,
     GridSample,
@@ -50,6 +49,10 @@ from earthkit.plots.resample._regrid import (
     _generate_latlon_grid,
     _is_structured_grid,
 )
+from earthkit.plots.resample._unstructured import Unstructured
+
+# Backwards-compatible alias
+Interpolate = Unstructured
 
 __all__ = [
     # Public resamplers
@@ -59,6 +62,8 @@ __all__ = [
     "Chain",
     "Bilinear",
     "NearestNeighbour",
+    "Unstructured",
+    # Backwards-compatible alias
     "Interpolate",
     # Backwards-compatible alias
     "GridSample",

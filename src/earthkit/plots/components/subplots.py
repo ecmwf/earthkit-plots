@@ -939,7 +939,7 @@ class Subplot:
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         resample : earthkit.plots.resample.Resample, bool, or dict, optional
             Controls resampling of data before plotting. Pass a
-            :class:`~earthkit.plots.resample.Interpolate` (or subclass) instance to
+            :class:`~earthkit.plots.resample.Unstructured` (or subclass) instance to
             interpolate unstructured data onto a regular grid, a dict of keyword
             arguments to construct one, or ``True`` for defaults. Default is ``False``
             for pcolormesh.
@@ -1009,7 +1009,7 @@ class Subplot:
             :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
             defaults) to reproject onto a regular target grid, or ``False`` to
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels). Pass an
-            :class:`~earthkit.plots.resample.Interpolate` instance to interpolate
+            :class:`~earthkit.plots.resample.Unstructured` instance to interpolate
             unstructured data onto a structured grid instead.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
