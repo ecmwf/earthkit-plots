@@ -72,7 +72,7 @@ def guess_style(data, units=None, **kwargs):
     if schema.style_library not in PLUGINS:
         path = Path(schema.style_library).expanduser()
         identities_path = path / "identities"
-        styles_path = path / "styles"
+        styles_path = path / "auto-styles"
     else:
         identities_path = PLUGINS[schema.style_library]["identities"]
         styles_path = PLUGINS[schema.style_library]["styles"]

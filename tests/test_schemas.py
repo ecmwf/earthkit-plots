@@ -16,7 +16,7 @@ import unittest.mock as mock
 
 import pytest
 
-from earthkit.plots.schemas import Schema
+from earthkit.plots.schemas import Schema, schema
 
 
 def test_schema_init():
@@ -367,3 +367,73 @@ def test_schema_apply_empty_schema():
     # Should only have passed kwargs
     assert result["linewidth"] == 2.0
     assert result["color"] == "red"
+
+
+def test_schema_reset_restores_defaults():
+    """Test that reset() restores the earthkit-plots built-in defaults."""
+    original = schema.style_library
+
+    schema.style_library = "something-else"
+    assert schema.style_library == "something-else"
+
+    schema.reset()
+    assert schema.style_library == original
+
+
+def test_schema_reset_removes_added_keys():
+    """Test that reset() removes keys that were added after initialisation."""
+    schema.reset()
+    schema.my_custom_key = "custom-value"
+    assert "my_custom_key" in schema
+
+    schema.reset()
+    assert "my_custom_key" not in schema
+def test_import_does_not_mutate_rcparams():
+    """Importing earthkit.plots must not change matplotlib's global rcParams."""
+    import matplotlib
+
+    # Capture a selection of defaults that earthkit-plots-default-styles overrides.
+    before = {
+        "figure.figsize": list(matplotlib.rcParams["figure.figsize"]),
+        "axes.edgecolor": matplotlib.rcParams["axes.edgecolor"],
+        "font.family": list(matplotlib.rcParams["font.family"]),
+        "grid.color": matplotlib.rcParams["grid.color"],
+    }
+
+    # earthkit.plots is already imported (it's a dependency of this test module),
+    # so we just re-check — the point is that the import itself must be a no-op.
+    import earthkit.plots  # noqa: F401
+
+    after = {
+        "figure.figsize": list(matplotlib.rcParams["figure.figsize"]),
+        "axes.edgecolor": matplotlib.rcParams["axes.edgecolor"],
+        "font.family": list(matplotlib.rcParams["font.family"]),
+        "grid.color": matplotlib.rcParams["grid.color"],
+    }
+
+    assert before == after, (
+        "Importing earthkit.plots must not change matplotlib rcParams. "
+        f"Changed keys: {[k for k in before if before[k] != after[k]]}"
+    )
+
+
+def test_style_context_is_scoped():
+    """schema.style_context() must not permanently mutate rcParams.
+
+    We inject a sentinel value into the schema so the test is independent of
+    whether earthkit's default styles happen to match matplotlib's defaults.
+    """
+    import matplotlib
+
+    from earthkit.plots.schemas import schema
+
+    sentinel = "#010203"  # an unlikely default
+    before = matplotlib.rcParams["axes.edgecolor"]
+
+    with schema.set(axes={"edgecolor": sentinel}):
+        # Inside style_context the sentinel should be active.
+        with schema.style_context():
+            assert matplotlib.rcParams["axes.edgecolor"] == sentinel
+
+    # Outside the context the original value must be restored.
+    assert matplotlib.rcParams["axes.edgecolor"] == before

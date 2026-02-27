@@ -1,0 +1,5 @@
+id: wind-gust-at-10m-in-last-6-hours
+
+criteria:
+- {paramId: 123, shortName: 10fg6}
+- {long_name: 10 metre wind gust in the last 6 hours}
