@@ -4,6 +4,7 @@ optimal: WIND_GUST_AT_10M_IN_LAST_6_HOURS_IN_METERS_PER_SECOND
 styles:
 
   WIND_GUST_AT_10M_IN_LAST_6_HOURS_IN_METERS_PER_SECOND:
+    name: wind-speed-10m-m-s
     type: Style
     colors: ["#85AAEE", "#208EFC", "#6CA632", "#FFB000", "#FF0000", "#7A11B1"]
     levels: [12, 15, 20, 25, 30, 35, 50]

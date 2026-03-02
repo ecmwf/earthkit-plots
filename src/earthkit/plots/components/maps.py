@@ -146,6 +146,7 @@ class Map(Subplot):
         every=None,
         auto_style=False,
         resample=None,
+        grid="auto",
         **kwargs,
     ):
         """
@@ -165,6 +166,12 @@ class Map(Subplot):
             Style to apply.
         units : str, optional
             Units to convert the data to.
+        grid : str or GridSpec, optional
+            Grid specification to use for rendering.  Pass ``"auto"`` (the
+            default) to detect the grid type from the data metadata.  Pass a
+            :class:`~earthkit.plots.sources.gridspec.GridSpec` (or compatible
+            object with a ``.name`` attribute) to override the detected grid —
+            useful when the source metadata is absent or incorrect.
         **kwargs
             Additional keyword arguments forwarded to the underlying plot method.
         """
@@ -187,6 +194,7 @@ class Map(Subplot):
             auto_style=auto_style,
             extract_domain=True,
             resample=_USE_NN,
+            grid=grid,
             **kwargs,
         )
 

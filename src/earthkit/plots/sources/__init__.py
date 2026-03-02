@@ -519,6 +519,8 @@ class Source:
     @property
     def gridspec(self):
         """Get grid specification."""
+        if hasattr(self, "_gridspec_override"):
+            return self._gridspec_override
         return self._extractor.get_gridspec()
 
     def metadata(self, key: str, default: Any = None) -> Any:

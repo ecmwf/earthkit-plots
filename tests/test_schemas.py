@@ -388,6 +388,8 @@ def test_schema_reset_removes_added_keys():
 
     schema.reset()
     assert "my_custom_key" not in schema
+
+
 def test_import_does_not_mutate_rcparams():
     """Importing earthkit.plots must not change matplotlib's global rcParams."""
     import matplotlib

@@ -67,7 +67,9 @@ _USE_NN = object()
 # ---------------------------------------------------------------------------
 
 
-def _auto_resample_policy(method_name: str, is_structured: bool, is_unstructured: bool = False):
+def _auto_resample_policy(
+    method_name: str, is_structured: bool, is_unstructured: bool = False
+):
     """
     Return the resample object to use when ``resample='auto'``.
 
@@ -187,7 +189,13 @@ def _prepare_style_and_units(style, units, auto_style):
     Emits a deprecation warning for auto_style, and extracts units from a
     provided Style object when not already supplied by the caller.
 
-    Returns the (possibly updated) units value.
+    When *style* is a named-style string (anything other than ``"auto"``), it
+    is resolved to a :class:`~earthkit.plots.styles.Style` object here so that
+    its ``_units`` can be read.  The resolved object is returned as a second
+    value so that callers can pass it straight to ``configure_style`` and avoid
+    a second YAML lookup.
+
+    Returns the (possibly updated) ``(units, style)`` pair.
     """
     if auto_style:
         warnings.warn(
@@ -197,11 +205,15 @@ def _prepare_style_and_units(style, units, auto_style):
             stacklevel=4,
         )
 
+    # Resolve named-style strings early so we can read their _units below.
+    if isinstance(style, str) and style != "auto":
+        style = auto.load_style(style)
+
     if units is None and style is not None and style != "auto":
         if hasattr(style, "_units") and style._units is not None:
             units = style._units
 
-    return units
+    return units, style
 
 
 def extract_plottables_1D(
@@ -270,7 +282,7 @@ def extract_plottables_1D(
     >>> mappable = extract_plottables_2D(subplot, "line", (), x=[1, 2, 3], y=[4, 5, 6])
     """
     # Step 0: Handle deprecation and extract units from style
-    units = _prepare_style_and_units(style, units, auto_style)
+    units, style = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Infer plot context and initialize the data source
     context = _infer_plot_context(subplot, method_name)
@@ -480,6 +492,7 @@ def extract_plottables_2D(
     auto_style: bool = False,
     metadata: dict[str, Any] | None = None,
     resample=None,
+    grid="auto",
     **kwargs: Any,
 ) -> Any:
     """
@@ -538,7 +551,7 @@ def extract_plottables_2D(
     ... )
     """
     # Step 0: Handle deprecation and extract units from style
-    units = _prepare_style_and_units(style, units, auto_style)
+    units, style = _prepare_style_and_units(style, units, auto_style)
 
     from earthkit.plots.resample import _AUTO
 
@@ -576,6 +589,9 @@ def extract_plottables_2D(
     )
     kwargs.update(subplot._plot_kwargs(source))
 
+    if grid != "auto":
+        source._gridspec_override = grid
+
     # Step 2.5: Resolve resample="auto" — delegates to _auto_resample_policy
     # which contains the full policy table (see top of this module).
     if _resample_is_auto:
@@ -588,9 +604,7 @@ def extract_plottables_2D(
         _unstructured = False
         if not _healpix_structured:
             try:
-                _unstructured = not _is_regular_grid(
-                    source.x.values, source.y.values
-                )
+                _unstructured = not _is_regular_grid(source.x.values, source.y.values)
             except Exception:
                 pass
 
@@ -940,7 +954,7 @@ def extract_plottables_vector_2D(
         units = source_units
 
     # Handle deprecation and extract units from style
-    units = _prepare_style_and_units(style, units, auto_style)
+    units, style = _prepare_style_and_units(style, units, auto_style)
 
     # Step 1: Handle different argument patterns and create a unified source
     source = None
@@ -1300,10 +1314,12 @@ def configure_style(
     ----------
     method_name : str
         The name of the plotting method.
-    style : Style or None
-        An existing style object, or None to create a new one. If the string "auto",
-        automatic style detection will be used. If a Style object is provided along
-        with additional style kwargs, a copy with overrides will be created.
+    style : Style, str, or None
+        An existing style object, or None to create a new one. If the string
+        ``"auto"``, automatic style detection will be used. Any other string is
+        treated as a named style and looked up via :func:`earthkit.plots.styles.load_style`.
+        If a Style object is provided along with additional style kwargs, a copy
+        with overrides will be created.
     source : Any
         The data source object.
     units : str or None
@@ -1328,6 +1344,8 @@ def configure_style(
     ... )
     """
     # Handle style="auto" as an alternative to auto_style=True
+    # Named-style strings are already resolved to Style objects by
+    # _prepare_style_and_units before this function is called.
     if style == "auto":
         auto_style = True
         style = None
@@ -1664,7 +1682,7 @@ def plot_healpix(
     --------
     >>> mappable = plot_healpix(subplot, source, z_values, style, {})
     """
-    from earthkit.plots.geo import healpix
+    from earthkit.plots.resample import healpix
 
     # Determine if the grid uses nested ordering
     nest = source.metadata("orderingConvention", default=None) == "nested"
@@ -1711,7 +1729,7 @@ def plot_octahedral(
     --------
     >>> mappable = plot_octahedral(subplot, source, z_values, style, {})
     """
-    from earthkit.plots.geo import octahedral
+    from earthkit.plots.resample import octahedral
 
     return octahedral.nnshow(
         source.x.values,

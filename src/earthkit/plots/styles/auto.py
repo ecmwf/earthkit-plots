@@ -118,3 +118,85 @@ def guess_style(data, units=None, **kwargs):
                 return styles.DEFAULT_STYLE
 
     return styles.Style.from_dict({**style, **kwargs})
+
+
+def _iter_named_styles():
+    """
+    Yield ``(name, style_dict)`` for every named style variant across all
+    registered style libraries.
+
+    Only variants that carry a ``name`` key are yielded.
+    """
+    seen_paths = set()
+    for plugin_paths in PLUGINS.values():
+        styles_path = plugin_paths["styles"]
+        for fname in sorted(glob.glob(str(styles_path / "*"))):
+            if not os.path.isfile(fname) or fname in seen_paths:
+                continue
+            seen_paths.add(fname)
+            with open(fname) as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            for style_dict in config.get("styles", {}).values():
+                name = style_dict.get("name")
+                if name:
+                    yield name, style_dict
+
+
+def load_style(name, **kwargs):
+    """
+    Load a named style by its user-facing name.
+
+    Style names are defined in the ``name`` field of each style variant in the
+    auto-styles YAML files (e.g. ``temperature-2m-turbo-celsius``).  The full
+    list of available names can be retrieved with :func:`list_styles`.
+
+    Parameters
+    ----------
+    name : str
+        The name of the style to load, as shown in the styles gallery.
+    **kwargs
+        Additional keyword arguments passed to the ``Style`` constructor,
+        allowing individual parameters to be overridden.
+
+    Returns
+    -------
+    earthkit.plots.styles.Style
+        The instantiated style object.
+
+    Raises
+    ------
+    KeyError
+        If no style with the given name is found in any registered style
+        library.
+
+    Examples
+    --------
+    >>> import earthkit.plots
+    >>> style = earthkit.plots.styles.load_style("temperature-2m-turbo-celsius")
+    >>> chart.contourf(data, style=style)
+    """
+    for style_name, style_dict in _iter_named_styles():
+        if style_name == name:
+            return styles.Style.from_dict({**style_dict, **kwargs})
+    available = list_styles()
+    raise KeyError(f"No style named {name!r}. " f"Available styles: {available}")
+
+
+def list_styles():
+    """
+    Return a sorted list of all available named style names.
+
+    These names can be passed to :func:`load_style` or used directly as the
+    ``style`` parameter in any plotting method.
+
+    Returns
+    -------
+    list of str
+
+    Examples
+    --------
+    >>> import earthkit.plots
+    >>> earthkit.plots.styles.list_styles()
+    ['mslp-contour-hpa', 'mslp-contour-pa', 'precipitation-turbo-kg-m2', ...]
+    """
+    return sorted(name for name, _ in _iter_named_styles())

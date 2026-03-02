@@ -4,6 +4,7 @@ optimal: TEMPERATURE_AT_850HPA_IN_CELSIUS
 styles:
 
   TEMPERATURE_AT_850HPA_IN_CELSIUS:
+    name: temperature-850hpa-rainbow-celsius
     type: Style
     colors: rainbow
     extend: both
@@ -11,6 +12,7 @@ styles:
     units: celsius
 
   TEMPERATURE_AT_850HPA_IN_KELVIN:
+    name: temperature-850hpa-rainbow-kelvin
     type: Style
     colors: rainbow
     extend: both
@@ -18,6 +20,7 @@ styles:
     units: K
 
   TEMPERATURE_AT_850HPA_IN_FAHRENHEIT:
+    name: temperature-850hpa-rainbow-fahrenheit
     type: Style
     colors: rainbow
     extend: both

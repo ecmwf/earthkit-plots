@@ -4,6 +4,7 @@ optimal: MEAN_SEA_LEVEL_PRESSURE_IN_HPA
 styles:
 
   MEAN_SEA_LEVEL_PRESSURE_IN_PA:
+    name: mslp-contour-pa
     type: Contour
     linecolors: "#33334d"
     linewidths: [0.5, 0.5, 0.5, 1]
@@ -14,6 +15,7 @@ styles:
     legend_style:
 
   MEAN_SEA_LEVEL_PRESSURE_IN_HPA:
+    name: mslp-contour-hpa
     type: Contour
     linecolors: "#33334d"
     linewidths: [0.5, 0.5, 0.5, 1]

@@ -33,6 +33,8 @@ __all__ = [
     "DEFAULT_STYLE",
     "_STYLE_KWARGS",
     "_OVERRIDE_KWARGS",
+    "load_style",
+    "list_styles",
 ]
 
 
@@ -1482,6 +1484,11 @@ def compare_attributes(self, other, keys):
         )
     except ValueError:
         return False
+
+
+# Imported here (after DEFAULT_STYLE) to avoid circular imports, since auto.py
+# imports from this module.
+from earthkit.plots.styles.auto import list_styles, load_style  # noqa: E402, F401
 
 
 def get_style_class(method: str) -> type[Style]:
