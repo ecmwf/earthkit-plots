@@ -18,7 +18,7 @@ from earthkit.plots.resample._base import Resample
 
 
 def _convert_spec(spec):
-    """Normalise a grid spec to a plain dict for earthkit-regrid."""
+    """Normalise a grid spec to a plain dict for earthkit-geo."""
     if not isinstance(spec, dict):
         if hasattr(spec, "spec"):
             return spec.spec
@@ -33,7 +33,7 @@ def _convert_spec(spec):
 def _is_structured_grid(gridspec):
     """
     Return True when *gridspec* indicates a HEALPix or reduced Gaussian grid —
-    the only grids for which earthkit-regrid is used.
+    the only grids for which earthkit-geo is used.
 
     Gridspec objects (``GridSpec``, ``LegacyGridSpec``) carry a ``.name``
     property that returns ``'healpix'``, ``'reduced_gg'``, or ``'unknown'``.
@@ -76,32 +76,13 @@ def _generate_latlon_grid(resolution):
     return lon, lat
 
 
-class _LegacyRegridExecutor:
-    subarea_support = False
-
-    @staticmethod
-    def is_valid():
-        try:
-            from earthkit.regrid import interpolate  # noqa: F401
-
-            return True
-        except ImportError:
-            return False
-
-    @staticmethod
-    def call(array, in_grid, out_grid):
-        from earthkit.regrid import interpolate
-
-        return interpolate(array, in_grid=in_grid, out_grid=out_grid)
-
-
 class _MirRegridExecutor:
     subarea_support = True
 
     @staticmethod
     def is_valid():
         try:
-            from earthkit.regrid.array import regrid  # noqa: F401
+            from earthkit.geo.regrid.array import regrid  # noqa: F401
 
             try:
                 import mir  # noqa: F401
@@ -115,7 +96,7 @@ class _MirRegridExecutor:
     def call(array, in_grid, out_grid):
         import logging
 
-        from earthkit.regrid.array import regrid
+        from earthkit.geo.regrid.array import regrid
 
         LOG = logging.getLogger(__name__)
         _kwargs = {}
@@ -135,11 +116,11 @@ _VALID_REGRID_METHODS = {"linear", "nearest-neighbour"}
 
 class Regrid(Resample):
     """
-    Resample data onto a regular latitude/longitude grid using earthkit-regrid.
+    Resample data onto a regular latitude/longitude grid using earthkit-geo.
 
     This resampler converts the source data to a regular lat/lon grid **in data
     space** before plotting, making the result independent of the target map
-    CRS.  Regridding via earthkit-regrid is only attempted when the source data
+    CRS.  Regridding via earthkit-geo is only attempted when the source data
     is on a HEALPix or reduced Gaussian grid (detected either from the source's
     own gridspec or from the explicit ``source_grid`` argument).  For all other
     grids the class raises an informative error — use :class:`Bilinear` or
@@ -153,7 +134,7 @@ class Regrid(Resample):
         Interpolation method: ``'linear'`` (default) or ``'nearest-neighbour'``
         (alias ``'nearest'``).
     source_grid : dict, optional
-        Explicit earthkit-regrid input grid spec.  If provided it overrides
+        Explicit earthkit-geo input grid spec.  If provided it overrides
         whatever gridspec the source carries.  Use this when the source does not
         carry metadata (e.g. raw numpy arrays) but the grid type is known.
 
@@ -161,7 +142,7 @@ class Regrid(Resample):
     --------
     >>> Regrid()  # 0.2° lat/lon, linear
     >>> Regrid(resolution=1.0)  # 1° lat/lon
-    >>> Regrid(resolution=0.5, method="nearest")
+    >>> Regrid(resolution=0.5, methoxwd="nearest")
     >>> Regrid(source_grid={"grid": "healpix", "ordering": "ring", "nside": 32})
     >>> Regrid.at_resolution(0.1)
     """
@@ -196,7 +177,7 @@ class Regrid(Resample):
         method : str, optional
             Interpolation method (``'linear'`` or ``'nearest-neighbour'``).
         source_grid : dict, optional
-            Explicit input grid spec for earthkit-regrid.
+            Explicit input grid spec for earthkit-geo.
 
         Returns
         -------
@@ -205,20 +186,20 @@ class Regrid(Resample):
         return cls(resolution=resolution, method=method, source_grid=source_grid)
 
     # ------------------------------------------------------------------
-    # earthkit-regrid availability helpers
+    # earthkit-geo availability helpers
     # ------------------------------------------------------------------
 
     @staticmethod
     def _find_executor():
         """Return the best available regrid executor, or None."""
-        for cls in [_MirRegridExecutor, _LegacyRegridExecutor]:
+        for cls in [_MirRegridExecutor]:
             if cls.is_valid():
                 return cls
         return None
 
     @classmethod
     def available(cls):
-        """Return True if earthkit-regrid is installed and usable."""
+        """Return True if earthkit-geo is installed and usable."""
         return cls._find_executor() is not None
 
     @classmethod
@@ -233,7 +214,7 @@ class Regrid(Resample):
         executor = Regrid._find_executor()
         if executor is None:
             raise ImportError(
-                "Regridding not available. Please install the earthkit-regrid package."
+                "Regridding not available. Please install the earthkit-geo package."
             )
         return executor.call(array, in_grid, out_grid)
 
@@ -243,7 +224,7 @@ class Regrid(Resample):
 
     def apply(self, x_values, y_values, z_values, gridspec=None, context=None):
         """
-        Regrid ``z_values`` onto a regular lat/lon grid via earthkit-regrid.
+        Regrid ``z_values`` onto a regular lat/lon grid via earthkit-geo.
 
         Parameters
         ----------

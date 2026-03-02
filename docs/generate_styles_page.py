@@ -172,14 +172,18 @@ def _save_colorbar(style, filepath):
 
     if isinstance(norm, mcolors.BoundaryNorm):
         # norm.boundaries may include ±inf from 'extend'; use finite bounds only
-        finite_boundaries = [b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))]
+        finite_boundaries = [
+            b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))
+        ]
         ticks = style._legend_kwargs.get("ticks")
         if ticks is None and len(finite_boundaries) <= 20:
             ticks = finite_boundaries
         if ticks is not None:
             cbar_kwargs["ticks"] = ticks
         # Rebuild norm without infinite boundaries so colorbar renders correctly
-        norm = mcolors.BoundaryNorm(finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend)
+        norm = mcolors.BoundaryNorm(
+            finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend
+        )
         sm = cm.ScalarMappable(cmap=mpl_kwargs["cmap"], norm=norm)
         sm.set_array([])
 
@@ -197,7 +201,7 @@ def _save_colorbar(style, filepath):
 def _style_slug(name):
     """Return a filesystem-safe slug from a style name."""
     slug = name.lower()
-    for ch in " /\\:*?\"<>|(){}[]":
+    for ch in ' /\\:*?"<>|(){}[]':
         slug = slug.replace(ch, "_")
     return slug
 
@@ -238,7 +242,7 @@ def generate(docs_dir=None):
         "Each entry shows the style name and a preview of the colorbar.",
         "Click the copy button next to any name to copy it for use in your code::",
         "",
-        "    chart.contourf(data, style=\"temperature-2m-turbo-celsius\")",
+        '    chart.contourf(data, style="temperature-2m-turbo-celsius")',
         "",
         ".. note::",
         "",
@@ -281,8 +285,8 @@ def generate(docs_dir=None):
         "   .ek-copy-btn svg { width: 14px; height: 14px; vertical-align: middle; }",
         "   </style>",
         "   <script>",
-        "   var EK_COPY_SVG = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z\" /><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\" /></svg>';",
-        "   var EK_CHECK_SVG = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M5 12l5 5l10 -10\" /></svg>';",
+        '   var EK_COPY_SVG = \'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>\';',
+        '   var EK_CHECK_SVG = \'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>\';',
         "   function ekCopy(btn, text) {",
         "     navigator.clipboard.writeText(text).then(function() {",
         "       btn.innerHTML = EK_CHECK_SVG + ' Style name copied';",
@@ -318,7 +322,7 @@ def generate(docs_dir=None):
                 ' stroke-linecap="round" stroke-linejoin="round">'
                 '<path stroke="none" d="M0 0h24v24H0z" fill="none"/>'
                 '<path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1'
-                ' 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1'
+                " 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1"
                 ' -2.667 -2.667z" />'
                 '<path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2'
                 ' -2h10c.75 0 1.158 .385 1.5 1" /></svg>'
@@ -327,12 +331,12 @@ def generate(docs_dir=None):
                 f'<div class="ek-style-entry">'
                 f'<div class="ek-style-left">'
                 f'<code class="ek-style-name">{name}</code>'
-                f'{optimal_marker}'
-                f'</div>'
+                f"{optimal_marker}"
+                f"</div>"
                 f'<button class="ek-copy-btn" onclick="ekCopy(this, \'{name}\')">'
-                f'{copy_svg} Copy this style name'
-                f'</button>'
-                f'</div>'
+                f"{copy_svg} Copy this style name"
+                f"</button>"
+                f"</div>"
             )
 
             style_obj = _make_style_object(style_dict)
