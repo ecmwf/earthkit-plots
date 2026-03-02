@@ -1,0 +1,5 @@
+id: composition_duaod550
+criteria:
+- paramId: '210209'
+  shortName: duaod550
+- long_name: Dust Aerosol Optical Depth at 550nm

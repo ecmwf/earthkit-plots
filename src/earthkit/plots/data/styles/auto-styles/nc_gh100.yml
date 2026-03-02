@@ -1,0 +1,43 @@
+id: nc_gh100
+optimal: NC_GH100_CT_BLK_I8_T2
+styles:
+  NC_GH100_CT_BLK_I8_T2:
+    name: ct-blk-i8-t2
+    type: Contour
+    linecolors: black
+    levels:
+      step: 8.0
+      reference: 1000.0
+    units: dam
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  NC_GH100_CT_BLK_I10_T2:
+    name: ct-blk-i10-t2
+    type: Contour
+    linecolors: black
+    levels:
+      step: 10.0
+      reference: 1000.0
+    units: dam
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid

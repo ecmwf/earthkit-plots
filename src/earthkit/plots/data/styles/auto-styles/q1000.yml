@@ -1,0 +1,160 @@
+id: q1000
+optimal: Q1000_SH_SPECHUM_OPTION1
+styles:
+  Q1000_SH_SPECHUM_OPTION1:
+    name: sh-spechum-option1
+    type: Style
+    colors:
+    - '#ff0000ff'
+    - '#f07961ff'
+    - '#bf9313ff'
+    - '#ffff00ff'
+    - '#80ff00ff'
+    - '#008c30ff'
+    - '#00ffffff'
+    - '#1cb8a6ff'
+    - '#0080ffff'
+    - '#0000ffff'
+    - '#7b12b2ff'
+    - '#ab05c9ff'
+    - '#ff01c7ff'
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 28.0
+    units: g kg-1
+  Q1000_SH_SPECHUM_OPTION2:
+    name: sh-spechum-option2
+    type: Style
+    colors:
+    - '#690d0bff'
+    - '#a80707ff'
+    - '#f50c08ff'
+    - '#f07961ff'
+    - '#f0babaff'
+    - '#f0bae6ff'
+    - '#f587cfff'
+    - '#fc0fdeff'
+    - '#c704a8ff'
+    - '#87096eff'
+    - '#9c05c2ff'
+    - '#4f0b70ff'
+    - '#290e38ff'
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 28.0
+    units: g kg-1
+  Q1000_SH_SPECHUM_OPTION3:
+    name: sh-spechum-option3
+    type: Style
+    colors:
+    - '#d1edd6ff'
+    - '#85f5b5ff'
+    - '#5cf082ff'
+    - '#30c98cff'
+    - '#05ba73ff'
+    - '#0f7861ff'
+    - '#07edf5ff'
+    - '#07c2c9ff'
+    - '#78baf7ff'
+    - '#2e8afcff'
+    - '#0f3bfcff'
+    - '#0719a1ff'
+    - '#1f0d52ff'
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 28.0
+    units: g kg-1
+  Q1000_CT_BLK_I2_T2:
+    name: ct-blk-i2-t2
+    type: Contour
+    linecolors: black
+    levels:
+      step: 2.0
+    units: g kg-1
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  Q1000_SPECHUM_EXTRA1:
+    name: spechum-extra1
+    type: Style
+    colors:
+    - '#ffffffff'
+    - '#ffff99ff'
+    - '#ffff00ff'
+    - '#80ff00ff'
+    - '#00ffffff'
+    - '#209afdff'
+    - '#0000ffff'
+    - '#7b11b3ff'
+    - '#ab04caff'
+    - '#ff01c7ff'
+    - '#ff97ffff'
+    - '#cc9e86ff'
+    - '#c0896bff'
+    - '#b67552ff'
+    - '#975f40ff'
+    - '#7c4e34ff'
+    levels:
+    - 0.0
+    - 0.001
+    - 0.002
+    - 0.004
+    - 0.006
+    - 0.008
+    - 0.01
+    - 0.012
+    - 0.014
+    - 0.016
+    - 0.018
+    - 0.02
+    - 0.022
+    - 0.024
+    - 0.026
+    - 0.028
+    - 0.03
+    units: g kg-1

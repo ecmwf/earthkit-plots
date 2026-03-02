@@ -1,0 +1,10 @@
+id: composition_o3_surface
+criteria:
+- levelist:
+  - '60'
+  levtype: ml
+  paramId: '210203'
+  shortName: go3
+- level:
+  - '60'
+  long_name: GEMS Ozone

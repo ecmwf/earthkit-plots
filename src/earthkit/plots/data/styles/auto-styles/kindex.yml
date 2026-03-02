@@ -1,0 +1,57 @@
+id: kindex
+optimal: KINDEX_SH_RED_F15T60
+styles:
+  KINDEX_SH_RED_F15T60:
+    name: sh-red-f15t60
+    type: Style
+    colors:
+    - '#ebf006ff'
+    - '#f09e06ff'
+    - '#f04006ff'
+    - '#ab0f1aff'
+    - '#f006e0ff'
+    - '#6e11a6ff'
+    levels:
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 60.0
+  KINDEX_SH_GREEN_F15T60:
+    name: sh-green-f15t60
+    type: Style
+    colors:
+    - '#0a960aff'
+    - '#a8cf1fff'
+    - '#ebf006ff'
+    - '#f09e06ff'
+    - '#f04006ff'
+    - '#ab0f1aff'
+    levels:
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 60.0
+  KINDEX_CT_BLK_F10_I10_T2:
+    name: ct-blk-f10-i10-t2
+    type: Contour
+    linecolors: black
+    levels:
+      step: 10.0
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid

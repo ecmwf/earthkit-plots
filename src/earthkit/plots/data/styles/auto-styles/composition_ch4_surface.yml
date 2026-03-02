@@ -1,0 +1,103 @@
+id: composition_ch4_surface
+optimal: COMPOSITION_CH4_SURFACE_SH_NIPY_SPECTRAL_CH4_SURFACE
+styles:
+  COMPOSITION_CH4_SURFACE_SH_NIPY_SPECTRAL_CH4_SURFACE:
+    name: sh-nipy-spectral-ch4-surface
+    type: Style
+    colors:
+    - '#680277ff'
+    - '#850096ff'
+    - '#2d00a4ff'
+    - '#0000c9ff'
+    - '#0041ddff'
+    - '#0085ddff'
+    - '#009fcbff'
+    - '#00aaa0ff'
+    - '#00a773ff'
+    - '#009c00ff'
+    - '#00bc00ff'
+    - '#00da00ff'
+    - '#00fa00ff'
+    - '#84ff00ff'
+    - '#dcf400ff'
+    - '#f8da00ff'
+    - '#ffb500ff'
+    - '#ff5d00ff'
+    - '#f40000ff'
+    - '#da0000ff'
+    - '#be0004ff'
+    levels:
+    - 1640.0
+    - 1660.0
+    - 1680.0
+    - 1700.0
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    - 1940.0
+    - 1960.0
+    - 1980.0
+    - 2000.0
+    - 2020.0
+    - 2040.0
+    - 2060.0
+    extend: both
+    units: ppbv
+  COMPOSITION_CH4_SURFACE_SH_RDGY_R_CH4_SURFACE:
+    name: sh-rdgy-r-ch4-surface
+    type: Style
+    colors:
+    - '#303030ff'
+    - '#484848ff'
+    - '#606060ff'
+    - '#7c7c7cff'
+    - '#959595ff'
+    - '#abababff'
+    - '#c1c1c1ff'
+    - '#d3d3d3ff'
+    - '#e2e2e2ff'
+    - '#f1f1f1ff'
+    - '#fffefeff'
+    - '#feefe6ff'
+    - '#fddecbff'
+    - '#fac8afff'
+    - '#f6af8eff'
+    - '#eb9172ff'
+    - '#de735cff'
+    - '#cf5246ff'
+    - '#be3036ff'
+    - '#ab162aff'
+    - '#870a24ff'
+    levels:
+    - 1640.0
+    - 1660.0
+    - 1680.0
+    - 1700.0
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    - 1940.0
+    - 1960.0
+    - 1980.0
+    - 2000.0
+    - 2020.0
+    - 2040.0
+    - 2060.0
+    extend: both
+    units: ppbv

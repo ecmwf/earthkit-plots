@@ -1,0 +1,123 @@
+id: mc_2tmean
+optimal: MC_2TMEAN_SH_MC_T_FM80T60
+styles:
+  MC_2TMEAN_SH_MC_T_FM80T60:
+    name: sh-mc-t-fm80t60
+    type: Style
+    colors:
+    - '#ed00faff'
+    - '#ff7df5ff'
+    - '#d47affff'
+    - '#0808d6ff'
+    - '#007affff'
+    - '#00a6ffff'
+    - '#00d1ffff'
+    - '#00f7ffff'
+    - '#c9fcffff'
+    - '#008233ff'
+    - '#38db78ff'
+    - '#00ff3dff'
+    - '#a1ff00ff'
+    - '#faff00ff'
+    - '#ffd600ff'
+    - '#ffa100ff'
+    - '#ff6b00ff'
+    - '#ff2600ff'
+    - '#c7030dff'
+    levels:
+    - -50.0
+    - -40.0
+    - -35.0
+    - -30.0
+    - -25.0
+    - -20.0
+    - -15.0
+    - -10.0
+    - -5.0
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 50.0
+    - 60.0
+    extend: min
+    units: celsius
+  MC_2TMEAN_CT_MC_T_FM80T60_BLACK:
+    name: ct-mc-t-fm80t60-black
+    type: Contour
+    linecolors: black
+    levels:
+    - -50.0
+    - -40.0
+    - -35.0
+    - -30.0
+    - -25.0
+    - -20.0
+    - -15.0
+    - -10.0
+    - -5.0
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 50.0
+    - 60.0
+    extend: min
+    units: celsius
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+  MC_2TMEAN_CT_MC_T_FM80T60_BLUE:
+    name: ct-mc-t-fm80t60-blue
+    type: Contour
+    linecolors: blue
+    levels:
+    - -50.0
+    - -40.0
+    - -35.0
+    - -30.0
+    - -25.0
+    - -20.0
+    - -15.0
+    - -10.0
+    - -5.0
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 50.0
+    - 60.0
+    extend: min
+    units: celsius
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid

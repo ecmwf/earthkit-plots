@@ -1,0 +1,8 @@
+id: aristotle_risico
+criteria:
+- paramId:
+  - '260541'
+  shortName:
+  - ffmcode
+- long_name:
+  - Fine fuel moisture code

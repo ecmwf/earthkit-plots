@@ -1,0 +1,5 @@
+id: wave_shww
+criteria:
+- paramId: '140234'
+  shortName: shww
+- long_name: Significant height of wind waves

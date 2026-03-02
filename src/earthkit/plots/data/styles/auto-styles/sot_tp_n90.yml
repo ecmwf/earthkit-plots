@@ -1,0 +1,35 @@
+id: sot_tp_n90
+optimal: SOT_TP_N90_CT_SOT_BLACK_F0T8T1
+styles:
+  SOT_TP_N90_CT_SOT_BLACK_F0T8T1:
+    name: ct-sot-black-f0t8t1
+    type: Contour
+    linecolors: black
+    levels:
+    - 0.0
+    - 1.0
+    - 2.0
+    - 5.0
+    - 8.0
+    linewidths:
+    - 0.5
+    - 1.5
+    linestyles:
+    - solid
+    - solid
+  SOT_TP_N90_CT_SOT_BLUE_F0T8T1:
+    name: ct-sot-blue-f0t8t1
+    type: Contour
+    linecolors: blue
+    levels:
+    - 0.0
+    - 1.0
+    - 2.0
+    - 5.0
+    - 8.0
+    linewidths:
+    - 0.5
+    - 1.5
+    linestyles:
+    - solid
+    - solid

@@ -1,0 +1,10 @@
+id: mofc_z500_weekly_mean
+criteria:
+- levelist:
+  - '500'
+  paramId: '129'
+  shortName: z
+- level:
+  - '500'
+  long_name: Geopotential
+  standard_name: geopotential

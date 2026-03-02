@@ -1,0 +1,98 @@
+id: t850_mean
+optimal: T850_MEAN_CT_BLK_I5_T2
+styles:
+  T850_MEAN_CT_BLK_I5_T2:
+    name: ct-blk-i5-t2
+    type: Contour
+    linecolors: black
+    levels:
+      step: 5.0
+      reference: 1010.0
+    units: celsius
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  T850_MEAN_CT_BLK_I5_T1:
+    name: ct-blk-i5-t1
+    type: Contour
+    linecolors: black
+    levels:
+      step: 5.0
+    units: celsius
+    linewidths:
+    - 0.5
+    - 0.5
+    - 0.5
+    - 0.5
+    - 1.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  T850_MEAN_CT_BLUE_I5_T2:
+    name: ct-blue-i5-t2
+    type: Contour
+    linecolors: blue
+    levels:
+      step: 5.0
+    units: celsius
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  T850_MEAN_CT_BRN_I4_T2:
+    name: ct-brn-i4-t2
+    type: Contour
+    linecolors: '#681000ff'
+    levels:
+      step: 4.0
+    units: celsius
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  T850_MEAN_CT_RED_I4_T3:
+    name: ct-red-i4-t3
+    type: Contour
+    linecolors: red
+    levels:
+      step: 4.0
+      reference: 0.0
+    units: celsius
+    linewidths: 1.5
+  T850_MEAN_TRANSPARENT_ZERO_BLUE:
+    name: transparent-zero-blue
+    type: Style
+    colors:
+    - '#7fcccc99'
+    levels:
+    - -70.0
+    - 0.0
+    units: celsius

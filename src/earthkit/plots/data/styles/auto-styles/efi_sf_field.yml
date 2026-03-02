@@ -1,0 +1,43 @@
+id: efi_sf_field
+optimal: EFI_SF_FIELD_SH_RED_F05T1I01
+styles:
+  EFI_SF_FIELD_SH_RED_F05T1I01:
+    name: sh-red-f05t1i01
+    type: Style
+    colors:
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffbf00ff'
+    - '#ff8000ff'
+    - '#ff4000ff'
+    - '#ff0000ff'
+    levels:
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    - 1.5
+    extend: min
+  EFI_SF_FIELD_MRK_EFI_TP_F06T1:
+    name: mrk-efi-tp-f06t1
+    type: Contour
+  EFI_SF_FIELD_MRK_EFI_SF_F06T1:
+    name: mrk-efi-sf-f06t1
+    type: Contour
+  EFI_SF_FIELD_SH_EFI_F05T1_NC:
+    name: sh-efi-f05t1-nc
+    type: Style
+    colors:
+    - '#ffff00ff'
+    - '#ffd900ff'
+    - '#ffa600ff'
+    - '#ff6600ff'
+    levels:
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    extend: max

@@ -1,0 +1,49 @@
+id: composition_o3_totalcolumn
+optimal: COMPOSITION_O3_TOTALCOLUMN_SH_ALL_TCO3
+styles:
+  COMPOSITION_O3_TOTALCOLUMN_SH_ALL_TCO3:
+    name: sh-all-tco3
+    type: Style
+    colors:
+    - '#000000ff'
+    - '#000066ff'
+    - '#0000ffff'
+    - '#0080ffff'
+    - '#73a3ffff'
+    - '#00ffffff'
+    - '#00ff80ff'
+    - '#80ff00ff'
+    - '#daff00ff'
+    - '#ffff00ff'
+    - '#ffda00ff'
+    - '#ffb000ff'
+    - '#ff8000ff'
+    - '#ff4f00ff'
+    - '#ff0000ff'
+    - '#991608ff'
+    - '#681000ff'
+    - '#520300ff'
+    - '#d9b777ff'
+    - '#ffe2abff'
+    - '#665433ff'
+    levels:
+    - 100.0
+    - 125.0
+    - 150.0
+    - 175.0
+    - 200.0
+    - 225.0
+    - 250.0
+    - 275.0
+    - 300.0
+    - 325.0
+    - 350.0
+    - 375.0
+    - 400.0
+    - 425.0
+    - 450.0
+    - 475.0
+    - 500.0
+    - 550.0
+    - 600.0
+    extend: min

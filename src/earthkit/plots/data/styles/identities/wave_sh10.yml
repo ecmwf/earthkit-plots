@@ -1,0 +1,5 @@
+id: wave_sh10
+criteria:
+- paramId: '140120'
+  shortName: sh10
+- long_name: Significant wave height of all waves with period larger than 10s

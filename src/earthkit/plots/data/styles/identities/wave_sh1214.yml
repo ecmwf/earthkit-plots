@@ -1,0 +1,6 @@
+id: wave_sh1214
+criteria:
+- paramId: '140115'
+  shortName: h1214
+- long_name: Significant wave height of all waves with periods within the inclusive
+    range from 12 to 14 seconds

@@ -1,0 +1,35 @@
+id: composition_so2_totalcolumn
+optimal: COMPOSITION_SO2_TOTALCOLUMN_SH_ALL_TCSO2
+styles:
+  COMPOSITION_SO2_TOTALCOLUMN_SH_ALL_TCSO2:
+    name: sh-all-tcso2
+    type: Style
+    colors:
+    - '#99c7e8ff'
+    - '#009cdeff'
+    - '#007abdff'
+    - '#24599eff'
+    - '#248f6eff'
+    - '#69b059ff'
+    - '#a6c769ff'
+    - '#fff49bff'
+    - '#f2cf36ff'
+    - '#e8b236ff'
+    - '#db8540ff'
+    - '#cc3333ff'
+    - '#991421ff'
+    levels:
+    - 0.01
+    - 0.02
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 50.0
+    - 100.0
+    extend: max

@@ -1,0 +1,7 @@
+id: z300_spread
+criteria:
+- levelist:
+  - '300'
+  paramId: '129'
+  shortName: z
+  type: es

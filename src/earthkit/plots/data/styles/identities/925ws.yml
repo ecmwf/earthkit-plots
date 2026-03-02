@@ -1,0 +1,11 @@
+id: 925ws
+criteria:
+- levelist:
+  - '925'
+  - '850'
+  paramId: '10'
+  shortName: ws
+- level:
+  - '925'
+  - '850'
+  long_name: Wind speed

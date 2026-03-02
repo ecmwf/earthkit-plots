@@ -1,0 +1,88 @@
+id: mc_sf
+optimal: MC_SF_SH_MC_SF_F01T100
+styles:
+  MC_SF_SH_MC_SF_F01T100:
+    name: sh-mc-sf-f01t100
+    type: Style
+    colors:
+    - '#d1f2f2ff'
+    - '#82f5f2ff'
+    - '#17d1ccff'
+    - '#6bff85ff'
+    - '#29ab3bff'
+    - '#246966ff'
+    - '#4278ffff'
+    - '#1c0dbaff'
+    - '#a154deff'
+    - '#d900ffff'
+    - '#78038cff'
+    levels:
+    - 0.1
+    - 1.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 40.0
+    - 60.0
+    - 80.0
+    - 100.0
+    units: mm
+  MC_SF_CT_MC_SF_F01T100_BLACK:
+    name: ct-mc-sf-f01t100-black
+    type: Contour
+    linecolors: black
+    levels:
+    - 0.1
+    - 1.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 40.0
+    - 60.0
+    - 80.0
+    - 100.0
+    units: mm
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+  MC_SF_CT_MC_SF_F01T100_BLUE:
+    name: ct-mc-sf-f01t100-blue
+    type: Contour
+    linecolors: blue
+    levels:
+    - 0.1
+    - 1.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 40.0
+    - 60.0
+    - 80.0
+    - 100.0
+    units: mm
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid

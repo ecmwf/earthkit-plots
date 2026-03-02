@@ -1,0 +1,13 @@
+id: t850_mean
+criteria:
+- levelist:
+  - '850'
+  - '500'
+  paramId: '130'
+  shortName: t
+  type: em
+- level:
+  - '850'
+  - '500'
+  long_name: Temperature
+  standard_name: air_temperature

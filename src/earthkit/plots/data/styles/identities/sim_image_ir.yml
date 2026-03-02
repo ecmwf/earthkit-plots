@@ -1,0 +1,8 @@
+id: sim_image_ir
+criteria:
+- channel: 9
+  paramId: '260510'
+  shortName: clbt
+- long_name: Cloudy brightness temperature
+- paramId: '500340'
+  centre: edzw
