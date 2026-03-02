@@ -11,9 +11,9 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. note::
 
-   This page is auto-generated during the documentation build.
-   Any new styles added to ``data/styles/auto-styles/`` will appear
-   here automatically.
+   Many styles have units in their colorbar labels (e.g. °C, m/s).
+   These styles will attempt to automatically convert the units of
+   your data to match the style's units.
 
 .. raw:: html
 
