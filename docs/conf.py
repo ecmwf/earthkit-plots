@@ -11,8 +11,17 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("../"))
+sys.path.insert(0, os.path.abspath("."))
+
+import generate_styles_page  # noqa: E402
 
 from earthkit.plots.version import __version__  # noqa: E402
+
+# -- Styles gallery generation -----------------------------------------------
+
+
+_docs_dir = os.path.dirname(os.path.abspath(__file__))
+generate_styles_page.generate(docs_dir=_docs_dir)
 
 # -- Project information -----------------------------------------------------
 
