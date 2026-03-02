@@ -1,0 +1,8 @@
+id: aristotle_fwi
+criteria:
+- paramId:
+  - '260540'
+  shortName:
+  - fwinx
+- long_name:
+  - Forest fire weather index

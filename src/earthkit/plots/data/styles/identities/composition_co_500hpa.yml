@@ -1,0 +1,9 @@
+id: composition_co_500hpa
+criteria:
+- levelist:
+  - '500'
+  paramId: '210123'
+  shortName: co
+- level:
+  - '500'
+  long_name: Carbon monoxide

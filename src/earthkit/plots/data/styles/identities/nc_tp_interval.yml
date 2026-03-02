@@ -1,0 +1,9 @@
+id: nc_tp_interval
+criteria:
+- paramId: '228228'
+  shortName: tp
+- standard_name:
+  - convective_precipitation_amount
+  - precipitation_amount
+  - stratiform_precipitation_amount
+  - large_scale_precipitation_amount

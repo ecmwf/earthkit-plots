@@ -1,0 +1,55 @@
+id: nc_sd
+optimal: NC_SD_SNOW_1TO10000
+styles:
+  NC_SD_SNOW_1TO10000:
+    name: snow-1to10000
+    type: Style
+    colors:
+    - '#739973ff'
+    - '#96bf96ff'
+    - '#bad6baff'
+    - '#dededeff'
+    - '#f0f0f0ff'
+    - '#ffffffff'
+    - '#e6f2ffff'
+    - '#cce6ffff'
+    - '#abd4ffff'
+    - '#80bfffff'
+    - '#d9ccffff'
+    - '#bfadffff'
+    levels:
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 70.0
+    - 100.0
+    - 200.0
+    - 500.0
+    extend: max
+    units: cm
+  NC_SD_SNOW_1TO1000_WHI:
+    name: snow-1to1000-whi
+    type: Style
+    colors:
+    - '#a3a3a3ff'
+    - '#b2b2b2ff'
+    - '#c2c2c2ff'
+    - '#d1d1d1ff'
+    - '#e0e0e0ff'
+    - '#f0f0f0ff'
+    levels:
+    - 1.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 50.0
+    - 100.0
+    - 1000.0
+    extend: max
+    units: cm

@@ -1,0 +1,5 @@
+id: composition_ch4_totalcolumn
+criteria:
+- paramId: '210065'
+  shortName: tcch4
+- long_name: CH4 column-mean molar fraction

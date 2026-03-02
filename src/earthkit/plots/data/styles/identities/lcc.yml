@@ -1,0 +1,27 @@
+id: lcc
+criteria:
+- paramId: '186'
+  shortName: lcc
+- paramId: '164'
+  shortName: tcc
+- long_name:
+  - Low cloud cover
+  - Total cloud cover
+  - Fraction of cloud cover
+- long_name:
+  - Total Cloud Fraction
+  - Fraction of cloud cover
+  standard_name:
+  - cloud_area_fraction
+  - cloud_area_fraction_in_atmosphere_layer
+- standard_name:
+  - cloud_area_fraction
+  - cloud_area_fraction_in_atmosphere_layer
+  - convective_cloud_area_fraction
+  - convective_cloud_area_fraction_in_atmosphere_layer
+  - low_type_cloud_area_fraction
+  - stratiform_cloud_area_fraction
+  - large_scale_cloud_area_fraction
+  - large_scale_cloud_area_fraction
+- paramId: '248'
+  shortName: cc

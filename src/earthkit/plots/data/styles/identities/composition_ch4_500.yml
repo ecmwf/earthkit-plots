@@ -1,0 +1,13 @@
+id: composition_ch4_500
+criteria:
+- levelist:
+  - '500'
+  paramId:
+  - '210062'
+  - '217004'
+  shortName:
+  - ch4
+  - ch4_c
+- long_name:
+  - Methane
+  - Methane (chemistry)

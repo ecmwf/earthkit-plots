@@ -1,0 +1,7 @@
+id: 850ws_mean
+criteria:
+- levelist:
+  - '850'
+  paramId: '10'
+  shortName: ws
+  type: em

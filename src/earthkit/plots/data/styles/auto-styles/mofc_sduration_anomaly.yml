@@ -1,0 +1,95 @@
+id: mofc_sduration_anomaly
+optimal: MOFC_SDURATION_ANOMALY_SH_RB_FM100T100
+styles:
+  MOFC_SDURATION_ANOMALY_SH_RB_FM100T100:
+    name: sh-rb-fm100t100
+    type: Style
+    colors:
+    - '#0019ffff'
+    - '#0032ffff'
+    - '#004bffff'
+    - '#0064ffff'
+    - '#007dffff'
+    - '#0096ffff'
+    - '#00afffff'
+    - '#00c8ffff'
+    - '#00000000'
+    - '#ffa500ff'
+    - '#ff9500ff'
+    - '#ff8500ff'
+    - '#ff7500ff'
+    - '#ff6500ff'
+    - '#ff5500ff'
+    - '#ff4500ff'
+    - '#ff3500ff'
+    levels:
+    - -0.5
+    - -0.3
+    - -0.25
+    - -0.2
+    - -0.16
+    - -0.12
+    - -0.08
+    - -0.04
+    - -0.01
+    - 0.01
+    - 0.04
+    - 0.08
+    - 0.12
+    - 0.16
+    - 0.2
+    - 0.25
+    - 0.3
+    - 0.5
+    extend: both
+  MOFC_SDURATION_ANOMALY_CT_BLK_I4_T2_SDURATION:
+    name: ct-blk-i4-t2-sduration
+    type: Contour
+    linecolors: rainbow
+    levels:
+    - -0.5
+    - -0.3
+    - -0.25
+    - -0.2
+    - -0.16
+    - -0.12
+    - -0.08
+    - -0.04
+    - -0.01
+    - 0.01
+    - 0.04
+    - 0.08
+    - 0.12
+    - 0.16
+    - 0.2
+    - 0.25
+    - 0.3
+    - 0.5
+    extend: both
+    linewidths: 1.0
+  MOFC_SDURATION_ANOMALY_CT_BLK_I4_T2_DASHED_SDURATION:
+    name: ct-blk-i4-t2-dashed-sduration
+    type: Contour
+    linecolors: rainbow
+    levels:
+    - -0.5
+    - -0.3
+    - -0.25
+    - -0.2
+    - -0.16
+    - -0.12
+    - -0.08
+    - -0.04
+    - -0.01
+    - 0.01
+    - 0.04
+    - 0.08
+    - 0.12
+    - 0.16
+    - 0.2
+    - 0.25
+    - 0.3
+    - 0.5
+    extend: both
+    linewidths: 1.0
+    linestyles: dashed

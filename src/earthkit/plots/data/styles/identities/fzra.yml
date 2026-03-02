@@ -1,0 +1,5 @@
+id: fzra
+criteria:
+- paramId: '228216'
+  shortName: fzra
+- long_name: Accumulated freezing rain

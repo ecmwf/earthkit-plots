@@ -1,0 +1,7 @@
+id: mc_sf
+criteria:
+- paramId: '144'
+  shortName: sf
+  type: cd
+- long_name: Snowfall
+  standard_name: lwe_thickness_of_snowfall_amount

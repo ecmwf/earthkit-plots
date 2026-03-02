@@ -1,0 +1,5 @@
+id: composition_so2_totalcolumn
+criteria:
+- paramId: '210126'
+  shortName: tcso2
+- long_name: Total column Sulphur dioxide

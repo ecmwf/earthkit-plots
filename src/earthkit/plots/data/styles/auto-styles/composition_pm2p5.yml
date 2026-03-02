@@ -1,0 +1,82 @@
+id: composition_pm2p5
+optimal: COMPOSITION_PM2P5_SH_ALL_PM2P5_DEFRA_DAQI
+styles:
+  COMPOSITION_PM2P5_SH_ALL_PM2P5_DEFRA_DAQI:
+    name: sh-all-pm2p5-defra-daqi
+    type: Style
+    colors:
+    - '#31ff00ff'
+    - '#31cf00ff'
+    - '#ffff00ff'
+    - '#ffcf00ff'
+    - '#ff9a00ff'
+    - '#ff6464ff'
+    - '#ff0000ff'
+    - '#990000ff'
+    levels:
+    - 12.0
+    - 24.0
+    - 36.0
+    - 42.0
+    - 48.0
+    - 54.0
+    - 59.0
+    - 65.0
+    - 71.0
+    extend: max
+  COMPOSITION_PM2P5_SH_ALL_PMX_NCL_PRECIP_11LEV:
+    name: sh-all-pmx-ncl-precip-11lev
+    type: Style
+    colors:
+    - '#ffffffff'
+    - '#edfac2ff'
+    - '#cdffcdff'
+    - '#99f0b2ff'
+    - '#53bd9fff'
+    - '#32a696ff'
+    - '#3296b4ff'
+    - '#0570b0ff'
+    - '#05508cff'
+    - '#0a1f96ff'
+    - '#2c0246ff'
+    levels:
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 80.0
+    - 100.0
+    - 150.0
+    - 200.0
+    - 300.0
+    - 500.0
+    extend: max
+  COMPOSITION_PM2P5_SH_ALL_PMX_REGIONAL:
+    name: sh-all-pmx-regional
+    type: Style
+    colors:
+    - '#1464d2ff'
+    - '#2882f0ff'
+    - '#50a5f5ff'
+    - '#00dc00ff'
+    - '#50f050ff'
+    - '#a0e632ff'
+    - '#e6dc32ff'
+    - '#e6af2dff'
+    - '#f08228ff'
+    - '#fa3c3cff'
+    levels:
+    - 2.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 75.0
+    - 100.0
+    - 150.0
+    - 200.0
+    extend: max

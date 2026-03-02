@@ -1,0 +1,5 @@
+id: wave_wefm
+criteria:
+- paramId: '140112'
+  shortName: wefxm
+- long_name: Wave energy flux magnitude

@@ -1,0 +1,61 @@
+id: aristotle_risico
+optimal: ARISTOTLE_RISICO_RISICO_1
+styles:
+  ARISTOTLE_RISICO_RISICO_1:
+    name: risico-1
+    type: Style
+    colors:
+    - '#e4e1e0ff'
+    - '#e945e9ff'
+    - '#e91e17ff'
+    - '#ff8000ff'
+    - '#ffb000ff'
+    - '#ffda00ff'
+    - '#fff500ff'
+    - '#73a3ffff'
+    - '#0080ffff'
+    - '#0000ffff'
+    - '#6b01ffff'
+    levels:
+    - 0.0
+    - 1.0
+    - 5.0
+    - 10.0
+    - 12.0
+    - 15.0
+    - 17.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 50.0
+    extend: max
+  ARISTOTLE_RISICO_RISICO_2:
+    name: risico-2
+    type: Style
+    colors:
+    - '#e4e1e0ff'
+    - '#7f0000ff'
+    - '#b90f10ff'
+    - '#e83d3fff'
+    - '#f18182ff'
+    - '#f8b7b8ff'
+    - '#ffe9eaff'
+    - '#eafffbff'
+    - '#afcafcff'
+    - '#7394fdff'
+    - '#325afeff'
+    levels:
+    - 0.0
+    - 1.0
+    - 5.0
+    - 10.0
+    - 12.0
+    - 15.0
+    - 17.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 50.0
+    extend: max

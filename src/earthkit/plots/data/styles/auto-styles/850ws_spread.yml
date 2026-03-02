@@ -1,0 +1,49 @@
+id: 850ws_spread
+optimal: 850WS_SPREAD_SH_BLU_F02T30
+styles:
+  850WS_SPREAD_SH_BLU_F02T30:
+    name: sh-blu-f02t30
+    type: Style
+    colors:
+    - '#d9badbff'
+    - '#c287c4ff'
+    - '#ba57bdff'
+    - '#d921e0ff'
+    - '#f500ffff'
+    - '#fa82ffff'
+    levels:
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 12.0
+    - 18.0
+    - 30.0
+  850WS_SPREAD_SH_RANGE_F02T30:
+    name: sh-range-f02t30
+    type: Style
+    colors:
+    - '#00ffffff'
+    - '#00ff80ff'
+    - '#80ff00ff'
+    - '#ffff00ff'
+    - '#ffda00ff'
+    - '#ffb000ff'
+    - '#ff8000ff'
+    - '#e06c00ff'
+    - '#ad7311ff'
+    - '#996400ff'
+    - '#665433ff'
+    levels:
+    - 2.0
+    - 3.0
+    - 4.0
+    - 5.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 18.0
+    - 25.0
+    - 30.0

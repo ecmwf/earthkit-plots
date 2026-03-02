@@ -1,0 +1,15 @@
+id: t500
+criteria:
+- levelist:
+  - '500'
+  - '450'
+  - '550'
+  paramId: '130'
+  shortName: t
+  levtype: pl
+- level:
+  - '500'
+  - '450'
+  - '550'
+  long_name: Temperature
+  standard_name: air_temperature

@@ -1,0 +1,5 @@
+id: composition_co_totalcolumn
+criteria:
+- paramId: '210127'
+  shortName: tcco
+- long_name: Total column Carbon monoxide

@@ -1,0 +1,5 @@
+id: composition_o3_totalcolumn
+criteria:
+- paramId: '210206'
+  shortName: gtco3
+- long_name: GEMS Total column ozone

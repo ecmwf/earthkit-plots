@@ -1,0 +1,5 @@
+id: mofc_sduration_anomaly
+criteria:
+- paramId: '173189'
+  shortName: sundara
+- long_name: Sunshine duration anomalous rate of accumulation

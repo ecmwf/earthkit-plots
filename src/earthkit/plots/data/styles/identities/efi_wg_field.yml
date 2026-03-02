@@ -1,0 +1,12 @@
+id: efi_wg_field
+criteria:
+- paramId:
+  - '132049'
+  - '132165'
+  shortName:
+  - 10fgi
+  - 10wsi
+  type: efi
+- long_name:
+  - 10 metre wind gust index
+  - 10 metre speed index

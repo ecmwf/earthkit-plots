@@ -1,0 +1,5 @@
+id: wave_shts
+criteria:
+- paramId: '140237'
+  shortName: shts
+- long_name: Significant height of total swell

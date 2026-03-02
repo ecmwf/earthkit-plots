@@ -1,0 +1,6 @@
+id: efi_sf_field
+criteria:
+- paramId: '132144'
+  shortName: sfi
+  type: efi
+- long_name: Snowfall index

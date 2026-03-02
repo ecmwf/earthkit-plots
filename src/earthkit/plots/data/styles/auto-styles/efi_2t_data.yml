@@ -1,0 +1,78 @@
+id: efi_2t_data
+optimal: EFI_2T_DATA_SH_BLURED_FM1T1LST
+styles:
+  EFI_2T_DATA_SH_BLURED_FM1T1LST:
+    name: sh-blured-fm1t1lst
+    type: Style
+    colors:
+    - '#3c00ffff'
+    - '#00adffff'
+    - '#00ff69ff'
+    - '#80ff00ff'
+    - '#00000000'
+    - '#00000000'
+    - '#00000000'
+    - '#00000000'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffbf00ff'
+    - '#ff8000ff'
+    - '#ff4000ff'
+    levels:
+    - -0.9
+    - -0.8
+    - -0.7
+    - -0.6
+    - -0.5
+    - -0.4
+    - -0.3
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    extend: both
+  EFI_2T_DATA_SH_EFI2T_FM1T1LST:
+    name: sh-efi2t-fm1t1lst
+    type: Style
+    colors:
+    - '#73a3ffff'
+    - '#cce6e6ff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ff8000ff'
+    levels:
+    - -1.5
+    - -0.75
+    - -0.5
+    - 0.5
+    - 0.75
+    - 1.5
+  EFI_2T_DATA_SH_EFI2T_FM1T1LST_NC:
+    name: sh-efi2t-fm1t1lst-nc
+    type: Style
+    colors:
+    - '#0061ffff'
+    - '#00cfffff'
+    - '#00ffa6ff'
+    - '#a6ff00ff'
+    - '#00000000'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffd900ff'
+    - '#ffa600ff'
+    - '#ff6600ff'
+    levels:
+    - -0.9
+    - -0.8
+    - -0.7
+    - -0.6
+    - -0.5
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    extend: both

@@ -1,0 +1,99 @@
+id: tp_rate
+optimal: TP_RATE_SH_PRATE_RADARLIKE_GRIDED
+styles:
+  TP_RATE_SH_PRATE_RADARLIKE_GRIDED:
+    name: sh-prate-radarlike-grided
+    type: Style
+    colors:
+    - '#38ffffff'
+    - '#209afdff'
+    - '#0e27fdff'
+    - '#34fe28ff'
+    - '#27c71dff'
+    - '#1a9613ff'
+    - '#fffe30ff'
+    - '#fec627ff'
+    - '#fc761dff'
+    - '#fc0016ff'
+    - '#c5000eff'
+    - '#940008ff'
+    - '#fc1ffeff'
+    - '#9524f8ff'
+    levels:
+    - 0.08
+    - 0.15
+    - 0.3
+    - 0.65
+    - 1.3
+    - 2.7
+    - 5.6
+    - 11.5
+    - 23.7
+    - 48.6
+    - 100.0
+    - 205.0
+    - 400.0
+    - 864.0
+    extend: max
+    units: kg m-2 h-1
+  TP_RATE_SH_PRATE_RADARLIKE_GRIDED_F01:
+    name: sh-prate-radarlike-grided-f01
+    type: Style
+    colors:
+    - '#0015ffff'
+    - '#548cf7ff'
+    - '#1fc9d6ff'
+    - '#03e638ff'
+    - '#e0ed24ff'
+    - '#fcab05ff'
+    - '#ff1504ff'
+    - '#ff04d1ff'
+    - '#b002fcff'
+    levels:
+    - 0.1
+    - 0.2
+    - 0.5
+    - 1.0
+    - 2.0
+    - 4.0
+    - 8.0
+    - 16.0
+    - 32.0
+    - 64.0
+    extend: max
+    units: kg m-2 h-1
+  TP_RATE_SH_PRATE_RADARLIKE:
+    name: sh-prate-radarlike
+    type: Style
+    colors:
+    - '#38ffffff'
+    - '#209afdff'
+    - '#0e27fdff'
+    - '#34fe28ff'
+    - '#27c71dff'
+    - '#1a9613ff'
+    - '#fffe30ff'
+    - '#fec627ff'
+    - '#fc761dff'
+    - '#fc0016ff'
+    - '#c5000eff'
+    - '#940008ff'
+    - '#fc1ffeff'
+    - '#9524f8ff'
+    levels:
+    - 0.08
+    - 0.15
+    - 0.3
+    - 0.65
+    - 1.3
+    - 2.7
+    - 5.6
+    - 11.5
+    - 23.7
+    - 48.6
+    - 100.0
+    - 205.0
+    - 400.0
+    - 864.0
+    extend: max
+    units: kg m-2 h-1

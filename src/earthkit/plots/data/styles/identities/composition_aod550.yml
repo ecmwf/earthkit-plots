@@ -1,0 +1,5 @@
+id: composition_aod550
+criteria:
+- paramId: '210207'
+  shortName: aod550
+- long_name: Total Aerosol Optical Depth at 550nm

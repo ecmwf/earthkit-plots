@@ -1,0 +1,197 @@
+id: nc_tp_interval
+optimal: NC_TP_INTERVAL_SH_BLURED_F05T300LST
+styles:
+  NC_TP_INTERVAL_SH_BLURED_F05T300LST:
+    name: sh-blured-f05t300lst
+    type: Style
+    colors:
+    - '#00ffffff'
+    - '#0080ffff'
+    - '#0000ffff'
+    - '#da00ffff'
+    - '#ff00ffff'
+    - '#ff8000ff'
+    - '#ff0000ff'
+    levels:
+    - 0.5
+    - 2.0
+    - 4.0
+    - 10.0
+    - 25.0
+    - 50.0
+    - 100.0
+    extend: max
+  NC_TP_INTERVAL_SH_BLURED_F1T100LST:
+    name: sh-blured-f1t100lst
+    type: Style
+    colors:
+    - '#00ffffff'
+    - '#0080ffff'
+    - '#0000ffff'
+    - '#da00ffff'
+    - '#ff00ffff'
+    - '#ff0000ff'
+    levels:
+    - 1.0
+    - 2.5
+    - 6.0
+    - 15.0
+    - 40.0
+    - 100.0
+    extend: max
+  NC_TP_INTERVAL_SH_BLURED_F1T100LST_DARK:
+    name: sh-blured-f1t100lst-dark
+    type: Style
+    colors:
+    - '#009999ff'
+    - '#00408cff'
+    - '#000080ff'
+    - '#66008cff'
+    - '#8c008cff'
+    levels:
+    - 1.0
+    - 2.5
+    - 6.0
+    - 15.0
+    - 40.0
+    - 100.0
+    extend: max
+  NC_TP_INTERVAL_SH_GRNVIO_F1T100LST:
+    name: sh-grnvio-f1t100lst
+    type: Style
+    colors:
+    - '#80ffb2ff'
+    - '#66e699ff'
+    - '#4cd499ff'
+    - '#6ec2b2ff'
+    - '#8fb0ccff'
+    levels:
+    - 1.0
+    - 2.5
+    - 6.0
+    - 15.0
+    - 40.0
+    - 100.0
+    extend: max
+  NC_TP_INTERVAL_SH_ALL_F05T300LST:
+    name: sh-all-f05t300lst
+    type: Style
+    colors:
+    - '#f2a6f2ff'
+    - '#d98cd9ff'
+    - '#bf80d9ff'
+    - '#9999ffff'
+    - '#0099ffff'
+    - '#00ccffff'
+    - '#00ffffff'
+    - '#00ff80ff'
+    - '#80ff00ff'
+    - '#daff00ff'
+    - '#ffff80ff'
+    - '#ffff00ff'
+    - '#ffda00ff'
+    - '#ffb000ff'
+    - '#ff7300ff'
+    - '#ff0000ff'
+    - '#cc0000ff'
+    levels:
+    - 0.5
+    - 1.0
+    - 2.0
+    - 3.0
+    - 4.0
+    - 5.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 75.0
+    - 100.0
+    - 200.0
+    extend: max
+  NC_TP_INTERVAL_SH_BLURED_F01T500LST:
+    name: sh-blured-f01t500lst
+    type: Style
+    colors:
+    - '#f0f8ffff'
+    - '#87cefaff'
+    - '#00bfffff'
+    - '#0080ffff'
+    - '#0000ffff'
+    - '#da00ffff'
+    - '#ff00ffff'
+    - '#ff8000ff'
+    - '#ff0000ff'
+    - '#333333ff'
+    levels:
+    - 0.1
+    - 0.2
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 50.0
+    - 100.0
+    - 200.0
+    extend: max
+  NC_TP_INTERVAL_SH_BLURED_F0T300:
+    name: sh-blured-f0t300
+    type: Style
+    colors:
+    - '#a6ffffff'
+    - '#22d7fdff'
+    - '#209afdff'
+    - '#061ffdff'
+    - '#1a9613ff'
+    - '#27c71dff'
+    - '#34fe28ff'
+    - '#ffff00ff'
+    - '#fec627ff'
+    - '#fc761dff'
+    - '#fc0016ff'
+    - '#c1000fff'
+    - '#fc1ffeff'
+    - '#ae00f9ff'
+    levels:
+    - 0.1
+    - 0.5
+    - 1.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 75.0
+    - 100.0
+    - 150.0
+    - 200.0
+    extend: max
+  NC_TP_INTERVAL_CT_BLUMAG_LST:
+    name: ct-blumag-lst
+    type: Contour
+    linecolors: blue
+    levels:
+    - 1.0
+    - 5.0
+    - 15.0
+    - 40.0
+    - 100.0
+    extend: max
+    linewidths:
+    - 1.0
+    - 1.0
+    - 2.5
+    linestyles:
+    - solid
+    - solid
+    - solid

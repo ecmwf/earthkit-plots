@@ -1,0 +1,42 @@
+id: mofc_10_t_anomaly
+optimal: MOFC_10_T_ANOMALY_T_UPPER_ANOMALY
+styles:
+  MOFC_10_T_ANOMALY_T_UPPER_ANOMALY:
+    name: t-upper-anomaly
+    type: Style
+    colors:
+    - '#74a5ffff'
+    - '#00ffffff'
+    - '#00000000'
+    - '#ff8000ff'
+    - '#ff4e00ff'
+    levels:
+    - -6.0
+    - -4.0
+    - -2.0
+    - 2.0
+    - 4.0
+    - 6.0
+    extend: both
+  MOFC_10_T_ANOMALY_SH_ANOMALY_RB_M20T20:
+    name: sh-anomaly-rb-m20t20
+    type: Style
+    colors:
+    - '#2c19ffff'
+    - '#4433ffff'
+    - '#7266ffff'
+    - '#a199ffff'
+    - '#ffb2bbff'
+    - '#ff7f8eff'
+    - '#ff4c61ff'
+    levels:
+    - -10.0
+    - -6.0
+    - -3.0
+    - -1.0
+    - 0.0
+    - 1.0
+    - 3.0
+    - 6.0
+    - 10.0
+    extend: both
