@@ -22,7 +22,7 @@ the Magics ECMWF styles directory.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Magics named color to RGB mapping (values in [0, 1])
