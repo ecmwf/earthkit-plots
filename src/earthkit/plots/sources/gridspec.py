@@ -241,20 +241,10 @@ class GridSpec:
         else:
             data = GridSpec._first(data)
 
-            if hasattr(data, "grid_spec"):
-                gs = data.grid_spec
-            else:
-                md = data.metadata()
-                if hasattr(md, "grid_spec"):
-                    gs = md.grid_spec
-                else:
-                    gs = md.geography.grid_spec()
+            from earthkit.data import Field  # noqa: F401
 
-                if gs is None:
-                    try:
-                        gs = _get_one(md, ["grid_spec", "gridSpec"])
-                    except Exception:
-                        pass
+            if isinstance(data, Field):
+                gs = data.geography.grid_spec()
 
         if gs is not None:
             # TODO: converting legacy earthkit-data gridspec object to dict
@@ -284,7 +274,7 @@ class GridSpec:
         # TODO: refactor this
         # This is a temporary solution because the order/ordering default
         # is "nested" in eckit.geo.Grid but it is "ring" in the matrix interface of
-        # earthkit-regrid.
+        # earthkit-geo.
 
         try:
             spec = self._grid.spec.copy()
@@ -337,12 +327,10 @@ class GridSpecAccessor:
     @cached_property
     def has_grid(self):
         try:
-            from earthkit.data.core.geography import Geography
+            from earthkit.data.field.component.geography import Geography  # noqa: F401
+            from eckit.geo import Grid  # noqa: F401
 
-            if hasattr(Geography, "grid_spec"):
-                from eckit.geo import Grid  # noqa: F401
-
-                return True
+            return True
         except Exception:
             return False
 

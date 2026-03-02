@@ -24,7 +24,7 @@ from earthkit.plots import schema
 def test_octahedral_interpolated():
     data = earthkit.data.from_source(
         "url",
-        "https://get.ecmwf.int/repository/test-data/earthkit-regrid/test-data/global_0_360/O32.grib",
+        "https://get.ecmwf.int/repository/test-data/earthkit-geo/test-data/global_0_360/O32.grib",
     )
     chart = earthkit.plots.Map()
     chart.quickplot(data, units="celsius")
@@ -44,7 +44,7 @@ def test_octahedral_interpolated():
 def test_octahedral_point_cloud():
     data = earthkit.data.from_source(
         "url",
-        "https://get.ecmwf.int/repository/test-data/earthkit-regrid/test-data/global_0_360/O32.grib",
+        "https://get.ecmwf.int/repository/test-data/earthkit-geo/test-data/global_0_360/O32.grib",
     )
     chart = earthkit.plots.Map(domain="Europe")
     chart.point_cloud(data, units="celsius")

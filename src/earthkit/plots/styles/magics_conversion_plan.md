@@ -9,7 +9,7 @@ that the ~196 Magics parameter JSON files and their ~576 named styles (found at
 earthkit-plots `Style` objects and, where appropriate, written out as
 earthkit-plots YAML files.
 
----
+______________________________________________________________________
 
 ## Magics data structure — what you are reading
 
@@ -52,6 +52,7 @@ is a flat set of Magics contouring parameters. The key patterns are:
 
 **1. Shaded fill — explicit colour list (`contour_shade_colour_method: "list"`)**
 This is by far the most common (~388 of 576):
+
 ```json
 {
   "contour_shade": "on",
@@ -64,7 +65,9 @@ This is by far the most common (~388 of 576):
   "contour_shade_max_level": 56
 }
 ```
+
 Colour list is `/`-separated. Each colour is one of:
+
 - `rgb(r,g,b)` where values are **0–255 integers** (note: **not** 0–1 floats
   as the current `magics_color` function assumes for `rgb()`!)
 - `rgba(r,g,b,a)` with similar 0–255 integers + alpha 0–1
@@ -76,6 +79,7 @@ as 0–1 floats, but Magics colour lists use **0–255 integers** for rgb/rgba.
 Fix this: divide r, g, b by 255 when parsing `rgb(...)` and `rgba(...)`.
 
 **2. Contour lines only (no shade)**  (~99 styles):
+
 ```json
 {
   "contour_level_selection_type": "interval",
@@ -85,9 +89,11 @@ Fix this: divide r, g, b by 255 when parsing `rgb(...)` and `rgba(...)`.
   "contour_label": "on"
 }
 ```
+
 These should produce earthkit-plots `Contour` style objects (not `Style`).
 
 **3. Gradients (1 style — `www_2t`)**:
+
 ```json
 {
   "contour_shade_colour_method": "gradients",
@@ -100,6 +106,7 @@ These should produce earthkit-plots `Contour` style objects (not `Style`).
 ```
 
 **4. Palette (1 style)**:
+
 ```json
 {
   "contour_shade_colour_method": "palette",
@@ -116,12 +123,13 @@ with no colours (earthkit-plots will use its default).
 is present.
 
 **Level selection types**:
+
 - `"level_list"`: `contour_level_list` is a `/`-separated string of floats
 - `"interval"`: use `contour_interval`, `contour_shade_min_level`,
   `contour_shade_max_level`. When both min and max are present, generate an
   explicit list via `np.arange(min, max + interval, interval)`.
 
----
+______________________________________________________________________
 
 ## earthkit-plots style format — what you are writing
 
@@ -140,6 +148,7 @@ Style(
 ```
 
 `levels` in YAML can be:
+
 - A Python-style `range(start, stop, step)` string → parsed by `Levels.from_config`
 - A plain list `[-40, -38, ..., 40]`
 - A dict `{"step": 4}` for dynamic/data-driven levels
@@ -188,7 +197,7 @@ Each criterion dict is one entry from the Magics `match` list. The keys map
 directly — `paramId`, `shortName`, `centre`, `long_name`, `standard_name`,
 `levtype`, `level`, etc.
 
----
+______________________________________________________________________
 
 ## What needs to be implemented / fixed in `magics.py`
 
@@ -302,16 +311,17 @@ def generate_yaml_files(magics_ecmwf_dir: str, output_dir: str) -> None:
 ```
 
 Steps inside:
+
 1. Load `styles.json` once.
-2. Glob all `*.json` files except `styles.json`.
-3. Skip files without an `eccharts_layer` field (scaling files like
+1. Glob all `*.json` files except `styles.json`.
+1. Skip files without an `eccharts_layer` field (scaling files like
    `scaling_celsius.json` define unit preferences but not styles — skip for now
    or handle separately).
-4. For each param file, call `convert_parameter_file()`.
-5. Write the auto-styles YAML and identity YAML using `yaml.dump()`.
-6. Print a summary of what was written vs. skipped.
+1. For each param file, call `convert_parameter_file()`.
+1. Write the auto-styles YAML and identity YAML using `yaml.dump()`.
+1. Print a summary of what was written vs. skipped.
 
----
+______________________________________________________________________
 
 ## Unit string mapping
 
@@ -341,7 +351,7 @@ MAGICS_UNITS_TO_EK = {
 }
 ```
 
----
+______________________________________________________________________
 
 ## Style key naming convention
 
@@ -366,7 +376,7 @@ where `short_descriptor` is derived from the style dict's
 stripped of parentheses). If neither is present, fall back to the style key
 slug.
 
----
+______________________________________________________________________
 
 ## Colour output format
 
@@ -382,7 +392,7 @@ def to_hex(color) -> str:
     return mcolors.to_hex(color, keep_alpha=True)
 ```
 
----
+______________________________________________________________________
 
 ## What to skip / warn about
 
@@ -395,7 +405,7 @@ def to_hex(color) -> str:
 - Palette names other than `eccharts_white_red_7` — attempt
   `MAGICS_PALETTE_TO_MPL` lookup; warn if not found.
 
----
+______________________________________________________________________
 
 ## Summary of files to modify
 
@@ -415,7 +425,7 @@ files are written into `src/earthkit/plots/data/styles/auto-styles/` and
 `src/earthkit/plots/data/styles/identities/`, which are already part of the
 earthkit-plots plugin system and will be picked up automatically.
 
----
+______________________________________________________________________
 
 ## Quick test
 
@@ -430,6 +440,7 @@ generate_yaml_files(
 ```
 
 Then verify:
+
 ```python
 import earthkit.plots
 print(earthkit.plots.list_styles())  # should include many new names

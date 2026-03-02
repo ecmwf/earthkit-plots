@@ -739,6 +739,7 @@ class Subplot:
         else:
             if isinstance(style, str):
                 from earthkit.plots.styles import auto as _auto
+
                 style = _auto.load_style(style)
             method = getattr(self, style._preferred_method)
         zorder = LAYER_ZORDERS.get(method.__name__, 10)

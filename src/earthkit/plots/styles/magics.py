@@ -22,8 +22,7 @@ the Magics ECMWF styles directory.
 """
 
 import warnings
-from typing import Any, Dict, List, Optional, Union
-
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Magics named color to RGB mapping (values in [0, 1])
@@ -153,6 +152,7 @@ MAGICS_UNITS_TO_EK = {
 # Color helpers
 # ---------------------------------------------------------------------------
 
+
 def _hsl_to_rgb(h: float, s: float, l: float) -> tuple:
     """
     Convert HSL color to RGB.
@@ -197,7 +197,7 @@ def _hsl_to_rgb(h: float, s: float, l: float) -> tuple:
     )
 
 
-def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
+def magics_color(color_name: str) -> str | tuple | None:
     """
     Convert a Magics color specification to a matplotlib-compatible value.
 
@@ -239,7 +239,12 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     if upper.startswith("RGBA("):
         parts = color_name[5:-1].split(",")
         try:
-            r, g, b, a = float(parts[0]), float(parts[1]), float(parts[2]), float(parts[3])
+            r, g, b, a = (
+                float(parts[0]),
+                float(parts[1]),
+                float(parts[2]),
+                float(parts[3]),
+            )
             # Normalise r/g/b: if any channel > 1 they are 0-255 integers
             if r > 1.0 or g > 1.0 or b > 1.0:
                 r, g, b = r / 255.0, g / 255.0, b / 255.0
@@ -279,8 +284,17 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
         if rgb is None:
             return None
         # Return standard names as strings so matplotlib uses them directly
-        standard_colors = {"red", "green", "blue", "yellow", "cyan", "magenta",
-                           "black", "white", "grey"}
+        standard_colors = {
+            "red",
+            "green",
+            "blue",
+            "yellow",
+            "cyan",
+            "magenta",
+            "black",
+            "white",
+            "grey",
+        }
         if color_lower in standard_colors:
             return color_lower
         return rgb
@@ -289,7 +303,7 @@ def magics_color(color_name: str) -> Optional[Union[str, tuple]]:
     return color_name
 
 
-def parse_colour_list(colour_list_str: str) -> List:
+def parse_colour_list(colour_list_str: str) -> list:
     """
     Parse a Magics ``/``-separated colour list string into a list of colours.
 
@@ -340,7 +354,8 @@ def to_hex(color) -> str:
 # Internal conversion helpers
 # ---------------------------------------------------------------------------
 
-def _magics_bool(value: Union[str, bool]) -> bool:
+
+def _magics_bool(value: str | bool) -> bool:
     """Convert Magics on/off strings to Python booleans."""
     if isinstance(value, bool):
         return value
@@ -350,8 +365,8 @@ def _magics_bool(value: Union[str, bool]) -> bool:
 
 
 def _convert_levels(
-    magics_params: Dict[str, Any],
-) -> Optional[Union[List[float], Dict[str, Any]]]:
+    magics_params: dict[str, Any],
+) -> list[float] | dict[str, Any] | None:
     """
     Convert Magics level parameters to earthkit-plots levels.
 
@@ -383,24 +398,28 @@ def _convert_levels(
         reference = magics_params.get("contour_reference_level")
 
         # Check shade-specific bounds first, fall back to general contour bounds
-        min_level = magics_params.get("contour_shade_min_level",
-                                      magics_params.get("contour_min_level"))
-        max_level = magics_params.get("contour_shade_max_level",
-                                      magics_params.get("contour_max_level"))
+        min_level = magics_params.get(
+            "contour_shade_min_level", magics_params.get("contour_min_level")
+        )
+        max_level = magics_params.get(
+            "contour_shade_max_level", magics_params.get("contour_max_level")
+        )
 
         if interval is not None:
             interval = float(interval)
             if min_level is not None and max_level is not None:
                 # Generate explicit list so the YAML is fully self-contained
-                levels = np.arange(float(min_level),
-                                   float(max_level) + interval,
-                                   interval).tolist()
+                levels = np.arange(
+                    float(min_level), float(max_level) + interval, interval
+                ).tolist()
                 # Trim any overshoot caused by floating-point arange
-                levels = [lv for lv in levels if lv <= float(max_level) + interval * 0.01]
+                levels = [
+                    lv for lv in levels if lv <= float(max_level) + interval * 0.01
+                ]
                 return levels
 
             # No bounds — use a dynamic step-based Levels config
-            levels_dict: Dict[str, Any] = {"step": interval}
+            levels_dict: dict[str, Any] = {"step": interval}
             if reference is not None:
                 levels_dict["reference"] = float(reference)
             return levels_dict
@@ -409,9 +428,9 @@ def _convert_levels(
 
 
 def _convert_extend(
-    magics_params: Dict[str, Any],
+    magics_params: dict[str, Any],
     shade_enabled: bool = True,
-    colour_method: Optional[str] = None,
+    colour_method: str | None = None,
 ) -> str:
     """
     Infer the ``extend`` parameter from Magics shading parameters.
@@ -462,7 +481,7 @@ def _convert_extend(
     return "both"
 
 
-def _calculate_colours(magics_params: Dict[str, Any], n: int = 256) -> List[str]:
+def _calculate_colours(magics_params: dict[str, Any], n: int = 256) -> list[str]:
     """
     Replicate Magics' ``contour_shade_colour_method='calculate'`` algorithm.
 
@@ -488,6 +507,7 @@ def _calculate_colours(magics_params: Dict[str, Any], n: int = 256) -> List[str]
 
     # magics_color may return a named string; resolve to RGB tuple
     import matplotlib.colors as mcolors
+
     if isinstance(min_rgb, str):
         min_rgb = mcolors.to_rgb(min_rgb)
     if isinstance(max_rgb, str):
@@ -525,15 +545,14 @@ def _calculate_colours(magics_params: Dict[str, Any], n: int = 256) -> List[str]
 def _normalise_colour(c) -> str:
     """Return a canonical hex string for any colour value, for dedup comparison."""
     import matplotlib.colors as mcolors
+
     try:
         return mcolors.to_hex(c, keep_alpha=True)
     except (ValueError, TypeError):
         return str(c).lower().strip()
 
 
-def _strip_sentinel_levels(
-    levels: List, colours: Optional[List] = None
-) -> tuple:
+def _strip_sentinel_levels(levels: list, colours: list | None = None) -> tuple:
     """
     Detect and strip sentinel "catch-all" levels at the ends of a level list.
 
@@ -603,9 +622,7 @@ def _strip_sentinel_levels(
     return levels, colours, "min" if has_min else "max"
 
 
-def _strip_extend_colours(
-    colours: List, levels: Optional[List]
-) -> tuple:
+def _strip_extend_colours(colours: list, levels: list | None) -> tuple:
     """
     Detect and strip duplicate colours at the start/end of a colour list.
 
@@ -676,7 +693,9 @@ def _strip_extend_colours(
     # So: strip (n_start - 1) from the start and (n_end - 1) from the end.
     n_strip_start = n_start - 1
     n_strip_end = n_end - 1
-    stripped = colours[n_strip_start: len(colours) - n_strip_end if n_strip_end > 0 else None]
+    stripped = colours[
+        n_strip_start : len(colours) - n_strip_end if n_strip_end > 0 else None
+    ]
 
     # Trim levels to match.  After stripping, len(stripped) inner colour bands
     # need len(stripped) + 1 level boundaries.
@@ -685,9 +704,13 @@ def _strip_extend_colours(
     #   (b) len(levels) == len(colours)       →  one level per colour; trim then close
     if levels is not None:
         if len(levels) == len(colours) + 1:
-            levels = levels[n_strip_start: len(levels) - n_strip_end if n_strip_end > 0 else None]
+            levels = levels[
+                n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None
+            ]
         elif len(levels) == len(colours):
-            levels = levels[n_strip_start: len(levels) - n_strip_end if n_strip_end > 0 else None]
+            levels = levels[
+                n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None
+            ]
             # len(levels) == len(stripped) — add one closing boundary
             if levels and stripped:
                 step = levels[1] - levels[0] if len(levels) > 1 else 1
@@ -697,8 +720,8 @@ def _strip_extend_colours(
 
 
 def _convert_colors(
-    magics_params: Dict[str, Any], shade_enabled: bool
-) -> Optional[Union[str, List]]:
+    magics_params: dict[str, Any], shade_enabled: bool
+) -> str | list | None:
     """
     Convert Magics colour parameters to an earthkit-plots ``colors`` value.
     """
@@ -765,9 +788,9 @@ def _convert_colors(
     return None
 
 
-def _convert_line_properties(magics_params: Dict[str, Any]) -> Dict[str, Any]:
+def _convert_line_properties(magics_params: dict[str, Any]) -> dict[str, Any]:
     """Convert Magics line properties to matplotlib kwargs."""
-    props: Dict[str, Any] = {}
+    props: dict[str, Any] = {}
 
     thickness = magics_params.get("contour_line_thickness")
     if thickness is not None:
@@ -796,7 +819,9 @@ def _convert_line_properties(magics_params: Dict[str, Any]) -> Dict[str, Any]:
         base_thickness = thickness or 1
         # Highlight lines are always solid; base lines use the specified style.
         # Divide by 2 to convert Magics thickness units to matplotlib linewidths.
-        props["linewidths"] = [base_thickness / 2] * (highlight_freq - 1) + [highlight_thickness / 2]
+        props["linewidths"] = [base_thickness / 2] * (highlight_freq - 1) + [
+            highlight_thickness / 2
+        ]
         props["linestyles"] = [mpl_line_style] * (highlight_freq - 1) + ["solid"]
     elif mpl_line_style != "solid":
         props["linestyles"] = mpl_line_style
@@ -845,6 +870,7 @@ def _get_magics_palettes() -> dict:
 # Public runtime API: from_magics()
 # ---------------------------------------------------------------------------
 
+
 def from_magics(**magics_params) -> "Style":
     """
     Convert Magics contouring parameters to an earthkit-plots Style object.
@@ -883,7 +909,7 @@ def from_magics(**magics_params) -> "Style":
     """
     from earthkit.plots.styles import Style
 
-    ek_params: Dict[str, Any] = {}
+    ek_params: dict[str, Any] = {}
 
     shade_enabled = _magics_bool(magics_params.get("contour_shade", "off"))
     contour_enabled = _magics_bool(magics_params.get("contour", "on"))
@@ -928,6 +954,7 @@ def from_magics(**magics_params) -> "Style":
 # YAML generation helpers
 # ---------------------------------------------------------------------------
 
+
 def _style_key(layer_id: str, magics_style_name: str) -> str:
     """
     Generate the all-caps YAML style key from a layer id and Magics style name.
@@ -947,7 +974,7 @@ def _style_slug(layer_id: str, magics_style_name: str) -> str:
     e.g. ``"2t"`` + ``"sh_all_fM48t56i4"`` → ``"sh-all-fm48t56i4"``
     """
     raw = magics_style_name.lower()
-    for ch in " _/\\:*?\"<>|(){}[]":
+    for ch in ' _/\\:*?"<>|(){}[]':
         raw = raw.replace(ch, "-")
     # Collapse repeated hyphens
     while "--" in raw:
@@ -958,9 +985,9 @@ def _style_slug(layer_id: str, magics_style_name: str) -> str:
 def to_yaml_dict(
     layer_id: str,
     magics_style_name: str,
-    magics_style_params: Dict[str, Any],
-    units: Optional[str] = None,
-) -> Dict[str, Any]:
+    magics_style_params: dict[str, Any],
+    units: str | None = None,
+) -> dict[str, Any]:
     """
     Convert a single Magics style dict to an earthkit-plots YAML style entry.
 
@@ -991,7 +1018,7 @@ def to_yaml_dict(
     else:
         style_type = "Contour"
 
-    entry: Dict[str, Any] = {
+    entry: dict[str, Any] = {
         "name": _style_slug(layer_id, magics_style_name),
         "type": style_type,
     }
@@ -1036,7 +1063,9 @@ def to_yaml_dict(
     if extend == "neither" and isinstance(levels, list):
         # Pass colours so sentinel bands are stripped in sync with the levels.
         sentinel_colours = colors if isinstance(colors, list) else None
-        levels, sentinel_colours, extend = _strip_sentinel_levels(levels, sentinel_colours)
+        levels, sentinel_colours, extend = _strip_sentinel_levels(
+            levels, sentinel_colours
+        )
         if sentinel_colours is not None:
             colors = sentinel_colours
 
@@ -1045,7 +1074,10 @@ def to_yaml_dict(
         color_key = "colors" if shade_enabled else "linecolors"
         if isinstance(colors, list):
             # May already be hex strings (from _strip_extend_colours) or raw values
-            entry[color_key] = [c if isinstance(c, str) and c.startswith("#") else to_hex(c) for c in colors]
+            entry[color_key] = [
+                c if isinstance(c, str) and c.startswith("#") else to_hex(c)
+                for c in colors
+            ]
         elif isinstance(colors, tuple):
             entry[color_key] = to_hex(colors)
         else:
@@ -1072,8 +1104,8 @@ def to_yaml_dict(
 
 def convert_parameter_file(
     param_file_path: str,
-    styles_dict: Dict[str, Any],
-) -> Optional[Dict[str, Any]]:
+    styles_dict: dict[str, Any],
+) -> dict[str, Any] | None:
     """
     Convert one Magics parameter JSON file to an earthkit-plots style descriptor.
 
@@ -1120,7 +1152,7 @@ def convert_parameter_file(
         criteria = entry.get("match", [])
         style_names = entry.get("styles", [])
 
-        converted_styles: Dict[str, Dict[str, Any]] = {}
+        converted_styles: dict[str, dict[str, Any]] = {}
         optimal_key = None
 
         for magics_style_name in style_names:
@@ -1134,7 +1166,9 @@ def convert_parameter_file(
 
             yaml_key = _style_key(layer_id, magics_style_name)
             try:
-                style_entry = to_yaml_dict(layer_id, magics_style_name, magics_style_params, ek_units)
+                style_entry = to_yaml_dict(
+                    layer_id, magics_style_name, magics_style_params, ek_units
+                )
             except Exception as exc:
                 warnings.warn(
                     f"[{layer_id}] Failed to convert style '{magics_style_name}': {exc}; skipping."
@@ -1148,13 +1182,15 @@ def convert_parameter_file(
         if not converted_styles:
             continue
 
-        results.append({
-            "id": layer_id,
-            "units": ek_units,
-            "criteria": criteria,
-            "styles": converted_styles,
-            "optimal": optimal_key,
-        })
+        results.append(
+            {
+                "id": layer_id,
+                "units": ek_units,
+                "criteria": criteria,
+                "styles": converted_styles,
+                "optimal": optimal_key,
+            }
+        )
 
     return results if results else None
 
@@ -1202,9 +1238,9 @@ def generate_yaml_files(magics_ecmwf_dir: str, output_dir: str) -> None:
         styles_dict = json.load(f)
 
     param_files = sorted(
-        fp for fp in glob.glob(os.path.join(magics_ecmwf_dir, "*.json"))
-        if not fp.endswith("styles.json")
-        and not os.path.basename(fp).startswith("cds")
+        fp
+        for fp in glob.glob(os.path.join(magics_ecmwf_dir, "*.json"))
+        if not fp.endswith("styles.json") and not os.path.basename(fp).startswith("cds")
     )
 
     written = 0
