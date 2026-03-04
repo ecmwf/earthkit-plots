@@ -536,12 +536,16 @@ def quickplot(
             try:
                 getattr(subplot, m)(*_args)
             except Exception as err:
-                warnings.warn(f"ekp.quickplot: subplot workflow step '{m}' failed with:\n{err}")
+                warnings.warn(
+                    f"ekp.quickplot: subplot workflow step '{m}' failed with:\n{err}"
+                )
         for m in schema.quickmap_figure_workflow:
             try:
                 getattr(figure, m)()
             except Exception as err:
-                warnings.warn(f"ekp.quickplot: figure workflow step '{m}' failed with:\n{err}")
+                warnings.warn(
+                    f"ekp.quickplot: figure workflow step '{m}' failed with:\n{err}"
+                )
         return figure
 
     field_list = []

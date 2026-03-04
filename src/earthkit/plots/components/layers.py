@@ -109,8 +109,7 @@ class Layer:
     def _default_title_template(self):
         # Check if any source has time information available
         has_time = any(
-            source.datetime().get("valid_time") is not None
-            for source in self.sources
+            source.datetime().get("valid_time") is not None for source in self.sources
         )
         if not has_time:
             return metadata.labels.DEFAULT_NO_TIME_TITLE

@@ -731,7 +731,7 @@ class Subplot:
         if not isinstance(data, (Base, xr.DataArray, xr.Dataset)):
             data = earthkit.data.from_object(data)
         source = get_source(data)
-        if style is None:
+        if style is None or style == "auto":
             auto_style = auto.guess_style(source, units=units, **kwargs)
             if auto_style is not None:
                 method = getattr(self, auto_style._preferred_method)

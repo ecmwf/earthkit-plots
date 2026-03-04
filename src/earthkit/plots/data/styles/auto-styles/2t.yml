@@ -1,6 +1,31 @@
 id: 2t
 optimal: 2T_SH_ALL_FM48T56I4
+
 styles:
+  2T_SPECTRAL_KELVIN:
+    name: 2m-temperature-spectral-kelvin
+    type: Style
+    colors: Spectral_r
+    extend: both
+    levels: range(233, 314, 2)
+    units: K
+
+  2T_SPECTRAL_FAHRENHEIT:
+    name: 2m-temperature-spectral-fahrenheit
+    type: Style
+    colors: Spectral_r
+    extend: both
+    levels: range(-40, 101, 5)
+    units: fahrenheit
+
+  2T_SPECTRAL_CELSIUS:
+    name: 2m-temperature-spectral-celsius
+    type: Style
+    colors: Spectral_r
+    extend: both
+    levels: range(-40, 41, 2)
+    units: celsius
+
   2T_SH_ALL_FM48T56I4:
     name: sh-all-fm48t56i4
     type: Style

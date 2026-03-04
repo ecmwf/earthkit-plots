@@ -63,8 +63,12 @@ def guess_style(data, units=None, **kwargs):
         data, the data will be converted to the target units and the style
         will be adjusted accordingly.
     """
+    # Use the source's native units (before any conversion) to pick the style
+    # variant. The caller-supplied `units` is the *target* units and is used
+    # below to select the matching style variant and to label the colorbar.
+    source_units = data.source_units
     if units is None:
-        units = data.units
+        units = source_units
 
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
@@ -110,12 +114,24 @@ def guess_style(data, units=None, **kwargs):
             if are_equal(style.get("units"), units):
                 break
         else:
-            # No style matching units found; return default
+            # No style matching units found — try matching source units, or
+            # fall back to any style without explicit units
             for _, style in style_config["styles"].items():
-                if "units" not in style:
+                if are_equal(style.get("units"), source_units):
                     break
             else:
-                return styles.DEFAULT_STYLE
+                for _, style in style_config["styles"].items():
+                    if "units" not in style:
+                        break
+                else:
+                    return styles.DEFAULT_STYLE
+
+    # If the caller requested a specific target units that differs from the
+    # style variant's units, override the style units so the colorbar label
+    # reflects the actual plotted units (the Source handles the conversion).
+    style_units = style.get("units")
+    if units is not None and not are_equal(units, style_units):
+        kwargs.setdefault("units", units)
 
     return styles.Style.from_dict({**style, **kwargs})
 

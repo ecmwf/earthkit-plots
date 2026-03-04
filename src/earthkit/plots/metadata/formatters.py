@@ -323,16 +323,30 @@ class LayerFormatter(BaseFormatter):
             elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
                 value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
                 if value is None:
-                    value = [
-                        metadata.labels.extract(
-                            source,
-                            key,
-                            default=self._default,
-                            issue_warnings=self._issue_warnings,
-                            axis=self._axis,
-                        )
-                        for source in self.layer.sources
-                    ]
+                    if key == "units":
+                        # Prefer applied/converted units from the source over raw source attrs
+                        value = [
+                            source.units if source.units is not None
+                            else metadata.labels.extract(
+                                source,
+                                key,
+                                default=self._default,
+                                issue_warnings=self._issue_warnings,
+                                axis=self._axis,
+                            )
+                            for source in self.layer.sources
+                        ]
+                    else:
+                        value = [
+                            metadata.labels.extract(
+                                source,
+                                key,
+                                default=self._default,
+                                issue_warnings=self._issue_warnings,
+                                axis=self._axis,
+                            )
+                            for source in self.layer.sources
+                        ]
                 if key == "units":
                     # Check if we have axis-specific units defined
                     axis_specific_units = None
@@ -403,9 +417,7 @@ class LayerFormatter(BaseFormatter):
         # Handle list values from single sources (e.g., vector fields returning ["wind U", "wind V"])
         if isinstance(_value, list):
             # Apply format_spec to each element
-            formatted_values = [
-                super().format_field(v, format_spec) for v in _value
-            ]
+            formatted_values = [super().format_field(v, format_spec) for v in _value]
             # Get unique values
             unique_values = list(dict.fromkeys(formatted_values))
             # If all values are the same, return just one

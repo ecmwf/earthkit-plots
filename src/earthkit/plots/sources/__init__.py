@@ -665,14 +665,22 @@ class Source:
             for name in time_coord_names:
                 if name in da.coords:
                     coord = da.coords[name]
-                    val = coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+                    val = (
+                        coord.values
+                        if coord.ndim == 0
+                        else (coord.values[0] if coord.size == 1 else None)
+                    )
                     if val is not None:
                         dt = _parse_time_value(val)
                         if dt is not None:
                             found[name] = dt
             if found:
                 valid = found.get("valid_time") or found.get("time")
-                base = found.get("forecast_reference_time") or found.get("initial_time") or valid
+                base = (
+                    found.get("forecast_reference_time")
+                    or found.get("initial_time")
+                    or valid
+                )
                 return {"base_time": base, "valid_time": valid}
 
         # Try to build a datetime from ECMWF-style integer date/time attrs
