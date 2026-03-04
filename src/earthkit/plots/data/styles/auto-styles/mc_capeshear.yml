@@ -37,7 +37,7 @@ styles:
   MC_CAPESHEAR_CT_MC_CAPES_F10T4000_BLACK:
     name: ct-mc-capes-f10t4000-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 10.0
     - 50.0
@@ -67,7 +67,7 @@ styles:
   MC_CAPESHEAR_CT_MC_CAPES_F10T4000_BLUE:
     name: ct-mc-capes-f10t4000-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 10.0
     - 50.0

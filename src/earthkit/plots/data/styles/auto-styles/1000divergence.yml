@@ -268,7 +268,7 @@ styles:
   1000DIVERGENCE_CT_BLURED_FM5T50:
     name: ct-blured-fm5t50
     type: Contour
-    linecolors: red
+    colors: red
     levels:
     - -5.0
     - 5.0

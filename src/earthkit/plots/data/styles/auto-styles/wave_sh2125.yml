@@ -814,7 +814,7 @@ styles:
   WAVE_SH2125_CT_T2_F005T5_BLACK:
     name: ct-t2-f005t5-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.05
     - 0.1
@@ -838,7 +838,7 @@ styles:
   WAVE_SH2125_CT_T2_F005T5_BLUE:
     name: ct-t2-f005t5-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.05
     - 0.1

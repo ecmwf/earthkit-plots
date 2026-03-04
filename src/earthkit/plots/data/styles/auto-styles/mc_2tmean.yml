@@ -50,7 +50,7 @@ styles:
   MC_2TMEAN_CT_MC_T_FM80T60_BLACK:
     name: ct-mc-t-fm80t60-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - -50.0
     - -40.0
@@ -87,7 +87,7 @@ styles:
   MC_2TMEAN_CT_MC_T_FM80T60_BLUE:
     name: ct-mc-t-fm80t60-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - -50.0
     - -40.0

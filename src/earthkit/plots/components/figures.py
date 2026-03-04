@@ -184,16 +184,25 @@ class Figure:
 
         @functools.wraps(method)
         def wrapper(self, data, *args, **kwargs):
-            if not hasattr(data, "__len__"):
-                data = [data]
+            groupby = kwargs.pop("groupby", None)
+            if groupby is not None:
+                from earthkit.plots.quickplot import _coerce_to_fieldlist, _group_data
+
+                fields = _coerce_to_fieldlist(data)
+                grouped = _group_data(fields, groupby)
+                data_items = list(grouped.values())
+            else:
+                if not hasattr(data, "__len__"):
+                    data = [data]
+                data_items = list(data)
             if not self.subplots:
                 self.rows, self.columns = rows_cols(
-                    len(data), rows=self.rows, columns=self.columns
+                    len(data_items), rows=self.rows, columns=self.columns
                 )
                 self._setup()
-                for _ in range(len(data)):
+                for _ in range(len(data_items)):
                     self.add_map()
-            for datum, subplot in zip(data, self.subplots):
+            for datum, subplot in zip(data_items, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
 
         return wrapper
@@ -333,6 +342,8 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to the Subplot legend method.
         """
+        import matplotlib.lines as mlines
+
         legends = []
 
         anchor = None
@@ -349,16 +360,39 @@ class Figure:
                     location=loc,
                     **kwargs,
                 )
-            if legend.__class__.__name__ != "Colorbar":
-                non_cbar_layers.append(layer)
-            else:
-                anchor = layer.axes[0].get_anchor()
-            legends.append(legend)
+                if legend.__class__.__name__ != "Colorbar":
+                    non_cbar_layers.append(layer)
+                else:
+                    anchor = layer.axes[0].get_anchor()
+                legends.append(legend)
 
         if anchor is not None:
             for layer in non_cbar_layers:
                 for ax in layer.axes:
                     ax.set_anchor(anchor)
+
+        # Collect proxy-label layers (e.g. from spaghetti or labelled contours)
+        # and render them as a line legend on each subplot that has them.
+        _subplots = subplots if subplots is not None else self.subplots
+        for subplot in _subplots:
+            proxy_handles = []
+            for layer in subplot.layers:
+                proxy_label = getattr(layer, "proxy_label", None)
+                if proxy_label is not None:
+                    color = getattr(layer, "_proxy_color", None)
+                    lw = getattr(layer, "_proxy_linewidth", 1.0)
+                    if color is None:
+                        try:
+                            color = layer.mappable.collections[0].get_edgecolor()[0]
+                        except (AttributeError, IndexError):
+                            color = "black"
+                    proxy_handles.append(
+                        mlines.Line2D(
+                            [], [], color=color, linewidth=lw, label=proxy_label
+                        )
+                    )
+            if proxy_handles:
+                subplot.ax.legend(handles=proxy_handles)
 
         return legends
 
@@ -713,6 +747,23 @@ class Figure:
 
         result = self.fig.suptitle(label, y=y, **kwargs)
         return result
+
+    def set_title(self, label=None, **kwargs):
+        """
+        Set the top-level title of the figure.
+
+        Alias for :meth:`title` that matches the matplotlib ``set_title``
+        convention. Accepts the same arguments.
+
+        Parameters
+        ----------
+        label : str, optional
+            The title text. Can contain metadata keys in curly braces,
+            e.g. ``"{variable_name}"``.
+        **kwargs
+            Additional keyword arguments forwarded to :meth:`title`.
+        """
+        return self.title(label, **kwargs)
 
     def draw(self):
         """

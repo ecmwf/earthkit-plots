@@ -119,7 +119,7 @@ styles:
   MN2T_CT_RED_I2_DASH:
     name: ct-red-i2-dash
     type: Contour
-    linecolors: red
+    colors: red
     levels:
     - -100.0
     - -98.0
@@ -586,7 +586,7 @@ styles:
   MN2T_CT_RED_I4_T3:
     name: ct-red-i4-t3
     type: Contour
-    linecolors: red
+    colors: red
     levels:
       step: 4.0
       reference: 0.0

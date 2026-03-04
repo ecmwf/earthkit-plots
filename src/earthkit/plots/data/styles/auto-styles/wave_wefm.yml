@@ -324,7 +324,7 @@ styles:
   WAVE_WEFM_CT_T3_F0T640_BLACK:
     name: ct-t3-f0t640-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 40.0
@@ -358,7 +358,7 @@ styles:
   WAVE_WEFM_CT_T3_F0T640_BLUE:
     name: ct-t3-f0t640-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.0
     - 40.0

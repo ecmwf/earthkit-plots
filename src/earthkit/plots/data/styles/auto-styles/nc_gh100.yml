@@ -4,7 +4,7 @@ styles:
   NC_GH100_CT_BLK_I8_T2:
     name: ct-blk-i8-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 8.0
       reference: 1000.0
@@ -24,7 +24,7 @@ styles:
   NC_GH100_CT_BLK_I10_T2:
     name: ct-blk-i10-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 10.0
       reference: 1000.0

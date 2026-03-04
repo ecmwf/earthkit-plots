@@ -33,7 +33,7 @@ styles:
   MC_SF_CT_MC_SF_F01T100_BLACK:
     name: ct-mc-sf-f01t100-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.1
     - 1.0
@@ -61,7 +61,7 @@ styles:
   MC_SF_CT_MC_SF_F01T100_BLUE:
     name: ct-mc-sf-f01t100-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.1
     - 1.0

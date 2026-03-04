@@ -2,5 +2,4 @@ id: wave_sh2530
 criteria:
 - paramId: '140119'
   shortName: h2530
-- long_name: Significant wave height of all waves with periods within the inclusive
-    range from 25 to 30 seconds
+- long_name: Significant wave height of all waves with periods within the inclusive range from 25 to 30 seconds

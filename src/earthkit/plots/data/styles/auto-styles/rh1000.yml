@@ -279,7 +279,7 @@ styles:
   RH1000_CT_GRNBLU_F65T100I15:
     name: ct-grnblu-f65t100i15
     type: Contour
-    linecolors: green
+    colors: green
     levels:
     - 65.0
     - 80.0

@@ -317,7 +317,7 @@ styles:
   500WS_CT_GRN_F30_I10:
     name: ct-grn-f30-i10
     type: Contour
-    linecolors: '#80ff00ff'
+    colors: '#80ff00ff'
     levels:
       step: 10.0
       reference: 50.0
@@ -332,7 +332,7 @@ styles:
   500WS_CT_YLW_F30_I10:
     name: ct-ylw-f30-i10
     type: Contour
-    linecolors: yellow
+    colors: yellow
     levels:
       step: 10.0
       reference: 50.0

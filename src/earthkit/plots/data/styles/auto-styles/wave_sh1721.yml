@@ -550,7 +550,7 @@ styles:
   WAVE_SH1721_CT_VIO_I1_T1:
     name: ct-vio-i1-t1
     type: Contour
-    linecolors: '#9980ccff'
+    colors: '#9980ccff'
     levels:
       step: 1.0
       reference: 2.0

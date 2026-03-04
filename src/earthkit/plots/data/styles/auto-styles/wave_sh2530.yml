@@ -808,7 +808,7 @@ styles:
   WAVE_SH2530_CT_T2_F002T1_BLACK:
     name: ct-t2-f002t1-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.02
     - 0.04
@@ -830,7 +830,7 @@ styles:
   WAVE_SH2530_CT_T2_F002T1_BLUE:
     name: ct-t2-f002t1-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.02
     - 0.04

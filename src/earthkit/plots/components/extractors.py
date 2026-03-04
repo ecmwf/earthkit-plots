@@ -619,6 +619,13 @@ def extract_plottables_2D(
     # not valid matplotlib kwargs (e.g. 'regrid' from contour/contourf schema).
     kwargs.pop("regrid", None)
 
+    # Intercept `label` before it reaches matplotlib. ContourSet objects don't
+    # participate in the auto-legend mechanism, so we handle it ourselves via
+    # proxy artists stored on the layer. Also snapshot the line colour now,
+    # before kwargs are consumed by the plot call.
+    proxy_label = kwargs.pop("label", None)
+    proxy_color = kwargs.get("colors") or kwargs.get("color")
+
     # Step 4: Process z values (convert units, apply scale factors)
     z_values = apply_scale_factor(style, source, z)
 
@@ -827,7 +834,6 @@ def extract_plottables_2D(
                     subplot.ax, x_values, y_values, z_values, **kwargs
                 )
             else:
-                warnings.warn("Style not set - using raw matplotlib method.")
                 mappable = getattr(subplot.ax, method_name)(
                     x_values, y_values, z_values, **kwargs
                 )
@@ -847,16 +853,29 @@ def extract_plottables_2D(
     if units is not None and "z" not in axis_units:
         axis_units["z"] = units
 
-    subplot.layers.append(
-        Layer(
-            source,
-            mappable,
-            subplot,
-            style,
-            primary_axis=primary_axis,
-            axis_units=axis_units,
-        )
+    layer = Layer(
+        source,
+        mappable,
+        subplot,
+        style,
+        primary_axis=primary_axis,
+        axis_units=axis_units,
     )
+
+    if proxy_label is not None:
+        layer.style = None
+        layer.proxy_label = proxy_label
+        # Normalise colour: colors may be a list like ["orange"]
+        if isinstance(proxy_color, (list, tuple)):
+            proxy_color = proxy_color[0]
+        layer._proxy_color = proxy_color
+        layer._proxy_linewidth = kwargs.get("linewidths", 1.0)
+    else:
+        layer.proxy_label = None
+        layer._proxy_color = None
+        layer._proxy_linewidth = None
+
+    subplot.layers.append(layer)
     return mappable
 
 

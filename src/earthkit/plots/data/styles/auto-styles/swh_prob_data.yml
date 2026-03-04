@@ -1706,7 +1706,7 @@ styles:
   SWH_PROB_DATA_CT_PROB_BLACK_F5T100T2:
     name: ct-prob-black-f5t100t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 5.0
     - 35.0
@@ -1722,7 +1722,7 @@ styles:
   SWH_PROB_DATA_CT_PROB_BLUE_F5T100T2:
     name: ct-prob-blue-f5t100t2
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 5.0
     - 35.0

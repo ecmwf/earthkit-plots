@@ -48,7 +48,7 @@ styles:
   MC_TP_CT_MC_TP_F01T1000_BLACK:
     name: ct-mc-tp-f01t1000-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.1
     - 1.0
@@ -84,7 +84,7 @@ styles:
   MC_TP_CT_MC_TP_F01T1000_BLUE:
     name: ct-mc-tp-f01t1000-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.1
     - 1.0

@@ -128,7 +128,7 @@ styles:
   WBPT850_CT_RED_I2_DASH:
     name: ct-red-i2-dash
     type: Contour
-    linecolors: red
+    colors: red
     levels:
     - -100.0
     - -98.0
@@ -246,7 +246,7 @@ styles:
   WBPT850_CT_BLACK_I2_SOLID:
     name: ct-black-i2-solid
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - -100.0
     - -98.0
@@ -364,7 +364,7 @@ styles:
   WBPT850_CT_BLACK_I4_SOLID:
     name: ct-black-i4-solid
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - -100.0
     - -96.0
@@ -488,7 +488,7 @@ styles:
   WBPT850_CT_MULTICOLOUR_FM20T40I2:
     name: ct-multicolour-fm20t40i2
     type: Contour
-    linecolors: rainbow
+    colors: rainbow
     levels:
     - -20.0
     - -18.0

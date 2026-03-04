@@ -4,7 +4,7 @@ styles:
   SOT_TP_N90_CT_SOT_BLACK_F0T8T1:
     name: ct-sot-black-f0t8t1
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 1.0
@@ -20,7 +20,7 @@ styles:
   SOT_TP_N90_CT_SOT_BLUE_F0T8T1:
     name: ct-sot-blue-f0t8t1
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.0
     - 1.0

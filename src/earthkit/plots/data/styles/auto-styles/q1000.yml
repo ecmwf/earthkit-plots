@@ -103,7 +103,7 @@ styles:
   Q1000_CT_BLK_I2_T2:
     name: ct-blk-i2-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 2.0
     units: g kg-1

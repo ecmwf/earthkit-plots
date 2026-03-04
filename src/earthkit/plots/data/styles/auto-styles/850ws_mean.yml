@@ -4,7 +4,7 @@ styles:
   850WS_MEAN_CT_BLK_I5_T2:
     name: ct-blk-i5-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
       reference: 1010.0
@@ -23,7 +23,7 @@ styles:
   850WS_MEAN_CT_BLK_I5_T1:
     name: ct-blk-i5-t1
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
     linewidths:
@@ -41,7 +41,7 @@ styles:
   850WS_MEAN_CT_BLUE_I5_T2:
     name: ct-blue-i5-t2
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
       step: 5.0
     linewidths:

@@ -76,7 +76,7 @@ styles:
   SST_CT_SST_BLK_FM2T36I2_I4:
     name: ct-sst-blk-fm2t36i2-i4
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - -2.0
     - 0.0
@@ -114,7 +114,7 @@ styles:
   SST_CT_SST_BLUE_FM2T36I2_I4:
     name: ct-sst-blue-fm2t36i2-i4
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - -2.0
     - 0.0
@@ -152,7 +152,7 @@ styles:
   SST_CT_SST_MULTICOLOUR:
     name: ct-sst-multicolour
     type: Contour
-    linecolors: rainbow
+    colors: rainbow
     levels:
     - -2.0
     - 0.0

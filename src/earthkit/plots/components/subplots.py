@@ -739,6 +739,7 @@ class Subplot:
         else:
             if isinstance(style, str):
                 from earthkit.plots.styles import auto as _auto
+
                 style = _auto.load_style(style)
             method = getattr(self, style._preferred_method)
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
@@ -803,6 +804,7 @@ class Subplot:
         result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
 
         self.layers[-1].sources = [red_source, green_source, blue_source]
+        self.layers[-1].style = None
 
         return result
 
@@ -864,6 +866,7 @@ class Subplot:
         result = self.pcolormesh(rgb, x=x_values, y=y_values, no_style=True)
 
         self.layers[-1].sources = [red_source, green_source, blue_source]
+        self.layers[-1].style = None
 
         return result
 
@@ -1214,6 +1217,120 @@ class Subplot:
         )
         return self.pcolormesh(*args, **kwargs)
 
+    def spaghetti(
+        self,
+        data_list,
+        *args,
+        levels=None,
+        color="#0673e0",
+        label=None,
+        highlight=None,
+        highlight_kwargs=None,
+        highlight_label=None,
+        **kwargs,
+    ):
+        """
+        Plot spaghetti contours for ensemble data with optional highlighting.
+
+        This method plots contour lines for each member in an ensemble dataset,
+        with the ability to highlight specific members based on metadata criteria.
+
+        Parameters
+        ----------
+        data_list : earthkit.data.core.Base, xarray.DataArray, or list
+            The ensemble data to plot. Can be an earthkit data object, xarray DataArray,
+            or a list of data objects that can be iterated over.
+        *args
+            Positional arguments passed to the contour method.
+        levels : float or list of float, optional
+            Contour level(s) to plot. Accepts a single value or a list of values.
+            If provided, overrides any ``levels`` in kwargs.
+        color : str or list, default "#0673e0"
+            Color for normal ensemble members.
+        label : str, optional
+            Legend label for the ensemble members. If provided (along with
+            ``highlight_label`` if highlighting is used), a legend entry is
+            automatically added. Pass an empty string to suppress the entry.
+        highlight : dict, optional
+            Dictionary with metadata criteria to select members for highlighting.
+            For example, {'dataType': 'cf'} to highlight control forecast.
+        highlight_kwargs : dict, optional
+            Dictionary with keyword arguments to pass to the contour method for
+            highlighted members.
+        highlight_label : str, optional
+            Legend label for the highlighted members. Only used when ``highlight``
+            is also set. Defaults to ``"Control"`` if ``label`` is set and
+            ``highlight`` is set but ``highlight_label`` is not provided.
+        **kwargs
+            Additional keyword arguments passed to matplotlib.pyplot.contour.
+            Common parameters include:
+            - linewidths : float or list - line widths for contours
+            - labels : bool - whether to show contour labels
+            - alpha : float - transparency level
+        """
+        import earthkit.data
+
+        # Convert to earthkit data if needed, keeping reference to original for sel operations
+        original_data = data_list
+        if not isinstance(data_list, earthkit.data.core.Base):
+            data_list = earthkit.data.from_object(data_list)
+
+        # Set up contour parameters
+        if levels is not None:
+            kwargs["levels"] = levels if isinstance(levels, (list, tuple)) else [levels]
+        if color is not None:
+            kwargs["colors"] = [color]
+        kwargs.setdefault("labels", False)
+        kwargs.setdefault("linewidths", 0.25)
+
+        # Plot all ensemble members, nulling out their styles so the
+        # figure-level colorbar legend machinery ignores them.
+        # Store the label and line properties on the first member's layer so
+        # the unified proxy-artist legend can pick it up.
+        first_member_layer = None
+        for data in data_list:
+            self.contour(data, *args, **kwargs)
+            self.layers[-1].style = None
+            self.layers[-1].proxy_label = None
+            if first_member_layer is None:
+                first_member_layer = self.layers[-1]
+
+        if label is not None and first_member_layer is not None:
+            first_member_layer.proxy_label = label
+            first_member_layer._proxy_color = color
+            first_member_layer._proxy_linewidth = kwargs.get("linewidths", 0.25)
+
+        # Plot highlighted members if specified
+        highlight_color = "red"
+        if highlight is not None:
+            # Use original data for sel operations to preserve xarray functionality
+            if hasattr(original_data, "sel"):
+                highlighted_data = original_data.sel(**highlight)
+            else:
+                highlighted_data = data_list.sel(**highlight)
+
+            if highlighted_data is not None and bool(highlighted_data):
+                # Create highlight-specific kwargs
+                highlight_kwargs = highlight_kwargs or dict()
+                highlight_color = highlight_kwargs.pop("color", highlight_color)
+                highlight_kwargs.setdefault("colors", highlight_color)
+                highlight_kwargs.setdefault("linewidths", 1.5)
+                highlight_kwargs = {**kwargs, **highlight_kwargs}
+
+                self.contour(highlighted_data, *args, **highlight_kwargs)
+                self.layers[-1].style = None
+                _hl_label = (
+                    highlight_label if highlight_label is not None else "Control"
+                )
+                if label is not None:
+                    self.layers[-1].proxy_label = _hl_label
+                    self.layers[-1]._proxy_color = highlight_color
+                    self.layers[-1]._proxy_linewidth = highlight_kwargs.get(
+                        "linewidths", 1.5
+                    )
+                else:
+                    self.layers[-1].proxy_label = None
+
     def legend(self, label=None, *args, **kwargs):
         """
         Add a legend to the Subplot.
@@ -1230,7 +1347,27 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
         """
-        self.ax.legend(*args, **kwargs)
+        import matplotlib.lines as mlines
+
+        proxy_handles = []
+        for layer in self.layers:
+            proxy_label = getattr(layer, "proxy_label", None)
+            if proxy_label is not None:
+                color = getattr(layer, "_proxy_color", None)
+                lw = getattr(layer, "_proxy_linewidth", 1.0)
+                if color is None:
+                    try:
+                        color = layer.mappable.collections[0].get_edgecolor()[0]
+                    except (AttributeError, IndexError):
+                        color = "black"
+                proxy_handles.append(
+                    mlines.Line2D([], [], color=color, linewidth=lw, label=proxy_label)
+                )
+
+        if proxy_handles:
+            self.ax.legend(handles=proxy_handles, *args, **kwargs)
+        else:
+            self.ax.legend(*args, **kwargs)
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
@@ -1263,9 +1400,26 @@ class Subplot:
             else:
                 scale_factor = 1.0
             kwargs["fontsize"] = schema.reference_fontsize * scale_factor
-        if capitalize:
+        if capitalize and label:
             label = label[0].upper() + label[1:]
         return self.ax.set_title(label, wrap=wrap, **kwargs)
+
+    def set_title(self, label=None, **kwargs):
+        """
+        Set the title of the subplot.
+
+        Alias for :meth:`title` that matches the matplotlib ``set_title``
+        convention. Accepts the same arguments.
+
+        Parameters
+        ----------
+        label : str, optional
+            The title text. Can contain metadata keys in curly braces,
+            e.g. ``"{variable_name}"``.
+        **kwargs
+            Additional keyword arguments forwarded to :meth:`title`.
+        """
+        return self.title(label, **kwargs)
 
     def suptitle(self, *args, **kwargs):
         """

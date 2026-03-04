@@ -382,7 +382,7 @@ styles:
   WIND_SPEED_CT_RED_I5:
     name: ct-red-i5
     type: Contour
-    linecolors: '#ff5900ff'
+    colors: '#ff5900ff'
     levels:
       step: 5.0
     linewidths:

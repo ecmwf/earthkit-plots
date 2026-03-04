@@ -186,9 +186,6 @@ class Style:
         if ticks is not None:
             self._legend_kwargs["ticks"] = ticks
 
-        if "extend" in kwargs:
-            self._legend_kwargs["extend"] = kwargs["extend"]
-
         # Strip internal earthkit-plots keys that are not valid matplotlib kwargs.
         kwargs.pop("regrid", None)
         self._kwargs = kwargs
@@ -205,6 +202,46 @@ class Style:
     def __eq__(self, other):
         keys = ["_levels", "_colors"]
         return compare_attributes(self, other, keys)
+
+    def _get_config(self):
+        """Return a dict of constructor kwargs representing the current state."""
+        import copy
+
+        levels_config = None
+        if hasattr(self._levels, "_levels"):
+            if hasattr(self._levels, "_step") and self._levels._step is not None:
+                levels_config = {"step": self._levels._step}
+                if (
+                    hasattr(self._levels, "_reference")
+                    and self._levels._reference is not None
+                ):
+                    levels_config["reference"] = self._levels._reference
+                if (
+                    hasattr(self._levels, "_divergence_point")
+                    and self._levels._divergence_point is not None
+                ):
+                    levels_config["divergence_point"] = self._levels._divergence_point
+            else:
+                levels_config = self._levels._levels
+
+        config = {
+            "colors": self._colors,
+            "levels": levels_config,
+            "gradients": self.gradients,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            "units_label": self._units_label,
+            "legend_style": self._legend_style,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
+            if self._legend_kwargs
+            else None,
+            "categories": self._bin_labels,
+            "preferred_method": self._preferred_method,
+            "resample": self.resample,
+        }
+        config.update(copy.deepcopy(self._kwargs))
+        return config
 
     def with_overrides(self, **overrides):
         """
@@ -238,9 +275,6 @@ class Style:
         >>> new_style = style.with_overrides(levels=[0, 5, 10, 15, 20])
         >>> # original style is unchanged
         """
-        import copy
-
-        # Handle cmap as an alias for colors
         if "cmap" in overrides and "colors" in overrides:
             raise ValueError(
                 "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
@@ -248,52 +282,8 @@ class Style:
         if "cmap" in overrides:
             overrides["colors"] = overrides.pop("cmap")
 
-        # Get current configuration
-        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
-        levels_config = None
-        if hasattr(self._levels, "_levels"):
-            # Check if this is a Levels object with dynamic configuration
-            if hasattr(self._levels, "_step") and self._levels._step is not None:
-                # Preserve step-based configuration
-                levels_config = {"step": self._levels._step}
-                if (
-                    hasattr(self._levels, "_reference")
-                    and self._levels._reference is not None
-                ):
-                    levels_config["reference"] = self._levels._reference
-                if (
-                    hasattr(self._levels, "_divergence_point")
-                    and self._levels._divergence_point is not None
-                ):
-                    levels_config["divergence_point"] = self._levels._divergence_point
-            else:
-                # Static levels - use the actual level values
-                levels_config = self._levels._levels
-
-        config = {
-            "colors": self._colors,
-            "levels": levels_config,
-            "gradients": self.gradients,
-            "normalize": self.normalize,
-            "units": self._units,
-            "scale_factor": self.scale_factor,
-            "units_label": self._units_label,
-            "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
-            if self._legend_kwargs
-            else None,
-            "categories": self._bin_labels,
-            "preferred_method": self._preferred_method,
-            "resample": self.resample,
-        }
-
-        # Add any extra kwargs stored in self._kwargs
-        config.update(copy.deepcopy(self._kwargs))
-
-        # Apply overrides
+        config = self._get_config()
         config.update(overrides)
-
-        # Create new instance of the same class
         return self.__class__(**config)
 
     def levels(self, data=None):
@@ -432,10 +422,9 @@ class Style:
             The data to be plotted using this `Style`.
         """
         kwargs = self.to_matplotlib_kwargs(data)
-        kwargs.pop("linewidths", None)
+        # hatches is only valid for contourf when used by Hatched subclass;
+        # popped here so it doesn't leak into plain contourf calls from base Style.
         kwargs.pop("hatches", None)
-        kwargs.pop("linecolors", None)
-        kwargs.pop("labels", None)
         return kwargs
 
     def to_contour_kwargs(self, data):
@@ -463,7 +452,6 @@ class Style:
         kwargs.pop("transform_first", None)
         kwargs.pop("extend", None)
         kwargs.pop("labels", None)
-        kwargs.pop("linecolors", None)
         kwargs.pop("hatches", None)
         return kwargs
 
@@ -693,26 +681,26 @@ class Style:
         result = ax.pcolormesh(x, y, values, *args, **kwargs)
         return result
 
-    def imshow(self, ax, x, y, values, *args, **kwargs):
+    def imshow(self, ax, _x, _y, values, *args, **kwargs):
         """
-        Plot a pcolormesh using this `Style`.
+        Plot an image using this `Style`.
 
         Parameters
         ----------
         ax : matplotlib.axes.Axes
             The axes on which to plot the data.
         x : numpy.ndarray
-            The x coordinates of the data to be plotted.
+            The x coordinates (unused directly; pass ``extent=`` if needed).
         y : numpy.ndarray
-            The y coordinates of the data to be plotted.
+            The y coordinates (unused directly; pass ``extent=`` if needed).
         values : numpy.ndarray
-            The values of the data to be plotted.
+            The 2-D image array to be plotted.
         **kwargs
-            Any additional arguments accepted by `matplotlib.axes.Axes.pcolormesh`.
+            Any additional arguments accepted by `matplotlib.axes.Axes.imshow`.
         """
         kwargs.pop("transform_first", None)
         kwargs = {**self.to_pcolormesh_kwargs(values), **kwargs}
-        result = ax.imshow(x, y, values, *args, **kwargs)
+        result = ax.imshow(values, *args, **kwargs)
         return result
 
     def scatter(self, ax, x, y, values, s=3, *args, **kwargs):
@@ -983,6 +971,8 @@ class Style:
         if ticks is None and self._levels._levels is not None:
             if len(np.unique(np.ediff1d(self._levels._levels))) != 1:
                 self._legend_kwargs["ticks"] = self._levels._levels
+        if self.extend is not None:
+            self._legend_kwargs.setdefault("extend", self.extend)
         return styles.legends.colorbar(*args, **kwargs)
 
     def disjoint(self, *args, **kwargs):
@@ -1112,12 +1102,11 @@ class Contour(Style):
         three (four)-element lists of RGB(A) values), or a pre-defined
         matplotlib colormap object. If not provided, the default colormap of the
         active `schema` will be used.
-    linecolors : str or list or matplotlib.colors.Colormap, optional
+    colors : str or list or matplotlib.colors.Colormap, optional
         The colors to be used for contour lines. This can be a named matplotlib
         colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
         three (four)-element lists of RGB(A) values), or a pre-defined
-        matplotlib colormap object. If not provided, the default colormap of the
-        active `schema` will be used.
+        matplotlib colormap object. If not provided, ``"viridis_r"`` is used.
     labels : bool, optional
         If `True`, then contour labels will be displayed.
     label_kwargs : dict, optional
@@ -1134,8 +1123,7 @@ class Contour(Style):
 
     def __init__(
         self,
-        colors=None,
-        linecolors="viridis_r",
+        colors="viridis_r",
         labels=False,
         label_kwargs=None,
         interpolate=True,
@@ -1143,100 +1131,20 @@ class Contour(Style):
         **kwargs,
     ):
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
-        self._linecolors = linecolors
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
-        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.75)
 
-    def with_overrides(self, **overrides):
-        """
-        Create a copy of this contour style with some parameters overridden.
-
-        This method creates a new Contour instance with the same configuration
-        as the current one, but with specific parameters overridden. The original
-        style is not modified.
-
-        Parameters
-        ----------
-        **overrides : dict
-            Keyword arguments to override in the new style. In addition to Style
-            parameters, Contour-specific parameters include:
-            - linecolors: colors for contour lines
-            - labels: whether to show contour labels
-            - label_kwargs: kwargs for contour labels
-            - interpolate: whether to interpolate data
-
-        Returns
-        -------
-        Contour
-            A new Contour instance with overridden parameters.
-        """
+    def _get_config(self):
         import copy
 
-        # Handle cmap as an alias for colors
-        if "cmap" in overrides and "colors" in overrides:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
-        if "cmap" in overrides:
-            overrides["colors"] = overrides.pop("cmap")
-
-        # Get base configuration from parent class
-        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
-        levels_config = None
-        if hasattr(self._levels, "_levels"):
-            # Check if this is a Levels object with dynamic configuration
-            if hasattr(self._levels, "_step") and self._levels._step is not None:
-                # Preserve step-based configuration
-                levels_config = {"step": self._levels._step}
-                if (
-                    hasattr(self._levels, "_reference")
-                    and self._levels._reference is not None
-                ):
-                    levels_config["reference"] = self._levels._reference
-                if (
-                    hasattr(self._levels, "_divergence_point")
-                    and self._levels._divergence_point is not None
-                ):
-                    levels_config["divergence_point"] = self._levels._divergence_point
-            else:
-                # Static levels - use the actual level values
-                levels_config = self._levels._levels
-
-        config = {
-            "colors": self._colors,
-            "levels": levels_config,
-            "gradients": self.gradients,
-            "normalize": self.normalize,
-            "units": self._units,
-            "scale_factor": self.scale_factor,
-            "units_label": self._units_label,
-            "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
-            if self._legend_kwargs
-            else None,
-            "categories": self._bin_labels,
-            "preferred_method": self._preferred_method,
-            "resample": self.resample,
-        }
-
-        # Add Contour-specific configuration
-        config["linecolors"] = self._linecolors
+        config = super()._get_config()
         config["labels"] = self.labels
         config["label_kwargs"] = (
             copy.deepcopy(self._label_kwargs) if self._label_kwargs else None
         )
         config["interpolate"] = self._interpolate
-
-        # Add any extra kwargs stored in self._kwargs
-        config.update(copy.deepcopy(self._kwargs))
-
-        # Apply overrides
-        config.update(overrides)
-
-        # Create new instance of the same class
-        return self.__class__(**config)
+        return config
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""
@@ -1259,20 +1167,26 @@ class Contour(Style):
         """
         levels = self.levels(data)
 
-        if len(levels) > 1:
+        # Use cmap+norm path only when colors is a named colormap or Colormap object.
+        # Plain colour strings (e.g. "black", "#ff0000") and lists of colours are
+        # passed directly as colors= to ax.contour, matching matplotlib's own API.
+        colors_is_cmap = isinstance(self._colors, mpl.colors.Colormap) or (
+            isinstance(self._colors, str) and self._colors in mpl.colormaps
+        )
+
+        if self._colors is not None and colors_is_cmap and len(levels) > 1:
             cmap, norm = styles.colors.cmap_and_norm(
-                self._linecolors,
+                self._colors,
                 levels,
                 self.normalize,
                 self.extend,
             )
-
             return {
                 **{"cmap": cmap, "norm": norm, "levels": levels},
                 **self._kwargs,
             }
-        else:
-            return {"levels": levels, "colors": self._linecolors, **self._kwargs}
+
+        return {"levels": levels, "colors": self._colors, **self._kwargs}
 
     def contourf(self, ax, x, y, values, *args, **kwargs):
         """
@@ -1292,8 +1206,6 @@ class Contour(Style):
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         mappable = super().contourf(ax, x, y, values, *args, **kwargs)
-        # if self._linecolors is not None:
-        #     self.contour(ax, x, y, values, *args, **kwargs)
         return mappable
 
     def contour(self, *args, **kwargs):

@@ -4,7 +4,7 @@ styles:
   500PV_CT_MAGENTA_I2_T3:
     name: ct-magenta-i2-t3
     type: Contour
-    linecolors: magenta
+    colors: magenta
     levels:
       step: 2.0
     units: PVU
@@ -86,7 +86,7 @@ styles:
   500PV_CT_VIO_I1_T1:
     name: ct-vio-i1-t1
     type: Contour
-    linecolors: '#9980ccff'
+    colors: '#9980ccff'
     levels:
       step: 1.0
       reference: 2.0

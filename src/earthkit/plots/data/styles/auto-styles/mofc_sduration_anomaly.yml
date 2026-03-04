@@ -45,7 +45,7 @@ styles:
   MOFC_SDURATION_ANOMALY_CT_BLK_I4_T2_SDURATION:
     name: ct-blk-i4-t2-sduration
     type: Contour
-    linecolors: rainbow
+    colors: rainbow
     levels:
     - -0.5
     - -0.3
@@ -70,7 +70,7 @@ styles:
   MOFC_SDURATION_ANOMALY_CT_BLK_I4_T2_DASHED_SDURATION:
     name: ct-blk-i4-t2-dashed-sduration
     type: Contour
-    linecolors: rainbow
+    colors: rainbow
     levels:
     - -0.5
     - -0.3

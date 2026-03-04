@@ -132,7 +132,7 @@ styles:
   700W_CT_BLURED_LST:
     name: ct-blured-lst
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - -5.0
     - -2.0

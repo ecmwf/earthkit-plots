@@ -45,7 +45,7 @@ styles:
   MC_CAPE_CT_MC_CAPE_F10T13000_BLACK:
     name: ct-mc-cape-f10t13000-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 10.0
     - 100.0
@@ -79,7 +79,7 @@ styles:
   MC_CAPE_CT_MC_CAPE_F10T13000_BLUE:
     name: ct-mc-cape-f10t13000-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 10.0
     - 100.0

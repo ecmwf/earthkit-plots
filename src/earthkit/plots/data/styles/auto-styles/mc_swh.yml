@@ -32,7 +32,7 @@ styles:
   MC_SWH_CT_MC_SWH_F0T20_BLACK:
     name: ct-mc-swh-f0t20-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 0.5
@@ -59,7 +59,7 @@ styles:
   MC_SWH_CT_MC_SWH_F0T20_BLUE:
     name: ct-mc-swh-f0t20-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.0
     - 0.5

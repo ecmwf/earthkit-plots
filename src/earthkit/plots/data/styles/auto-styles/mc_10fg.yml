@@ -41,7 +41,7 @@ styles:
   MC_10FG_CT_MC_WIND_F0T80_BLACK:
     name: ct-mc-wind-f0t80-black
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 2.0
@@ -73,7 +73,7 @@ styles:
   MC_10FG_CT_MC_WIND_F0T80_BLUE:
     name: ct-mc-wind-f0t80-blue
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 0.0
     - 2.0

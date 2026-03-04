@@ -4,7 +4,7 @@ styles:
   MSL_CT_BLK_I5_T2:
     name: ct-blk-i5-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
       reference: 1010.0
@@ -24,7 +24,7 @@ styles:
   MSL_CT_BLK_I5_T1:
     name: ct-blk-i5-t1
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
     units: hPa
@@ -43,7 +43,7 @@ styles:
   MSL_CT_BLK_I5_T1_HILO:
     name: ct-blk-i5-t1-hilo
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
     units: hPa
@@ -62,7 +62,7 @@ styles:
   MSL_CT_BLK_I5_T1_HILO_LABEL:
     name: ct-blk-i5-t1-hilo-label
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 5.0
     units: hPa
@@ -81,7 +81,7 @@ styles:
   MSL_CT_BLK_I1_T1:
     name: ct-blk-i1-t1
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 1.0
       reference: 1000.0
@@ -101,7 +101,7 @@ styles:
   MSL_CT_BLK_I1_T2:
     name: ct-blk-i1-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 1.0
       reference: 528.0
@@ -123,7 +123,7 @@ styles:
   MSL_CT_BLUE_I5_T2:
     name: ct-blue-i5-t2
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
       step: 5.0
     units: hPa
@@ -142,7 +142,7 @@ styles:
   MSL_CT_GREEN_I5_T2:
     name: ct-green-i5-t2
     type: Contour
-    linecolors: green
+    colors: green
     levels:
       step: 5.0
     units: hPa
@@ -161,7 +161,7 @@ styles:
   MSL_CT_RED_I5_T2:
     name: ct-red-i5-t2
     type: Contour
-    linecolors: red
+    colors: red
     levels:
       step: 5.0
       reference: 1010.0
@@ -181,7 +181,7 @@ styles:
   MSL_CT_RED_I5_T4:
     name: ct-red-i5-t4
     type: Contour
-    linecolors: red
+    colors: red
     levels:
       step: 5.0
       reference: 1010.0
@@ -201,7 +201,7 @@ styles:
   MSL_CT_BRN_I4_T2:
     name: ct-brn-i4-t2
     type: Contour
-    linecolors: '#681000ff'
+    colors: '#681000ff'
     levels:
       step: 4.0
     units: hPa
@@ -220,7 +220,7 @@ styles:
   MSL_CT_BLK_I2_T4:
     name: ct-blk-i2-t4
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 2.0
     units: hPa
@@ -239,7 +239,7 @@ styles:
   MSL_CT_GREEN_I2_T4:
     name: ct-green-i2-t4
     type: Contour
-    linecolors: green
+    colors: green
     levels:
       step: 2.0
     units: hPa

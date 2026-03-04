@@ -363,7 +363,7 @@ styles:
   VISIBILITY_CT_NAVY_F0T13500:
     name: ct-navy-f0t13500
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 1500.0
@@ -379,7 +379,7 @@ styles:
   VISIBILITY_CT_VIS_BLK_F0T10000:
     name: ct-vis-blk-f0t10000
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 0.0
     - 200.0

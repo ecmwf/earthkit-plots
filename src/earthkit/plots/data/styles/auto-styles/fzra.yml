@@ -52,7 +52,7 @@ styles:
   FZRA_CT_BLK_F005T25:
     name: ct-blk-f005t25
     type: Contour
-    linecolors: black
+    colors: black
     levels:
     - 5.0e-05
     - 0.0002

@@ -309,7 +309,7 @@ styles:
   CAPE_CT_RED_F50T8000:
     name: ct-red-f50t8000
     type: Contour
-    linecolors: red
+    colors: red
     levels:
     - 50.0
     - 200.0
@@ -328,7 +328,7 @@ styles:
   CAPE_CT_GREEN_F10T8000:
     name: ct-green-f10t8000
     type: Contour
-    linecolors: green
+    colors: green
     levels:
     - 10.0
     - 50.0

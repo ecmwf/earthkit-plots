@@ -2,5 +2,4 @@ id: wave_sh1012
 criteria:
 - paramId: '140114'
   shortName: h1012
-- long_name: Significant wave height of all waves with periods within the inclusive
-    range from 10 to 12 seconds
+- long_name: Significant wave height of all waves with periods within the inclusive range from 10 to 12 seconds

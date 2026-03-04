@@ -186,7 +186,7 @@ styles:
   SF_INTERVAL_CT_BLUMAG_LST:
     name: ct-blumag-lst
     type: Contour
-    linecolors: blue
+    colors: blue
     levels:
     - 1.0
     - 5.0

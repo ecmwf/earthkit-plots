@@ -40,7 +40,7 @@ styles:
   KINDEX_CT_BLK_F10_I10_T2:
     name: ct-blk-f10-i10-t2
     type: Contour
-    linecolors: black
+    colors: black
     levels:
       step: 10.0
     linewidths:
