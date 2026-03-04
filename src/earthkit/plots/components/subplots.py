@@ -704,7 +704,7 @@ class Subplot:
             method = getattr(self, style._preferred_method)
         return method(data, style=style, units=units, auto_style=True, **kwargs)
 
-    def quickplot(self, data, style=None, units=None, **kwargs):
+    def quickplot(self, data, style="auto", units=None, **kwargs):
         """
         Generate a convenient plot from the given data with optional grouping.
 
