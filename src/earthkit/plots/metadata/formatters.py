@@ -326,7 +326,8 @@ class LayerFormatter(BaseFormatter):
                     if key == "units":
                         # Prefer applied/converted units from the source over raw source attrs
                         value = [
-                            source.units if source.units is not None
+                            source.units
+                            if source.units is not None
                             else metadata.labels.extract(
                                 source,
                                 key,

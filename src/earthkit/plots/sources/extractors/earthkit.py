@@ -136,14 +136,15 @@ class EarthkitExtractor(BaseExtractor):
         if hasattr(self.data.geography, "points"):
             try:
                 return self.data.geography.points(flatten=False)
-            except (AttributeError, NotImplementedError):
+            except (AttributeError, NotImplementedError, ValueError):
                 pass
 
         # Fallback to to_latlon if to_points not available
         if hasattr(self.data.geography, "latlons"):
             try:
-                return self.data.geography.latlons(flatten=False)
-            except (AttributeError, NotImplementedError):
+                lats, lons = self.data.geography.latlons(flatten=False)
+                return lons, lats  # Return in (x, y) order as (lon, lat)
+            except (AttributeError, NotImplementedError, ValueError):
                 pass
 
         # Last resort: generate index arrays

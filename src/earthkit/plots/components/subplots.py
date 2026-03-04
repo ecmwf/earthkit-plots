@@ -753,7 +753,9 @@ class Subplot:
             use_auto_style = False
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
         kwargs.setdefault("zorder", zorder)
-        return method(data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs)
+        return method(
+            data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs
+        )
 
     def hsv_composite(self, *args):
         """
