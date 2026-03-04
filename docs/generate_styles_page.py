@@ -199,8 +199,8 @@ def _save_contour_sample(style, filepath):
     Shows a base line (with the style's linestyle/linewidth) and a highlight
     line (solid, thicker) so the pattern is clear without needing real data.
     """
-    import matplotlib.pyplot as plt
     import matplotlib.colors as mcolors
+    import matplotlib.pyplot as plt
 
     linewidths = style._kwargs.get("linewidths", 0.75)
     linestyles = style._kwargs.get("linestyles", "solid")
@@ -220,8 +220,8 @@ def _save_contour_sample(style, filepath):
     else:
         base_ls, highlight_ls = linestyles, "solid"
 
-    # Resolve line colour — linecolors may be a hex string, named colour, or cmap
-    linecolors = style._linecolors
+    # Resolve line colour — colors may be a hex string, named colour, or cmap
+    linecolors = style._colors
     try:
         color = mcolors.to_rgba(linecolors)
     except (ValueError, TypeError):
@@ -242,9 +242,12 @@ def _save_contour_sample(style, filepath):
 
     if units_label:
         ax.text(
-            1.01, 0.5, units_label,
+            1.01,
+            0.5,
+            units_label,
             transform=ax.transAxes,
-            va="center", ha="left",
+            va="center",
+            ha="left",
             fontsize=8,
         )
 
@@ -269,7 +272,6 @@ def _save_vector_sample(style, filepath):
         return
 
     import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
 
     color = style._kwargs.get("color", style._kwargs.get("colors", "black"))
     units_label = _units_display(style)
@@ -286,15 +288,20 @@ def _save_vector_sample(style, filepath):
     for i in range(n_arrows):
         x = (i + 0.5) / n_arrows
         ax.annotate(
-            "", xy=(x + 0.03, 0.5), xytext=(x, 0.5),
+            "",
+            xy=(x + 0.03, 0.5),
+            xytext=(x, 0.5),
             arrowprops=dict(arrowstyle="-|>", color=color, lw=1.0),
         )
 
     if units_label:
         ax.text(
-            1.01, 0.5, units_label,
+            1.01,
+            0.5,
+            units_label,
             transform=ax.transAxes,
-            va="center", ha="left",
+            va="center",
+            ha="left",
             fontsize=8,
         )
 
@@ -328,10 +335,11 @@ def _make_preview_levels(style, n=10):
     start = ref - half * step
     stop = ref + half * step + step * 0.5  # small overshoot so arange includes end
     import numpy as np
+
     levels = np.arange(start, stop, step).tolist()
     # Keep exactly n levels if arange gave slightly more/less due to float rounding
     if len(levels) > n + 1:
-        levels = levels[:n + 1]
+        levels = levels[: n + 1]
     return levels
 
 
@@ -371,7 +379,7 @@ def _save_colorbar(style, filepath):
     fig.patch.set_alpha(0)
     ax.patch.set_alpha(0)
 
-    extend = style._legend_kwargs.get("extend", "neither")
+    extend = style.extend or "neither"
 
     cbar_kwargs = dict(
         orientation="horizontal",
@@ -382,14 +390,18 @@ def _save_colorbar(style, filepath):
 
     if isinstance(norm, mcolors.BoundaryNorm):
         # norm.boundaries may include ±inf from 'extend'; use finite bounds only
-        finite_boundaries = [b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))]
+        finite_boundaries = [
+            b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))
+        ]
         ticks = style._legend_kwargs.get("ticks")
         if ticks is None and len(finite_boundaries) <= 20:
             ticks = finite_boundaries
         if ticks is not None:
             cbar_kwargs["ticks"] = ticks
         # Rebuild norm without infinite boundaries so colorbar renders correctly
-        norm = mcolors.BoundaryNorm(finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend)
+        norm = mcolors.BoundaryNorm(
+            finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend
+        )
         sm = cm.ScalarMappable(cmap=mpl_kwargs["cmap"], norm=norm)
         sm.set_array([])
 
@@ -407,7 +419,7 @@ def _save_colorbar(style, filepath):
 def _style_slug(name):
     """Return a filesystem-safe slug from a style name."""
     slug = name.lower()
-    for ch in " /\\:*?\"<>|(){}[]":
+    for ch in ' /\\:*?"<>|(){}[]':
         slug = slug.replace(ch, "_")
     return slug
 
@@ -448,7 +460,7 @@ def generate(docs_dir=None):
         "Each entry shows the style name and a preview of the colorbar.",
         "Click the copy button next to any name to copy it for use in your code::",
         "",
-        "    chart.contourf(data, style=\"temperature-2m-turbo-celsius\")",
+        '    chart.contourf(data, style="temperature-2m-turbo-celsius")',
         "",
         ".. note::",
         "",
@@ -510,13 +522,13 @@ def generate(docs_dir=None):
         "   .ek-copy-btn:hover { background: #e8e8e8; }",
         "   .ek-copy-btn svg { width: 14px; height: 14px; vertical-align: middle; }",
         "   </style>",
-        "   <div class=\"ek-search-wrap\">",
-        "     <input id=\"ek-search\" type=\"search\" placeholder=\"Search by style name, parameter name, short name, standard name…\" oninput=\"ekFilter()\">",
-        "     <div id=\"ek-search-count\"></div>",
+        '   <div class="ek-search-wrap">',
+        '     <input id="ek-search" type="search" placeholder="Search by style name, parameter name, short name, standard name…" oninput="ekFilter()">',
+        '     <div id="ek-search-count"></div>',
         "   </div>",
         "   <script>",
-        "   var EK_COPY_SVG = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z\" /><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\" /></svg>';",
-        "   var EK_CHECK_SVG = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path stroke=\"none\" d=\"M0 0h24v24H0z\" fill=\"none\"/><path d=\"M5 12l5 5l10 -10\" /></svg>';",
+        '   var EK_COPY_SVG = \'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg>\';',
+        '   var EK_CHECK_SVG = \'<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10" /></svg>\';',
         "   function ekCopy(btn, text) {",
         "     navigator.clipboard.writeText(text).then(function() {",
         "       btn.innerHTML = EK_CHECK_SVG + ' Style name copied';",
@@ -563,7 +575,7 @@ def generate(docs_dir=None):
         ' stroke-linecap="round" stroke-linejoin="round">'
         '<path stroke="none" d="M0 0h24v24H0z" fill="none"/>'
         '<path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1'
-        ' 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1'
+        " 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1"
         ' -2.667 -2.667z" />'
         '<path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2'
         ' -2h10c.75 0 1.158 .385 1.5 1" /></svg>'
@@ -575,7 +587,7 @@ def generate(docs_dir=None):
         rst_lines += [
             ".. raw:: html",
             "",
-            f'   <div class="ek-section">',
+            '   <div class="ek-section">',
             f'   <h2 class="ek-section-heading">{section_title}</h2>',
             "",
         ]
@@ -597,14 +609,16 @@ def generate(docs_dir=None):
                 f'<div class="ek-style-entry">'
                 f'<div class="ek-style-left">'
                 f'<code class="ek-style-name">{name}</code>'
-                f'</div>'
+                f"</div>"
                 f'<button class="ek-copy-btn" onclick="ekCopy(this, \'{name}\')">'
-                f'{copy_svg} Copy this style name'
-                f'</button>'
-                f'</div>'
+                f"{copy_svg} Copy this style name"
+                f"</button>"
+                f"</div>"
             )
-            block_open = f'<div class="ek-style-block" data-search="{data_search}">{name_html}'
-            block_close = '</div>'
+            block_open = (
+                f'<div class="ek-style-block" data-search="{data_search}">{name_html}'
+            )
+            block_close = "</div>"
 
             style_obj = _make_style_object(style_dict)
             is_contour = isinstance(style_obj, _styles.Contour)
@@ -628,8 +642,10 @@ def generate(docs_dir=None):
                             style_obj._levels = orig_levels
 
                 alt = (
-                    "contour line sample" if is_contour
-                    else "vector style sample" if is_vector
+                    "contour line sample"
+                    if is_contour
+                    else "vector style sample"
+                    if is_vector
                     else "colorbar preview"
                 )
                 rst_lines += [
@@ -642,7 +658,10 @@ def generate(docs_dir=None):
                     "",
                 ]
                 if is_dynamic:
-                    rst_lines += ["*(Levels are determined from data at plot time)*", ""]
+                    rst_lines += [
+                        "*(Levels are determined from data at plot time)*",
+                        "",
+                    ]
                 rst_lines += [".. raw:: html", "", f"   {block_close}", ""]
 
             except ValueError as exc:
@@ -652,15 +671,29 @@ def generate(docs_dir=None):
                     else f"*(Preview unavailable: {exc})*"
                 )
                 rst_lines += [
-                    ".. raw:: html", "", f"   {block_open}", "",
-                    msg, "",
-                    ".. raw:: html", "", f"   {block_close}", "",
+                    ".. raw:: html",
+                    "",
+                    f"   {block_open}",
+                    "",
+                    msg,
+                    "",
+                    ".. raw:: html",
+                    "",
+                    f"   {block_close}",
+                    "",
                 ]
             except Exception as exc:
                 rst_lines += [
-                    ".. raw:: html", "", f"   {block_open}", "",
-                    f"*(Preview unavailable: {exc})*", "",
-                    ".. raw:: html", "", f"   {block_close}", "",
+                    ".. raw:: html",
+                    "",
+                    f"   {block_open}",
+                    "",
+                    f"*(Preview unavailable: {exc})*",
+                    "",
+                    ".. raw:: html",
+                    "",
+                    f"   {block_close}",
+                    "",
                 ]
 
         rst_lines += [".. raw:: html", "", "   </div>", ""]
