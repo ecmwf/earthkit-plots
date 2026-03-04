@@ -731,21 +731,29 @@ class Subplot:
         if not isinstance(data, (Base, xr.DataArray, xr.Dataset)):
             data = earthkit.data.from_object(data)
         source = get_source(data)
-        if style is None or style == "auto":
-            auto_style = auto.guess_style(source, units=units, **kwargs)
-            if auto_style is not None:
-                method = getattr(self, auto_style._preferred_method)
+        if style == "auto":
+            resolved_style = auto.guess_style(source, units=units, **kwargs)
+            if resolved_style is not None:
+                method = getattr(self, resolved_style._preferred_method)
             else:
                 method = getattr(self, "grid_cells", self.pcolormesh)
+            use_auto_style = True
+        elif style is None:
+            resolved_style = None
+            method = getattr(self, "grid_cells", self.pcolormesh)
+            use_auto_style = False
         else:
             if isinstance(style, str):
                 from earthkit.plots.styles import auto as _auto
 
-                style = _auto.load_style(style)
-            method = getattr(self, style._preferred_method)
+                resolved_style = _auto.load_style(style)
+            else:
+                resolved_style = style
+            method = getattr(self, resolved_style._preferred_method)
+            use_auto_style = False
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
         kwargs.setdefault("zorder", zorder)
-        return method(data, style=style, units=units, auto_style=True, **kwargs)
+        return method(data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs)
 
     def hsv_composite(self, *args):
         """
