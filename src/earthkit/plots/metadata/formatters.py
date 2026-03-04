@@ -351,12 +351,12 @@ class LayerFormatter(BaseFormatter):
                             # This is the primary data axis or legend formatting - use style units
                             if isinstance(value, list):
                                 value = [
-                                    f"__units__{v}" if v is not None else ""
+                                    f"__units__{v}" if v is not None else None
                                     for v in value
                                 ]
                             else:
                                 value = [
-                                    f"__units__{value}" if value is not None else ""
+                                    f"__units__{value}" if value is not None else None
                                 ]
                         else:
                             # This is a coordinate axis or no style units available - use source units
@@ -405,6 +405,8 @@ class LayerFormatter(BaseFormatter):
             # Otherwise format as human-readable list
             return string_utils.list_to_human(unique_values)
 
+        if _value is None:
+            return ""
         value = str(_value)
         return super().format_field(value, format_spec)
 
@@ -447,6 +449,8 @@ class SubplotFormatter(BaseFormatter):
         return values
 
     def format_field(self, value, format_spec):
+        if value is None:
+            return ""
         f = super().format_field
         if isinstance(value, list):
             values = [f(v, format_spec) for v in value]
@@ -487,6 +491,8 @@ class FigureFormatter(BaseFormatter):
         return values
 
     def format_field(self, value, format_spec):
+        if value is None:
+            return ""
         f = super().format_field
         if isinstance(value, list):
             values = [f(v, format_spec) for v in value]

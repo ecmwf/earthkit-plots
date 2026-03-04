@@ -753,64 +753,86 @@ class XarrayExtractor(BaseExtractor):
         """
         Get metadata from xarray attrs.
 
-        For Datasets, extracts metadata from the selected variable (if available).
-        For DataArrays, extracts from the DataArray attrs.
-
-        Can also extract metadata for specific coordinates/variables when key matches
-        a coordinate or variable name.
+        Lookup order:
+        1. Primary variable attrs (selected DataArray or identified primary var)
+        2. Scalar coordinate value (0-d coord matching key name)
+        3. Variable name as fallback for the "name" key
+        4. Dataset-level attrs
 
         Parameters
         ----------
         key : str
-            Metadata key or variable/coordinate name.
+            Metadata attribute name (e.g. "long_name", "units", "name").
         default : Any
             Default value if key not found.
 
         Returns
         -------
         Any
-            Metadata value, coordinate attrs dict, or default.
+            Metadata value or default.
         """
-        # First check if key is a coordinate or variable name
-        # If so, return its attrs as a dict
+        # Step 1: Primary variable attrs
+        primary_da = self._get_primary_da()
+        if primary_da is not None:
+            value = primary_da.attrs.get(key)
+            if value is not None:
+                return value
+
+        # Step 2: Scalar coordinate value (0-d coord whose name matches key)
+        da_for_coords = (
+            primary_da
+            if primary_da is not None
+            else (self.data if isinstance(self.data, xr.DataArray) else None)
+        )
+        if da_for_coords is not None and key in da_for_coords.coords:
+            coord = da_for_coords.coords[key]
+            if coord.ndim == 0:
+                return coord.item()
+        if isinstance(self.data, xr.Dataset) and key in self.data.coords:
+            coord = self.data.coords[key]
+            if coord.ndim == 0:
+                return coord.item()
+
+        # Step 3: Variable name as "name" fallback
+        if key == "name":
+            if primary_da is not None and primary_da.name:
+                return primary_da.name
+            if isinstance(self.data, xr.DataArray) and self.data.name:
+                return self.data.name
+
+        # Step 4: Dataset-level attrs
         if isinstance(self.data, xr.Dataset):
-            # Check in data variables
-            if key in self.data.data_vars:
-                return dict(self.data[key].attrs) if self.data[key].attrs else {}
-            # Check in coordinates
-            if key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
-        elif isinstance(self.data, xr.DataArray):
-            # Check in coordinates
-            if key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
-            # Check in dimensions
-            if key in self.data.dims and key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
-
-        # Not a coordinate/variable name - look for metadata key in attrs
-        # Prefer selected DataArray attrs if available (for Dataset case)
-        if self._selected_dataarray is not None:
-            if hasattr(self._selected_dataarray, "attrs"):
-                return self._selected_dataarray.attrs.get(key, default)
-
-        # Fall back to main data attrs
-        if hasattr(self.data, "attrs"):
-            return self.data.attrs.get(key, default)
+            value = self.data.attrs.get(key)
+            if value is not None:
+                return value
 
         return default
+
+    def _get_primary_da(self) -> "xr.DataArray | None":
+        """
+        Return the primary DataArray for metadata extraction.
+
+        Uses the already-selected DataArray if available, otherwise tries to
+        identify the primary variable from a Dataset.
+        """
+        if self._selected_dataarray is not None:
+            return self._selected_dataarray
+
+        if isinstance(self.data, xr.DataArray):
+            return self.data
+
+        if isinstance(self.data, xr.Dataset):
+            if len(self.data.data_vars) == 1:
+                var_name = list(self.data.data_vars.keys())[0]
+                return self.data[var_name]
+            try:
+                var_name = identifiers.identify_primary(self.data)
+                if var_name and var_name in self.data.data_vars:
+                    return self.data[var_name]
+            except Exception:
+                pass
+
+        return None
 
     def get_crs(self) -> Any | None:
         """

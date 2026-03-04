@@ -31,6 +31,63 @@ from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
 
+def _parse_date_time_ints(date_val, time_val=None):
+    """
+    Parse ECMWF-style integer date and time into a datetime object.
+
+    date_val : int or str like 20150101
+    time_val : int or str like 0, 600, 1200 (HHMM or H)
+    """
+    import datetime
+
+    try:
+        date_str = str(int(date_val))
+        if len(date_str) != 8:
+            return None
+        year, month, day = int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8])
+        hour, minute = 0, 0
+        if time_val is not None:
+            # time is HHMM (e.g. 1200) or just H (e.g. 0, 6, 12)
+            t = int(time_val)
+            if t < 100:
+                # treat as whole hours
+                hour = t
+            else:
+                hour, minute = t // 100, t % 100
+        return datetime.datetime(year, month, day, hour, minute)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_time_value(value):
+    """
+    Try to parse an arbitrary time value into a datetime object.
+
+    Handles numpy datetime64, Python datetime, and dateutil-parseable strings.
+    Returns None if parsing fails.
+    """
+    import datetime
+
+    import numpy as np
+
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, np.datetime64):
+        # Convert to Python datetime via pandas or direct cast
+        try:
+            import pandas as pd
+
+            return pd.Timestamp(value).to_pydatetime()
+        except ImportError:
+            return value.astype("datetime64[ms]").astype(datetime.datetime)
+    try:
+        import dateutil.parser
+
+        return dateutil.parser.parse(str(value))
+    except (ValueError, TypeError, OverflowError):
+        return None
+
+
 class Source:
     """
     Unified data source for plotting.
@@ -542,18 +599,7 @@ class Source:
         Any
             Metadata value, scalar coordinate value, or default.
         """
-        # For xarray, check if key is a scalar coordinate and return its value
-        if self._extractor.__class__.__name__ == "XarrayExtractor":
-            selected_da = getattr(self._extractor, "_selected_dataarray", None)
-            da = selected_da if selected_da is not None else self._extractor.data
-
-            if hasattr(da, "coords") and key in da.coords:
-                coord = da.coords[key]
-                # If coordinate is scalar (0-dimensional), return its value
-                if coord.ndim == 0:
-                    return coord.item()  # Extract scalar value
-
-        # Otherwise, use metadata resolver
+        # Use metadata resolver (XarrayExtractor.get_metadata handles scalar coords)
         return self._metadata_resolver.get(key, default)
 
     @property
@@ -599,10 +645,20 @@ class Source:
         if hasattr(self._data, "datetime") and callable(self._data.datetime):
             return self._data.datetime()
 
-        # Fallback: try to get time from metadata
-        time = self.metadata("time")
-        if time is not None:
-            return {"base_time": time, "valid_time": time}
+        # Try to build a datetime from ECMWF-style integer date/time attrs
+        # e.g. date=20150101, time=0 (or time=1200)
+        date_val = self.metadata("date")
+        time_val = self.metadata("time")
+        if date_val is not None:
+            dt = _parse_date_time_ints(date_val, time_val)
+            if dt is not None:
+                return {"base_time": dt, "valid_time": dt}
+
+        # Fallback: try to parse a generic "time" metadata value
+        if time_val is not None:
+            dt = _parse_time_value(time_val)
+            if dt is not None:
+                return {"base_time": dt, "valid_time": dt}
 
         return {"base_time": None, "valid_time": None}
 
