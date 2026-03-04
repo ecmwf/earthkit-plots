@@ -511,6 +511,39 @@ def quickplot(
     >>> data = ek.data.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     >>> earthkit.plots.quickplot(data, units="celsius", domain="Europe")
     """
+    import xarray as xr
+
+    # Short-circuit for a single xarray argument: bypass FieldList machinery
+    # so the XarrayExtractor is used (preserving actual coordinate values).
+    if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
+        figure = Figure(rows=1, columns=1)
+        subplot = figure.add_map(domain=domain, crs=crs)
+        method = methods if isinstance(methods, str) else methods[0]
+        unit = units if not isinstance(units, (list, tuple)) else units[0]
+        try:
+            getattr(subplot, method)(args[0], units=unit, **kwargs)
+        except Exception as err:
+            warnings.warn(
+                f"Failed to execute {method} on given data with: \n"
+                f"{err}\n\n"
+                "consider constructing the plot manually."
+            )
+            raise err
+        for m in schema.quickmap_subplot_workflow:
+            _args = []
+            if m == "title" and subplot_titles:
+                _args = [subplot_titles]
+            try:
+                getattr(subplot, m)(*_args)
+            except Exception as err:
+                warnings.warn(f"ekp.quickplot: subplot workflow step '{m}' failed with:\n{err}")
+        for m in schema.quickmap_figure_workflow:
+            try:
+                getattr(figure, m)()
+            except Exception as err:
+                warnings.warn(f"ekp.quickplot: figure workflow step '{m}' failed with:\n{err}")
+        return figure
+
     field_list = []
     for arg in args:
         if isinstance(arg, FieldList):

@@ -723,11 +723,12 @@ class Subplot:
             Additional arguments for the plot method(s).
         """
         import earthkit.data
+        import xarray as xr
         from earthkit.data.core import Base
 
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
-        if not isinstance(data, Base):
+        if not isinstance(data, (Base, xr.DataArray, xr.Dataset)):
             data = earthkit.data.from_object(data)
         source = get_source(data)
         if style is None:

@@ -184,6 +184,12 @@ class BaseFormatter(Formatter):
                 value.replace("__units__", ""), format_spec
             )
 
+        # Pass datetime-like objects directly when format_spec contains strftime patterns
+        import datetime
+
+        if isinstance(value, (datetime.datetime, datetime.date)) and "%" in format_spec:
+            return format(value, format_spec)
+
         # Handle coordinate format specifiers
         if format_spec.startswith("%Lt"):
             # Format as latitude with degree symbol and N/S direction
@@ -398,7 +404,7 @@ class LayerFormatter(BaseFormatter):
         if isinstance(_value, list):
             # Apply format_spec to each element
             formatted_values = [
-                super().format_field(str(v), format_spec) for v in _value
+                super().format_field(v, format_spec) for v in _value
             ]
             # Get unique values
             unique_values = list(dict.fromkeys(formatted_values))
@@ -408,8 +414,7 @@ class LayerFormatter(BaseFormatter):
             # Otherwise format as human-readable list
             return string_utils.list_to_human(unique_values)
 
-        value = str(_value)
-        return super().format_field(value, format_spec)
+        return super().format_field(_value, format_spec)
 
 
 class SubplotFormatter(BaseFormatter):

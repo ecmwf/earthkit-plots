@@ -123,6 +123,8 @@ class Style:
     def from_dict(cls, kwargs):
         """Create a `Style` from a dictionary."""
         style_type = kwargs.pop("type")
+        # Remove YAML-only metadata fields that are not matplotlib or Style kwargs
+        kwargs.pop("name", None)
         if "levels" in kwargs:
             kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
         return getattr(styles, style_type)(**kwargs)

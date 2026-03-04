@@ -133,27 +133,16 @@ class EarthkitExtractor(BaseExtractor):
             (x, y) arrays in the data's native CRS.
         """
         # Try to_points method first - gives native coordinates
-        if hasattr(self.data, "to_points"):
+        if hasattr(self.data.geography, "points"):
             try:
-                points = self.data.to_points(flatten=False)
-                # Check for x/y (projected coordinates) first
-                if "x" in points and "y" in points:
-                    return points["x"], points["y"]
-                # Then check for lon/lat (geographic coordinates)
-                elif "lon" in points and "lat" in points:
-                    return points["lon"], points["lat"]
+                return self.data.geography.points(flatten=False)
             except (AttributeError, NotImplementedError):
                 pass
 
         # Fallback to to_latlon if to_points not available
-        if hasattr(self.data, "to_latlon"):
+        if hasattr(self.data.geography, "latlons"):
             try:
-                coords = self.data.to_latlon(flatten=False)
-                if isinstance(coords, dict):
-                    return coords.get("lon"), coords.get("lat")
-                elif isinstance(coords, tuple) and len(coords) == 2:
-                    lat, lon = coords
-                    return lon, lat
+                return self.data.geography.latlons(flatten=False)
             except (AttributeError, NotImplementedError):
                 pass
 

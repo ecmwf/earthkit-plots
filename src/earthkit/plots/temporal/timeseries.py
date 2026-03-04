@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
-
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.identifiers import find_time
 
@@ -43,14 +41,6 @@ class TimeSeries(Subplot):
             Keyword arguments to pass to Subplot constructor.
             If 'size' is not provided, defaults to (8, 4).
         """
-        warnings.warn(
-            "TimeSeries is an experimental new feature in earthkit-plots. "
-            "We welcome feedback and bug reports on GitHub issues: "
-            "https://github.com/ecmwf/earthkit-plots/issues",
-            UserWarning,
-            stacklevel=2,
-        )
-
         # Set default size if not provided
         if "size" not in kwargs:
             kwargs["size"] = (8, 4)
