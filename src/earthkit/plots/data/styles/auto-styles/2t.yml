@@ -7,7 +7,7 @@ styles:
     type: Style
     colors: Spectral_r
     extend: both
-    levels: range(233, 314, 2)
+    levels: range(230, 311, 2)
     units: K
 
   2T_SPECTRAL_FAHRENHEIT:
