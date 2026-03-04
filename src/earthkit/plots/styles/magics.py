@@ -22,10 +22,7 @@ the Magics ECMWF styles directory.
 """
 
 import warnings
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from earthkit.plots.styles import Style
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Magics named color to RGB mapping (values in [0, 1])
@@ -154,6 +151,7 @@ MAGICS_UNITS_TO_EK = {
 # ---------------------------------------------------------------------------
 # Color helpers
 # ---------------------------------------------------------------------------
+
 
 
 def _hsl_to_rgb(h: float, s: float, lightness: float) -> tuple:

@@ -60,7 +60,7 @@ _USE_NN = object()
 #   - False  (no resampling)
 #
 # "structured grid" means HEALPix or reduced Gaussian — grids that require
-# earthkit-regrid to convert to a regular lat/lon array before plotting.
+# earthkit-geo to convert to a regular lat/lon array before plotting.
 # "regular grid" means anything else (standard lat/lon, rotated, etc.).
 #
 # method_name is matched by prefix so "contourf" matches "contour".
@@ -668,7 +668,7 @@ def extract_plottables_2D(
             for step in data_steps:
                 if isinstance(step, Regrid):
                     # Regrid resamples to a regular lat/lon grid in data space
-                    # via earthkit-regrid.  Pass the source gridspec so the
+                    # via earthkit-geo.  Pass the source gridspec so the
                     # resampler can validate that the grid type is supported.
                     context = _infer_plot_context(subplot, method_name)
                     x_values, y_values, z_values = step.apply(
