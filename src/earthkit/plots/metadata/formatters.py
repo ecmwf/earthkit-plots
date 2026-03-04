@@ -176,6 +176,9 @@ class BaseFormatter(Formatter):
         format_spec : str
             The format specification.
         """
+        if value is None:
+            return ""
+
         if isinstance(value, str) and value.startswith("__units__"):
             return metadata.units.format_units(
                 value.replace("__units__", ""), format_spec
@@ -405,8 +408,6 @@ class LayerFormatter(BaseFormatter):
             # Otherwise format as human-readable list
             return string_utils.list_to_human(unique_values)
 
-        if _value is None:
-            return ""
         value = str(_value)
         return super().format_field(value, format_spec)
 
@@ -449,8 +450,6 @@ class SubplotFormatter(BaseFormatter):
         return values
 
     def format_field(self, value, format_spec):
-        if value is None:
-            return ""
         f = super().format_field
         if isinstance(value, list):
             values = [f(v, format_spec) for v in value]
@@ -461,6 +460,8 @@ class SubplotFormatter(BaseFormatter):
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
+        else:
+            value = f(value, format_spec)
         return value
 
 
@@ -491,8 +492,6 @@ class FigureFormatter(BaseFormatter):
         return values
 
     def format_field(self, value, format_spec):
-        if value is None:
-            return ""
         f = super().format_field
         if isinstance(value, list):
             values = [f(v, format_spec) for v in value]
@@ -503,6 +502,8 @@ class FigureFormatter(BaseFormatter):
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
+        else:
+            value = f(value, format_spec)
         return value
 
 
