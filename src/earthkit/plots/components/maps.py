@@ -1313,6 +1313,32 @@ class Map(Subplot):
         if source_crs is None:
             source_crs = ccrs.PlateCarree()
 
+        # Infer domain from geometries if none is set
+        if self.domain is None and geometries:
+            from earthkit.plots.geo import domains
+            from earthkit.plots.geo.bounds import BoundingBox
+
+            bbox = None
+            for geom in geometries:
+                if geom is not None:
+                    try:
+                        geom_bbox = BoundingBox.from_geometry(
+                            geom, source_crs=source_crs
+                        )
+                        bbox = geom_bbox if bbox is None else bbox + geom_bbox
+                    except Exception:
+                        pass
+            if bbox is not None:
+                self.domain = domains.Domain(list(bbox), crs=bbox.crs)
+
+        # When colouring by index (no data column), auto-style lookup will always
+        # fail to find a meaningful variable style. Build a simple Style with
+        # explicit levels from the data range instead.
+        if style is None and auto_style and source.value_name == "index":
+            auto_style = False
+            if "colors" not in kwargs and "cmap" not in kwargs:
+                kwargs["colors"] = "tab20"
+
         # Configure style
         style = configure_style(
             "add_geometries", style, source, units, auto_style, kwargs

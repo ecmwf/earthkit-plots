@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+_UNSET = object()  # Sentinel to distinguish "not passed" from explicit None
+
 
 class GeometrySource:
     """
@@ -101,6 +103,13 @@ class GeometrySource:
 
             if candidate_cols:
                 self._column = candidate_cols[0]
+            else:
+                # No numeric column found: colour by row index
+                self._value_name = "index"
+                self._values = np.arange(len(self._data), dtype=float)
+                self._applied_units = None
+                self._extracted = True
+                return
 
         if self._column is not None:
             if self._column not in self._data.columns:
