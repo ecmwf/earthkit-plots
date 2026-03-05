@@ -54,6 +54,48 @@ def _group_data(fields, groupby):
         return {i: field for i, field in enumerate(fields)}
 
 
+def _xarray_multivar_panels(data, groupby=None):
+    """
+    For an xr.Dataset with multiple data variables, return a panel mapping and
+    layout dimensions.
+
+    Returns
+    -------
+    panels : dict or None
+        Ordered dict mapping ``(var_name, group_val)`` to an ``xr.DataArray``.
+        ``group_val`` is ``None`` when *groupby* is not used.
+        Returns ``None`` when *data* is not a multi-variable Dataset (caller
+        should fall through to its single-panel path).
+    n_vars : int
+        Number of distinct variables (rows).
+    n_groups : int
+        Number of distinct group values (columns).  1 when *groupby* is None.
+    """
+    import xarray as xr
+
+    if not isinstance(data, xr.Dataset) or len(data.data_vars) <= 1:
+        return None, 0, 0
+
+    var_names = list(data.data_vars)
+
+    if groupby is not None:
+        # Collect unique group values from the first variable's coordinate
+        coord_values = data[var_names[0]][groupby].values
+        group_vals = list(dict.fromkeys(coord_values.tolist()))
+    else:
+        group_vals = [None]
+
+    panels = {}
+    for var in var_names:
+        for grp in group_vals:
+            if grp is not None:
+                panels[(var, grp)] = data[var].sel({groupby: grp})
+            else:
+                panels[(var, grp)] = data[var]
+
+    return panels, len(var_names), len(group_vals)
+
+
 def plot(
     *args,
     domain=None,

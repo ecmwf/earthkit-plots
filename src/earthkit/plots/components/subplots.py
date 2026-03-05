@@ -19,9 +19,9 @@ import matplotlib.dates as mdates
 import numpy as np
 
 from earthkit.plots.components.extractors import (
+    _apply_coordinate_unit_conversion,
     extract_plottables_1D,
     extract_plottables_2D,
-    extract_plottables_envelope,
     extract_plottables_vector_2D,
 )
 from earthkit.plots.components.layers import Layer
@@ -33,6 +33,7 @@ from earthkit.plots.metadata.formatters import (
 from earthkit.plots.resample import _AUTO, Bilinear, Regrid
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
+from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
@@ -63,8 +64,151 @@ def plot_1D(method_name=None):
             z=None,
             style=None,
             every=None,
+            groupby=None,
+            group_by=None,  # alias for groupby
+            colorby=None,
+            color_by=None,  # alias for colorby
+            label_by=None,
+            label_format=None,
+            colors=None,
             **kwargs,
         ):
+            import xarray as xr
+
+            # Resolve aliases
+            if group_by is not None and groupby is None:
+                groupby = group_by
+            if color_by is not None and colorby is None:
+                colorby = color_by
+
+            # ----------------------------------------------------------
+            # groupby / colorby / label_by — expand a multi-dim DataArray
+            # into one call per (colorby_group × groupby_val).
+            #
+            # * groupby  : coordinate whose unique values become individual
+            #              lines (e.g. "member")
+            # * colorby  : coordinate whose unique values are assigned
+            #              distinct colours (e.g. "forecast_reference_time")
+            # * label_by : coordinate whose value is used as the legend
+            #              label for the first line in each colorby group
+            #              (defaults to colorby if not set).
+            #              All subsequent lines in the group are labelled
+            #              "_nolegend_" so only one legend entry appears.
+            # * colors   : explicit list of colours for colorby groups;
+            #              if None the axes colour cycle is used
+            # ----------------------------------------------------------
+            if groupby is not None or colorby is not None:
+                # Require at least one DataArray positional arg
+                data = args[0] if args else None
+                if not isinstance(data, xr.DataArray):
+                    raise TypeError(
+                        "groupby/colorby require a single xarray DataArray "
+                        "as the first positional argument."
+                    )
+                rest_args = args[1:]
+
+                _label_by = label_by if label_by is not None else colorby
+
+                import numpy as np
+                import pandas as pd
+
+                def _unique_vals(da, dim):
+                    """Unique values along *dim*, preserving numpy dtype for .sel()."""
+                    vals = da[dim].values
+                    seen = {}
+                    for v in vals.flat:
+                        key = v.tobytes() if hasattr(v, "tobytes") else v
+                        if key not in seen:
+                            seen[key] = v
+                    return list(seen.values())
+
+                def _label_str(val, dim):
+                    """Human-readable string for a coordinate value."""
+                    # Convert numpy scalar to a Python-native value for formatting
+                    py_val = val
+                    if isinstance(py_val, np.datetime64):
+                        py_val = pd.Timestamp(py_val)
+                    elif hasattr(py_val, "item"):
+                        py_val = py_val.item()
+
+                    if label_format is not None:
+                        return label_format.format(**{dim: py_val})
+
+                    # Default: ISO date prefix for datetimes, str otherwise
+                    if hasattr(py_val, "isoformat"):
+                        return str(py_val)[:10]
+                    return str(py_val)
+
+                # Determine the colorby groups and their colours
+                if colorby is not None:
+                    color_vals = _unique_vals(data, colorby)
+                    if colors is None:
+                        from matplotlib import rcParams
+
+                        cycle_colors = [
+                            p["color"]
+                            for p, _ in zip(
+                                rcParams["axes.prop_cycle"],
+                                color_vals,
+                            )
+                        ]
+                    else:
+                        cycle_colors = list(colors)
+                    color_map = {id(v): c for v, c in zip(color_vals, cycle_colors)}
+                else:
+                    color_vals = [None]
+                    color_map = {id(None): kwargs.get("color", None)}
+
+                # Determine the groupby values
+                if groupby is not None:
+                    group_vals = _unique_vals(data, groupby)
+                else:
+                    group_vals = [None]
+
+                mappables = []
+                for c_val in color_vals:
+                    line_color = color_map[id(c_val)]
+                    first_in_group = True
+                    for g_val in group_vals:
+                        # Slice the DataArray using numpy-typed values
+                        sel = {}
+                        if c_val is not None:
+                            sel[colorby] = c_val
+                        if g_val is not None:
+                            sel[groupby] = g_val
+                        slice_da = data.sel(sel) if sel else data
+
+                        # Build per-call kwargs
+                        call_kwargs = dict(kwargs)
+                        if line_color is not None:
+                            call_kwargs["color"] = line_color
+
+                        # Label only the first line in each colorby group;
+                        # suppress legend entries for all subsequent lines.
+                        if _label_by is not None and c_val is not None:
+                            if first_in_group:
+                                call_kwargs["label"] = _label_str(c_val, _label_by)
+                            else:
+                                call_kwargs["label"] = "_nolegend_"
+
+                        mappables.append(
+                            extract_plottables_1D(
+                                self,
+                                method_name or method.__name__,
+                                args=(slice_da, *rest_args),
+                                x=x,
+                                y=y,
+                                z=z,
+                                style=style,
+                                every=every,
+                                **call_kwargs,
+                            )
+                        )
+                        first_in_group = False
+
+                return mappables
+
+            # Default single-call path
             return extract_plottables_1D(
                 self,
                 method_name or method.__name__,
@@ -485,29 +629,6 @@ class Subplot:
                 style = style.with_overrides(**style_kwargs)
         return style
 
-    def _extract_plottables_envelope(
-        self,
-        data=None,
-        x=None,
-        y=None,
-        z=None,
-        every=None,
-        source_units=None,
-        extract_domain=False,
-        **kwargs,
-    ):
-        return extract_plottables_envelope(
-            self,
-            data=data,
-            x=x,
-            y=y,
-            z=z,
-            every=every,
-            source_units=source_units,
-            extract_domain=extract_domain,
-            **kwargs,
-        )
-
     @property
     def figure(self):
         """The :class:`earthkit.plots.components.figures.Figure` object."""
@@ -635,7 +756,7 @@ class Subplot:
         """
 
     @schema.envelope.apply()
-    def envelope(self, data_1, data_2=0, alpha=0.4, **kwargs):
+    def envelope(self, data_1, data_2=0, alpha=0.4, units=None, **kwargs):
         """
         Plot an envelope on the Subplot.
 
@@ -647,15 +768,67 @@ class Subplot:
             The data source for which to plot the envelope.
         alpha : float, optional
             The alpha value of the envelope.
+        units : str, optional
+            Units for the data values.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
         """
-        x1, y1, _ = self._extract_plottables_envelope(y=data_1, **kwargs)
-        x2, y2, _ = self._extract_plottables_envelope(y=data_2, **kwargs)
-        kwargs.pop("x")
-        mappable = self.ax.fill_between(x=x1, y1=y1, y2=y2, alpha=alpha, **kwargs)
-        self.layers.append(Layer(get_source(data=data_1), mappable, self, style=None))
+        x = kwargs.pop("x", None)
+        source_1 = get_source(
+            data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units
+        )
+        x_values, y1_values = _apply_coordinate_unit_conversion(source_1)
+        if isinstance(data_2, (int, float)):
+            y2_values = np.full_like(y1_values, fill_value=data_2, dtype=float)
+        else:
+            source_2 = get_source(
+                data_2, x=x, context=PlotContext.CARTESIAN_1D, units=units
+            )
+            _, y2_values = _apply_coordinate_unit_conversion(source_2)
+        mappable = self.ax.fill_between(
+            x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
+        )
+        self.layers.append(Layer(source_1, mappable, self, style=None))
         return mappable
+
+    def fill_between(self, y1, y2=0, x=None, alpha=0.2, units=None, **kwargs):
+        """
+        Fill the area between two curves.
+
+        Parameters
+        ----------
+        y1 : xarray.DataArray or array-like
+            The lower (or upper) bound of the filled region.
+        y2 : xarray.DataArray, array-like, or scalar, optional
+            The upper (or lower) bound.  Defaults to ``0``, which shades
+            from *y1* down to zero.
+        x : str or array-like, optional
+            The x-axis coordinate name or values.  If not provided, earthkit-plots
+            will attempt to infer it automatically from *y1*.
+        alpha : float, optional
+            Opacity of the filled region.  Default is ``0.2``.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``).
+        **kwargs
+            Additional keyword arguments forwarded to
+            :func:`matplotlib.pyplot.fill_between` (e.g. ``color``,
+            ``zorder``, ``label``).
+
+        Examples
+        --------
+        Shade between two pre-computed bounds:
+
+        >>> ts.fill_between(mean - std, mean + std, units="celsius")
+
+        With an explicit x coordinate:
+
+        >>> ts.fill_between(p10, p90, x="valid_time", color="#1f78b4")
+
+        Shade from a curve down to zero:
+
+        >>> ts.fill_between(values)
+        """
+        self.envelope(y1, y2, x=x, units=units, alpha=alpha, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """

@@ -84,10 +84,14 @@ class TimeSeries(Subplot):
         # Default to x-axis if no time dimension is found
         return "x"
 
-    def show(self, *args, **kwargs):
+    def _apply_tight_time_axis(self):
+        """Set zero margin on the time axis so the plot extent is tight."""
         getattr(self.ax, f"set_{self._time_axis}margin")(0)
+
+    def show(self, *args, **kwargs):
+        self._apply_tight_time_axis()
         super().show(*args, **kwargs)
 
     def save(self, *args, **kwargs):
-        getattr(self.ax, f"set_{self._time_axis}margin")(0)
+        self._apply_tight_time_axis()
         super().save(*args, **kwargs)

@@ -355,8 +355,11 @@ def extract_plottables_1D(
     if label is not None:
         label = layer.format_string(label)
         if isinstance(mappable, list):
-            for mappable in mappable:
-                mappable.set_label(label)
+            # Only the first line in the group gets the label; the rest are
+            # hidden from the legend so that grouped calls (e.g. color_by=)
+            # produce exactly one legend entry per group.
+            for i, m in enumerate(mappable):
+                m.set_label(label if i == 0 else "_nolegend_")
         else:
             mappable.set_label(label)
 

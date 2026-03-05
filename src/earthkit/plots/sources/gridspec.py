@@ -43,6 +43,8 @@ class GridSpec:
     @staticmethod
     def _first(data):
         if hasattr(data, "__len__") and not isinstance(data, dict):
+            if len(data) == 0:
+                return None
             return data[0]
         return data
 
@@ -74,6 +76,8 @@ class GridSpec:
         legacy API (field._metadata.geography.gridspec).
         """
         field = cls._first(data)
+        if field is None:
+            return None
 
         # New earthkit-data API: field.geography.grid_spec (property or callable)
         if hasattr(field, "geography"):

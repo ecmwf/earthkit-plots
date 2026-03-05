@@ -1125,7 +1125,7 @@ class Contour(Style):
 
     def __init__(
         self,
-        colors="viridis_r",
+        colors="black",
         labels=False,
         label_kwargs=None,
         interpolate=True,
