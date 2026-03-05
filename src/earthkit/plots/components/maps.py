@@ -25,7 +25,6 @@ from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
-from earthkit.plots.sources.geometry import _UNSET as _Z_UNSET
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
 
@@ -1224,7 +1223,7 @@ class Map(Subplot):
         self,
         data,
         *args,
-        z=_Z_UNSET,
+        z=None,
         style=None,
         units=None,
         labels=False,
@@ -1293,13 +1292,11 @@ class Map(Subplot):
 
         # Convert to GeometrySource if not already.
         # z=_Z_UNSET means the user didn't pass z → auto-detect a column.
-        # z=None means the user explicitly passed z=None → colour by index.
+        # z=None (default) → colour by index; z="col" → use that column.
         if not isinstance(data, GeometrySource):
-            from earthkit.plots.sources.geometry import _UNSET as _GEO_UNSET
-
             source = GeometrySource(
                 data,
-                z=_GEO_UNSET if z is _Z_UNSET else z,
+                z=z,
                 units=units,
                 metadata=metadata or {},
             )

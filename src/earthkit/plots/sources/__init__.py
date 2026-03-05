@@ -320,15 +320,16 @@ class Source:
         """
         # Start with source values and units
         values = coord_info.values
-        applied_units = coord_info.source_units
+        user_units = self._metadata_resolver.user_metadata.get("units")
+        applied_units = user_units or coord_info.source_units
 
         # Attempt unit conversion if target_units specified
         if target_units is not None:
-            # First try with source_units from coordinate
-            source_units = coord_info.source_units
-            # Fallback to generic source.units if coord source_units is None
-            if source_units is None:
-                source_units = self.source_units
+            # source_units priority:
+            # 1. User-provided metadata (metadata={"units": "..."}) — highest priority
+            # 2. Units embedded in the coordinate by the extractor
+            user_units = self._metadata_resolver.user_metadata.get("units")
+            source_units = user_units or coord_info.source_units or self.source_units
 
             if source_units is not None:
                 converted, success = self._convert_values(
