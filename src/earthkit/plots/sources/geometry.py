@@ -56,13 +56,13 @@ class GeometrySource:
         self,
         data,
         *,
-        z: str | None = None,
+        z=_UNSET,
         units: str | None = None,
         metadata: dict | None = None,
     ):
         self._check_geopandas(data)
         self._data = data
-        self._column = z
+        self._column = z  # _UNSET = auto-detect, None = use index, str = column name
         self._target_units = units
         self._user_metadata = metadata or {}
 
@@ -92,24 +92,23 @@ class GeometrySource:
         self._geometries = list(self._data.geometry)
 
         # Extract data values
-        if self._column is None:
-            # Auto-detect: find first numeric column (excluding geometry and coordinate-like columns)
+        if self._column is _UNSET:
+            # z not passed: auto-detect first numeric column
             numeric_cols = self._data.select_dtypes(include=[np.number]).columns
             candidate_cols = [
                 col
                 for col in numeric_cols
                 if col not in ["x", "y", "X", "Y", "geometry"]
             ]
+            self._column = candidate_cols[0] if candidate_cols else None
 
-            if candidate_cols:
-                self._column = candidate_cols[0]
-            else:
-                # No numeric column found: colour by row index
-                self._value_name = "index"
-                self._values = np.arange(len(self._data), dtype=float)
-                self._applied_units = None
-                self._extracted = True
-                return
+        if self._column is None:
+            # z=None explicitly (or no numeric column found): colour by row index
+            self._value_name = "index"
+            self._values = np.arange(len(self._data), dtype=float)
+            self._applied_units = None
+            self._extracted = True
+            return
 
         if self._column is not None:
             if self._column not in self._data.columns:

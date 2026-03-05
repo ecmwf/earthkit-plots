@@ -25,6 +25,7 @@ from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
+from earthkit.plots.sources.geometry import _UNSET as _Z_UNSET
 from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
 
@@ -1223,7 +1224,7 @@ class Map(Subplot):
         self,
         data,
         *args,
-        z=None,
+        z=_Z_UNSET,
         style=None,
         units=None,
         labels=False,
@@ -1279,8 +1280,6 @@ class Map(Subplot):
 
         from earthkit.plots.components.extractors import configure_style
         from earthkit.plots.components.layers import Layer
-        from earthkit.plots.sources import get_source
-        from earthkit.plots.sources.context import PlotContext
         from earthkit.plots.sources.geometry import GeometrySource
 
         if style is not None and hasattr(style, "units") and style.units:
@@ -1292,14 +1291,17 @@ class Map(Subplot):
         if isinstance(data, ek_data.core.Base) and hasattr(data, "to_geopandas"):
             data = data.to_geopandas()
 
-        # Convert to GeometrySource if not already
+        # Convert to GeometrySource if not already.
+        # z=_Z_UNSET means the user didn't pass z → auto-detect a column.
+        # z=None means the user explicitly passed z=None → colour by index.
         if not isinstance(data, GeometrySource):
-            source = get_source(
+            from earthkit.plots.sources.geometry import _UNSET as _GEO_UNSET
+
+            source = GeometrySource(
                 data,
-                z=z,
-                context=PlotContext.GEOGRAPHIC_GEOMETRY,
+                z=_GEO_UNSET if z is _Z_UNSET else z,
                 units=units,
-                metadata=metadata,
+                metadata=metadata or {},
             )
         else:
             source = data
@@ -1331,13 +1333,18 @@ class Map(Subplot):
             if bbox is not None:
                 self.domain = domains.Domain(list(bbox), crs=bbox.crs)
 
-        # When colouring by index (no data column), auto-style lookup will always
-        # fail to find a meaningful variable style. Build a simple Style with
-        # explicit levels from the data range instead.
-        if style is None and auto_style and source.value_name == "index":
+        # When colouring by index, build a Style with one discrete colour per
+        # shape so each geometry gets a distinct colour.
+        if style is None and source.value_name == "index":
+            from earthkit.plots.styles import Style as _Style
+
+            n = len(geometries)
+            style = _Style(
+                colors=kwargs.pop("colors", kwargs.pop("cmap", "tab20")),
+                levels=list(range(n + 1)),
+                legend_style=None,
+            )
             auto_style = False
-            if "colors" not in kwargs and "cmap" not in kwargs:
-                kwargs["colors"] = "tab20"
 
         # Configure style
         style = configure_style(

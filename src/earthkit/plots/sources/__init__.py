@@ -826,11 +826,11 @@ def get_source(
 
     # Route to GeometrySource if context is geometry-based
     if context.is_geometry:
-        from earthkit.plots.sources.geometry import GeometrySource
+        from earthkit.plots.sources.geometry import GeometrySource, _UNSET
 
         return GeometrySource(
             data_obj,
-            z=z,  # For geometry, z specifies the data column
+            z=_UNSET if z is None else z,
             units=units,
             metadata=metadata,
         )
