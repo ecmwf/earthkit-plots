@@ -738,6 +738,7 @@ def get_source(
     u=None,
     v=None,
     context=None,
+    regrid=True,
     metadata=None,
     units=None,
     x_units=None,
@@ -824,7 +825,18 @@ def get_source(
     if context is None:
         context = PlotContext.CARTESIAN_2D
 
-    # Create new unified Source
+    # Route to GeometrySource if context is geometry-based
+    if context.is_geometry:
+        from earthkit.plots.sources.geometry import GeometrySource
+
+        return GeometrySource(
+            data_obj,
+            z=z,  # For geometry, z specifies the data column
+            units=units,
+            metadata=metadata,
+        )
+
+    # Create coordinate-based Source for non-geometry contexts
     return Source(
         data_obj,
         x=x,
@@ -833,6 +845,7 @@ def get_source(
         u=u,
         v=v,
         context=context,
+        regrid=regrid,
         metadata=metadata,
         units=units,
         x_units=x_units,
@@ -841,3 +854,9 @@ def get_source(
         u_units=u_units,
         v_units=v_units,
     )
+
+
+# Import GeometrySource for geometry-based data (GeoDataFrames)
+from earthkit.plots.sources.geometry import GeometrySource  # noqa: E402
+
+__all__ = ["Source", "get_source", "GeometrySource"]

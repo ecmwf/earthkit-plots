@@ -403,6 +403,44 @@ def rgb_composite(
     return figure
 
 
+def choropleth(
+    data,
+    domain=None,
+    crs=None,
+    **kwargs,
+):
+    """
+    Create a choropleth map from a GeoDataFrame.
+
+    Parameters
+    ----------
+    data : geopandas.GeoDataFrame or earthkit-data object
+        The data to plot. GeoDataFrame objects are used directly; earthkit-data
+        objects are converted via ``to_geopandas()`` first.
+    domain : str or list, optional
+        Named domain or bounding box ``[lon_min, lon_max, lat_min, lat_max]``.
+    crs : cartopy.crs.CRS, optional
+        Map projection.
+    **kwargs :
+        Additional keyword arguments forwarded to :meth:`Map.choropleth`.
+
+    Returns
+    -------
+    Figure
+    """
+    figure = Figure(rows=1, columns=1)
+    subplot = figure.add_map(domain=domain, crs=crs)
+    subplot.choropleth(data, **kwargs)
+    for m in schema.quickmap_figure_workflow:
+        try:
+            getattr(figure, m)()
+        except Exception as err:
+            warnings.warn(
+                f"ekp.choropleth: figure workflow step '{m}' failed with:\n{err}"
+            )
+    return figure
+
+
 def spaghetti(
     *args,
     domain=None,

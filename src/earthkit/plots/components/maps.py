@@ -1219,6 +1219,252 @@ class Map(Subplot):
             )
         return results
 
+    def choropleth(
+        self,
+        data,
+        *args,
+        z=None,
+        style=None,
+        units=None,
+        labels=False,
+        exclude_nan_labels=True,
+        auto_style=True,
+        metadata=None,
+        **kwargs,
+    ):
+        """
+        Create a choropleth map from a GeoDataFrame.
+
+        A choropleth map displays regions (polygons) colored according to
+        data values. Commonly used for visualizing statistics by geographic
+        region (e.g., population by country, temperature by state).
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The data to plot. Must have a geometry column and at least one
+            numeric data column.
+        z : str, optional
+            Name of the column containing data values for coloring.
+            If None, auto-detects first numeric column.
+        style : Style, optional
+            Style object for customizing appearance (colors, colormap, etc.)
+        units : str, optional
+            Target units for data values (e.g., "celsius", "kilometers")
+        labels : bool or str, optional
+            Label configuration:
+            - False (default): No labels
+            - True: Use data values as labels
+            - str without {}: Column name to use for labels (e.g., "country_name")
+            - str with {}: Template string with Python format specifiers
+              e.g. "{name}: {value:.1f} {units}"
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+            Default is True.
+        auto_style : bool, optional
+            Whether to automatically generate style. Default is True.
+        metadata : dict, optional
+            Additional metadata for the data source.
+        **kwargs
+            Additional keyword arguments passed to cartopy's add_geometries,
+            e.g. edgecolor, linewidth, alpha.
+
+        Returns
+        -------
+        matplotlib collection
+            The matplotlib collection representing the choropleth.
+        """
+        import cartopy.crs as ccrs
+        from matplotlib.cm import ScalarMappable
+
+        from earthkit.plots.components.extractors import configure_style
+        from earthkit.plots.components.layers import Layer
+        from earthkit.plots.sources import get_source
+        from earthkit.plots.sources.context import PlotContext
+        from earthkit.plots.sources.geometry import GeometrySource
+
+        if style is not None and hasattr(style, "units") and style.units:
+            units = units or style.units
+
+        # Convert earthkit-data objects to GeoDataFrame first
+        import earthkit.data as ek_data
+
+        if isinstance(data, ek_data.core.Base) and hasattr(data, "to_geopandas"):
+            data = data.to_geopandas()
+
+        # Convert to GeometrySource if not already
+        if not isinstance(data, GeometrySource):
+            source = get_source(
+                data,
+                z=z,
+                context=PlotContext.GEOGRAPHIC_GEOMETRY,
+                units=units,
+                metadata=metadata,
+            )
+        else:
+            source = data
+
+        # Get geometries and data values
+        geometries = source.geometries
+        data_values = source.values
+
+        # Get CRS from source (or default to PlateCarree)
+        source_crs = source.crs
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
+
+        # Configure style
+        style = configure_style(
+            "add_geometries", style, source, units, auto_style, kwargs
+        )
+        style_kwargs = style.to_add_geometries_kwargs(data_values)
+
+        # Prepare scalar mappable for colorbar
+        if data_values is not None:
+            scalar_mappable = ScalarMappable(
+                norm=style_kwargs["norm"], cmap=style_kwargs["cmap"]
+            )
+            scalar_mappable.set_array(data_values)
+        else:
+            scalar_mappable = None
+
+        # Render geometries
+        collection = self.ax.add_geometries(
+            geometries,
+            crs=source_crs,
+            **{**style_kwargs, **kwargs},
+        )
+
+        # Create layer for colorbar/legend management
+        layer = Layer(source, collection, self, style)
+        if scalar_mappable is not None:
+            layer._scalar_mappable = scalar_mappable
+            layer._units = source.units
+            layer._value_name = source.value_name
+        self.layers.append(layer)
+
+        # Add labels if requested
+        if labels:
+            label_column = labels if not isinstance(labels, bool) else source._column
+            self._add_choropleth_labels(
+                source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs
+            )
+
+        return collection
+
+    def _add_choropleth_labels(
+        self, source, label_column=None, exclude_nan_labels=True, **kwargs
+    ):
+        """
+        Add labels to choropleth geometries.
+
+        Parameters
+        ----------
+        source : GeometrySource
+            The GeometrySource with geometries, data, and metadata.
+        label_column : str, optional
+            Column name to use for labels, or a template string with format
+            specifiers. Supports Python format specification mini-language.
+            Examples:
+            - "country_name" - Direct column reference
+            - "{name}: {value:.1f} {units}" - Template with formatting
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+        **kwargs
+            Additional keyword arguments (e.g., adjust_labels).
+        """
+        import re
+        from types import SimpleNamespace
+
+        import numpy as np
+
+        gdf = source.data
+        data_values = source.values
+
+        # Check if label_column is a template string (contains curly braces)
+        is_template = label_column is not None and "{" in str(label_column)
+
+        # Determine label column or template
+        if label_column is None:
+            # Auto-detect: look for columns with 'name' in them
+            name_cols = [col for col in gdf.columns if "name" in col.lower()]
+            label_column = name_cols[0] if name_cols else None
+
+        if label_column is None:
+            return
+
+        # Build metadata dict from source
+        metadata_keys = ["units", "long_name", "standard_name", "variable_name", "name"]
+        source_metadata = {}
+        for key in metadata_keys:
+            value = source.metadata(key)
+            if value is not None:
+                source_metadata[key] = value
+
+        # Parse template to detect units format spec
+        units_format_spec = None
+        has_units_placeholder = False
+        template_for_formatting = label_column
+        if is_template and "units" in source_metadata:
+            has_units_placeholder = (
+                re.search(r"\{units(?::[^}]+)?\}", label_column) is not None
+            )
+            units_match = re.search(r"\{units:([^}]+)\}", label_column)
+            if units_match:
+                units_format_spec = units_match.group(1)
+                template_for_formatting = re.sub(
+                    r"\{units:[^}]+\}", "{units}", label_column
+                )
+            elif has_units_placeholder:
+                units_format_spec = "~E"
+
+        # Build records for _add_polygon_labels
+        records = []
+        for idx, row in gdf.iterrows():
+            if exclude_nan_labels and data_values is not None:
+                if np.isnan(data_values[idx]):
+                    continue
+
+            record = SimpleNamespace()
+            record.geometry = row.geometry
+
+            if is_template:
+                formatter = {col: row[col] for col in gdf.columns if col != "geometry"}
+                formatter.update(source_metadata)
+
+                if has_units_placeholder and "units" in formatter:
+                    from earthkit.plots.metadata import units as metadata_units
+
+                    formatter["units"] = metadata_units.format_units(
+                        formatter["units"], format=units_format_spec
+                    )
+
+                try:
+                    label_text = template_for_formatting.format(**formatter)
+                except KeyError as e:
+                    import warnings
+
+                    warnings.warn(
+                        f"Column/metadata key {e} not found for label template. "
+                        f"Available columns: {list(gdf.columns)} "
+                        f"Available metadata: {list(source_metadata.keys())}"
+                    )
+                    label_text = str(row.get(label_column, ""))
+
+                record.attributes = {"__label__": label_text}
+                label_key_to_use = "__label__"
+            else:
+                record.attributes = {label_column: row[label_column]}
+                label_key_to_use = label_column
+
+            records.append(record)
+
+        self._add_polygon_labels(
+            records,
+            label_key=label_key_to_use,
+            adjust_labels=kwargs.get("adjust_labels", False),
+        )
+
     @schema.legend.apply()
     def legend(self, style=None, location=None, **kwargs):
         """

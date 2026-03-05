@@ -33,6 +33,12 @@ class PlotContext(Enum):
     GEOGRAPHIC_2D = "geographic_2d"  # Maps
     GEOGRAPHIC_VECTOR_2D = "geographic_vector_2d"  # Vector fields on maps
     CARTESIAN_VECTOR_2D = "cartesian_vector_2d"  # Vector fields in cartesian plots
+    CARTESIAN_GEOMETRY = (
+        "cartesian_geometry"  # Geometry-based plots (shapes without geo coordinates)
+    )
+    GEOGRAPHIC_GEOMETRY = (
+        "geographic_geometry"  # Geographic geometry plots (choropleth maps)
+    )
 
     @property
     def is_geographic(self) -> bool:
@@ -63,3 +69,8 @@ class PlotContext(Enum):
     def requires_z(self) -> bool:
         """Return True if this plot type requires z values."""
         return self.is_2d
+
+    @property
+    def is_geometry(self) -> bool:
+        """Return True if this is a geometry-based plot context."""
+        return "geometry" in self.value

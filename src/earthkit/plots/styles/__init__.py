@@ -457,6 +457,24 @@ class Style:
         kwargs.pop("hatches", None)
         return kwargs
 
+    def to_add_geometries_kwargs(self, data):
+        """
+        Generate `add_geometries` arguments required for plotting data in this `Style`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to be plotted using this `Style`.
+        """
+        kwargs = self.to_matplotlib_kwargs(data, extend_levels=False)
+        kwargs.pop("levels", None)
+        kwargs.pop("extend", None)
+        kwargs.pop("labels", None)
+        kwargs.pop("linecolors", None)
+        kwargs.pop("hatches", None)
+        kwargs["facecolor"] = kwargs.get("cmap")(kwargs.get("norm")(data))
+        return kwargs
+
     def to_scatter_kwargs(self, data):
         """
         Generate `scatter` arguments required for plotting data in this `Style`.
