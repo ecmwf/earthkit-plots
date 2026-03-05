@@ -122,6 +122,10 @@ class GeometrySource:
                 self._value_metadata = dict(self._data[self._column].attrs)
                 self._source_units = self._value_metadata.get("units")
 
+            # User-provided metadata overrides units from column attrs
+            if "units" in self._user_metadata:
+                self._source_units = self._user_metadata["units"]
+
             # Apply unit conversion if requested
             if self._target_units is not None and self._values is not None:
                 self._values, self._applied_units = self._convert_units(
