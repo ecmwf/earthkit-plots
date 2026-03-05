@@ -1423,13 +1423,17 @@ class Map(Subplot):
         if label_column is None:
             return
 
-        # Build metadata dict from source
-        metadata_keys = ["units", "long_name", "standard_name", "variable_name", "name"]
+        # Build metadata dict from source.
+        # Use source.units (applied/target units after conversion) for "units",
+        # so label templates like "{units}" reflect the plotted units, not source units.
+        metadata_keys = ["long_name", "standard_name", "variable_name", "name"]
         source_metadata = {}
         for key in metadata_keys:
             value = source.metadata(key)
             if value is not None:
                 source_metadata[key] = value
+        if source.units is not None:
+            source_metadata["units"] = source.units
 
         # Parse template to detect units format spec
         units_format_spec = None
@@ -1450,9 +1454,10 @@ class Map(Subplot):
 
         # Build records for _add_polygon_labels
         records = []
-        for idx, row in gdf.iterrows():
+        z_col = source._column  # name of the z column (None if index colouring)
+        for pos, (idx, row) in enumerate(gdf.iterrows()):
             if exclude_nan_labels and data_values is not None:
-                if np.isnan(data_values[idx]):
+                if np.isnan(data_values[pos]):
                     continue
 
             record = SimpleNamespace()
@@ -1460,6 +1465,9 @@ class Map(Subplot):
 
             if is_template:
                 formatter = {col: row[col] for col in gdf.columns if col != "geometry"}
+                # Inject converted value for z column so templates use target units
+                if z_col is not None and z_col in formatter and data_values is not None:
+                    formatter[z_col] = data_values[pos]
                 formatter.update(source_metadata)
 
                 if has_units_placeholder and "units" in formatter:
