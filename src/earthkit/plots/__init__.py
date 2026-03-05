@@ -24,7 +24,6 @@ from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
 from earthkit.plots.quickplot import (
-    choropleth,
     contour,
     contourf,
     grid_cells,

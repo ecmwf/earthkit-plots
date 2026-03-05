@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import warnings
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -54,9 +54,9 @@ class GeometrySource:
         self,
         data,
         *,
-        z: Optional[str] = None,
-        units: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        z: str | None = None,
+        units: str | None = None,
+        metadata: dict | None = None,
     ):
         self._check_geopandas(data)
         self._data = data
