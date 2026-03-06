@@ -472,7 +472,8 @@ class Style:
         kwargs.pop("labels", None)
         kwargs.pop("linecolors", None)
         kwargs.pop("hatches", None)
-        kwargs["facecolor"] = kwargs.get("cmap")(kwargs.get("norm")(data))
+        masked = np.ma.masked_invalid(data)
+        kwargs["facecolor"] = kwargs.get("cmap")(kwargs.get("norm")(masked))
         return kwargs
 
     def to_scatter_kwargs(self, data):
