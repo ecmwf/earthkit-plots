@@ -309,9 +309,7 @@ def set_ticks(
             if hasattr(ax, "get_xdata") and len(ax.get_xdata()) > 0:
                 ax.get_xdata()  # Check if data exists
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().endswith(p) for p in TIME_SUFFIXES
-            ):
+            if frequency and any(frequency.upper().endswith(p) for p in TIME_SUFFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
@@ -322,9 +320,7 @@ def set_ticks(
             if hasattr(ax, "get_ydata") and len(ax.get_ydata()) > 0:
                 ax.get_ydata()
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().endswith(p) for p in TIME_SUFFIXES
-            ):
+            if frequency and any(frequency.upper().endswith(p) for p in TIME_SUFFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
