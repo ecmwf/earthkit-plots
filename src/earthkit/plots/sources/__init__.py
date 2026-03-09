@@ -803,7 +803,7 @@ def get_source(
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
     if isinstance(data_obj, ek_data.core.Base):
-        if hasattr(data_obj, "__len__") and len(data_obj) == 1:
+        if hasattr(data_obj, "__len__") and len(data_obj) >= 1:
             data_obj = data_obj[0]
 
     if data_obj is None:

@@ -20,9 +20,8 @@ from earthkit.data.core import Base
 
 from earthkit.plots.components import layouts
 from earthkit.plots.components.figures import Figure
-from earthkit.plots.identifiers import group_vectors
+from earthkit.plots.metadata.units import are_equal
 from earthkit.plots.schemas import schema
-from earthkit.plots.utils import iter_utils
 
 
 def _coerce_to_fieldlist(*args):
@@ -38,62 +37,31 @@ def _coerce_to_fieldlist(*args):
     return FieldList.from_fields(field_list)
 
 
-def _group_data(fields, groupby):
+def _iter_plot_groups(args, groupby, mode):
     """
-    Split a FieldList into an ordered dict of groups.
+    Dispatch to the correct source-type group iterator.
 
-    If *groupby* is a string, groups are keyed by the unique values of that
-    metadata key.  If *groupby* is None every field becomes its own group
-    (one panel per field).
-    """
-    if groupby:
-        unique_values = iter_utils.flatten(field.metadata(groupby) for field in fields)
-        unique_values = list(dict.fromkeys(unique_values))
-        return {val: fields.sel(**{groupby: val}) for val in unique_values}
-    else:
-        return {i: field for i, field in enumerate(fields)}
+    Yields ``(key, [data_item, ...])`` tuples consumed by :func:`plot`.
 
-
-def _xarray_multivar_panels(data, groupby=None):
-    """
-    For an xr.Dataset with multiple data variables, return a panel mapping and
-    layout dimensions.
-
-    Returns
-    -------
-    panels : dict or None
-        Ordered dict mapping ``(var_name, group_val)`` to an ``xr.DataArray``.
-        ``group_val`` is ``None`` when *groupby* is not used.
-        Returns ``None`` when *data* is not a multi-variable Dataset (caller
-        should fall through to its single-panel path).
-    n_vars : int
-        Number of distinct variables (rows).
-    n_groups : int
-        Number of distinct group values (columns).  1 when *groupby* is None.
+    Parameters
+    ----------
+    args : tuple
+        Positional arguments passed to :func:`plot`.
+    groupby : str or None
+        Metadata key / coordinate name to split on.
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
     """
     import xarray as xr
 
-    if not isinstance(data, xr.Dataset) or len(data.data_vars) <= 1:
-        return None, 0, 0
+    if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
+        from earthkit.plots.sources.extractors.xarray import iter_plot_groups
 
-    var_names = list(data.data_vars)
-
-    if groupby is not None:
-        # Collect unique group values from the first variable's coordinate
-        coord_values = data[var_names[0]][groupby].values
-        group_vals = list(dict.fromkeys(coord_values.tolist()))
+        yield from iter_plot_groups(args[0], groupby, mode)
     else:
-        group_vals = [None]
+        from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
 
-    panels = {}
-    for var in var_names:
-        for grp in group_vals:
-            if grp is not None:
-                panels[(var, grp)] = data[var].sel({groupby: grp})
-            else:
-                panels[(var, grp)] = data[var]
-
-    return panels, len(var_names), len(group_vals)
+        yield from iter_plot_groups(_coerce_to_fieldlist(*args), groupby, mode)
 
 
 def plot(
@@ -107,6 +75,7 @@ def plot(
     style="auto",
     subplot_titles=None,
     method="quickplot",
+    mode="auto",
     **kwargs,
 ):
     """
@@ -173,33 +142,24 @@ def plot(
 
     >>> ekp.plot(data, method="contourf", domain="Europe").show()
     """
-    fields = _coerce_to_fieldlist(*args)
-    grouped_data = _group_data(fields, groupby)
-    n_plots = len(grouped_data)
+    if subplot_titles is None and groupby:
+        subplot_titles = f"{{{groupby}}}"
+
+    groups = list(_iter_plot_groups(args, groupby, mode))
+    n_plots = len(groups)
 
     rows, columns = layouts.rows_cols(n_plots, rows, columns)
     figure = Figure(rows=rows, columns=columns)
 
-    if subplot_titles is None and groupby:
-        subplot_titles = f"{{{groupby}}}"
-
     if not isinstance(units, (list, tuple)):
         units = [units] * n_plots
 
-    for i, (group_val, group_fields) in enumerate(grouped_data.items()):
+    for i, (_, targets) in enumerate(groups):
         subplot = figure.add_map(domain=domain, crs=crs)
-
-        if isinstance(group_fields, FieldList):
-            group_fields = list(group_fields)
-
-        plot_targets = (
-            group_fields if isinstance(group_fields, (list, tuple)) else [group_fields]
-        )
-
-        for field in plot_targets:
-            unit = units[i] if i < len(units) else None
+        unit = units[i] if i < len(units) else None
+        for target in targets:
             try:
-                getattr(subplot, method)(field, units=unit, style=style, **kwargs)
+                getattr(subplot, method)(target, units=unit, style=style, **kwargs)
             except Exception as err:
                 warnings.warn(
                     f"ekp.plot: failed to call '{method}' on panel {i} with:\n"
@@ -207,7 +167,6 @@ def plot(
                     "Consider building the plot manually using ekp.Figure and ekp.Map."
                 )
                 raise
-
         if subplot_titles:
             try:
                 subplot.title(subplot_titles)
@@ -542,181 +501,287 @@ def spaghetti(
     return figure
 
 
-def quickplot(
+def quickplot(*args, **kwargs):
+    """
+    Alias for :func:`plot`. Use ``ekp.plot()`` instead.
+    """
+    return plot(*args, **kwargs)
+
+
+def climatology(
+    data,
     *args,
-    rows=None,
-    columns=None,
-    domain=None,
-    crs=None,
-    methods="quickplot",
-    mode="subplots",
-    groupby=None,
-    units=None,
-    subplot_titles=None,
-    combine_vectors=False,
+    title=None,
+    xticks=None,
+    yticks=None,
+    xlabel=None,
+    ylabel=None,
     **kwargs,
 ):
     """
-    Generate a convenient plot from the given data with optional grouping.
+    Create a climatology (annual-cycle) plot.
+
+    Splits multi-year timeseries data by calendar year and plots each year
+    as a separate line on a common Jan-to-Dec x-axis.  Leap years are mapped
+    onto the reference year 2000; non-leap years onto 2001, so Feb 29 is
+    naturally absent for non-leap years.
 
     Parameters
     ----------
-    *args : list
-        The data to be plotted. Can be a single xarray or earthkit data object,
-        or separate x, y, z, u, v arguments.
-    rows : int, optional
-        Number of rows in the subplot layout.
-    columns : int, optional
-        Number of columns in the subplot layout.
-    domain : string or tuple, optional
-        The domain of the plot.
-    methods : string or list, optional
-        The plot method(s) to apply.
-    mode : string, optional
-        'subplots' (default) or 'overlay'.
-    groupby : string, optional
-        Dimension along which to group the data.
-    units : string or list, optional
-        Units to convert the data to.
-    combine_vectors : bool, optional
-        Whether to combine vector components (u, v), and use vector based plotting, i.e. `quiver`.
-        NOTE: This is experimental and seems to have issues with some data sources. This will be addressed in release 0.6.
-    **kwargs : dict
-        Additional arguments for the plot method(s).
+    data : xarray.DataArray
+        Multi-year timeseries data with a time coordinate.
+    title : str, optional
+        Plot title.
+    xticks : str or dict, optional
+        X-axis tick configuration.  If a string, treated as a frequency
+        (e.g. ``"M"``, ``"M3"``).  If a dict, passed as kwargs to
+        ``xticks()``.
+    yticks : str or dict, optional
+        Y-axis tick configuration.  Same format as *xticks*.
+    xlabel : str, optional
+        Label for the x-axis.
+    ylabel : str, optional
+        Label for the y-axis.
+    **kwargs :
+        Additional keyword arguments forwarded to the ``line`` plotting
+        method (e.g. ``color``, ``linewidth``).
 
-    Example
+    Returns
     -------
-    >>> import earthkit.data
-    >>> import earthkit.plots
-    >>> data = ek.data.from_source("sample", "era5-monthly-mean-2t-199312.grib")
-    >>> earthkit.plots.quickplot(data, units="celsius", domain="Europe")
+    Climatology
+        An earthkit-plots
+        :class:`~earthkit.plots.temporal.climatology.Climatology` subplot
+        that can be further customised and displayed with ``.show()`` or
+        saved with ``.save()``.
+
+    Examples
+    --------
+    >>> import earthkit.plots as ekp
+    >>> ekp.climatology(da).show()
+
+    >>> ekp.climatology(da, ylabel="Temperature (°C)", title="Annual cycle").show()
+    """
+    from earthkit.plots.temporal.climatology import Climatology
+
+    class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
+    ts = Climatology(**class_kwargs)
+    ts.line(data, *args, **kwargs)
+    ts.xlabel(xlabel)
+    ts.ylabel(ylabel)
+    _apply_ticks(ts, xticks, yticks)
+    if title:
+        ts.title(title)
+    return ts
+
+
+_TIMESERIES_CLASS_KWARGS = {"size"}
+
+
+def _apply_ticks(subplot, xticks, yticks):
+    """Apply xticks/yticks configuration to a subplot."""
+    if xticks is not None:
+        if isinstance(xticks, str):
+            subplot.xticks(frequency=xticks)
+        else:
+            subplot.xticks(**xticks)
+    if yticks is not None:
+        if isinstance(yticks, str):
+            subplot.yticks(frequency=yticks)
+        else:
+            subplot.yticks(**yticks)
+
+
+def timeseries(
+    data,
+    *args,
+    overlay=False,
+    groupby=None,
+    rows=None,
+    columns=None,
+    title=None,
+    subplot_titles="{variable_name}",
+    xticks=None,
+    yticks=None,
+    xlabel=None,
+    ylabel=None,
+    plot="line",
+    **kwargs,
+):
+    """
+    Create a time series plot with automatic configuration.
+
+    This is a convenience function that creates a TimeSeries subplot (or a
+    Figure of multiple TimeSeries subplots) with sensible defaults for time
+    series visualization.
+
+    When *data* is an xarray Dataset with more than one data variable, a
+    separate subplot is created for each variable by default (one per row).
+    Pass ``overlay=True`` to plot all variables on a single subplot instead.
+    Use ``groupby`` to split the data along a coordinate dimension (produces
+    one panel per unique value).
+
+    Parameters
+    ----------
+    data : array-like, xarray DataArray/Dataset, or earthkit data source
+        The time series data to plot.
+    *args : tuple
+        Additional positional arguments passed to the plotting method.
+    overlay : bool, optional
+        When *data* is a multi-variable Dataset, plot all variables on a single
+        subplot instead of creating one subplot per variable. Default is False.
+    groupby : str, optional
+        Coordinate name along which to split the data into separate panels.
+    rows : int, optional
+        Override the number of rows in the Figure layout.
+    columns : int, optional
+        Override the number of columns in the Figure layout.
+    title : str, optional
+        Figure-level title. Supports format strings like ``{variable_name}``.
+    subplot_titles : str, optional
+        Per-panel title format string. Default is ``"{variable_name}"``.
+    xticks : str or dict, optional
+        Configuration for x-axis ticks. If a string, treated as frequency
+        (e.g. ``"Y"``, ``"M6"``, ``"D7"``, ``"h"``). If a dict, passed as
+        kwargs to ``xticks()``.
+    yticks : str or dict, optional
+        Configuration for y-axis ticks. Same format as *xticks*.
+    xlabel : str, optional
+        Label for the x-axis.
+    ylabel : str, optional
+        Label for the y-axis.
+    plot : str, optional
+        Plotting method to call on each TimeSeries subplot. Default is ``"line"``.
+    **kwargs :
+        Additional keyword arguments passed to the plotting method.
+
+    Returns
+    -------
+    TimeSeries or Figure
     """
     import xarray as xr
 
-    # Short-circuit for a single xarray argument: bypass FieldList machinery
-    # so the XarrayExtractor is used (preserving actual coordinate values).
-    if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
-        figure = Figure(rows=1, columns=1)
-        subplot = figure.add_map(domain=domain, crs=crs)
-        method = methods if isinstance(methods, str) else methods[0]
-        unit = units if not isinstance(units, (list, tuple)) else units[0]
-        try:
-            getattr(subplot, method)(args[0], units=unit, **kwargs)
-        except Exception as err:
-            warnings.warn(
-                f"Failed to execute {method} on given data with: \n"
-                f"{err}\n\n"
-                "consider constructing the plot manually."
-            )
-            raise err
-        for m in schema.quickmap_subplot_workflow:
-            _args = []
-            if m == "title" and subplot_titles:
-                _args = [subplot_titles]
+    from earthkit.plots.metadata.formatters import LayerFormatter
+    from earthkit.plots.temporal.timeseries import TimeSeries
+
+    # ------------------------------------------------------------------
+    # Multi-variable Dataset, not overlaid → one row per variable
+    # ------------------------------------------------------------------
+    if not overlay and isinstance(data, xr.Dataset) and len(data.data_vars) > 1:
+        size = kwargs.pop("size", None)
+        col = groupby if groupby is not None else None
+        fig = Figure()
+        fig.timeseries(
+            data,
+            *args,
+            row="variable",
+            col=col,
+            plot=plot,
+            subplot_titles=subplot_titles,
+            rows=rows,
+            columns=columns,
+            size=size,
+            xticks=xticks,
+            yticks=yticks,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            **kwargs,
+        )
+        if title:
             try:
-                getattr(subplot, m)(*_args)
-            except Exception as err:
-                warnings.warn(
-                    f"ekp.quickplot: subplot workflow step '{m}' failed with:\n{err}"
+                fig.title(title)
+            except Exception:
+                pass
+        return fig
+
+    # ------------------------------------------------------------------
+    # Multi-variable Dataset, overlaid → all vars on one subplot
+    # ------------------------------------------------------------------
+    if overlay and isinstance(data, xr.Dataset) and len(data.data_vars) > 1:
+        class_kwargs = {
+            k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs
+        }
+        ts = TimeSeries(**class_kwargs)
+        axes_by_units = {}
+        layers_by_ax = {}
+        primary_ax = None
+        for var_name in data.data_vars:
+            da = data[var_name]
+            var_units = da.attrs.get("units", None)
+            if not axes_by_units:
+                layers_before = len(ts.layers)
+                getattr(ts, plot)(da, *args, **kwargs)
+                primary_ax = ts._ax
+                axes_by_units[var_units] = primary_ax
+                layers_by_ax[primary_ax] = ts.layers[layers_before:]
+            else:
+                target_ax = next(
+                    (ax for u, ax in axes_by_units.items() if are_equal(var_units, u)),
+                    None,
                 )
-        for m in schema.quickmap_figure_workflow:
-            try:
-                getattr(figure, m)()
-            except Exception as err:
-                warnings.warn(
-                    f"ekp.quickplot: figure workflow step '{m}' failed with:\n{err}"
-                )
-        return figure
-
-    field_list = []
-    for arg in args:
-        if isinstance(arg, FieldList):
-            field_list.extend(list(arg))
-        else:
-            if not isinstance(arg, Base):
-                arg = earthkit.data.from_object(arg)
-            field_list.append(arg)
-    args = FieldList.from_fields(field_list)
-
-    if subplot_titles is None and groupby:
-        subplot_titles = f"{{{groupby}}}"
-
-    if groupby:
-        unique_values = iter_utils.flatten(arg.metadata(groupby) for arg in args)
-        unique_values = list(dict.fromkeys(unique_values))
-        grouped_data = {val: args.sel(**{groupby: val}) for val in unique_values}
-
-    elif mode == "subplots":
-        grouped_data = {i: field for i, field in enumerate(args)}
-    else:
-        grouped_data = {None: args}
-
-    n_plots = len(grouped_data)
-    if mode == "subplots":
-        rows, columns = layouts.rows_cols(n_plots, rows, columns)
-    else:
-        rows, columns = 1, 1
-
-    figure = Figure(rows=rows, columns=columns)
-    if not isinstance(methods, (list, tuple)):
-        methods = [methods] * len(args)
-    if not isinstance(units, (list, tuple)):
-        units = [units] * len(args)
-
-    for i, (group_val, group_args) in enumerate(grouped_data.items()):
-        subplot = figure.add_map(domain=domain, crs=crs)
-
-        if combine_vectors:
-            group_args = group_vectors(group_args)
-
-        if isinstance(group_args, FieldList):
-            group_args = list(group_args)
-
-        if isinstance(group_args, (list, tuple)):
-            for j, (arg, method) in enumerate(zip(group_args, methods)):
-                unit = units[j]
+                if target_ax is None:
+                    target_ax = primary_ax.twinx()
+                    axes_by_units[var_units] = target_ax
+                    layers_by_ax[target_ax] = []
+                original_ax = ts._ax
+                ts._ax = target_ax
+                layers_before = len(ts.layers)
+                getattr(ts, plot)(da, *args, **kwargs)
+                ts._ax = original_ax
+                layers_by_ax[target_ax].extend(ts.layers[layers_before:])
+        ts.xlabel(xlabel)
+        _apply_ticks(ts, xticks, yticks)
+        for ax, ax_layers in layers_by_ax.items():
+            if ylabel is not None:
+                ax.set_ylabel(ylabel)
+            elif ax_layers:
                 try:
-                    getattr(subplot, method)(arg, units=unit, **kwargs)
-                except Exception as err:
-                    warnings.warn(
-                        f"Failed to execute {method} on given data with: \n"
-                        f"{err}\n\n"
-                        "consider constructing the plot manually."
-                    )
-                    raise err
-        else:
-            unit = units[i]
+                    src = ax_layers[0].sources[0]
+                    units = src.y.metadata("units")
+                    lbl = "{variable_name} ({units})" if units else "{variable_name}"
+                    ax.set_ylabel(LayerFormatter(ax_layers[0]).format(lbl))
+                except Exception:
+                    pass
+        if title:
+            ts.title(title)
+        return ts
+
+    # ------------------------------------------------------------------
+    # groupby → one panel per unique value (DataArray or single-var Dataset)
+    # ------------------------------------------------------------------
+    if groupby is not None:
+        groups = list(_iter_plot_groups((data,), groupby, mode="split"))
+        n_plots = len(groups)
+        _rows, _cols = layouts.rows_cols(n_plots, rows, columns)
+        kwargs.pop("size", None)
+        fig = Figure(rows=_rows, columns=_cols)
+        for _, targets in groups:
+            ts = fig.add_timeseries()
+            for target in targets:
+                getattr(ts, plot)(target, *args, **kwargs)
+            ts.xlabel(xlabel)
+            ts.ylabel(ylabel)
+            _apply_ticks(ts, xticks, yticks)
+            if subplot_titles:
+                try:
+                    ts.title(subplot_titles)
+                except Exception:
+                    pass
+        if title:
             try:
-                getattr(subplot, methods[i])(group_args, units=unit, **kwargs)
-            except Exception as err:
-                warnings.warn(
-                    f"Failed to execute {methods[i]} on given data with: \n"
-                    f"{err}\n\n"
-                    "consider constructing the plot manually."
-                )
-                raise err
+                fig.title(title)
+            except Exception:
+                pass
+        return fig
 
-        for m in schema.quickmap_subplot_workflow:
-            args = []
-            if m == "title" and subplot_titles:
-                args = [subplot_titles]
-            try:
-                getattr(subplot, m)(*args)
-            except Exception as err:
-                warnings.warn(
-                    f"Failed to execute {m} on given data with: \n"
-                    f"{err}\n\n"
-                    "consider constructing the plot manually."
-                )
-
-    for m in schema.quickmap_figure_workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(
-                f"Failed to execute {m} on given data with: \n"
-                f"{err}\n\n"
-                "consider constructing the plot manually."
-            )
-
-    return figure
+    # ------------------------------------------------------------------
+    # Single panel
+    # ------------------------------------------------------------------
+    class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
+    ts = TimeSeries(**class_kwargs)
+    getattr(ts, plot)(data, *args, **kwargs)
+    ts.xlabel(xlabel)
+    ts.ylabel(ylabel)
+    _apply_ticks(ts, xticks, yticks)
+    if title:
+        ts.title(title)
+    return ts

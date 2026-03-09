@@ -22,6 +22,49 @@ from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordina
 from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
+def iter_plot_groups(fields, groupby, mode):
+    """
+    Yield ``(key, [Field, ...])`` tuples for an earthkit FieldList.
+
+    Parameters
+    ----------
+    fields : earthkit.data.FieldList
+        Input FieldList.
+    groupby : str or None
+        Metadata key to split on (one panel per unique value).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+
+    Yields
+    ------
+    key : hashable
+        Group identifier.
+    targets : list of earthkit Field
+        One or more fields to overlay on the same subplot.
+    """
+    from earthkit.plots.utils import iter_utils
+
+    if mode == "overlay":
+        yield None, list(fields)
+        return
+
+    if mode == "split":
+        for i, field in enumerate(fields):
+            yield i, [field]
+        return
+
+    # mode == "auto"
+    if groupby:
+        unique_values = iter_utils.flatten(field.metadata(groupby) for field in fields)
+        unique_values = list(dict.fromkeys(unique_values))
+        for val in unique_values:
+            group = fields.sel(**{groupby: val})
+            yield val, list(group)
+    else:
+        for i, field in enumerate(fields):
+            yield i, [field]
+
+
 class EarthkitExtractor(BaseExtractor):
     """
     Extractor for earthkit.data objects (Field, FieldList, etc.).
@@ -435,15 +478,18 @@ class EarthkitExtractor(BaseExtractor):
 
         u_param, v_param = uv_pair
 
-        # Extract fields
+        # Extract fields — try each key and skip if the result is empty
         u_field = None
         v_field = None
-        for key in ["param", "short_name"]:
+        for key in ["short_name", "param"]:
             try:
-                u_field = self.data.sel(**{key: u_param})
-                v_field = self.data.sel(**{key: v_param})
-                break
-            except (AttributeError, KeyError):
+                _u = self.data.sel(**{key: u_param})
+                _v = self.data.sel(**{key: v_param})
+                if len(_u) > 0 and len(_v) > 0:
+                    u_field = _u
+                    v_field = _v
+                    break
+            except (AttributeError, KeyError, TypeError):
                 continue
 
         if u_field is None or v_field is None:

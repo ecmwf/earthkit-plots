@@ -23,6 +23,15 @@ from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordina
 from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
+def _coord_item(coord):
+    """Return a scalar coordinate value, converting datetime64 to pd.Timestamp."""
+    if np.issubdtype(coord.dtype, np.datetime64):
+        import pandas as pd
+
+        return pd.Timestamp(coord.values)
+    return coord.item()
+
+
 class XarrayExtractor(BaseExtractor):
     """
     Strategy for extracting coordinates from xarray DataArrays and Datasets.
@@ -787,11 +796,11 @@ class XarrayExtractor(BaseExtractor):
         if da_for_coords is not None and key in da_for_coords.coords:
             coord = da_for_coords.coords[key]
             if coord.ndim == 0:
-                return coord.item()
+                return _coord_item(coord)
         if isinstance(self.data, xr.Dataset) and key in self.data.coords:
             coord = self.data.coords[key]
             if coord.ndim == 0:
-                return coord.item()
+                return _coord_item(coord)
 
         # Step 3: Variable name as "name" fallback
         if key == "name":
@@ -1003,3 +1012,79 @@ class XarrayExtractor(BaseExtractor):
         )
 
         return u_info, v_info
+
+
+def _unique_coord_vals(coord):
+    """Return unique values from an xarray coordinate, preserving dtype and order."""
+    seen = {}
+    for val in coord.values.flat:
+        if val not in seen:
+            seen[val] = val
+    return list(seen.values())
+
+
+def iter_plot_groups(data, groupby, mode):
+    """
+    Yield ``(key, [DataArray, ...])`` tuples for xarray DataArray/Dataset.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Input xarray object.
+    groupby : str or None
+        Coordinate name to split on (one panel per unique value).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+
+    Yields
+    ------
+    key : hashable
+        Group identifier (used as panel label / title key).
+    targets : list of xr.DataArray
+        One or more DataArrays to overlay on the same subplot.
+    """
+    if mode == "overlay":
+        if isinstance(data, xr.Dataset):
+            yield None, [data[v] for v in data.data_vars]
+        else:
+            yield None, [data]
+        return
+
+    if mode == "split":
+        if isinstance(data, xr.Dataset):
+            for var in data.data_vars:
+                yield var, [data[var]]
+        elif groupby is not None:
+            coord_vals = _unique_coord_vals(data[groupby])
+            for val in coord_vals:
+                yield val, [data.sel({groupby: val})]
+        else:
+            yield None, [data]
+        return
+
+    # mode == "auto"
+    if isinstance(data, xr.Dataset):
+        var_names = list(data.data_vars)
+        if len(var_names) > 1:
+            # Multi-var Dataset: yield (var, group_val) combos
+            if groupby is not None:
+                group_vals = _unique_coord_vals(data[var_names[0]][groupby])
+            else:
+                group_vals = [None]
+            for var in var_names:
+                for grp in group_vals:
+                    if grp is not None:
+                        yield (var, grp), [data[var].sel({groupby: grp})]
+                    else:
+                        yield (var, None), [data[var]]
+            return
+        # Single-var Dataset: unwrap
+        data = data[var_names[0]]
+
+    # DataArray path
+    if groupby is not None:
+        coord_vals = _unique_coord_vals(data[groupby])
+        for val in coord_vals:
+            yield val, [data.sel({groupby: val})]
+    else:
+        yield None, [data]

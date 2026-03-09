@@ -1141,9 +1141,14 @@ def extract_plottables_vector_2D(
     # Currently Quiver/Style classes don't have scale factors like Contour does, so this is a no-op
     # but we keep it for consistency with how scalar fields are processed
 
-    # Step 7: Use style's resample setting if not explicitly provided
+    # Step 7: Use style's resample setting if not explicitly provided; default
+    # to Bilinear(30) so quiver/barbs are thinned to a manageable arrow count.
     if resample is None:
         resample = style.resample
+    if resample is None:
+        from earthkit.plots.resample import Bilinear
+
+        resample = Bilinear(30)
 
     # Step 8: Extract data within domain boundaries if requested
     if subplot.domain and extract_domain:
@@ -1154,21 +1159,71 @@ def extract_plottables_vector_2D(
             source_crs=source.crs,
         )
 
-    # Step 9: Apply resampling if specified
+    # Step 9: Apply resampling — use reproject_to_grid for _PixelSampler
+    # (Bilinear / NearestNeighbour), applied independently to u and v.
+    from earthkit.plots.resample import Resample, Unstructured, _PixelSampler
+
     if resample is not None:
-        kwargs.pop("regrid_shape", None)
-        if resample.__class__.__name__ == "Regrid":
-            kwargs.pop("transform", None)
-        args_resampled = resample.apply(
-            x_values,
-            y_values,
-            u_values,
-            v_values,
-            source_crs=source.crs,
-            target_crs=subplot.crs,
-            extents=subplot.ax.get_extent(),
-        )
-        x_values, y_values, u_values, v_values = args_resampled
+        if isinstance(resample, _PixelSampler) and hasattr(subplot, "crs"):
+            from earthkit.plots.resample.reproject import reproject_to_grid
+
+            target_crs = subplot.crs or ccrs.PlateCarree()
+            data_crs = source.crs or ccrs.PlateCarree()
+            try:
+                bbox_target = subplot.ax.get_extent(crs=target_crs)
+            except Exception:
+                bbox_target = (-180, 180, -90, 90)
+            nx, ny = resample.resolve(bbox_target, crs=target_crs)
+            # Extract 1D axes from meshgrid if regular
+            if x_values.ndim == 2 and y_values.ndim == 2:
+                if np.allclose(x_values, x_values[0, :]) and np.allclose(
+                    y_values.T, y_values[:, 0]
+                ):
+                    x_src, y_src = x_values[0, :], y_values[:, 0]
+                else:
+                    x_src, y_src = x_values, y_values
+            else:
+                x_src, y_src = x_values, y_values
+            x_values, y_values, u_values = reproject_to_grid(
+                x_src,
+                y_src,
+                u_values,
+                crs_src=data_crs,
+                bbox_target=bbox_target,
+                crs_target=target_crs,
+                nx=nx,
+                ny=ny,
+            )
+            _, _, v_values = reproject_to_grid(
+                x_src,
+                y_src,
+                v_values,
+                crs_src=data_crs,
+                bbox_target=bbox_target,
+                crs_target=target_crs,
+                nx=nx,
+                ny=ny,
+            )
+            kwargs["transform"] = target_crs
+        elif isinstance(resample, Unstructured):
+            x_values, y_values, u_values = resample.apply(
+                x_values,
+                y_values,
+                u_values,
+                source_crs=source.crs,
+                target_crs=subplot.crs,
+            )
+            _, _, v_values = resample.apply(
+                x_values,
+                y_values,
+                v_values,
+                source_crs=source.crs,
+                target_crs=subplot.crs,
+            )
+        elif isinstance(resample, Resample):
+            x_values, y_values, u_values, v_values = resample.apply(
+                x_values, y_values, u_values, v_values
+            )
 
     # Step 10: Prepare arguments for plotting method
     plot_args = [x_values, y_values, u_values, v_values]

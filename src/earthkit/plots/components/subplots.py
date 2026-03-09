@@ -64,162 +64,250 @@ def plot_1D(method_name=None):
             z=None,
             style=None,
             every=None,
-            groupby=None,
-            group_by=None,  # alias for groupby
             colorby=None,
-            color_by=None,  # alias for colorby
-            label_by=None,
-            label_format=None,
+            dashby=None,
+            markerby=None,
+            sizeby=None,
             colors=None,
+            dashes=None,
+            markers=None,
+            sizes=None,
+            label=None,
             **kwargs,
         ):
+            from itertools import product
+
+            import numpy as np
+            import pandas as pd
             import xarray as xr
 
-            # Resolve aliases
-            if group_by is not None and groupby is None:
-                groupby = group_by
-            if color_by is not None and colorby is None:
-                colorby = color_by
+            # Inject subplot-level fixed units if not already specified by the caller.
+            if "x_units" not in kwargs and self._fixed_x_units is not None:
+                kwargs["x_units"] = self._fixed_x_units
+            if (
+                "y_units" not in kwargs
+                and "units" not in kwargs
+                and self._fixed_y_units is not None
+            ):
+                kwargs["y_units"] = self._fixed_y_units
 
-            # ----------------------------------------------------------
-            # groupby / colorby / label_by — expand a multi-dim DataArray
-            # into one call per (colorby_group × groupby_val).
-            #
-            # * groupby  : coordinate whose unique values become individual
-            #              lines (e.g. "member")
-            # * colorby  : coordinate whose unique values are assigned
-            #              distinct colours (e.g. "forecast_reference_time")
-            # * label_by : coordinate whose value is used as the legend
-            #              label for the first line in each colorby group
-            #              (defaults to colorby if not set).
-            #              All subsequent lines in the group are labelled
-            #              "_nolegend_" so only one legend entry appears.
-            # * colors   : explicit list of colours for colorby groups;
-            #              if None the axes colour cycle is used
-            # ----------------------------------------------------------
-            if groupby is not None or colorby is not None:
-                # Require at least one DataArray positional arg
-                data = args[0] if args else None
-                if not isinstance(data, xr.DataArray):
-                    raise TypeError(
-                        "groupby/colorby require a single xarray DataArray "
-                        "as the first positional argument."
-                    )
-                rest_args = args[1:]
+            # Accept underscore aliases (color_by → colorby, etc.)
+            if colorby is None:
+                colorby = kwargs.pop("color_by", None)
+            if dashby is None:
+                dashby = kwargs.pop("dash_by", None)
+            if markerby is None:
+                markerby = kwargs.pop("marker_by", None)
+            if sizeby is None:
+                sizeby = kwargs.pop("size_by", None)
 
-                _label_by = label_by if label_by is not None else colorby
+            # Collect active *by dimensions: param_key → coordinate name
+            by_dims = {
+                k: v
+                for k, v in [
+                    ("colorby", colorby),
+                    ("dashby", dashby),
+                    ("markerby", markerby),
+                    ("sizeby", sizeby),
+                ]
+                if v is not None
+            }
 
-                import numpy as np
-                import pandas as pd
+            if not by_dims:
+                # Default single-call path — no grouping requested
+                return extract_plottables_1D(
+                    self,
+                    method_name or method.__name__,
+                    args=args,
+                    x=x,
+                    y=y,
+                    z=z,
+                    style=style,
+                    every=every,
+                    label=label,
+                    **kwargs,
+                )
 
-                def _unique_vals(da, dim):
-                    """Unique values along *dim*, preserving numpy dtype for .sel()."""
-                    vals = da[dim].values
-                    seen = {}
-                    for v in vals.flat:
-                        key = v.tobytes() if hasattr(v, "tobytes") else v
-                        if key not in seen:
-                            seen[key] = v
-                    return list(seen.values())
+            # Require xarray DataArray when any *by is set
+            data = args[0] if args else None
+            if not isinstance(data, xr.DataArray):
+                raise TypeError(
+                    "colorby/dashby/markerby/sizeby require a single xarray "
+                    "DataArray as the first positional argument."
+                )
+            rest_args = args[1:]
 
-                def _label_str(val, dim):
-                    """Human-readable string for a coordinate value."""
-                    # Convert numpy scalar to a Python-native value for formatting
-                    py_val = val
-                    if isinstance(py_val, np.datetime64):
-                        py_val = pd.Timestamp(py_val)
-                    elif hasattr(py_val, "item"):
-                        py_val = py_val.item()
+            # ------------------------------------------------------------------
+            # Helpers
+            # ------------------------------------------------------------------
 
-                    if label_format is not None:
-                        return label_format.format(**{dim: py_val})
+            def _unique_vals(da, dim):
+                """Unique values along *dim*, preserving numpy dtype for .sel()."""
+                vals = da[dim].values
+                seen = {}
+                for v in vals.flat:
+                    key = v.tobytes() if hasattr(v, "tobytes") else v
+                    if key not in seen:
+                        seen[key] = v
+                return list(seen.values())
 
-                    # Default: ISO date prefix for datetimes, str otherwise
-                    if hasattr(py_val, "isoformat"):
-                        return str(py_val)[:10]
-                    return str(py_val)
+            def _to_python(val):
+                """Convert numpy scalar to a Python-native value for formatting."""
+                if isinstance(val, np.datetime64):
+                    return pd.Timestamp(val)
+                if hasattr(val, "item"):
+                    return val.item()
+                return val
 
-                # Determine the colorby groups and their colours
-                if colorby is not None:
-                    color_vals = _unique_vals(data, colorby)
-                    if colors is None:
-                        from matplotlib import rcParams
+            def _scalar_str(val):
+                """Default human-readable string for a single value."""
+                py_val = _to_python(val)
+                if hasattr(py_val, "isoformat"):
+                    return str(py_val)[:10]
+                return str(py_val)
 
-                        cycle_colors = [
-                            p["color"]
-                            for p, _ in zip(
-                                rcParams["axes.prop_cycle"],
-                                color_vals,
-                            )
-                        ]
-                    else:
-                        cycle_colors = list(colors)
-                    color_map = {id(v): c for v, c in zip(color_vals, cycle_colors)}
+            def _make_label(combo):
+                """Build legend label for a combination of *by values."""
+                # Map coordinate name → python value, deduplicating repeated coords
+                coord_vals = {}
+                for dim_key, val in zip(dim_keys, combo):
+                    coord = by_dims[dim_key]
+                    if coord not in coord_vals:
+                        coord_vals[coord] = _to_python(val)
+                if label is not None:
+                    return label.format(**coord_vals)
+                # Default: join unique values with " / "
+                return " / ".join(_scalar_str(v) for v in coord_vals.values())
+
+            # ------------------------------------------------------------------
+            # Build visual mappings for each *by dimension
+            # list  → positional assignment (index order matches unique values)
+            # dict  → explicit mapping (coord value string → visual value)
+            # None  → use defaults
+            # ------------------------------------------------------------------
+
+            _DEFAULT_DASHES = ["solid", "dashed", "dotted", "dashdot"]
+            _DEFAULT_MARKERS = ["o", "s", "^", "D", "v", "p", "X", "*"]
+
+            from matplotlib import rcParams
+
+            # Call _unique_vals ONCE per dimension so id() keys are stable
+            # throughout the entire function.
+            dim_keys = list(by_dims.keys())
+            dim_unique = {dk: _unique_vals(data, by_dims[dk]) for dk in dim_keys}
+
+            def _build_map(unique, user_values, default_fn):
+                """Return {id(val): visual_value} for a *by dimension."""
+                n = len(unique)
+                if user_values is None:
+                    vis_vals = [default_fn(i) for i in range(n)]
+                elif isinstance(user_values, dict):
+                    vis_vals = [
+                        user_values.get(str(_to_python(v)), default_fn(i))
+                        for i, v in enumerate(unique)
+                    ]
                 else:
-                    color_vals = [None]
-                    color_map = {id(None): kwargs.get("color", None)}
+                    cycle = list(user_values)
+                    vis_vals = [cycle[i % len(cycle)] for i in range(n)]
+                return {id(v): vis for v, vis in zip(unique, vis_vals)}
 
-                # Determine the groupby values
-                if groupby is not None:
-                    group_vals = _unique_vals(data, groupby)
-                else:
-                    group_vals = [None]
+            prop_cycle_colors = [p["color"] for p in rcParams["axes.prop_cycle"]]
 
-                mappables = []
-                for c_val in color_vals:
-                    line_color = color_map[id(c_val)]
-                    first_in_group = True
-                    for g_val in group_vals:
-                        # Slice the DataArray using numpy-typed values
-                        sel = {}
-                        if c_val is not None:
-                            sel[colorby] = c_val
-                        if g_val is not None:
-                            sel[groupby] = g_val
-                        slice_da = data.sel(sel) if sel else data
-
-                        # Build per-call kwargs
-                        call_kwargs = dict(kwargs)
-                        if line_color is not None:
-                            call_kwargs["color"] = line_color
-
-                        # Label only the first line in each colorby group;
-                        # suppress legend entries for all subsequent lines.
-                        if _label_by is not None and c_val is not None:
-                            if first_in_group:
-                                call_kwargs["label"] = _label_str(c_val, _label_by)
-                            else:
-                                call_kwargs["label"] = "_nolegend_"
-
-                        mappables.append(
-                            extract_plottables_1D(
-                                self,
-                                method_name or method.__name__,
-                                args=(slice_da, *rest_args),
-                                x=x,
-                                y=y,
-                                z=z,
-                                style=style,
-                                every=every,
-                                **call_kwargs,
-                            )
-                        )
-                        first_in_group = False
-
-                return mappables
-
-            # Default single-call path
-            return extract_plottables_1D(
-                self,
-                method_name or method.__name__,
-                args=args,
-                x=x,
-                y=y,
-                z=z,
-                style=style,
-                every=every,
-                **kwargs,
+            color_map = (
+                _build_map(
+                    dim_unique["colorby"],
+                    colors,
+                    lambda i: prop_cycle_colors[i % len(prop_cycle_colors)],
+                )
+                if colorby is not None
+                else {}
             )
+            dash_map = (
+                _build_map(
+                    dim_unique["dashby"],
+                    dashes,
+                    lambda i: _DEFAULT_DASHES[i % len(_DEFAULT_DASHES)],
+                )
+                if dashby is not None
+                else {}
+            )
+            marker_map = (
+                _build_map(
+                    dim_unique["markerby"],
+                    markers,
+                    lambda i: _DEFAULT_MARKERS[i % len(_DEFAULT_MARKERS)],
+                )
+                if markerby is not None
+                else {}
+            )
+            size_map = (
+                _build_map(
+                    dim_unique["sizeby"],
+                    sizes,
+                    lambda i: float(
+                        np.linspace(0.8, 2.0, max(len(dim_unique["sizeby"]), 1))[i]
+                    ),
+                )
+                if sizeby is not None
+                else {}
+            )
+
+            # ------------------------------------------------------------------
+            # Iterate over the cartesian product of all *by dimensions
+            # ------------------------------------------------------------------
+
+            combos = list(product(*[dim_unique[dk] for dk in dim_keys]))
+
+            seen_label_keys = set()
+            mappables = []
+
+            for combo in combos:
+                sel = {}
+                call_kwargs = dict(kwargs)
+
+                for dim_key, val in zip(dim_keys, combo):
+                    coord = by_dims[dim_key]
+                    sel[coord] = val
+                    if dim_key == "colorby":
+                        call_kwargs["color"] = color_map[id(val)]
+                    elif dim_key == "dashby":
+                        call_kwargs["linestyle"] = dash_map[id(val)]
+                    elif dim_key == "markerby":
+                        call_kwargs["marker"] = marker_map[id(val)]
+                    elif dim_key == "sizeby":
+                        call_kwargs["linewidth"] = size_map[id(val)]
+
+                slice_da = data.sel(sel)
+
+                # One legend entry per unique combination of *by coord values;
+                # suppress duplicates (e.g. same coord used in colorby + dashby).
+                label_key = tuple(
+                    id(combo[i])
+                    for i, dk in enumerate(dim_keys)
+                    # deduplicate by coord name — only first occurrence counts
+                    if by_dims[dk] not in [by_dims[dim_keys[j]] for j in range(i)]
+                )
+                if label_key not in seen_label_keys:
+                    call_kwargs["label"] = _make_label(combo)
+                    seen_label_keys.add(label_key)
+                else:
+                    call_kwargs["label"] = "_nolegend_"
+
+                mappables.append(
+                    extract_plottables_1D(
+                        self,
+                        method_name or method.__name__,
+                        args=(slice_da, *rest_args),
+                        x=x,
+                        y=y,
+                        z=z,
+                        style=style,
+                        every=every,
+                        **call_kwargs,
+                    )
+                )
+
+            return mappables
 
         return wrapper
 
@@ -354,12 +442,43 @@ class Subplot:
         self.domain = None
         self._crs = None
 
+        self._fixed_x_units = None
+        self._fixed_y_units = None
+
+    def fix_x_units(self, units):
+        """
+        Set a permanent unit for the x-axis.
+
+        All subsequent plot calls on this subplot will convert x-axis data to
+        *units* without needing ``x_units=`` on every call.
+
+        Parameters
+        ----------
+        units : str
+            Target units string (e.g. ``"celsius"``).
+        """
+        self._fixed_x_units = units
+
+    def fix_y_units(self, units):
+        """
+        Set a permanent unit for the y-axis.
+
+        All subsequent plot calls on this subplot will convert y-axis data to
+        *units* without needing ``units=`` on every call.
+
+        Parameters
+        ----------
+        units : str
+            Target units string (e.g. ``"celsius"``).
+        """
+        self._fixed_y_units = units
+
     @property
     def crs(self):
         """The Coordinate Reference System of the subplot."""
         return None
 
-    def add_attribution(self, attribution):
+    def attribution(self, attribution, location="lower center", **kwargs):
         """
         Add an attribution to the figure.
 
@@ -367,8 +486,15 @@ class Subplot:
         ----------
         attribution : str
             The attribution text to add to the figure.
+        location : str, optional
+            The location of the attribution text. Accepts the same values as
+            matplotlib legend locations: 'upper left', 'upper right',
+            'lower left', 'lower right', 'upper center', 'lower center',
+            'center left', 'center right', 'center'. Default is 'lower center'.
+        **kwargs
+            Additional keyword arguments passed to ``matplotlib.figure.Figure.text``.
         """
-        self.figure.add_attribution(attribution)
+        self.figure.attribution(attribution, location=location, **kwargs)
 
     def add_logo(self, logo):
         """
@@ -658,7 +784,7 @@ class Subplot:
         """
         if label is None:
             # Check if units metadata exists
-            units = self.layers[0].sources[0].y.metadata("units")
+            units = self.layers[0].sources[0].y.units
             if units is not None:
                 label = "{variable_name} ({units})"
             else:
@@ -672,7 +798,7 @@ class Subplot:
         """
         if label is None:
             # Check if units metadata exists
-            units = self.layers[0].sources[0].x.metadata("units")
+            units = self.layers[0].sources[0].x.units
             if units is not None:
                 label = "{variable_name} ({units})"
             else:
@@ -689,7 +815,9 @@ class Subplot:
         else:
             title_parts = []
             for i, template in enumerate(templates):
-                keys = [k for _, k, _, _ in SubplotFormatter().parse(template)]
+                import string
+
+                keys = [k for _, k, _, _ in string.Formatter().parse(template)]
                 for key in set(keys):
                     template = template.replace("{" + key, "{" + key + f"!{i}")
                 title_parts.append(template)
@@ -774,6 +902,8 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
         """
         x = kwargs.pop("x", None)
+        if units is None and self._fixed_y_units is not None:
+            units = self._fixed_y_units
         source_1 = get_source(
             data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units
         )
@@ -788,7 +918,17 @@ class Subplot:
         mappable = self.ax.fill_between(
             x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
         )
-        self.layers.append(Layer(source_1, mappable, self, style=None))
+        axis_units = {"y": units} if units is not None else {}
+        self.layers.append(
+            Layer(
+                source_1,
+                mappable,
+                self,
+                style=None,
+                primary_axis="y",
+                axis_units=axis_units,
+            )
+        )
         return mappable
 
     def fill_between(self, y1, y2=0, x=None, alpha=0.2, units=None, **kwargs):
@@ -1672,3 +1812,11 @@ class Subplot:
     def save(self, *args, **kwargs):
         """Save the plot to a file."""
         return self.figure.save(*args, **kwargs)
+
+    def _repr_mimebundle_(self, **kwargs):
+        """Called by Jupyter to render the figure inline."""
+        return self.figure._repr_mimebundle_(**kwargs)
+
+    def _repr_html_(self):
+        """Fallback for environments that use _repr_html_ instead."""
+        return self.figure._repr_html_()

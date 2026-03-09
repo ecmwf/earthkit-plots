@@ -82,6 +82,7 @@ class Figure:
 
         self._queue = []
         self._subplot_queue = []
+        self._released = False
 
         self.attributions = []
         self.logos = []
@@ -226,6 +227,46 @@ class Figure:
         self._last_subplot_location = row, column
         return row, column
 
+    @apply_to_subplots
+    def xticks(self, *args, **kwargs):
+        """
+        Set x-ticks on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_xticks`.
+        """
+
+    @apply_to_subplots
+    def yticks(self, *args, **kwargs):
+        """
+        Set y-ticks on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_yticks`.
+        """
+
+    @apply_to_subplots
+    def xlabel(self, *args, **kwargs):
+        """
+        Set x-label on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_xlabel`.
+        """
+
+    @apply_to_subplots
+    def ylabel(self, *args, **kwargs):
+        """
+        Set y-label on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_ylabel`.
+        """
+
     def add_subplot(self, row=None, column=None, **kwargs):
         """
         Add a subplot to the figure.
@@ -312,6 +353,43 @@ class Figure:
 
         row, column = self._determine_row_column(row, column)
         subplot = TimeSeries(row=row, column=column, size=None, figure=self, **kwargs)
+        self.subplots.append(subplot)
+        return subplot
+
+    def add_climatology(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.temporal.climatology.Climatology` subplot
+        to the figure.
+
+        Returns a :class:`Climatology` instance whose :meth:`line` method
+        automatically splits multi-year data by year and remaps each year onto
+        a common Jan-to-Dec x-axis.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Additional keyword arguments passed to the
+            :class:`~earthkit.plots.temporal.climatology.Climatology` constructor.
+
+        Returns
+        -------
+        Climatology
+
+        Examples
+        --------
+        >>> fig = ekp.Figure(rows=1, columns=1)
+        >>> ax = fig.add_climatology()
+        >>> ax.line(da)
+        >>> fig.show()
+        """
+        from earthkit.plots.temporal.climatology import Climatology
+
+        row, column = self._determine_row_column(row, column)
+        subplot = Climatology(row=row, column=column, size=None, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -1166,6 +1244,9 @@ class Figure:
         return self.subplots[0]._default_title_template
 
     def _release_queue(self):
+        if self._released:
+            return self
+        self._released = True
         if self._subplot_queue:
             self.rows, self.columns = rows_cols(
                 len(self._subplot_queue), rows=self.rows, columns=self.columns
@@ -1174,24 +1255,43 @@ class Figure:
         for item in self._subplot_queue:
             method, args, kwargs = item
             method(self, *args, **kwargs)
+        self._subplot_queue.clear()
         for queued_method, queued_args, queued_kwargs in self._queue:
             queued_method(self, *queued_args, **queued_kwargs)
+        self._queue.clear()
         if self.attributions:
-            attribution_text = "; ".join(self.attributions)
-            x = 0.5 if not self.logos else 0.05
-            y = -0.02
-            ha = "center" if not self.logos else "left"
+            _location_coords = {
+                "upper left": (0.0, 1.0, "left", "bottom"),
+                "upper center": (0.5, 1.0, "center", "bottom"),
+                "upper right": (1.0, 1.0, "right", "bottom"),
+                "center left": (0.0, 0.5, "left", "center"),
+                "center": (0.5, 0.5, "center", "center"),
+                "center right": (1.0, 0.5, "right", "center"),
+                "lower left": (0.0, -0.02, "left", "top"),
+                "lower center": (0.5, -0.02, "center", "top"),
+                "lower right": (1.0, -0.02, "right", "top"),
+            }
+            # Group attributions by location
+            from collections import defaultdict
 
-            self.fig.text(
-                x,
-                y,
-                attribution_text,
-                ha=ha,
-                va="top",
-                fontsize=9,
-                color="gray",
-                wrap=True,
-            )
+            groups = defaultdict(list)
+            group_kwargs = {}
+            for text, loc, kw in self.attributions:
+                groups[loc].append(text)
+                if loc not in group_kwargs:
+                    group_kwargs[loc] = kw
+            for loc, texts in groups.items():
+                combined = "; ".join(texts)
+                x, y, ha, va = _location_coords.get(loc, (0.5, -0.02, "center", "top"))
+                text_kwargs = dict(
+                    ha=ha,
+                    va=va,
+                    fontsize=9,
+                    color="gray",
+                    wrap=True,
+                )
+                text_kwargs.update(group_kwargs[loc])
+                self.fig.text(x, y, combined, **text_kwargs)
         if self.logos:
             # Place each logo horizontally, bottom-right, with some spacing
             logo_width = 0.12  # fraction of figure width
@@ -1231,8 +1331,7 @@ class Figure:
 
         This calls :func:`matplotlib.pyplot.show` to display the figure.
         """
-        self._apply_subplot_pre_render()
-        self._release_queue()
+        self._prepare_for_display()
         try:
             return plt.show(*args, **kwargs)
         finally:
@@ -1251,8 +1350,7 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.savefig`.
         """
-        self._apply_subplot_pre_render()
-        self._release_queue()
+        self._prepare_for_display()
         try:
             return plt.savefig(
                 *args,
@@ -1263,12 +1361,31 @@ class Figure:
         finally:
             self._exit_style_context()
 
+    def _prepare_for_display(self):
+        """Flush the queue and apply pre-render hooks. Safe to call multiple times."""
+        self._apply_subplot_pre_render()
+        self._release_queue()
+
+    def _repr_mimebundle_(self, **kwargs):
+        """Called by Jupyter to render the figure inline."""
+        self._prepare_for_display()
+        if hasattr(self.fig, "_repr_mimebundle_"):
+            return self.fig._repr_mimebundle_(**kwargs)
+        return {}
+
+    def _repr_html_(self):
+        """Fallback for environments that use _repr_html_ instead."""
+        self._prepare_for_display()
+        if hasattr(self.fig, "_repr_html_"):
+            return self.fig._repr_html_()
+        return ""
+
     def _resize(self):
         """Resize the figure to fit its axes."""
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
 
-    def add_attribution(self, attribution):
+    def attribution(self, attribution, location="lower center", **kwargs):
         """
         Add an attribution to the figure.
 
@@ -1276,9 +1393,17 @@ class Figure:
         ----------
         attribution : str
             The attribution text to add to the figure.
+        location : str, optional
+            The location of the attribution text. Accepts the same values as
+            matplotlib legend locations: 'upper left', 'upper right',
+            'lower left', 'lower right', 'upper center', 'lower center',
+            'center left', 'center right', 'center'. Default is 'lower center'.
+        **kwargs
+            Additional keyword arguments passed to ``matplotlib.figure.Figure.text``.
         """
-        if attribution not in self.attributions:
-            self.attributions.append(attribution)
+        entry = (attribution, location, kwargs)
+        if entry not in self.attributions:
+            self.attributions.append(entry)
 
     def add_logo(self, logo):
         """

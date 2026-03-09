@@ -445,7 +445,7 @@ class Map(Subplot):
                     records_list, attribute_key, label_key = gisco.load_layer(
                         source_config, resolution
                     )
-                    self.figure.add_attribution(
+                    self.figure.attribution(
                         "© EuroGeographics for the administrative boundaries"
                     )
 
@@ -853,9 +853,7 @@ class Map(Subplot):
         )
 
         # Add attribution
-        self.figure.add_attribution(
-            "© EuroGeographics for the administrative boundaries"
-        )
+        self.figure.attribution("© EuroGeographics for the administrative boundaries")
 
         # Common processing (filter records, add labels, add geometries)
         filtered_records = []

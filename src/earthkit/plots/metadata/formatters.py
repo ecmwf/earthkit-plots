@@ -187,6 +187,14 @@ class BaseFormatter(Formatter):
         # Pass datetime-like objects directly when format_spec contains strftime patterns
         import datetime
 
+        import numpy as np
+
+        if isinstance(value, np.datetime64) and "%" in format_spec:
+            import pandas as pd
+
+            value = pd.Timestamp(value)
+        if isinstance(value, np.integer):
+            value = int(value)
         if isinstance(value, (datetime.datetime, datetime.date)) and "%" in format_spec:
             return format(value, format_spec)
 
@@ -320,80 +328,42 @@ class LayerFormatter(BaseFormatter):
         if value is None:
             if key in self.SUBPLOT_ATTRIBUTES:
                 value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
+            elif key == "units":
+                # Always check axis_units first (set by fix_x/y_units or per-call units=),
+                # then fall back to source.units (applied/converted), then raw metadata.
+                axis_specific_units = (
+                    self.layer.axis_units.get(self._axis)
+                    if hasattr(self.layer, "axis_units") and self._axis is not None
+                    else None
+                )
+                if axis_specific_units is not None:
+                    value = [f"__units__{axis_specific_units}"]
+                else:
+                    value = [
+                        f"__units__{source.units}"
+                        if source.units is not None
+                        else metadata.labels.extract(
+                            source,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
+                        )
+                        for source in self.layer.sources
+                    ]
             elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
                 value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
                 if value is None:
-                    if key == "units":
-                        # Prefer applied/converted units from the source over raw source attrs
-                        value = [
-                            source.units
-                            if source.units is not None
-                            else metadata.labels.extract(
-                                source,
-                                key,
-                                default=self._default,
-                                issue_warnings=self._issue_warnings,
-                                axis=self._axis,
-                            )
-                            for source in self.layer.sources
-                        ]
-                    else:
-                        value = [
-                            metadata.labels.extract(
-                                source,
-                                key,
-                                default=self._default,
-                                issue_warnings=self._issue_warnings,
-                                axis=self._axis,
-                            )
-                            for source in self.layer.sources
-                        ]
-                if key == "units":
-                    # Check if we have axis-specific units defined
-                    axis_specific_units = None
-                    if (
-                        hasattr(self.layer, "axis_units")
-                        and self.layer.axis_units
-                        and self._axis in self.layer.axis_units
-                    ):
-                        axis_specific_units = self.layer.axis_units[self._axis]
-
-                    # Use axis-specific units if available
-                    if axis_specific_units is not None:
-                        value = [f"__units__{axis_specific_units}"]
-                    else:
-                        # For legend formatting (when axis is None) or primary axis, prioritize style units
-                        is_primary_axis = (
-                            hasattr(self.layer, "primary_axis")
-                            and self.layer.primary_axis == self._axis
+                    value = [
+                        metadata.labels.extract(
+                            source,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
                         )
-                        is_legend_formatting = self._axis is None
-
-                        if (
-                            is_primary_axis or is_legend_formatting
-                        ) and value is not None:
-                            # This is the primary data axis or legend formatting - use style units
-                            if isinstance(value, list):
-                                value = [
-                                    f"__units__{v}" if v is not None else None
-                                    for v in value
-                                ]
-                            else:
-                                value = [
-                                    f"__units__{value}" if value is not None else None
-                                ]
-                        else:
-                            # This is a coordinate axis or no style units available - use source units
-                            value = [
-                                metadata.labels.extract(
-                                    source,
-                                    key,
-                                    default=self._default,
-                                    issue_warnings=self._issue_warnings,
-                                    axis=self._axis,
-                                )
-                                for source in self.layer.sources
-                            ]
+                        for source in self.layer.sources
+                    ]
             else:
                 value = [
                     metadata.labels.extract(
