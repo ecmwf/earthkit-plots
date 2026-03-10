@@ -45,12 +45,30 @@ def _split_by_year(da, time_dim="time"):
         yield int(year), _remap_year(group, _LEAP_REF_YEAR, time_dim)
 
 
-def _clim_dim_to_datetimes(da, dim):
+def _month_center(year, month):
+    """
+    Return the timestamp at the exact centre of *month* in *year*.
+
+    For months with an odd number of days the centre falls at midnight on the
+    middle day (e.g. January: day 16 00:00).  For months with an even number
+    of days it falls at noon on the lower-middle day (e.g. April: day 15
+    12:00), giving a true half-day offset.
+    """
+    n = calendar.monthrange(year, month)[1]
+    half = (n + 1) / 2  # e.g. 31→16.0, 30→15.5, 29→15.0, 28→14.5
+    day = int(half)
+    extra_hours = 12 if half != day else 0
+    return pd.Timestamp(year, month, day, extra_hours)
+
+
+def _clim_dim_to_datetimes(da, dim, month_day=None):
     """
     Convert a DataArray with a climatology integer dimension to one with
     datetime coordinates on the reference year (:data:`_LEAP_REF_YEAR`).
 
-    - ``month`` (1–12): each value is placed at the 15th of its month.
+    - ``month`` (1–12): each value is placed at the centre of its month by
+      default (``month_day=None``).  Pass an integer day (1–28) to fix the
+      day, or ``-1`` to use the last day of each month.
     - ``dayofyear`` (1–366): each value is placed at Jan 1 + (doy - 1) days.
     """
     import xarray as xr
@@ -58,7 +76,15 @@ def _clim_dim_to_datetimes(da, dim):
     vals = da[dim].values.astype(int)
     ref = pd.Timestamp(f"{_LEAP_REF_YEAR}-01-01")
     if dim == "month":
-        dates = [pd.Timestamp(_LEAP_REF_YEAR, int(m), 15) for m in vals]
+        dates = []
+        for m in vals:
+            if month_day is None:
+                dates.append(_month_center(_LEAP_REF_YEAR, int(m)))
+            elif month_day == -1:
+                n = calendar.monthrange(_LEAP_REF_YEAR, int(m))[1]
+                dates.append(pd.Timestamp(_LEAP_REF_YEAR, int(m), n))
+            else:
+                dates.append(pd.Timestamp(_LEAP_REF_YEAR, int(m), month_day))
     else:  # dayofyear
         dates = [ref + pd.Timedelta(days=int(d) - 1) for d in vals]
 
@@ -79,6 +105,55 @@ def _clim_dim_to_datetimes(da, dim):
     )
 
 
+def _expand_steps_period(da, dim):
+    """
+    Expand a clim-dim DataArray so that plotting with ``drawstyle='steps-post'``
+    spans each full calendar period.
+
+    - For ``month``: x-values are placed on the 1st of each month; an extra
+      point is appended at the 1st of the month *after* the last data month so
+      that the final step closes correctly.
+    - For ``dayofyear``: x-values are placed at the start of each day; an extra
+      point is appended one day after the last.
+
+    Returns ``(expanded_da, 'steps-post')`` — the caller should pass
+    ``drawstyle='steps-post'`` to matplotlib.
+    """
+    import numpy as np
+    import xarray as xr
+
+    vals = da[dim].values.astype(int)
+    ref = pd.Timestamp(f"{_LEAP_REF_YEAR}-01-01")
+
+    if dim == "month":
+        dates = [pd.Timestamp(_LEAP_REF_YEAR, int(m), 1) for m in vals]
+        last_m = int(vals[-1])
+        if last_m == 12:
+            next_date = pd.Timestamp(_LEAP_REF_YEAR + 1, 1, 1)
+        else:
+            next_date = pd.Timestamp(_LEAP_REF_YEAR, last_m + 1, 1)
+    else:  # dayofyear
+        dates = [ref + pd.Timedelta(days=int(d) - 1) for d in vals]
+        next_date = ref + pd.Timedelta(days=int(vals[-1]))
+
+    all_dates = dates + [next_date]
+    all_values = np.append(da.values, da.values[-1])
+
+    scalar_coords = {
+        name: da.coords[name]
+        for name in da.coords
+        if name != dim and da.coords[name].ndim == 0
+    }
+    scalar_coords["time"] = all_dates
+
+    return xr.DataArray(
+        all_values,
+        coords=scalar_coords,
+        dims=["time"],
+        attrs=da.attrs,
+    )
+
+
 def _detect_clim_dim(da):
     """
     Return the name of a climatology dimension if one is present, else None.
@@ -91,11 +166,19 @@ def _detect_clim_dim(da):
     for dim in da.dims:
         if dim == "month":
             vals = da[dim].values
-            if np.issubdtype(vals.dtype, np.integer) and vals.min() >= 1 and vals.max() <= 12:
+            if (
+                np.issubdtype(vals.dtype, np.integer)
+                and vals.min() >= 1
+                and vals.max() <= 12
+            ):
                 return "month"
         elif dim == "dayofyear":
             vals = da[dim].values
-            if np.issubdtype(vals.dtype, np.integer) and vals.min() >= 1 and vals.max() <= 366:
+            if (
+                np.issubdtype(vals.dtype, np.integer)
+                and vals.min() >= 1
+                and vals.max() <= 366
+            ):
                 return "dayofyear"
     return None
 
@@ -163,16 +246,28 @@ class Climatology(TimeSeries):
             self._clamp_xaxis()
         super().save(*args, **kwargs)
 
-    def _plot_clim_data(self, method, data, *args, **kwargs):
+    def _plot_clim_data(self, method, data, *args, month_day=None, **kwargs):
         """
         Shared helper: detect clim dim, convert to datetimes, and call *method*.
 
         Returns True if a clim dim was detected and handled, False otherwise.
+
+        If ``drawstyle='steps-period'`` is passed, each value is placed at the
+        start of its calendar period (1st of the month for monthly data, start
+        of the day for daily data) with an extra trailing point so that
+        ``drawstyle='steps-post'`` spans each full period.
         """
         clim_dim = _detect_clim_dim(data)
         if clim_dim is None:
             return False
-        mapped = _clim_dim_to_datetimes(data, dim=clim_dim)
+
+        steps_period = kwargs.pop("drawstyle", None) == "steps-period"
+        if steps_period:
+            mapped = _expand_steps_period(data, dim=clim_dim)
+            kwargs["drawstyle"] = "steps-post"
+        else:
+            mapped = _clim_dim_to_datetimes(data, dim=clim_dim, month_day=month_day)
+
         label = kwargs.pop("label", None)
         method(mapped, *args, label=label, **kwargs)
         if not self._climatology_formatter_applied:
@@ -180,7 +275,7 @@ class Climatology(TimeSeries):
             self._climatology_formatter_applied = True
         return True
 
-    def line(self, data, *args, time_dim=None, **kwargs):
+    def line(self, data, *args, time_dim=None, month_day=None, **kwargs):
         """
         Plot data on the climatology x-axis.
 
@@ -199,6 +294,11 @@ class Climatology(TimeSeries):
             Timeseries or climatology data.
         time_dim : str, optional
             Name of the datetime dimension.  Detected automatically if omitted.
+        month_day : int or None, optional
+            Day of month on which to place each monthly value. Default is
+            ``None``, which uses the true centre of each month (e.g. Jan 16
+            00:00, Apr 15 12:00). Pass an integer (1–28) to fix the day, or
+            ``-1`` to use the last day of each month.
         **kwargs :
             Forwarded to the underlying
             :meth:`~earthkit.plots.components.subplots.Subplot.line` method.
@@ -221,7 +321,9 @@ class Climatology(TimeSeries):
                 f"Got {type(data).__name__!r}."
             )
 
-        if self._plot_clim_data(super().line, data, *args, **kwargs):
+        if self._plot_clim_data(
+            super().line, data, *args, month_day=month_day, **kwargs
+        ):
             return
 
         # --- multi-year datetime path ---
@@ -231,7 +333,9 @@ class Climatology(TimeSeries):
 
         label = kwargs.pop("label", None)
         for i, (_year, remapped) in enumerate(_split_by_year(data, time_dim=time_dim)):
-            line_label = (label if i == 0 else "_nolegend_") if label is not None else None
+            line_label = (
+                (label if i == 0 else "_nolegend_") if label is not None else None
+            )
             super().line(remapped, *args, label=line_label, **kwargs)
 
         if not self._climatology_formatter_applied:
@@ -239,7 +343,7 @@ class Climatology(TimeSeries):
             self._climatology_formatter_applied = True
         self._needs_xclamp = True
 
-    def fill_between(self, y1, y2=0, *args, **kwargs):
+    def fill_between(self, y1, y2=0, *args, month_day=None, **kwargs):
         """
         Fill the area between two curves on the climatology x-axis.
 
@@ -253,6 +357,16 @@ class Climatology(TimeSeries):
             Lower (or upper) bound.
         y2 : xarray.DataArray, array-like, or scalar
             Upper (or lower) bound.
+        month_day : int or None, optional
+            Day of month on which to place each monthly value. Default is
+            ``None``, which uses the true centre of each month (e.g. Jan 16
+            00:00, Apr 15 12:00). Pass an integer (1–28) to fix the day, or
+            ``-1`` to use the last day of each month.
+        drawstyle : str, optional
+            Step style for the filled region. Accepts ``'steps-pre'``,
+            ``'steps-mid'``, ``'steps-post'`` (translated to the ``step``
+            kwarg of ``ax.fill_between``), or ``'steps-period'`` (spans each
+            full calendar period).
         **kwargs :
             Forwarded to :meth:`~earthkit.plots.components.subplots.Subplot.fill_between`.
         """
@@ -273,11 +387,26 @@ class Climatology(TimeSeries):
         y1 = _to_dataarray(y1)
         y2 = _to_dataarray(y2)
 
+        _drawstyle_to_step = {
+            "steps-pre": "pre",
+            "steps-mid": "mid",
+            "steps-post": "post",
+        }
+        drawstyle = kwargs.pop("drawstyle", None)
+
         clim_dim = _detect_clim_dim(y1) if isinstance(y1, xr.DataArray) else None
         if clim_dim is not None:
-            y1 = _clim_dim_to_datetimes(y1, dim=clim_dim)
-            if isinstance(y2, xr.DataArray):
-                y2 = _clim_dim_to_datetimes(y2, dim=clim_dim)
+            if drawstyle == "steps-period":
+                y1 = _expand_steps_period(y1, dim=clim_dim)
+                if isinstance(y2, xr.DataArray):
+                    y2 = _expand_steps_period(y2, dim=clim_dim)
+                kwargs["step"] = "post"
+            else:
+                y1 = _clim_dim_to_datetimes(y1, dim=clim_dim, month_day=month_day)
+                if isinstance(y2, xr.DataArray):
+                    y2 = _clim_dim_to_datetimes(y2, dim=clim_dim, month_day=month_day)
+                if drawstyle in _drawstyle_to_step:
+                    kwargs["step"] = _drawstyle_to_step[drawstyle]
             if not self._climatology_formatter_applied:
                 self._apply_climatology_formatter()
                 self._climatology_formatter_applied = True
