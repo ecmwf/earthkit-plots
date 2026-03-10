@@ -23,7 +23,6 @@ classifiers = [
 dependencies = [
   "earthkit-data",
   "cartopy>=0.22.0",
-  "fiona",
   "pint",
   "matplotlib",
   "pandas",
