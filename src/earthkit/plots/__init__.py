@@ -24,6 +24,7 @@ from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
 from earthkit.plots.namespaces import climatology, geo, timeseries
+from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
 from earthkit.plots.styles.auto import list_styles, load_style
@@ -53,6 +54,7 @@ __all__ = [
     "TimeSeries",
     "climatology",
     "Climatology",
+    "quickplot",
 ]
 
 
