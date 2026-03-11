@@ -501,6 +501,38 @@ def spaghetti(
     return figure
 
 
+def quiver(*args, domain=None, crs=None, **kwargs):
+    """
+    Plot wind / vector data as arrows on a map.
+
+    Equivalent to creating a single-panel Map and calling ``quiver`` on it.
+    Accepts all the same arguments as :meth:`~earthkit.plots.components.maps.Map.quiver`.
+    """
+    return _single_map_function("quiver", args, domain, crs, kwargs)
+
+
+def streamplot(*args, domain=None, crs=None, **kwargs):
+    """
+    Plot wind / vector data as streamlines on a map.
+
+    Equivalent to creating a single-panel Map and calling ``streamplot`` on it.
+    Accepts all the same arguments as
+    :meth:`~earthkit.plots.components.subplots.Subplot.streamplot`.
+    """
+    return _single_map_function("streamplot", args, domain, crs, kwargs)
+
+
+def barbs(*args, domain=None, crs=None, **kwargs):
+    """
+    Plot wind barbs on a map.
+
+    Equivalent to creating a single-panel Map and calling ``barbs`` on it.
+    Accepts all the same arguments as
+    :meth:`~earthkit.plots.components.subplots.Subplot.barbs`.
+    """
+    return _single_map_function("barbs", args, domain, crs, kwargs)
+
+
 def quickplot(*args, **kwargs):
     """
     Alias for :func:`plot`. Use ``ekp.plot()`` instead.

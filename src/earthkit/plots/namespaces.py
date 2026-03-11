@@ -134,6 +134,30 @@ class _GeoNamespace:
         """
         return _qp.spaghetti(*args, **kwargs)
 
+    def quiver(self, *args, **kwargs):
+        """
+        Plot wind / vector data as arrows on a map.
+
+        See :func:`earthkit.plots.quickplot.quiver` for full documentation.
+        """
+        return _qp.quiver(*args, **kwargs)
+
+    def streamplot(self, *args, **kwargs):
+        """
+        Plot wind / vector data as streamlines on a map.
+
+        See :func:`earthkit.plots.quickplot.streamplot` for full documentation.
+        """
+        return _qp.streamplot(*args, **kwargs)
+
+    def barbs(self, *args, **kwargs):
+        """
+        Plot wind barbs on a map.
+
+        See :func:`earthkit.plots.quickplot.barbs` for full documentation.
+        """
+        return _qp.barbs(*args, **kwargs)
+
 
 class _TimeSeriesNamespace:
     """Shortcuts for time series plots."""
