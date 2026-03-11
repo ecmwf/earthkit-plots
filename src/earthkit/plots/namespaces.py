@@ -54,6 +54,14 @@ class _GeoNamespace:
         """
         return _qp.plot(*args, **kwargs)
 
+    def quickplot(self, *args, **kwargs):
+        """
+        Alias for :meth:`plot`.
+
+        See :func:`earthkit.plots.quickplot.plot` for full documentation.
+        """
+        return _qp.plot(*args, **kwargs)
+
     def contourf(self, *args, **kwargs):
         """
         Plot filled contours on a map.
