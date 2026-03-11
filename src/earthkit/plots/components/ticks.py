@@ -550,6 +550,19 @@ def _parse_month_anchor_token(token: str) -> int:
     raise ValueError(f"Unrecognised month anchor '{token}'. Try Jan/January/1/01.")
 
 
+def _parse_interval(s):
+    """
+    Extract the integer interval from a frequency token, ignoring unit letters.
+
+    Accepts both unit-first (``"M6"``, ``"D7"``) and number-first (``"6M"``,
+    ``"7D"``) orderings.  Returns 1 if no digits are found.
+    """
+    import re
+
+    digits = re.sub(r"[^0-9]", "", s)
+    return int(digits) if digits else 1
+
+
 def _get_time_locator(frequency):
     f = frequency
     F = f.upper()
@@ -567,7 +580,7 @@ def _get_time_locator(frequency):
         main = s if at == -1 else s[:at]
         anchor = None if at == -1 else s[at + 1 :].strip()
 
-        interval = int(main[1:] or "1")
+        interval = _parse_interval(main)
 
         if not anchor:
             return mdates.MonthLocator(interval=interval)
@@ -585,25 +598,25 @@ def _get_time_locator(frequency):
             )
 
     elif F.endswith("W"):
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.WeekdayLocator(
             byweekday=mdates.MO, interval=interval
         )  # or expose start day
 
     elif F.endswith("H"):
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.HourLocator(interval=interval)
 
     elif f.endswith("m"):  # minutes (lower-case)
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.MinuteLocator(interval=interval)
 
     elif F.endswith("SEAS"):
-        interval = int(f[4:] or "1")
+        interval = _parse_interval(f)
         return mdates.MonthLocator(bymonth=[12, 3, 6, 9], interval=interval)
 
     elif F.endswith("S"):  # seconds
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.SecondLocator(interval=interval)
 
     else:
@@ -616,31 +629,30 @@ def _get_period_minor_locator(frequency):
     F = f.upper()
 
     if F.endswith("D"):
-        interval = int(f[1:] or "1")
         return mdates.HourLocator(interval=1, byhour=12)
 
     elif F.endswith("M"):
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.MonthLocator(interval=interval, bymonthday=16)
 
     elif F.endswith("Y"):
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.YearLocator(base=interval, month=7, day=1)
 
     elif F.endswith("W"):
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.WeekdayLocator(
             byweekday=mdates.TH, interval=interval
         )  # or expose start day
 
     elif F.endswith("SEAS"):
-        interval = int(f[4:] or "1")
+        interval = _parse_interval(f)
         return mdates.MonthLocator(
             bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16
         )
 
     elif F.endswith("S"):  # seconds
-        interval = int(f[1:] or "1")
+        interval = _parse_interval(f)
         return mdates.SecondLocator(interval=interval)
     else:
         # For other frequencies, use the same locator but with adjusted parameters

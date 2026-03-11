@@ -17,7 +17,7 @@ import inspect
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import interp1d, make_interp_spline
+from scipy.interpolate import interp1d
 
 from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
@@ -52,6 +52,52 @@ def linspace_datetime64(start_date, end_date, n):
         The number of dates to generate.
     """
     return np.linspace(0, 1, n) * (end_date - start_date) + start_date
+
+
+def spline_interpolate(x, *ys, n=None):
+    """
+    Fit a cubic spline to one or more y arrays against x and return a dense
+    smooth (x_smooth, y_smooth, ...) tuple.
+
+    Handles datetime64 x values and deduplicates x before fitting (necessary
+    when wrapped climatology data contains repeated timestamps).
+
+    Parameters
+    ----------
+    x : array-like
+        Independent variable. May be datetime64 or numeric.
+    *ys : array-like
+        One or more dependent variable arrays, each the same length as x.
+    n : int, optional
+        Number of points in the smooth output. Defaults to max(300, len(x)*5).
+    """
+    from scipy.interpolate import make_interp_spline
+
+    x = np.asarray(x)
+    n = n or max(300, len(x) * 5)
+
+    if np.issubdtype(x.dtype, np.datetime64):
+        x_smooth = linspace_datetime64(x.min(), x.max(), n)
+    else:
+        x_smooth = np.linspace(x.min(), x.max(), n)
+
+    # Deduplicate — wrapped climatology data can have repeated timestamps
+    _, unique_idx = np.unique(x.astype(np.float64), return_index=True)
+    x_fit = x[unique_idx]
+
+    k = min(3, len(x_fit) - 1)
+    if k < 1:
+        # Fewer than 2 unique points — can't interpolate, return as-is
+        result = [x_fit]
+        for y in ys:
+            result.append(np.asarray(y)[unique_idx])
+        return tuple(result)
+
+    result = [x_smooth]
+    for y in ys:
+        y_fit = np.asarray(y)[unique_idx]
+        result.append(make_interp_spline(x_fit, y_fit, k=k)(x_smooth))
+    return tuple(result)
 
 
 def _validate_projection_for_tricontour(ccrs) -> bool:
@@ -837,7 +883,7 @@ class Style:
         kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
         return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
-    def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
+    def line(self, ax, x, y, values, *args, **kwargs):
         """
         Plot a scatter plot using this `Style`.
 
@@ -861,14 +907,15 @@ class Style:
             kwargs.pop("extend", None)
             kwargs["c"] = kwargs.pop("c", values)
 
-        if mode == "spline":
-            if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
-            else:
-                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
+        mode = kwargs.pop("drawstyle", "linear")
+        if mode not in ("spline", "smooth"):
+            # Real matplotlib drawstyle — put it back for ax.plot
+            if mode != "linear":
+                kwargs["drawstyle"] = mode
+            mode = "linear"
 
-            spline = make_interp_spline(x, y, k=3)
-            y_smooth = spline(x_smooth)
+        if mode == "spline":
+            x_smooth, y_smooth = spline_interpolate(x, y)
 
             marker = kwargs.pop("marker", None)
             mappable = ax.plot(x_smooth, y_smooth, *args, **kwargs)
@@ -923,7 +970,7 @@ class Style:
 
         return mappable
 
-    def bar(self, ax, x, y, values, *args, mode="linear", **kwargs):
+    def bar(self, ax, x, y, values, *args, **kwargs):
         """
         Plot a scatter plot using this `Style`.
 

@@ -23,21 +23,7 @@ from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
-from earthkit.plots.quickplot import (
-    choropleth,
-    climatology,
-    contour,
-    contourf,
-    grid_cells,
-    grid_points,
-    pcolormesh,
-    plot,
-    point_cloud,
-    quickplot,
-    rgb_composite,
-    spaghetti,
-    timeseries,
-)
+from earthkit.plots.namespaces import climatology, geo, timeseries
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
 from earthkit.plots.styles.auto import list_styles, load_style
@@ -62,17 +48,7 @@ __all__ = [
     "list_styles",
     "schema",
     "styles",
-    "choropleth",
-    "plot",
-    "contourf",
-    "contour",
-    "pcolormesh",
-    "spaghetti",
-    "grid_cells",
-    "grid_points",
-    "point_cloud",
-    "rgb_composite",
-    "quickplot",
+    "geo",
     "timeseries",
     "TimeSeries",
     "climatology",

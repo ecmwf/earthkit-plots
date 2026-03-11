@@ -182,7 +182,14 @@ MAGIC_KEYS = {
         "function": format_month,
     },
     "values": {
-        "function": lambda data: data.values,
+        "function": lambda data: data.y.values if data.y is not None else None,
+    },
+    "value": {
+        "function": lambda data: (
+            data.y.values.flat[0]
+            if data.y is not None and data.y.values is not None
+            else None
+        ),
     },
 }
 

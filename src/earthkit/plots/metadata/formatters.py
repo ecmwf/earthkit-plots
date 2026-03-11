@@ -179,6 +179,11 @@ class BaseFormatter(Formatter):
         if value is None:
             return ""
 
+        # format_keys stores results as lists; unwrap single-element lists so
+        # that format specs (e.g. {time:%H}) operate on the value itself.
+        if isinstance(value, list) and len(value) == 1:
+            value = value[0]
+
         if isinstance(value, str) and value.startswith("__units__"):
             return metadata.units.format_units(
                 value.replace("__units__", ""), format_spec
@@ -287,7 +292,13 @@ class SourceFormatter(BaseFormatter):
                 return [dim]
             # If dimension is None (e.g., z for 1D plots), fall through to regular extraction
 
-        return [metadata.labels.extract(self.source, key, axis=self._axis)[0]]
+        result = metadata.labels.extract(self.source, key, axis=self._axis)
+        if isinstance(result, (list, tuple)):
+            result = result[0]
+
+        if key == "units" and isinstance(result, str):
+            return [f"__units__{result}"]
+        return [result]
 
 
 class LayerFormatter(BaseFormatter):

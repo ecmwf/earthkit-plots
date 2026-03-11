@@ -185,6 +185,8 @@ class Figure:
 
         @functools.wraps(method)
         def wrapper(self, data, *args, **kwargs):
+            import xarray as xr
+
             groupby = kwargs.pop("groupby", None)
             if groupby is not None:
                 from earthkit.plots.quickplot import _coerce_to_fieldlist, _group_data
@@ -192,6 +194,9 @@ class Figure:
                 fields = _coerce_to_fieldlist(data)
                 grouped = _group_data(fields, groupby)
                 data_items = list(grouped.values())
+            elif isinstance(data, xr.Dataset):
+                # Yield one DataArray per variable so subplots pair correctly.
+                data_items = [data[v] for v in data.data_vars]
             else:
                 if not hasattr(data, "__len__"):
                     data = [data]
@@ -770,6 +775,34 @@ class Figure:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
 
+    @iterate_subplots
+    def line(self, *args, **kwargs):
+        """
+        Plot a line on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or array-like
+            The data to plot.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.line`.
+        """
+
+    @iterate_subplots
+    def multiboxplot(self, *args, **kwargs):
+        """
+        Plot a multiboxplot on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray
+            The data to plot.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.multiboxplot`.
+        """
+
     def plot(
         self,
         method,
@@ -1025,8 +1058,10 @@ class Figure:
         # Apply time-axis formatting to every TimeSeries subplot
         for sp in self.subplots:
             if isinstance(sp, TimeSeries):
-                sp.xlabel(xlabel)
-                sp.ylabel(ylabel)
+                if xlabel is not None:
+                    sp.xlabel(xlabel)
+                if ylabel is not None:
+                    sp.ylabel(ylabel)
                 if xticks is not None:
                     if isinstance(xticks, str):
                         sp.xticks(frequency=xticks)

@@ -511,6 +511,7 @@ def quickplot(*args, **kwargs):
 def climatology(
     data,
     *args,
+    plot="line",
     title=None,
     xticks=None,
     yticks=None,
@@ -522,14 +523,18 @@ def climatology(
     Create a climatology (annual-cycle) plot.
 
     Splits multi-year timeseries data by calendar year and plots each year
-    as a separate line on a common Jan-to-Dec x-axis.  Leap years are mapped
-    onto the reference year 2000; non-leap years onto 2001, so Feb 29 is
-    naturally absent for non-leap years.
+    on a common Jan-to-Dec x-axis.  Leap years are mapped onto the reference
+    year 2000; non-leap years onto 2001, so Feb 29 is naturally absent for
+    non-leap years.
 
     Parameters
     ----------
     data : xarray.DataArray
         Multi-year timeseries data with a time coordinate.
+    plot : str, optional
+        The plotting method to call on the Climatology subplot.  One of
+        ``"line"``, ``"scatter"``, ``"bar"``, ``"fill_between"``.
+        Default ``"line"``.
     title : str, optional
         Plot title.
     xticks : str or dict, optional
@@ -543,8 +548,8 @@ def climatology(
     ylabel : str, optional
         Label for the y-axis.
     **kwargs :
-        Additional keyword arguments forwarded to the ``line`` plotting
-        method (e.g. ``color``, ``linewidth``).
+        Additional keyword arguments forwarded to the plotting method
+        (e.g. ``color``, ``linewidth``).
 
     Returns
     -------
@@ -557,17 +562,19 @@ def climatology(
     Examples
     --------
     >>> import earthkit.plots as ekp
-    >>> ekp.climatology(da).show()
+    >>> ekp.climatology.line(da).show()
 
-    >>> ekp.climatology(da, ylabel="Temperature (°C)", title="Annual cycle").show()
+    >>> ekp.climatology.bar(da, ylabel="Temperature (°C)", title="Annual cycle").show()
     """
     from earthkit.plots.temporal.climatology import Climatology
 
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
     ts = Climatology(**class_kwargs)
-    ts.line(data, *args, **kwargs)
-    ts.xlabel(xlabel)
-    ts.ylabel(ylabel)
+    getattr(ts, plot)(data, *args, **kwargs)
+    if xlabel is not None:
+        ts.xlabel(xlabel)
+    if ylabel is not None:
+        ts.ylabel(ylabel)
     _apply_ticks(ts, xticks, yticks)
     if title:
         ts.title(title)
@@ -758,8 +765,10 @@ def timeseries(
             ts = fig.add_timeseries()
             for target in targets:
                 getattr(ts, plot)(target, *args, **kwargs)
-            ts.xlabel(xlabel)
-            ts.ylabel(ylabel)
+            if xlabel is not None:
+                ts.xlabel(xlabel)
+            if ylabel is not None:
+                ts.ylabel(ylabel)
             _apply_ticks(ts, xticks, yticks)
             if subplot_titles:
                 try:
@@ -779,8 +788,10 @@ def timeseries(
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
     ts = TimeSeries(**class_kwargs)
     getattr(ts, plot)(data, *args, **kwargs)
-    ts.xlabel(xlabel)
-    ts.ylabel(ylabel)
+    if xlabel is not None:
+        ts.xlabel(xlabel)
+    if ylabel is not None:
+        ts.ylabel(ylabel)
     _apply_ticks(ts, xticks, yticks)
     if title:
         ts.title(title)

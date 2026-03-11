@@ -53,6 +53,13 @@ LAYER_ZORDERS = {
 }
 
 
+def _darken_color(color, factor=0.25):
+    from matplotlib.colors import to_hex, to_rgb
+
+    rgb = to_rgb(color)
+    return to_hex(tuple(c * factor for c in rgb))
+
+
 def plot_1D(method_name=None):
     def decorator(method):
         @functools.wraps(method)
@@ -861,6 +868,606 @@ class Subplot:
     def quantiles(self, *args, **kwargs):
         pass
 
+    def multiboxplot(
+        self,
+        data,
+        x="auto",
+        dim=None,
+        quantiles="auto",
+        color=None,
+        units=None,
+        x_units=None,
+        y_units=None,
+        label=None,
+        boxprops=None,
+        whiskerprops=None,
+        medianprops=None,
+        capprops=None,
+        showcaps=False,
+        **kwargs,
+    ):
+        """
+        Plot a multiboxplot (letter-value plot) from multi-dimensional data.
+
+        Visualises quantiles as stacked boxes with varying widths — innermost
+        quantile pair is widest and darkest; the outermost pair (min/max) is
+        rendered as a whisker line.  Useful for ensemble spread, uncertainty
+        bands, or any distribution that varies along a second axis.
+
+        Parameters
+        ----------
+        data : xarray.DataArray
+            The data to plot.  Must have at least two dimensions after
+            squeezing: one for the quantile/ensemble dimension and one for
+            the x-axis.
+        x : str, optional
+            Dimension name to use as x-axis.  Default ``"auto"`` uses the
+            remaining dimension after the quantile dimension is removed.
+        dim : str, optional
+            Dimension along which to compute quantiles (e.g. ``'number'``
+            for ensemble members).  If ``None``, the left-most dimension is
+            used.  When *quantiles* is ``None`` (pre-computed), this names
+            the dimension that already holds quantile values.
+        quantiles : list of float, "auto", or None, optional
+            * ``"auto"`` (default) – compute ``[0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]``.
+            * list of float – compute the specified quantiles (0–1).
+            * ``None`` – treat *dim* as pre-computed quantile values.
+        color : str or tuple, optional
+            Fill colour for the innermost (darkest) box.  Defaults to the
+            next colour in matplotlib's colour cycle.
+        units : str, optional
+            Target units for y-axis values.
+        x_units : str, optional
+            Target units for x-axis values.
+        y_units : str, optional
+            Target units for y-axis values (overrides *units*).
+        label : str, optional
+            Legend label.  Supports metadata format placeholders such as
+            ``"{variable_name}"``.
+        boxprops : dict, optional
+            Properties for box rectangles (``edgecolor``, ``linewidth``,
+            ``linestyle``).
+        whiskerprops : dict, optional
+            Properties for the min/max whisker line (``color``, ``linewidth``,
+            ``linestyle``).
+        medianprops : dict, optional
+            Properties for the median line (``color``, ``linewidth``,
+            ``linestyle``, ``alpha``).
+        capprops : dict, optional
+            Properties for whisker cap lines.  Only drawn when
+            ``showcaps=True``.  Extra key ``capwidth`` (default ``1.0``)
+            controls width as a fraction of the box width.
+        showcaps : bool, optional
+            Whether to draw horizontal cap lines at whisker ends.
+            Default ``False``.
+        **kwargs
+            Extra keyword arguments are ignored (for forward-compat).
+
+        Returns
+        -------
+        list
+            List of matplotlib artists drawn for this layer.
+        """
+        import xarray as xr
+        from matplotlib.colors import to_rgb
+        from matplotlib.patches import Rectangle
+
+        # ------------------------------------------------------------------ #
+        # 1. Normalise input                                                  #
+        # ------------------------------------------------------------------ #
+        if isinstance(data, xr.Dataset):
+            data_vars = [v for v in data.data_vars if data[v].ndim > 0]
+            if len(data_vars) != 1:
+                raise ValueError(
+                    "Dataset must have exactly one non-scalar variable; "
+                    f"got {data_vars}"
+                )
+            data = data[data_vars[0]]
+
+        data = data.squeeze()
+
+        # ------------------------------------------------------------------ #
+        # 2. Resolve target units (y_units > units)                           #
+        # ------------------------------------------------------------------ #
+        if self._fixed_y_units is not None and units is None and y_units is None:
+            units = self._fixed_y_units
+        if self._fixed_x_units is not None and x_units is None:
+            x_units = self._fixed_x_units
+        target_yunits = y_units or units
+
+        # ------------------------------------------------------------------ #
+        # 3. Compute / validate quantiles                                     #
+        # ------------------------------------------------------------------ #
+        if quantiles is None:
+            # Pre-computed: dim must name the quantile dimension
+            if dim is None:
+                raise ValueError(
+                    "When quantiles=None (pre-computed), 'dim' must name the "
+                    "dimension that holds the quantile values."
+                )
+            if dim not in data.dims:
+                raise ValueError(
+                    f"Dimension '{dim}' not found; available: {list(data.dims)}"
+                )
+            quantile_data = data
+            quantile_dim = dim
+            if dim in data.coords:
+                q_list = sorted(data.coords[dim].values.tolist())
+            else:
+                q_list = list(range(data.sizes[dim]))
+        else:
+            if quantiles == "auto":
+                quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
+            quantiles = sorted(quantiles)
+            if not all(0.0 <= q <= 1.0 for q in quantiles):
+                raise ValueError("All quantiles must be between 0 and 1.")
+            if len(data.dims) < 2:
+                raise ValueError(
+                    "Data must have at least 2 dimensions for multiboxplot "
+                    f"(got {list(data.dims)})."
+                )
+            if dim is None:
+                dim = data.dims[0]
+            elif dim not in data.dims:
+                raise ValueError(
+                    f"Dimension '{dim}' not found; available: {list(data.dims)}"
+                )
+            # Unit-convert the raw data before computing quantiles so the
+            # box positions are in the target units.
+            if target_yunits is not None:
+                data_slice = data.isel({dim: 0})
+                src_original = get_source(
+                    data_slice,
+                    context=PlotContext.CARTESIAN_1D,
+                )
+                src_converted = get_source(
+                    data_slice,
+                    context=PlotContext.CARTESIAN_1D,
+                    units=target_yunits,
+                )
+                original = src_original.y.values
+                converted = src_converted.y.values
+                if not np.array_equal(original, converted) and len(original) > 1:
+                    scale = (converted[1] - converted[0]) / (original[1] - original[0])
+                    offset = converted[0] - scale * original[0]
+                    attrs = data.attrs.copy()
+                    coord_attrs = {c: data.coords[c].attrs.copy() for c in data.coords}
+                    data = xr.DataArray(
+                        data.values * scale + offset,
+                        dims=data.dims,
+                        coords=data.coords,
+                        attrs=attrs,
+                    )
+                    for c, a in coord_attrs.items():
+                        if c in data.coords:
+                            data.coords[c].attrs.update(a)
+
+            attrs_backup = data.attrs.copy()
+            coord_attrs_backup = {c: data.coords[c].attrs.copy() for c in data.coords}
+            quantile_data = data.quantile(quantiles, dim=dim)
+            quantile_dim = "quantile"
+            q_list = quantiles
+            quantile_data.attrs.update(attrs_backup)
+            for c, a in coord_attrs_backup.items():
+                if c in quantile_data.coords:
+                    quantile_data.coords[c].attrs.update(a)
+
+        # ------------------------------------------------------------------ #
+        # 4. Determine x dimension and values                                 #
+        # ------------------------------------------------------------------ #
+        remaining = [d for d in quantile_data.dims if d != quantile_dim]
+        if len(remaining) != 1:
+            raise ValueError(
+                f"After quantile processing, expected 1 remaining dim, got {remaining}."
+            )
+        x_dim = remaining[0]
+        x_values = quantile_data[x_dim].values
+        q_values = quantile_data.values  # shape: (n_quantiles, n_x)
+
+        # ------------------------------------------------------------------ #
+        # 5. Pair quantiles symmetrically                                     #
+        # ------------------------------------------------------------------ #
+        n_q = len(q_list)
+        pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
+        median_idx = n_q // 2 if n_q % 2 == 1 else None
+
+        # ------------------------------------------------------------------ #
+        # 6. Resolve styling                                                  #
+        # ------------------------------------------------------------------ #
+        boxprops = boxprops or {}
+        box_edgecolor = boxprops.get("edgecolor", "black")
+        box_linewidth = boxprops.get("linewidth", 1.0)
+        box_linestyle = boxprops.get("linestyle", "solid")
+
+        if color is None:
+            color = self.ax._get_lines.get_next_color()
+        plot_color = color
+
+        whiskerprops = whiskerprops or {}
+        whisker_color = whiskerprops.get("color", box_edgecolor)
+        whisker_linewidth = whiskerprops.get("linewidth", box_linewidth)
+        whisker_linestyle = whiskerprops.get("linestyle", "solid")
+
+        medianprops = medianprops or {}
+        median_color = medianprops.get("color", _darken_color(plot_color, 0.25))
+        median_linewidth = medianprops.get("linewidth", 1.5)
+        median_linestyle = medianprops.get("linestyle", "solid")
+        median_alpha = medianprops.get("alpha", 1.0)
+
+        if showcaps:
+            capprops = capprops or {}
+            cap_color = capprops.get("color", whisker_color)
+            cap_linewidth = capprops.get("linewidth", whisker_linewidth)
+            cap_linestyle = capprops.get("linestyle", "solid")
+            cap_width_factor = capprops.get("capwidth", 1.0)
+
+        # ------------------------------------------------------------------ #
+        # 7. Compute box widths from x spacing                               #
+        # ------------------------------------------------------------------ #
+        is_datetime = np.issubdtype(x_values.dtype, np.datetime64)
+        if len(x_values) > 1:
+            if is_datetime:
+                from matplotlib.dates import date2num
+
+                x_num = date2num(x_values)
+                x_spacing = float(np.min(np.diff(x_num)))
+            else:
+                x_spacing = float(np.min(np.diff(x_values.astype(float))))
+        else:
+            x_spacing = 1.0
+        base_width = 0.6 * x_spacing
+
+        # ------------------------------------------------------------------ #
+        # 8. Draw boxes                                                       #
+        # ------------------------------------------------------------------ #
+        mappables = []
+
+        # Register the x-axis as a date axis before drawing any patches or
+        # lines with numeric (date2num) coordinates.  Without this, matplotlib
+        # never installs the date converter and the x-axis shows raw floats.
+        if is_datetime:
+            self.ax.plot([], [], visible=False)
+            self.ax.xaxis.update_units(x_values)
+
+        def _x_pos_num(x_val):
+            if is_datetime:
+                from matplotlib.dates import date2num
+
+                return date2num(x_val)
+            return float(x_val)
+
+        for x_idx, x_val in enumerate(x_values):
+            xp = _x_pos_num(x_val)
+
+            for pair_idx, (lo_i, hi_i) in enumerate(pairs):
+                width_factor = (pair_idx + 1) / len(pairs)
+                box_width = base_width * width_factor
+                y_lo = float(q_values[lo_i, x_idx])
+                y_hi = float(q_values[hi_i, x_idx])
+
+                if pair_idx == 0:
+                    # Outermost pair → whisker line
+                    line = self.ax.plot(
+                        [xp, xp],
+                        [y_lo, y_hi],
+                        color=whisker_color,
+                        linewidth=whisker_linewidth,
+                        linestyle=whisker_linestyle,
+                        zorder=3,
+                    )
+                    if x_idx == 0:
+                        mappables.extend(line)
+
+                    if showcaps:
+                        hw = base_width * cap_width_factor / 2
+                        for y_cap in (y_lo, y_hi):
+                            self.ax.plot(
+                                [xp - hw, xp + hw],
+                                [y_cap, y_cap],
+                                color=cap_color,
+                                linewidth=cap_linewidth,
+                                linestyle=cap_linestyle,
+                                zorder=3,
+                            )
+                else:
+                    # Inner pair → box
+                    norm_i = (pair_idx - 1) / max(1, len(pairs) - 2)
+                    lightness = 0.4 * (1.0 - norm_i)
+                    rgb = to_rgb(plot_color)
+                    box_color = tuple(c * (1 - lightness) + lightness for c in rgb)
+
+                    rect = Rectangle(
+                        (xp - box_width / 2, y_lo),
+                        box_width,
+                        y_hi - y_lo,
+                        facecolor=box_color,
+                        edgecolor=box_edgecolor,
+                        linewidth=box_linewidth,
+                        linestyle=box_linestyle,
+                        zorder=4,
+                    )
+                    self.ax.add_patch(rect)
+                    if x_idx == 0 and pair_idx == 1:
+                        mappables.append(rect)
+
+            # Median line
+            if median_idx is not None:
+                y_med = float(q_values[median_idx, x_idx])
+                mw = base_width * 0.95
+                med_line = self.ax.plot(
+                    [xp - mw / 2, xp + mw / 2],
+                    [y_med, y_med],
+                    color=median_color,
+                    linewidth=median_linewidth,
+                    linestyle=median_linestyle,
+                    alpha=median_alpha,
+                    zorder=5,
+                )
+                if x_idx == 0:
+                    mappables.extend(med_line)
+
+        # ------------------------------------------------------------------ #
+        # 9. Axis limits                                                       #
+        # ------------------------------------------------------------------ #
+        if is_datetime:
+            from matplotlib.dates import date2num
+
+            x_num = date2num(x_values)
+            self.ax.set_xlim(x_num[0] - base_width, x_num[-1] + base_width)
+        else:
+            xf = x_values.astype(float)
+            self.ax.set_xlim(float(xf[0]) - base_width, float(xf[-1]) + base_width)
+        self.ax.autoscale_view(scalex=False, scaley=True)
+
+        # ------------------------------------------------------------------ #
+        # 10. Create Layer using the current Source machinery                 #
+        # ------------------------------------------------------------------ #
+        median_or_mid = median_idx if median_idx is not None else n_q // 2
+        rep_data = quantile_data.isel({quantile_dim: median_or_mid})
+        source = get_source(rep_data, context=PlotContext.CARTESIAN_1D)
+
+        axis_units = {}
+        if target_yunits is not None:
+            axis_units["y"] = target_yunits
+        if x_units is not None:
+            axis_units["x"] = x_units
+
+        layer = Layer(
+            source,
+            mappables,
+            self,
+            style=None,
+            primary_axis="y",
+            axis_units=axis_units,
+        )
+
+        if label is not None:
+            from earthkit.plots.metadata.formatters import LayerFormatter
+
+            formatted_label = LayerFormatter(layer).format(label)
+            if mappables:
+                mappables[0].set_label(formatted_label)
+
+        # Store metadata on the layer so multiboxplot_legend() can read it.
+        layer._layer_type = "multiboxplot"
+        layer._multiboxplot_quantiles = q_list
+        layer._multiboxplot_color = plot_color
+        layer._multiboxplot_styling = {
+            "whisker_color": whisker_color,
+            "whisker_linewidth": whisker_linewidth,
+            "box_edgecolor": box_edgecolor,
+            "box_linewidth": box_linewidth,
+            "median_color": median_color,
+            "median_linewidth": median_linewidth,
+        }
+
+        self.layers.append(layer)
+        return mappables
+
+    def multiboxplot_legend(
+        self,
+        location="right",
+        fontsize=8,
+        color=None,
+        boxprops=None,
+        whiskerprops=None,
+        medianprops=None,
+        **kwargs,
+    ):
+        """
+        Add a visual legend for the most recent multiboxplot.
+
+        Creates a miniature replica of the quantile box structure with labelled
+        percentiles, placed outside the plot area using
+        :func:`mpl_toolkits.axes_grid1.make_axes_locatable` (the same
+        mechanism as a colorbar).  The legend is always rendered as a small
+        square regardless of which side it is placed on.
+
+        Call this **after** :meth:`multiboxplot`.
+
+        Parameters
+        ----------
+        location : str, optional
+            Side of the axes on which to place the legend.
+            One of ``'right'`` (default), ``'left'``, ``'top'``, ``'bottom'``.
+        fontsize : int, optional
+            Font size for the quantile labels.  Default ``8``.
+        color : str or tuple, optional
+            Override the fill colour.  Defaults to the colour used by the
+            most recent :meth:`multiboxplot` call.
+        boxprops : dict, optional
+            Override box-edge properties (``edgecolor``, ``linewidth``).
+        whiskerprops : dict, optional
+            Override whisker-line properties (``color``, ``linewidth``).
+        medianprops : dict, optional
+            Override median-line properties (``color``, ``linewidth``).
+        size : float, optional
+            Width/height of the legend square in inches.  Default ``0.75``.
+        pad : float, optional
+            Gap between the main axes and the legend in inches.  Default ``0.1``.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The axes containing the legend.
+
+        Raises
+        ------
+        ValueError
+            If no :meth:`multiboxplot` has been drawn yet, or *location* is
+            invalid.
+        """
+        from matplotlib.colors import to_rgb
+        from matplotlib.patches import Rectangle
+        from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+        # ------------------------------------------------------------------ #
+        # 1. Retrieve metadata from the most recent multiboxplot layer        #
+        # ------------------------------------------------------------------ #
+        mbp_layers = [
+            layer
+            for layer in self.layers
+            if getattr(layer, "_layer_type", None) == "multiboxplot"
+        ]
+        if not mbp_layers:
+            raise ValueError(
+                "No multiboxplot has been drawn yet. "
+                "Call multiboxplot() before multiboxplot_legend()."
+            )
+        last = mbp_layers[-1]
+        quantiles = [float(q) for q in last._multiboxplot_quantiles]
+        stored_color = last._multiboxplot_color
+        stored_styling = last._multiboxplot_styling
+
+        # ------------------------------------------------------------------ #
+        # 2. Resolve colours / styling                                        #
+        # ------------------------------------------------------------------ #
+        base_color = color if color is not None else stored_color
+        rgb = to_rgb(base_color)
+
+        whiskerprops = whiskerprops or {}
+        whisker_color = whiskerprops.get(
+            "color", stored_styling.get("whisker_color", (0.3, 0.3, 0.3))
+        )
+        whisker_linewidth = whiskerprops.get(
+            "linewidth", stored_styling.get("whisker_linewidth", 0.8)
+        )
+
+        boxprops = boxprops or {}
+        box_edgecolor = boxprops.get(
+            "edgecolor", stored_styling.get("box_edgecolor", base_color)
+        )
+        box_linewidth = boxprops.get(
+            "linewidth", stored_styling.get("box_linewidth", 0.5)
+        )
+
+        medianprops = medianprops or {}
+        median_color = medianprops.get(
+            "color",
+            stored_styling.get("median_color", tuple(c * 0.6 for c in rgb)),
+        )
+        median_linewidth = medianprops.get(
+            "linewidth", stored_styling.get("median_linewidth", 1.5)
+        )
+
+        # ------------------------------------------------------------------ #
+        # 3. Validate location and create legend axes                         #
+        # ------------------------------------------------------------------ #
+        valid_locations = ("right", "left", "top", "bottom")
+        if location not in valid_locations:
+            raise ValueError(
+                f"Invalid location {location!r}. " f"Choose from: {valid_locations}"
+            )
+
+        size = kwargs.pop("size", 0.75)
+        pad = kwargs.pop("pad", 0.1)
+
+        divider = make_axes_locatable(self.ax)
+        legend_ax = divider.append_axes(location, size=size, pad=pad)
+        legend_ax.set_aspect("equal", adjustable="box")
+
+        # ------------------------------------------------------------------ #
+        # 4. Draw the miniature box structure                                 #
+        # ------------------------------------------------------------------ #
+        n_q = len(quantiles)
+        pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
+        median_idx = n_q // 2 if n_q % 2 == 1 else None
+
+        x_center = 0.25
+        base_width = 0.15
+
+        for pair_idx, (lo_i, hi_i) in enumerate(pairs):
+            width_factor = (pair_idx + 1) / len(pairs)
+            box_width = base_width * width_factor
+            y_lo, y_hi = quantiles[lo_i], quantiles[hi_i]
+
+            if pair_idx == 0:
+                legend_ax.plot(
+                    [x_center, x_center],
+                    [y_lo, y_hi],
+                    color=whisker_color,
+                    linewidth=whisker_linewidth,
+                    zorder=1,
+                )
+            else:
+                norm_i = (pair_idx - 1) / max(1, len(pairs) - 2)
+                lightness = 0.4 * (1.0 - norm_i)
+                box_color = tuple(c * (1 - lightness) + lightness for c in rgb)
+                legend_ax.add_patch(
+                    Rectangle(
+                        (x_center - box_width / 2, y_lo),
+                        box_width,
+                        y_hi - y_lo,
+                        facecolor=box_color,
+                        edgecolor=box_edgecolor,
+                        linewidth=box_linewidth,
+                        zorder=2,
+                    )
+                )
+
+        if median_idx is not None:
+            mw = base_width * 0.95
+            legend_ax.plot(
+                [x_center - mw / 2, x_center + mw / 2],
+                [quantiles[median_idx], quantiles[median_idx]],
+                color=median_color,
+                linewidth=median_linewidth,
+                zorder=10,
+            )
+
+        # ------------------------------------------------------------------ #
+        # 5. Add quantile labels                                              #
+        # ------------------------------------------------------------------ #
+        for q in quantiles:
+            if q == 0:
+                label_text = "min"
+            elif q == 1:
+                label_text = "max"
+            elif q == 0.5:
+                label_text = "median"
+            else:
+                label_text = f"{int(round(q * 100))}%"
+            legend_ax.text(
+                0.4,
+                q,
+                label_text,
+                ha="left",
+                va="center",
+                fontsize=fontsize - 1,
+            )
+
+        # ------------------------------------------------------------------ #
+        # 6. Clean up axes                                                    #
+        # ------------------------------------------------------------------ #
+        legend_ax.set_xlim(0, 1)
+        legend_ax.set_ylim(-0.05, 1.05)
+        legend_ax.set_xticks([])
+        legend_ax.set_yticks([])
+        for spine in legend_ax.spines.values():
+            spine.set_visible(False)
+
+        return legend_ax
+
     @plot_1D()
     def line(self, *args, **kwargs):
         """
@@ -902,12 +1509,40 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
         """
         x = kwargs.pop("x", None)
+        drawstyle = kwargs.pop("drawstyle", None)
         if units is None and self._fixed_y_units is not None:
             units = self._fixed_y_units
         source_1 = get_source(
             data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units
         )
         x_values, y1_values = _apply_coordinate_unit_conversion(source_1)
+
+        # ax.fill_between cannot handle datetime x-values (unlike ax.plot
+        # which runs unit conversion automatically).  Force conversion here.
+        import datetime
+
+        import matplotlib.dates as mdates
+
+        x_arr = np.asarray(x_values)
+        if np.issubdtype(x_arr.dtype, np.datetime64):
+            py_dates = x_arr.astype("datetime64[ms]").astype("O")
+        elif (
+            x_arr.dtype == object
+            and len(x_arr) > 0
+            and isinstance(
+                x_arr.flat[0], (datetime.datetime, datetime.date, np.datetime64)
+            )
+        ):
+            py_dates = x_arr
+        else:
+            py_dates = None
+
+        if py_dates is not None:
+            # Register as a date axis so tick formatters work correctly.
+            self.ax.plot([], [], visible=False)
+            self.ax.xaxis.update_units(py_dates)
+            x_values = mdates.date2num(py_dates)
+
         if isinstance(data_2, (int, float)):
             y2_values = np.full_like(y1_values, fill_value=data_2, dtype=float)
         else:
@@ -915,9 +1550,20 @@ class Subplot:
                 data_2, x=x, context=PlotContext.CARTESIAN_1D, units=units
             )
             _, y2_values = _apply_coordinate_unit_conversion(source_2)
-        mappable = self.ax.fill_between(
-            x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
-        )
+
+        if drawstyle == "spline":
+            from earthkit.plots.styles import spline_interpolate
+
+            x_smooth, y1_smooth, y2_smooth = spline_interpolate(
+                np.asarray(x_values), y1_values, y2_values
+            )
+            mappable = self.ax.fill_between(
+                x=x_smooth, y1=y1_smooth, y2=y2_smooth, alpha=alpha, **kwargs
+            )
+        else:
+            mappable = self.ax.fill_between(
+                x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
+            )
         axis_units = {"y": units} if units is not None else {}
         self.layers.append(
             Layer(
@@ -969,6 +1615,89 @@ class Subplot:
         >>> ts.fill_between(values)
         """
         self.envelope(y1, y2, x=x, units=units, alpha=alpha, **kwargs)
+
+    def text(self, x, y=None, s="", **kwargs):
+        """
+        Add text to the Subplot at position (*x*, *y*).
+
+        Can be called in two ways:
+
+        - ``text(x, y, s)`` — explicit coordinates and string.
+        - ``text(data, s=...)`` — pass an xarray DataArray; *x* and *y* are
+          extracted from the data's coordinates and values respectively.
+
+        Parameters
+        ----------
+        x : float, datetime-like, or xarray.DataArray
+            The x position in data coordinates, or a DataArray from which
+            both *x* and *y* are extracted.
+        y : float, optional
+            The y position in data coordinates. Required when *x* is not a
+            DataArray.
+        s : str, optional
+            The text string.
+        **kwargs
+            Additional keyword arguments passed to
+            :func:`matplotlib.axes.Axes.text`.
+        """
+        import xarray as xr
+
+        if isinstance(x, xr.DataArray):
+            source = get_source(x, context=PlotContext.CARTESIAN_1D)
+            x_val, y_val = _apply_coordinate_unit_conversion(source)
+            # x_val/y_val are arrays; take the first (and typically only) element
+            x_val = x_val.flat[0]
+            y_val = y_val.flat[0]
+            if y is not None:
+                # called as text(da, "hello") — y holds the string
+                s = y
+            s = SourceFormatter(source).format(s)
+            self.ax.text(x_val, y_val, s, **kwargs)
+        else:
+            s = self.format_string(s)
+            self.ax.text(x, y, s, **kwargs)
+
+    def annotate(self, s, xy, xytext=None, **kwargs):
+        """
+        Add an annotation to the Subplot.
+
+        Can be called in two ways:
+
+        - ``annotate(s, (x, y))`` — explicit coordinates.
+        - ``annotate(s, data)`` — pass an xarray DataArray; *xy* is extracted
+          from the data's coordinates and values respectively.
+
+        Parameters
+        ----------
+        s : str
+            The annotation text. Supports format strings (e.g. ``"{time:%Y}"``).
+        xy : tuple or xarray.DataArray
+            The point to annotate. Either an ``(x, y)`` tuple in data
+            coordinates, or a DataArray from which both are extracted.
+        xytext : tuple, optional
+            The position of the text. If not given, the text is placed at *xy*.
+            Can be an offset in points when used with
+            ``textcoords="offset points"``.
+        **kwargs
+            Additional keyword arguments passed to
+            :func:`matplotlib.axes.Axes.annotate`.
+        """
+        import xarray as xr
+
+        if isinstance(xy, xr.DataArray):
+            source = get_source(xy, context=PlotContext.CARTESIAN_1D)
+            x_val, y_val = _apply_coordinate_unit_conversion(source)
+            x_val = x_val.flat[0]
+            y_val = y_val.flat[0]
+            s = SourceFormatter(source).format(s)
+            xy = (x_val, y_val)
+        else:
+            s = self.format_string(s)
+
+        if xytext is not None:
+            self.ax.annotate(s, xy=xy, xytext=xytext, **kwargs)
+        else:
+            self.ax.annotate(s, xy=xy, **kwargs)
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """

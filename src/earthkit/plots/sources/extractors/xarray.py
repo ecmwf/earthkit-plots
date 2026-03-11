@@ -161,33 +161,59 @@ class XarrayExtractor(BaseExtractor):
                     auto_y_units = auto_y_metadata.get("units")
         else:
             # Cartesian: x=independent, y=data (default roles)
-            auto_y_values = da.values
-            auto_y_name = da.name if da.name else ""
-            auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
-            auto_y_units = auto_y_metadata.get("units")
+            # A 0-d DataArray (e.g. from .isel(time=-1)) has no dims; wrap as
+            # 1-element arrays so downstream code can treat it uniformly.
+            if da.ndim == 0:
+                auto_y_values = np.atleast_1d(da.values)
+                auto_y_name = da.name if da.name else ""
+                auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                auto_y_units = auto_y_metadata.get("units")
 
-            # Find dimension/coordinate for x
-            auto_x_values = None
-            auto_x_name = ""
-            auto_x_metadata = {}
-            auto_x_units = None
+                # Use the first scalar coordinate that looks like an x-axis
+                # (e.g. the time coordinate retained after .isel()).
+                auto_x_values = None
+                auto_x_name = ""
+                auto_x_metadata = {}
+                auto_x_units = None
+                for coord_name, coord in da.coords.items():
+                    if coord.ndim == 0:
+                        auto_x_values = np.atleast_1d(coord.values)
+                        auto_x_name = coord_name
+                        auto_x_metadata = (
+                            dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                        )
+                        auto_x_units = auto_x_metadata.get("units")
+                        break
+                if auto_x_values is None:
+                    auto_x_values = np.array([0])
+            else:
+                auto_y_values = da.values
+                auto_y_name = da.name if da.name else ""
+                auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                auto_y_units = auto_y_metadata.get("units")
 
-            if len(da.dims) == 1:
-                dim_name = da.dims[0]
-                if dim_name in da.coords:
-                    coord = da.coords[dim_name]
-                    auto_x_values = coord.values
-                    auto_x_name = dim_name
-                    auto_x_metadata = (
-                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
-                    )
-                    auto_x_units = auto_x_metadata.get("units")
-                else:
-                    auto_x_values = np.arange(da.sizes[dim_name])
+                # Find dimension/coordinate for x
+                auto_x_values = None
+                auto_x_name = ""
+                auto_x_metadata = {}
+                auto_x_units = None
 
-            if auto_x_values is None:
-                # Fallback: generate index based on y length
-                auto_x_values = np.arange(len(auto_y_values))
+                if len(da.dims) == 1:
+                    dim_name = da.dims[0]
+                    if dim_name in da.coords:
+                        coord = da.coords[dim_name]
+                        auto_x_values = coord.values
+                        auto_x_name = dim_name
+                        auto_x_metadata = (
+                            dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                        )
+                        auto_x_units = auto_x_metadata.get("units")
+                    else:
+                        auto_x_values = np.arange(da.sizes[dim_name])
+
+                if auto_x_values is None:
+                    # Fallback: generate index based on y length
+                    auto_x_values = np.arange(len(auto_y_values))
 
         # Step 2: Handle user specifications
         if context == PlotContext.GEOGRAPHIC_1D:
@@ -662,8 +688,8 @@ class XarrayExtractor(BaseExtractor):
         tuple
             (values, name, metadata, units)
         """
-        if isinstance(spec, np.ndarray):
-            # Explicit array provided
+        if not isinstance(spec, str):
+            # Explicit array provided (np.ndarray, pd.DatetimeIndex, list, etc.)
             return (np.atleast_1d(spec), "", {}, None)
 
         # spec is a string - resolve to coordinate or data variable
