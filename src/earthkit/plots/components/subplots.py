@@ -1735,7 +1735,6 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
         """
-        warnings.warn("`plot` is deprecated. Use `quickplot` instead.")
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `plot`.")
         source = get_source(data)
