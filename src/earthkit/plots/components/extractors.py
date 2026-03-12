@@ -1015,30 +1015,18 @@ def extract_plottables_vector_2D(
                     "U and V components must be defined on the same grid."
                 )
 
-            # Extract u and v values from their respective z fields
-            u_array = u_source.z.values if u_source.z else None
-            v_array = v_source.z.values if v_source.z else None
+            # Extract u and v values from their respective z fields.
+            # Squeeze out any leading size-1 dimensions that arise when a
+            # single Field is wrapped into a length-1 FieldList by get_source.
+            u_array = u_source.z.values.squeeze() if u_source.z else None
+            v_array = v_source.z.values.squeeze() if v_source.z else None
 
-            # Create a properly unified source with u and v as numpy arrays
-            # This ensures the source has proper .u and .v properties
-            source = get_source(
-                u_source._data,  # Use the underlying data from u_source
-                x=x if x is not None else u_source.x.values,
-                y=y if y is not None else u_source.y.values,
-                u=u_array,  # Pass u as numpy array
-                v=v_array,  # Pass v as numpy array
-                context=context,
-                units=units,
-                u_units=u_units,
-                v_units=v_units,
-                x_units=x_units,
-                y_units=y_units,
-                metadata=metadata,
-            )
-
-            # Extract u and v from the unified source
-            u_values_raw = source.u.values if source.u else None
-            v_values_raw = source.v.values if source.v else None
+            # Use u_source as the primary source (preserves CRS, metadata, etc.)
+            # but supply u/v values directly to avoid a second round-trip through
+            # get_source which can re-introduce shape inconsistencies.
+            source = u_source
+            u_values_raw = u_array
+            v_values_raw = v_array
         else:
             raise ValueError(
                 "Vector plots require both u and v components. "
@@ -1094,9 +1082,10 @@ def extract_plottables_vector_2D(
                 "U and V components must be defined on the same grid."
             )
 
-        # Extract values - use z if available, otherwise y
-        u_array = u_source.z.values if u_source.z else u_source.y.values
-        v_array = v_source.z.values if v_source.z else v_source.y.values
+        # Extract values - use z if available, otherwise y.
+        # Squeeze out any leading size-1 dimensions from single-field FieldLists.
+        u_array = (u_source.z.values if u_source.z else u_source.y.values).squeeze()
+        v_array = (v_source.z.values if v_source.z else v_source.y.values).squeeze()
 
         # Create a properly unified source with u and v as numpy arrays
         # This ensures the source has proper .u and .v properties
@@ -1131,9 +1120,12 @@ def extract_plottables_vector_2D(
     if subplot.domain is None and hasattr(subplot, "ax"):
         try:
             from earthkit.plots.geo import domains as _domains
+            from earthkit.plots.geo.domains import force_minus_180_to_180
 
-            x_ext = source.x.values
-            y_ext = source.y.values
+            x_ext = source.x.values.squeeze()
+            y_ext = source.y.values.squeeze()
+            if np.any(x_ext > 180):
+                x_ext = force_minus_180_to_180(x_ext)
             subplot.domain = _domains.Domain.from_bbox(
                 bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
                 source_crs=source.crs,
@@ -1151,9 +1143,30 @@ def extract_plottables_vector_2D(
         method_name, style, source, units, auto_style, {**kwargs, "colors": colors}
     )
 
-    # Step 4: Extract x, y coordinate values
-    x_values = source.x.values
-    y_values = source.y.values
+    # Step 4: Extract x, y coordinate values.
+    # Squeeze to remove any leading size-1 field-count dimension that arises
+    # when a single earthkit Field is internally wrapped into a FieldList.
+    # Also normalise longitudes > 180 into [-180, 180] so cartopy renders the
+    # data correctly (e.g. 240–280° → -120–-80°), rolling u/v to match.
+    x_values = source.x.values.squeeze()
+    y_values = source.y.values.squeeze()
+    if np.any(x_values > 180):
+        from earthkit.plots.geo.domains import (
+            force_minus_180_to_180,
+            roll_from_0_360_to_minus_180_180,
+        )
+
+        ref = x_values[0] if x_values.ndim == 2 else x_values
+        roll_by = roll_from_0_360_to_minus_180_180(ref)
+        if x_values.ndim == 2:
+            x_values = np.roll(x_values, roll_by, axis=1)
+            u_values_raw = np.roll(u_values_raw, roll_by, axis=1)
+            v_values_raw = np.roll(v_values_raw, roll_by, axis=1)
+        else:
+            x_values = np.roll(x_values, roll_by)
+            u_values_raw = np.roll(u_values_raw, roll_by)
+            v_values_raw = np.roll(v_values_raw, roll_by)
+        x_values = force_minus_180_to_180(x_values)
 
     # Step 5: Validate u and v values exist
     if u_values_raw is None or v_values_raw is None:

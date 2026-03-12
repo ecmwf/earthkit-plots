@@ -40,6 +40,8 @@ from earthkit.plots.utils import string_utils
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
+DEFAULT_SINGLE_SIZE = (7, 8)
+
 TARGET_DENSITY = 40
 
 LAYER_ZORDERS = {
@@ -429,11 +431,12 @@ class Subplot:
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` constructor.
     """
 
-    def __init__(self, row=0, column=0, figure=None, size=None, **kwargs):
+    def __init__(
+        self, row=0, column=0, figure=None, size=DEFAULT_SINGLE_SIZE, **kwargs
+    ):
         self._figure = figure
 
         if figure is not None and size is not None:
-            warnings.warn("Subplot size is ignored when a Figure is provided.")
             self._size = None
         else:
             self._size = size

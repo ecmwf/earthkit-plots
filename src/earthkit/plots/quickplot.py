@@ -37,21 +37,25 @@ def _coerce_to_fieldlist(*args):
     return FieldList.from_fields(field_list)
 
 
-def _auto_figure_size(
-    rows, columns, fixed_width=7.0, panel_aspect=0.6, max_height=60.0
-):
-    """
-    Return a ``(width, height)`` tuple with a fixed width and height scaled to
-    the number of rows.
+_DEFAULT_SINGLE_SIZE = (7, 8)
+_MULTI_PANEL_WIDTH = 5.0
+_MULTI_PANEL_HEIGHT = 4.0
+_MAX_FIGURE_SIZE = (40.0, 40.0)
 
-    Width is fixed. Panel height is derived from the per-column width multiplied
-    by *panel_aspect* (height/width ratio), so panels remain proportional
-    regardless of how many columns there are.
+
+def _auto_figure_size(rows, columns):
     """
-    panel_width = fixed_width / max(columns, 1)
-    panel_height = panel_width * panel_aspect
-    height = min(rows * panel_height, max_height)
-    return (fixed_width, height)
+    Return a ``(width, height)`` tuple scaled to the panel grid.
+
+    Single panels use ``_DEFAULT_SINGLE_SIZE``.  Multi-panel layouts use
+    ``_MULTI_PANEL_WIDTH × _MULTI_PANEL_HEIGHT`` per panel, capped at
+    ``_MAX_FIGURE_SIZE``.
+    """
+    if rows == 1 and columns == 1:
+        return _DEFAULT_SINGLE_SIZE
+    width = min(_MULTI_PANEL_WIDTH * columns, _MAX_FIGURE_SIZE[0])
+    height = min(_MULTI_PANEL_HEIGHT * rows, _MAX_FIGURE_SIZE[1])
+    return (width, height)
 
 
 def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
@@ -79,6 +83,13 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
         yield from iter_plot_groups(
             args[0], groupby, mode, combine_vectors=combine_vectors
         )
+    elif all(isinstance(a, xr.DataArray) for a in args):
+        # Multiple DataArrays — merge into a Dataset so each variable gets its
+        # own panel with the correct auto-style.
+        from earthkit.plots.sources.extractors.xarray import iter_plot_groups
+
+        ds = xr.merge(args, compat="override")
+        yield from iter_plot_groups(ds, groupby, mode, combine_vectors=combine_vectors)
     else:
         from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
 
@@ -303,10 +314,21 @@ def plot(
                 pass
 
     for m in schema.quickmap_figure_workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(f"ekp.plot: figure workflow step '{m}' failed with:\n{err}")
+        if m == "legend" and len(figure.subplots) > 1:
+            # Multiple subplots: give each one its own per-subplot legend so
+            # different variables don't share a single colorbar.
+            for subplot in figure.subplots:
+                try:
+                    subplot.legend()
+                except Exception as err:
+                    warnings.warn(f"ekp.plot: subplot legend failed with:\n{err}")
+        else:
+            try:
+                getattr(figure, m)()
+            except Exception as err:
+                warnings.warn(
+                    f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
+                )
 
     return figure
 
@@ -349,8 +371,8 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
     subplot = figure.add_map(domain=domain, crs=crs)
     if not data_args:
         getattr(subplot, method_name)(**kwargs)
-    elif len(data_args) == 1 and isinstance(data_args[0], (xr.DataArray, xr.Dataset)):
-        getattr(subplot, method_name)(data_args[0], **kwargs)
+    elif all(isinstance(a, (xr.DataArray, xr.Dataset)) for a in data_args):
+        getattr(subplot, method_name)(*data_args, **kwargs)
     else:
         fields = _coerce_to_fieldlist(*data_args)
         getattr(subplot, method_name)(fields, **kwargs)
@@ -748,82 +770,6 @@ def climatology(
         ts.title(title)
     ts.figure.legend()
     return ts
-
-
-def hovmoller(
-    data,
-    *args,
-    plot="contourf",
-    time_axis="x",
-    invert_vertical="auto",
-    title=None,
-    xlabel=None,
-    ylabel=None,
-    **kwargs,
-):
-    """
-    Create a Hovmöller diagram.
-
-    A Hovmöller diagram shows a 2-D field (e.g. temperature, wind speed)
-    with **time** on one axis and a vertical coordinate (pressure, height,
-    model level) or a horizontal coordinate (latitude, longitude) on the
-    other.  When the non-time axis is identified as a pressure coordinate the
-    axis is automatically inverted so that the surface is at the bottom.
-
-    Parameters
-    ----------
-    data : xarray.DataArray or earthkit FieldList
-        2-D data with a time dimension and one other dimension
-        (pressure/height or latitude/longitude).
-    plot : str, optional
-        The plotting method to call on the Hovmoller subplot.  One of
-        ``"contourf"``, ``"contour"``, ``"pcolormesh"``.
-        Default ``"contourf"``.
-    time_axis : {"x", "y"}, optional
-        Which axis carries the time dimension.  Default ``"x"`` (time runs
-        left to right; pressure/height on the y-axis).
-    invert_vertical : bool or "auto", optional
-        Whether to invert the non-time axis.  ``"auto"`` (default) inverts
-        automatically for pressure-like coordinates.
-    title : str, optional
-        Plot title.
-    xlabel : str, optional
-        Label for the x-axis.
-    ylabel : str, optional
-        Label for the y-axis.
-    **kwargs :
-        Additional keyword arguments forwarded to the plotting method
-        (e.g. ``style``, ``levels``).
-
-    Returns
-    -------
-    Hovmoller
-        An earthkit-plots
-        :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` subplot
-        that can be further customised and displayed with ``.show()`` or
-        saved with ``.save()``.
-
-    Examples
-    --------
-    >>> import earthkit.plots as ekp
-    >>> ekp.hovmoller.contourf(da, style="auto").show()
-
-    >>> hov = ekp.hovmoller.contourf(da, time_axis="y")
-    >>> hov.add_colorbar()
-    >>> hov.show()
-    """
-    from earthkit.plots.temporal.hovmoller import Hovmoller
-
-    hov = Hovmoller(time_axis=time_axis, invert_vertical=invert_vertical)
-    getattr(hov, plot)(data, *args, **kwargs)
-    if xlabel is not None:
-        hov.xlabel(xlabel)
-    if ylabel is not None:
-        hov.ylabel(ylabel)
-    if title:
-        hov.title(title)
-    hov.figure.legend()
-    return hov
 
 
 _TIMESERIES_CLASS_KWARGS = {"size"}

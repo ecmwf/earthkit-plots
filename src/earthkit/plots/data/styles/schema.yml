@@ -89,6 +89,7 @@ quickmap_subplot_workflow:
 quickmap_figure_workflow:
 - coastlines
 - legend
+- subplot_titles
 
 quickplot_workflow: []
 
