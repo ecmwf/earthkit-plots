@@ -346,6 +346,9 @@ def interpolate_unstructured(
 
 
 def needs_cyclic_point(lons):
+    lons_arr = np.asarray(lons)
+    if not np.issubdtype(lons_arr.dtype, np.number):
+        return False
     return is_global(lons, np.arange(-90, 90, 2)) and is_structured(
         lons, np.arange(-90, 90, 2)
     )

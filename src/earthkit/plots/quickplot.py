@@ -37,7 +37,24 @@ def _coerce_to_fieldlist(*args):
     return FieldList.from_fields(field_list)
 
 
-def _iter_plot_groups(args, groupby, mode):
+def _auto_figure_size(
+    rows, columns, fixed_width=7.0, panel_aspect=0.6, max_height=60.0
+):
+    """
+    Return a ``(width, height)`` tuple with a fixed width and height scaled to
+    the number of rows.
+
+    Width is fixed. Panel height is derived from the per-column width multiplied
+    by *panel_aspect* (height/width ratio), so panels remain proportional
+    regardless of how many columns there are.
+    """
+    panel_width = fixed_width / max(columns, 1)
+    panel_height = panel_width * panel_aspect
+    height = min(rows * panel_height, max_height)
+    return (fixed_width, height)
+
+
+def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
     """
     Dispatch to the correct source-type group iterator.
 
@@ -51,17 +68,41 @@ def _iter_plot_groups(args, groupby, mode):
         Metadata key / coordinate name to split on.
     mode : str
         ``"auto"``, ``"overlay"``, or ``"split"``.
+    combine_vectors : bool
+        Passed through to the xarray group iterator.
     """
     import xarray as xr
 
     if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
         from earthkit.plots.sources.extractors.xarray import iter_plot_groups
 
-        yield from iter_plot_groups(args[0], groupby, mode)
+        yield from iter_plot_groups(
+            args[0], groupby, mode, combine_vectors=combine_vectors
+        )
     else:
         from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
 
-        yield from iter_plot_groups(_coerce_to_fieldlist(*args), groupby, mode)
+        yield from iter_plot_groups(
+            _coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors
+        )
+
+
+def _iter_plot_groups_2d(args, row_dim, col_dim, groupby, mode):
+    """
+    Dispatch to the 2-D group iterator for structured row/column layout.
+
+    Yields ``(row_key, col_key, [data_item, ...])`` tuples.
+    """
+    import xarray as xr
+
+    if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
+        from earthkit.plots.sources.extractors.xarray import iter_plot_groups_2d
+
+        yield from iter_plot_groups_2d(args[0], row_dim, col_dim, groupby, mode)
+    else:
+        raise NotImplementedError(
+            "row/column dimension layout is only supported for xarray data."
+        )
 
 
 def plot(
@@ -69,13 +110,17 @@ def plot(
     domain=None,
     crs=None,
     groupby=None,
+    row=None,
+    column=None,
     rows=None,
     columns=None,
+    size=None,
     units=None,
     style="auto",
     subplot_titles=None,
     method="quickplot",
     mode="auto",
+    combine_vectors=False,
     **kwargs,
 ):
     """
@@ -101,11 +146,24 @@ def plot(
     groupby : str, optional
         Metadata key along which to split the data into separate panels
         (e.g. ``"step"``, ``"number"``, ``"pressure_level"``).
+    row : str, optional
+        Dimension name (or ``"variable"`` for Dataset variables) to lay out
+        along the row axis of the panel grid.  Determines the number of rows
+        automatically from unique values.  Use together with *column* to create
+        a structured 2-D grid, e.g. ``row="valid_time", column="variable"``.
+    column : str, optional
+        Dimension name (or ``"variable"``) to lay out along the column axis.
     rows : int, optional
         Number of rows in the panel grid.  If only one of *rows* / *columns*
-        is given the other is calculated automatically.
+        is given the other is calculated automatically.  Ignored when *row* is
+        a dimension name.
     columns : int, optional
-        Number of columns in the panel grid.
+        Number of columns in the panel grid.  Ignored when *column* is a
+        dimension name.
+    size : tuple of float, optional
+        Explicit ``(width, height)`` in inches for the whole figure.  When not
+        provided the size is chosen automatically based on the panel grid
+        (approximately 5 × 4 inches per panel, capped at 40 inches).
     units : str or list of str, optional
         Units to convert the data to at plot time.
     style : str or Style, optional
@@ -138,35 +196,106 @@ def plot(
 
     >>> ekp.plot(data, groupby="step", domain="Europe", columns=4).show()
 
+    Structured 2-D grid — variables in columns, time steps in rows:
+
+    >>> ekp.plot(ds, row="valid_time", column="variable").show()
+
     Override the plot method:
 
     >>> ekp.plot(data, method="contourf", domain="Europe").show()
     """
+    # --- 2-D structured layout (row/column as dimension names) ---
+    if row is not None or column is not None:
+        groups_2d = list(_iter_plot_groups_2d(args, row, column, groupby, mode))
+        # Determine grid dimensions from unique row/col keys
+        row_keys = list(dict.fromkeys(rk for rk, _, _ in groups_2d))
+        col_keys = list(dict.fromkeys(ck for _, ck, _ in groups_2d))
+        n_rows = len(row_keys) if row_keys != [None] else (rows or 1)
+        n_cols = len(col_keys) if col_keys != [None] else (columns or 1)
+        figure = Figure(
+            rows=n_rows, columns=n_cols, size=size or _auto_figure_size(n_rows, n_cols)
+        )
+
+        if not isinstance(units, (list, tuple)):
+            units_flat = [units] * len(groups_2d)
+        else:
+            units_flat = list(units)
+
+        for i, (row_key, col_key, targets) in enumerate(groups_2d):
+            r = row_keys.index(row_key) if row_keys != [None] else 0
+            c = col_keys.index(col_key) if col_keys != [None] else 0
+            subplot = figure.add_map(row=r, column=c, domain=domain, crs=crs)
+            unit = units_flat[i] if i < len(units_flat) else None
+            for target in targets:
+                try:
+                    getattr(subplot, method)(target, units=unit, style=style, **kwargs)
+                except Exception as err:
+                    warnings.warn(
+                        f"ekp.plot: failed to call '{method}' on panel ({r},{c}):\n"
+                        f"{err}\n\n"
+                        "Consider building the plot manually using ekp.Figure and ekp.Map."
+                    )
+                    raise
+            if subplot_titles:
+                try:
+                    subplot.title(subplot_titles)
+                except Exception:
+                    pass
+
+        for m in schema.quickmap_figure_workflow:
+            try:
+                getattr(figure, m)()
+            except Exception as err:
+                warnings.warn(
+                    f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
+                )
+        return figure
+
+    # --- Flat layout (original behaviour) ---
     if subplot_titles is None and groupby:
         subplot_titles = f"{{{groupby}}}"
 
-    groups = list(_iter_plot_groups(args, groupby, mode))
+    groups = list(
+        _iter_plot_groups(args, groupby, mode, combine_vectors=combine_vectors)
+    )
     n_plots = len(groups)
 
     rows, columns = layouts.rows_cols(n_plots, rows, columns)
-    figure = Figure(rows=rows, columns=columns)
+    figure = Figure(
+        rows=rows, columns=columns, size=size or _auto_figure_size(rows, columns)
+    )
 
     if not isinstance(units, (list, tuple)):
         units = [units] * n_plots
 
-    for i, (_, targets) in enumerate(groups):
+    for i, (key, targets) in enumerate(groups):
         subplot = figure.add_map(domain=domain, crs=crs)
         unit = units[i] if i < len(units) else None
-        for target in targets:
-            try:
-                getattr(subplot, method)(target, units=unit, style=style, **kwargs)
-            except Exception as err:
-                warnings.warn(
-                    f"ekp.plot: failed to call '{method}' on panel {i} with:\n"
-                    f"{err}\n\n"
-                    "Consider building the plot manually using ekp.Figure and ekp.Map."
-                )
-                raise
+        is_vector = isinstance(key, tuple) and key[0] == "__vector__"
+        try:
+            if is_vector:
+                import xarray as xr
+
+                target = targets[0]
+                if isinstance(target, xr.Dataset):
+                    # xarray UV pair sub-Dataset
+                    subplot.quiver(target, units=unit, **kwargs)
+                else:
+                    # earthkit: targets is [u_field, v_field]
+                    from earthkit.data import FieldList
+
+                    fl = FieldList.from_fields(targets)
+                    subplot.quiver(fl, units=unit, **kwargs)
+            else:
+                for target in targets:
+                    getattr(subplot, method)(target, units=unit, style=style, **kwargs)
+        except Exception as err:
+            warnings.warn(
+                f"ekp.plot: failed to call '{method}' on panel {i} with:\n"
+                f"{err}\n\n"
+                "Consider building the plot manually using ekp.Figure and ekp.Map."
+            )
+            raise
         if subplot_titles:
             try:
                 subplot.title(subplot_titles)
@@ -214,10 +343,17 @@ def pcolormesh(*args, **kwargs):
 
 def _single_map_function(method_name, data_args, domain, crs, kwargs):
     """Shared helper: create a single-panel Map and call *method_name* on it."""
-    fields = _coerce_to_fieldlist(*data_args)
+    import xarray as xr
+
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
-    getattr(subplot, method_name)(fields, **kwargs)
+    if not data_args:
+        getattr(subplot, method_name)(**kwargs)
+    elif len(data_args) == 1 and isinstance(data_args[0], (xr.DataArray, xr.Dataset)):
+        getattr(subplot, method_name)(data_args[0], **kwargs)
+    else:
+        fields = _coerce_to_fieldlist(*data_args)
+        getattr(subplot, method_name)(fields, **kwargs)
     for m in schema.quickmap_figure_workflow:
         try:
             getattr(figure, m)()
@@ -610,7 +746,84 @@ def climatology(
     _apply_ticks(ts, xticks, yticks)
     if title:
         ts.title(title)
+    ts.figure.legend()
     return ts
+
+
+def hovmoller(
+    data,
+    *args,
+    plot="contourf",
+    time_axis="x",
+    invert_vertical="auto",
+    title=None,
+    xlabel=None,
+    ylabel=None,
+    **kwargs,
+):
+    """
+    Create a Hovmöller diagram.
+
+    A Hovmöller diagram shows a 2-D field (e.g. temperature, wind speed)
+    with **time** on one axis and a vertical coordinate (pressure, height,
+    model level) or a horizontal coordinate (latitude, longitude) on the
+    other.  When the non-time axis is identified as a pressure coordinate the
+    axis is automatically inverted so that the surface is at the bottom.
+
+    Parameters
+    ----------
+    data : xarray.DataArray or earthkit FieldList
+        2-D data with a time dimension and one other dimension
+        (pressure/height or latitude/longitude).
+    plot : str, optional
+        The plotting method to call on the Hovmoller subplot.  One of
+        ``"contourf"``, ``"contour"``, ``"pcolormesh"``.
+        Default ``"contourf"``.
+    time_axis : {"x", "y"}, optional
+        Which axis carries the time dimension.  Default ``"x"`` (time runs
+        left to right; pressure/height on the y-axis).
+    invert_vertical : bool or "auto", optional
+        Whether to invert the non-time axis.  ``"auto"`` (default) inverts
+        automatically for pressure-like coordinates.
+    title : str, optional
+        Plot title.
+    xlabel : str, optional
+        Label for the x-axis.
+    ylabel : str, optional
+        Label for the y-axis.
+    **kwargs :
+        Additional keyword arguments forwarded to the plotting method
+        (e.g. ``style``, ``levels``).
+
+    Returns
+    -------
+    Hovmoller
+        An earthkit-plots
+        :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` subplot
+        that can be further customised and displayed with ``.show()`` or
+        saved with ``.save()``.
+
+    Examples
+    --------
+    >>> import earthkit.plots as ekp
+    >>> ekp.hovmoller.contourf(da, style="auto").show()
+
+    >>> hov = ekp.hovmoller.contourf(da, time_axis="y")
+    >>> hov.add_colorbar()
+    >>> hov.show()
+    """
+    from earthkit.plots.temporal.hovmoller import Hovmoller
+
+    hov = Hovmoller(time_axis=time_axis, invert_vertical=invert_vertical)
+    getattr(hov, plot)(data, *args, **kwargs)
+    if xlabel is not None:
+        hov.xlabel(xlabel)
+    if ylabel is not None:
+        hov.ylabel(ylabel)
+    if title:
+        hov.title(title)
+    hov.figure.legend()
+    return hov
 
 
 _TIMESERIES_CLASS_KWARGS = {"size"}
@@ -730,6 +943,7 @@ def timeseries(
                 fig.title(title)
             except Exception:
                 pass
+        fig.legend()
         return fig
 
     # ------------------------------------------------------------------
@@ -782,6 +996,7 @@ def timeseries(
                     pass
         if title:
             ts.title(title)
+        ts.figure.legend()
         return ts
 
     # ------------------------------------------------------------------
@@ -812,6 +1027,7 @@ def timeseries(
                 fig.title(title)
             except Exception:
                 pass
+        fig.legend()
         return fig
 
     # ------------------------------------------------------------------
@@ -827,4 +1043,5 @@ def timeseries(
     _apply_ticks(ts, xticks, yticks)
     if title:
         ts.title(title)
+    ts.figure.legend()
     return ts

@@ -30,7 +30,7 @@ from earthkit.plots.metadata.formatters import (
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import _AUTO, Bilinear, Regrid
+from earthkit.plots.resample import _AUTO, Bilinear
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
@@ -384,7 +384,7 @@ def plot_vector(method_name=None, extract_domain=False):
             units=None,
             auto_style=False,
             source_units=None,
-            resample=Regrid(40),
+            resample=Bilinear(40),
             **kwargs,
         ):
             return extract_plottables_vector_2D(
@@ -1971,6 +1971,38 @@ class Subplot:
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+        """
+
+    @plot_1D()
+    def stripes(self, *args, **kwargs):
+        """
+        Plot a climate stripes visualisation on the Subplot.
+
+        Draws one vertical bar per data point, colored according to the data
+        value mapped through the given (or auto-detected) style.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or array-like
+            The data to plot.
+        x : str or array-like, optional
+            The x (time) coordinate. If *data* is a DataArray this is inferred
+            automatically.
+        y : str or array-like, optional
+            The values used to color the stripes. Defaults to the primary
+            data variable.
+        style : earthkit.plots.styles.Style or str, optional
+            Style object or named style string. If ``None`` an auto-style is
+            chosen from the data metadata.
+        units : str, optional
+            Convert the data to these units before coloring.
+        ymin : float, optional
+            Bottom of the stripes in axes-fraction coordinates (default ``0``).
+        ymax : float, optional
+            Top of the stripes in axes-fraction coordinates (default ``1``).
+        **kwargs
+            Additional keyword arguments forwarded to
+            :class:`matplotlib.collections.BrokenBarHCollection`.
         """
 
     @plot_2D(extract_domain=True, default_resample=False)

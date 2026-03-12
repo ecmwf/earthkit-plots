@@ -212,6 +212,19 @@ class _TimeSeriesNamespace:
         """
         return _qp.timeseries(*args, plot="multiboxplot", **kwargs)
 
+    def stripes(self, *args, **kwargs):
+        """
+        Plot climate stripes.
+
+        Draws one vertical colored bar per data point, colored by value
+        through the given (or auto-detected) style.
+
+        Equivalent to the ``timeseries`` quickplot function with
+        ``plot="stripes"``.  Accepts all parameters of
+        :func:`earthkit.plots.quickplot.timeseries`.
+        """
+        return _qp.timeseries(*args, plot="stripes", **kwargs)
+
 
 class _ClimatologyNamespace:
     """Shortcuts for climatology (annual-cycle) plots."""
@@ -257,6 +270,35 @@ class _ClimatologyNamespace:
         return _qp.climatology(*args, plot="fill_between", **kwargs)
 
 
+class _HovmollerNamespace:
+    """Shortcuts for Hovmöller diagram plots."""
+
+    def contourf(self, *args, **kwargs):
+        """
+        Plot a Hovmöller diagram with filled contours.
+
+        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
+        """
+        return _qp.hovmoller(*args, plot="contourf", **kwargs)
+
+    def contour(self, *args, **kwargs):
+        """
+        Plot a Hovmöller diagram with contour lines.
+
+        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
+        """
+        return _qp.hovmoller(*args, plot="contour", **kwargs)
+
+    def pcolormesh(self, *args, **kwargs):
+        """
+        Plot a Hovmöller diagram with a pseudocolor mesh.
+
+        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
+        """
+        return _qp.hovmoller(*args, plot="pcolormesh", **kwargs)
+
+
 geo = _GeoNamespace()
 timeseries = _TimeSeriesNamespace()
 climatology = _ClimatologyNamespace()
+hovmoller = _HovmollerNamespace()

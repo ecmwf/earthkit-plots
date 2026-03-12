@@ -27,6 +27,11 @@ from earthkit.plots.schemas import schema
 
 METADATA = dict[str, Any | Sequence[Any]]
 
+# Colormaps cycled through when no auto-style is found for a variable.
+# Variables are assigned a cmap in the order they are first encountered.
+_FALLBACK_CMAPS = ["plasma", "viridis", "pink", "copper"]
+_fallback_cmap_assignments: dict[str, str] = {}
+
 
 def criteria_matches(data, criteria: METADATA) -> bool:
     """Test if the metadata matches the criteria."""
@@ -43,6 +48,34 @@ def criteria_matches(data, criteria: METADATA) -> bool:
     else:
         return True
     return False
+
+
+def _fallback_style(data):
+    """
+    Return a :class:`~earthkit.plots.styles.Style` with a per-variable
+    fallback colormap.  Variables are assigned a cmap from ``_FALLBACK_CMAPS``
+    in the order they are first seen; once the list is exhausted, cmaps cycle.
+    Variables that don't expose a recognisable name all share the last fallback
+    slot (same behaviour as the old ``DEFAULT_STYLE``).
+    """
+    var_name = None
+    for attr in ("name", "short_name", "param"):
+        try:
+            val = data.metadata(attr, None)
+            if val:
+                var_name = str(val)
+                break
+        except Exception:
+            pass
+
+    if var_name is None:
+        return styles.DEFAULT_STYLE
+
+    if var_name not in _fallback_cmap_assignments:
+        idx = len(_fallback_cmap_assignments) % len(_FALLBACK_CMAPS)
+        _fallback_cmap_assignments[var_name] = _FALLBACK_CMAPS[idx]
+
+    return styles.Style(colors=_fallback_cmap_assignments[var_name])
 
 
 def guess_style(data, units=None, **kwargs):
@@ -94,7 +127,7 @@ def guess_style(data, units=None, **kwargs):
             identity = config["id"]
             break
     else:
-        return styles.DEFAULT_STYLE
+        return _fallback_style(data)
 
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
@@ -105,7 +138,7 @@ def guess_style(data, units=None, **kwargs):
         if style_config["id"] == identity:
             break
     else:
-        return styles.DEFAULT_STYLE
+        return _fallback_style(data)
 
     if schema.use_preferred_units:
         style = style_config["styles"][style_config["optimal"]]
@@ -124,7 +157,7 @@ def guess_style(data, units=None, **kwargs):
                     if "units" not in style:
                         break
                 else:
-                    return styles.DEFAULT_STYLE
+                    return _fallback_style(data)
 
     # If the caller requested a specific target units that differs from the
     # style variant's units, override the style units so the colorbar label

@@ -802,9 +802,15 @@ def get_source(
     """
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
+    if isinstance(data_obj, ek_data.core.Base) and hasattr(data_obj, "to_fieldlist"):
+        data_obj = data_obj.to_fieldlist()
     if isinstance(data_obj, ek_data.core.Base):
         if hasattr(data_obj, "__len__") and len(data_obj) >= 1:
-            data_obj = data_obj[0]
+            # For vector contexts, keep the full FieldList so the extractor can
+            # find U/V pairs across fields. For scalar plots, collapse to [0].
+            is_vector = context is not None and context.is_vector
+            if not is_vector:
+                data_obj = data_obj[0]
 
     if data_obj is None:
         # Check for 'c' parameter (matplotlib convention for color/data)

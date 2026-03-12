@@ -361,6 +361,45 @@ class Figure:
         self.subplots.append(subplot)
         return subplot
 
+    def add_hovmoller(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` subplot
+        to the figure.
+
+        Returns a :class:`Hovmoller` instance pre-configured for Hovmöller
+        diagrams (time on one axis, pressure/height on the other, with
+        automatic axis inversion for pressure coordinates).
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Additional keyword arguments passed to the
+            :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` constructor.
+            Key options include ``time_axis`` (``"x"`` or ``"y"``) and
+            ``invert_vertical`` (``True``, ``False``, or ``"auto"``).
+
+        Returns
+        -------
+        Hovmoller
+
+        Examples
+        --------
+        >>> fig = ekp.Figure()
+        >>> hov = fig.add_hovmoller()
+        >>> hov.contourf(da, style="auto")
+        >>> fig.show()
+        """
+        from earthkit.plots.temporal.hovmoller import Hovmoller
+
+        row, column = self._determine_row_column(row, column)
+        subplot = Hovmoller(row=row, column=column, size=None, figure=self, **kwargs)
+        self.subplots.append(subplot)
+        return subplot
+
     def add_climatology(self, row=None, column=None, **kwargs):
         """
         Add a :class:`~earthkit.plots.temporal.climatology.Climatology` subplot

@@ -24,6 +24,37 @@ from earthkit.plots.identifiers import find_time
 
 _OFFSET_RE = re.compile(r"^(-?)(\d+)([A-Za-z]+)$")
 
+
+def _coerce_year_dim_to_datetime(data):
+    """
+    If *data* has an integer-valued ``year`` dimension, replace it with a
+    ``datetime64[ns]`` coordinate set to Jan 1 of each year.
+
+    This allows matplotlib's date locators (e.g. ``YearLocator``) to work
+    correctly when the user's data is indexed by plain year integers.
+    """
+    import xarray as xr
+
+    if not isinstance(data, (xr.DataArray, xr.Dataset)):
+        return data
+
+    dims = list(data.dims)
+    time_dim = find_time(dims)
+    if time_dim is None:
+        return data
+
+    coord = data[time_dim]
+    if np.issubdtype(coord.dtype, np.datetime64):
+        return data  # already datetime, nothing to do
+
+    if np.issubdtype(coord.dtype, np.integer):
+        years = coord.values.astype(int)
+        dt = np.array([f"{y}-01-01" for y in years], dtype="datetime64[ns]")
+        return data.assign_coords({time_dim: dt})
+
+    return data
+
+
 _VALID_RESAMPLE_METHODS = ("mean", "median", "min", "max", "sum", "std")
 
 
@@ -642,3 +673,38 @@ class TimeSeries(Subplot):
             )
 
         return super().multiboxplot(data, dim=dim, **kwargs)
+
+    @_with_resampling
+    def stripes(self, data, *args, time_offset=None, **kwargs):
+        """
+        Plot climate stripes on the TimeSeries subplot.
+
+        Extends :meth:`~earthkit.plots.components.subplots.Subplot.stripes`
+        with the ``time_offset`` and ``resample`` / ``resample_method``
+        parameters.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or array-like
+            Data to plot.
+        time_offset : str, optional
+            Shift the time coordinate before plotting.
+            See :func:`_parse_time_offset` for supported formats.
+        resample : str, optional
+            Pandas-compatible resampling frequency applied before plotting.
+        resample_method : str, optional
+            Aggregation method for ``resample``.  Default ``"mean"``.
+        ymin : float, optional
+            Bottom of the stripes in axes-fraction coordinates (default ``0``).
+        ymax : float, optional
+            Top of the stripes in axes-fraction coordinates (default ``1``).
+        **kwargs
+            Forwarded to :meth:`~earthkit.plots.components.subplots.Subplot.stripes`.
+        """
+        data = _coerce_year_dim_to_datetime(data)
+        if time_offset is not None:
+            data = _apply_time_offset(data, _parse_time_offset(time_offset))
+        result = super().stripes(data, *args, **kwargs)
+        self.ax.set_yticks([])
+        self.ax.grid(False)
+        return result

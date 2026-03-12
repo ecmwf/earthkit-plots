@@ -23,12 +23,13 @@ from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
-from earthkit.plots.namespaces import climatology, geo, timeseries
+from earthkit.plots.namespaces import climatology, geo, hovmoller, timeseries
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
 from earthkit.plots.styles.auto import list_styles, load_style
 from earthkit.plots.temporal.climatology import Climatology
+from earthkit.plots.temporal.hovmoller import Hovmoller
 from earthkit.plots.temporal.timeseries import TimeSeries
 
 try:
@@ -54,6 +55,8 @@ __all__ = [
     "TimeSeries",
     "climatology",
     "Climatology",
+    "hovmoller",
+    "Hovmoller",
     "quickplot",
 ]
 

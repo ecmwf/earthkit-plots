@@ -88,7 +88,6 @@ quickmap_subplot_workflow:
 
 quickmap_figure_workflow:
 - coastlines
-- gridlines
 - legend
 
 quickplot_workflow: []
@@ -147,13 +146,13 @@ suptitle:
 barbs:
   length: 4
   linewidth: 0.5
+  pivot: middle
   sizes:
     spacing: 0.25
-  regrid_shape: 30
 quiver:
   angles: xy
   pivot: middle
-  regrid_shape: 30
+  scale: 1200
 scatter:
   s: 36
   edgecolors: black

@@ -190,6 +190,8 @@ class Style:
         ticks=None,
         preferred_method="contourf",
         resample=None,
+        vmin=None,
+        vmax=None,
         **kwargs,
     ):
         # Handle cmap as an alias for colors
@@ -238,6 +240,8 @@ class Style:
         kwargs.pop("regrid", None)
         self._kwargs = kwargs
         self._preferred_method = preferred_method
+        self._vmin = vmin
+        self._vmax = vmax
 
     # TODO
     # def to_yaml(self):
@@ -287,6 +291,8 @@ class Style:
             "categories": self._bin_labels,
             "preferred_method": self._preferred_method,
             "resample": self.resample,
+            "vmin": self._vmin,
+            "vmax": self._vmax,
         }
         config.update(copy.deepcopy(self._kwargs))
         return config
@@ -414,6 +420,35 @@ class Style:
         data : numpy.ndarray
             The data to be plotted using this `Style`.
         """
+        # vmin/vmax path: produce a continuous Normalize instead of BoundaryNorm.
+        # Only used when vmin or vmax is explicitly set AND no levels are configured
+        # (explicit levels always take precedence over vmin/vmax).
+        has_levels = self._levels._levels is not None or self._levels._step is not None
+        if (self._vmin is not None or self._vmax is not None) and not has_levels:
+            vmin = (
+                self._vmin
+                if self._vmin is not None
+                else (float(np.nanmin(data)) if data is not None else None)
+            )
+            vmax = (
+                self._vmax
+                if self._vmax is not None
+                else (float(np.nanmax(data)) if data is not None else None)
+            )
+            # Resolve colormap directly — avoid cmap_and_norm which requires
+            # discrete levels to build its ListedColormap.
+            colors_spec = self._colors
+            if isinstance(colors_spec, mpl.colors.Colormap):
+                cmap = colors_spec
+            elif isinstance(colors_spec, str):
+                cmap = mpl.colormaps[colors_spec]
+            else:
+                # List of colours: build a continuous LinearSegmentedColormap.
+                cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
+            cmap.set_bad(alpha=0)
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            return {**{"cmap": cmap, "norm": norm}, **self._kwargs}
+
         levels = self.levels(data)
 
         if self.gradients is not None:
@@ -998,6 +1033,113 @@ class Style:
 
         return mappable
 
+    def stripes(self, ax, x, y, values, *args, **kwargs):
+        """
+        Plot climate stripes: one vertical colored bar per data point.
+
+        Each bar spans between the midpoints of adjacent x positions, and is
+        colored according to the y value mapped through this Style's colormap
+        and normalisation.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot.
+        x : numpy.ndarray
+            The x coordinates (e.g. time values as matplotlib date floats or
+            numeric values).
+        y : numpy.ndarray
+            The data values used to determine each bar's color.
+        values : numpy.ndarray
+            Unused (kept for API consistency with other Style methods).
+        **kwargs
+            Forwarded to :func:`matplotlib.axes.Axes.broken_barh`.
+            Common useful kwargs: ``ymin``, ``ymax``.
+        """
+        import matplotlib.dates as mdates
+        from matplotlib.transforms import blended_transform_factory
+
+        kwargs.pop("transform_first", None)
+
+        # Convert datetime64 x-values to matplotlib float dates for arithmetic
+        x = np.asarray(x)
+        if np.issubdtype(x.dtype, np.datetime64):
+            x_num = mdates.date2num(x.astype("datetime64[ms]").astype("object"))
+        else:
+            x_num = x.astype(float)
+
+        y = np.asarray(y, dtype=float)
+
+        # Build bar edge positions at midpoints between adjacent x values
+        if len(x_num) == 1:
+            edges = np.array([x_num[0] - 0.5, x_num[0] + 0.5])
+        else:
+            mids = (x_num[:-1] + x_num[1:]) / 2.0
+            edges = np.concatenate(
+                [
+                    [x_num[0] - (mids[0] - x_num[0])],
+                    mids,
+                    [x_num[-1] + (x_num[-1] - mids[-1])],
+                ]
+            )
+
+        # Resolve colormap + norm from the style. When neither explicit vmin/vmax
+        # nor discrete levels have been configured, default to a symmetric
+        # zero-centred range based on the absolute maximum of the data.
+        has_explicit_range = (
+            self._vmin is not None
+            or self._vmax is not None
+            or self._levels._levels is not None
+            or self._levels._step is not None
+        )
+        if not has_explicit_range:
+            absmax = float(np.nanmax(np.abs(y)))
+            colors_spec = self._colors
+            if isinstance(colors_spec, mpl.colors.Colormap):
+                cmap = colors_spec
+            elif isinstance(colors_spec, str):
+                cmap = mpl.colormaps[colors_spec]
+            else:
+                cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
+            cmap.set_bad(alpha=0)
+            norm = mpl.colors.Normalize(vmin=-absmax, vmax=absmax)
+        else:
+            mpl_kwargs = self.to_scatter_kwargs(y)
+            cmap = mpl_kwargs["cmap"]
+            norm = mpl_kwargs["norm"]
+
+        ymin = kwargs.pop("ymin", 0)
+        ymax = kwargs.pop("ymax", 1)
+        kwargs.pop("transform", None)
+
+        # Blended transform: x in data coordinates, y in axes fraction (0=bottom, 1=top)
+        transform = blended_transform_factory(ax.transData, ax.transAxes)
+
+        # Use ax.axvspan-style rendering: draw all bars via a PolyCollection for
+        # efficiency, one Rectangle patch per stripe.
+        from matplotlib.patches import Rectangle
+
+        for i, val in enumerate(y):
+            x0 = edges[i]
+            width = edges[i + 1] - x0
+            rect = Rectangle(
+                (x0, ymin),
+                width,
+                ymax - ymin,
+                facecolor=cmap(norm(val)),
+                linewidth=0,
+                transform=transform,
+            )
+            ax.add_patch(rect)
+
+        # Set x limits in data coordinates to cover the full stripe range
+        ax.set_xlim(edges[0], edges[-1])
+
+        # Return a ScalarMappable so colorbar() works
+        sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array(y)
+        return sm
+
     def values_to_colors(self, values, data=None):
         """
         Convert a value or list of values to colors based on this `Style`.
@@ -1035,6 +1177,11 @@ class Style:
 
     def colorbar(self, *args, **kwargs):
         """Create a colorbar legend for this `Style`."""
+        # A colorbar requires a ScalarMappable. If the layer's mappable is a
+        # list (e.g. Line2D objects from a line plot) skip silently.
+        layer = args[0] if args else None
+        if layer is not None and not hasattr(layer.mappable, "cmap"):
+            return None
         ticks = self._legend_kwargs.get("ticks")
         if ticks is None and self._levels._levels is not None:
             if len(np.unique(np.ediff1d(self._levels._levels))) != 1:

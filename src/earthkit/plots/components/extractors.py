@@ -38,7 +38,14 @@ from earthkit.plots.resample import Unstructured
 from earthkit.plots.resample.grids import needs_cyclic_point
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
-from earthkit.plots.styles import _STYLE_KWARGS, Contour, Quiver, Style, auto
+from earthkit.plots.styles import (
+    _STYLE_KWARGS,
+    DEFAULT_STYLE,
+    Contour,
+    Quiver,
+    Style,
+    auto,
+)
 
 # Private sentinel used internally by grid_cells to signal that the fast
 # nearest-neighbour pixel-sampling path should be used.  This is distinct from
@@ -167,7 +174,7 @@ def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
     is_map = isinstance(subplot, Map)
 
     # Check if method is 1D or 2D based on common method names
-    is_1d = method_name in ("line", "scatter", "bar", "barh", "plot")
+    is_1d = method_name in ("line", "scatter", "bar", "barh", "plot", "stripes")
 
     # Check if this is a vector plot
     is_vector = method_name in ("quiver", "barbs")
@@ -1117,6 +1124,28 @@ def extract_plottables_vector_2D(
     # Step 2: Update kwargs with plot-specific settings
     kwargs.update(subplot._plot_kwargs(source))
 
+    # Step 2.5: If no domain was set, auto-fit the map extent to the data.
+    # This mirrors the behaviour of scalar plots (contourf etc.) where cartopy
+    # auto-scales to the plotted data.  For vector plots the resampling step
+    # later calls subplot.ax.get_extent(), so the extent must be set first.
+    if subplot.domain is None and hasattr(subplot, "ax"):
+        try:
+            from earthkit.plots.geo import domains as _domains
+
+            x_ext = source.x.values
+            y_ext = source.y.values
+            subplot.domain = _domains.Domain.from_bbox(
+                bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
+                source_crs=source.crs,
+                target_crs=subplot.crs,
+            )
+            subplot.ax.set_extent(
+                subplot.domain.bbox.to_cartopy_bounds(),
+                subplot.domain.bbox.crs,
+            )
+        except Exception:
+            pass
+
     # Step 3: Configure the plotting style
     style = configure_style(
         method_name, style, source, units, auto_style, {**kwargs, "colors": colors}
@@ -1141,14 +1170,9 @@ def extract_plottables_vector_2D(
     # Currently Quiver/Style classes don't have scale factors like Contour does, so this is a no-op
     # but we keep it for consistency with how scalar fields are processed
 
-    # Step 7: Use style's resample setting if not explicitly provided; default
-    # to Bilinear(30) so quiver/barbs are thinned to a manageable arrow count.
+    # Step 7: Use style's resample setting if not explicitly provided.
     if resample is None:
         resample = style.resample
-    if resample is None:
-        from earthkit.plots.resample import Bilinear
-
-        resample = Bilinear(30)
 
     # Step 8: Extract data within domain boundaries if requested
     if subplot.domain and extract_domain:
@@ -1455,9 +1479,18 @@ def configure_style(
     else:
         style_class = Style
 
+    # Some methods suppress the auto-legend by default; the user can still
+    # override by passing legend_style= explicitly.
+    _NO_DEFAULT_LEGEND = {"stripes"}
+    if method_name in _NO_DEFAULT_LEGEND:
+        style_kwargs.setdefault("legend_style", None)
+
     # Create the style instance
     if not auto_style:
-        style = style_class(**{**style_kwargs, "units": units})
+        if style_kwargs or units:
+            style = style_class(**{**style_kwargs, "units": units})
+        else:
+            style = DEFAULT_STYLE
     else:
         style = auto.guess_style(source, units=units or source.units)
         # Apply any style kwargs as overrides to the auto-detected style

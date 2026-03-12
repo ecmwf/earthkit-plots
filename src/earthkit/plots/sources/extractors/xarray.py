@@ -1049,7 +1049,29 @@ def _unique_coord_vals(coord):
     return list(seen.values())
 
 
-def iter_plot_groups(data, groupby, mode):
+def _get_extra_dims(da):
+    """Return non-spatial, non-singleton dimension names from a DataArray."""
+    from earthkit.plots import identifiers
+
+    spatial_dims = set(identifiers.LATITUDE + identifiers.LONGITUDE)
+    return [d for d in da.dims if d not in spatial_dims and da.sizes[d] > 1]
+
+
+def _iter_cartesian(da, dims):
+    """
+    Yield ``(key_dict, DataArray)`` for every combination of values across *dims*.
+
+    ``key_dict`` maps each dim name to its selected value.
+    """
+    import itertools
+
+    all_vals = [_unique_coord_vals(da[d]) for d in dims]
+    for combo in itertools.product(*all_vals):
+        sel = {d: v for d, v in zip(dims, combo)}
+        yield sel, da.sel(sel)
+
+
+def iter_plot_groups(data, groupby, mode, combine_vectors=False):
     """
     Yield ``(key, [DataArray, ...])`` tuples for xarray DataArray/Dataset.
 
@@ -1061,13 +1083,20 @@ def iter_plot_groups(data, groupby, mode):
         Coordinate name to split on (one panel per unique value).
     mode : str
         ``"auto"``, ``"overlay"``, or ``"split"``.
+    combine_vectors : bool, optional
+        When ``True`` and *data* is a :class:`xr.Dataset`, matching U/V
+        component pairs are identified and yielded as a two-variable
+        sub-Dataset (so the caller can dispatch to a vector/quiver plot)
+        rather than as two separate scalar panels.  Non-vector variables
+        are still yielded individually.  Default is ``False``.
 
     Yields
     ------
     key : hashable
         Group identifier (used as panel label / title key).
-    targets : list of xr.DataArray
-        One or more DataArrays to overlay on the same subplot.
+    targets : list
+        One or more DataArrays (or a two-variable Dataset for vector pairs
+        when *combine_vectors* is ``True``) to overlay on the same subplot.
     """
     if mode == "overlay":
         if isinstance(data, xr.Dataset):
@@ -1089,28 +1118,185 @@ def iter_plot_groups(data, groupby, mode):
         return
 
     # mode == "auto"
+    squeezed = data.squeeze() if isinstance(data, xr.DataArray) else data
+
     if isinstance(data, xr.Dataset):
         var_names = list(data.data_vars)
         if len(var_names) > 1:
-            # Multi-var Dataset: yield (var, group_val) combos
+            # Multi-var Dataset: determine all non-spatial extra dims across variables,
+            # then yield the full Cartesian product of (variable × extra_dims).
+            # If groupby is set it takes priority as the sole extra split dim.
+            first_da = data.squeeze()[var_names[0]]
             if groupby is not None:
-                group_vals = _unique_coord_vals(data[var_names[0]][groupby])
+                extra_dims = [groupby]
             else:
-                group_vals = [None]
-            for var in var_names:
-                for grp in group_vals:
-                    if grp is not None:
-                        yield (var, grp), [data[var].sel({groupby: grp})]
-                    else:
-                        yield (var, None), [data[var]]
+                extra_dims = _get_extra_dims(first_da)
+
+            # When combine_vectors is requested, find and remove UV pairs first.
+            vector_pair = None
+            remaining_vars = var_names
+            if combine_vectors:
+                from earthkit.plots import identifiers
+
+                pair = identifiers.find_uv_pair(var_names)
+                if pair is not None:
+                    u_name, v_name = pair
+                    vector_pair = (u_name, v_name)
+                    remaining_vars = [v for v in var_names if v not in pair]
+
+            if extra_dims:
+                if vector_pair is not None:
+                    u_name, v_name = vector_pair
+                    uv_ds = data[[u_name, v_name]]
+                    first_vec_da = uv_ds.squeeze()[u_name]
+                    for sel, _ in _iter_cartesian(first_vec_da, extra_dims):
+                        key = ("__vector__", u_name, v_name) + tuple(sel.values())
+                        yield key, [uv_ds.sel(sel)]
+                for var in remaining_vars:
+                    da = data.squeeze()[var]
+                    for sel, slice_da in _iter_cartesian(da, extra_dims):
+                        key = (var,) + tuple(sel.values())
+                        yield key, [slice_da]
+            else:
+                if vector_pair is not None:
+                    u_name, v_name = vector_pair
+                    yield ("__vector__", u_name, v_name), [data[[u_name, v_name]]]
+                for var in remaining_vars:
+                    yield (var,), [data[var]]
             return
         # Single-var Dataset: unwrap
-        data = data[var_names[0]]
+        squeezed = data.squeeze()[var_names[0]]
 
     # DataArray path
     if groupby is not None:
-        coord_vals = _unique_coord_vals(data[groupby])
+        coord_vals = _unique_coord_vals(squeezed[groupby])
         for val in coord_vals:
-            yield val, [data.sel({groupby: val})]
+            yield val, [squeezed.sel({groupby: val})]
     else:
-        yield None, [data]
+        # Auto-detect all extra non-spatial dimensions and iterate their full
+        # Cartesian product so every panel gets a 2-D (lat × lon) slice.
+        extra_dims = _get_extra_dims(squeezed)
+        if extra_dims:
+            for sel, slice_da in _iter_cartesian(squeezed, extra_dims):
+                key = tuple(sel.values()) if len(sel) > 1 else next(iter(sel.values()))
+                yield key, [slice_da]
+        else:
+            yield None, [data]
+
+
+def iter_plot_groups_2d(data, row_dim, col_dim, groupby, mode):
+    """
+    Yield ``(row_key, col_key, [DataArray, ...])`` tuples for structured 2-D layout.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Input xarray object.
+    row_dim : str or None
+        Dimension name (or ``"variable"`` for Dataset variables) to lay out
+        along rows.
+    col_dim : str or None
+        Dimension name (or ``"variable"`` for Dataset variables) to lay out
+        along columns.
+    groupby : str or None
+        Additional dimension to split on (ignored if covered by row/col dims).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+
+    Yields
+    ------
+    row_key : hashable
+        Value identifying the row (None if row_dim not specified).
+    col_key : hashable
+        Value identifying the column (None if col_dim not specified).
+    targets : list of xr.DataArray
+        DataArrays to plot on the corresponding panel.
+    """
+
+    squeezed = data.squeeze() if isinstance(data, xr.DataArray) else data
+
+    # Resolve variable dimension
+    VARIABLE_DIM = "variable"
+
+    def _var_vals(ds):
+        return list(ds.data_vars)
+
+    def _resolve_dim_vals(da_or_ds, dim):
+        """Return list of unique values for *dim* (handles 'variable' pseudo-dim)."""
+        if dim == VARIABLE_DIM:
+            if isinstance(da_or_ds, xr.Dataset):
+                return _var_vals(da_or_ds)
+            return [da_or_ds.name]
+        if isinstance(da_or_ds, xr.Dataset):
+            return _unique_coord_vals(da_or_ds[_var_vals(da_or_ds)[0]][dim])
+        return _unique_coord_vals(da_or_ds[dim])
+
+    def _select(da_or_ds, dim, val):
+        """Select a single value along *dim* from a DataArray or Dataset."""
+        if dim == VARIABLE_DIM:
+            return da_or_ds[val] if isinstance(da_or_ds, xr.Dataset) else da_or_ds
+        if isinstance(da_or_ds, xr.Dataset):
+            return da_or_ds.sel({dim: val})
+        return da_or_ds.sel({dim: val})
+
+    row_vals = _resolve_dim_vals(squeezed, row_dim) if row_dim else [None]
+    col_vals = _resolve_dim_vals(squeezed, col_dim) if col_dim else [None]
+
+    # Dims already consumed by the row/col axes — don't expand again
+    consumed_dims = set()
+    if row_dim and row_dim != "variable":
+        consumed_dims.add(row_dim)
+    if col_dim and col_dim != "variable":
+        consumed_dims.add(col_dim)
+
+    def _expand_slice(slice_data, row_val, col_val):
+        """
+        Yield ``(compound_row_key, col_val, [DataArray])`` tuples, expanding
+        any remaining extra non-spatial dims into separate rows.
+        """
+        if isinstance(slice_data, xr.Dataset):
+            # Variable-major: for each variable, expand its extra dims
+            var_names = list(slice_data.data_vars)
+            for var in var_names:
+                da = slice_data[var]
+                extra = [d for d in _get_extra_dims(da) if d not in consumed_dims]
+                if extra:
+                    for sel, sliced in _iter_cartesian(da, extra):
+                        extra_key = tuple(sel.values())
+                        compound_row = (row_val, var) + extra_key
+                        yield compound_row, col_val, [sliced]
+                else:
+                    yield (row_val, var), col_val, [da]
+        else:
+            extra = [d for d in _get_extra_dims(slice_data) if d not in consumed_dims]
+            if extra:
+                for sel, sliced in _iter_cartesian(slice_data, extra):
+                    extra_key = tuple(sel.values())
+                    compound_row = (
+                        (row_val,) + extra_key if row_val is not None else extra_key
+                    )
+                    yield compound_row, col_val, [sliced]
+            else:
+                yield row_val, col_val, [slice_data]
+
+    # Collect all (row_key, col_key, targets) in row-major order so that the
+    # figure grid is laid out correctly (all columns for a given row together).
+    all_groups = []
+    for col_val in col_vals:
+        for row_val in row_vals:
+            slice_data = squeezed
+            if row_dim and row_val is not None:
+                slice_data = _select(slice_data, row_dim, row_val)
+            if col_dim and col_val is not None:
+                slice_data = _select(slice_data, col_dim, col_val)
+            for entry in _expand_slice(slice_data, row_val, col_val):
+                all_groups.append(entry)
+
+    # Re-order so that we iterate row-major (all cols for row 0, then row 1, …)
+    row_keys_seen = list(dict.fromkeys(rk for rk, _, _ in all_groups))
+    col_keys_seen = list(dict.fromkeys(ck for _, ck, _ in all_groups))
+    group_map = {(rk, ck): tgts for rk, ck, tgts in all_groups}
+    for rk in row_keys_seen:
+        for ck in col_keys_seen:
+            if (rk, ck) in group_map:
+                yield rk, ck, group_map[(rk, ck)]
