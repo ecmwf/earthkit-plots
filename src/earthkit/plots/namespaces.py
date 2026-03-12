@@ -270,35 +270,6 @@ class _ClimatologyNamespace:
         return _qp.climatology(*args, plot="fill_between", **kwargs)
 
 
-class _HovmollerNamespace:
-    """Shortcuts for Hovmöller diagram plots."""
-
-    def contourf(self, *args, **kwargs):
-        """
-        Plot a Hovmöller diagram with filled contours.
-
-        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
-        """
-        return _qp.hovmoller(*args, plot="contourf", **kwargs)
-
-    def contour(self, *args, **kwargs):
-        """
-        Plot a Hovmöller diagram with contour lines.
-
-        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
-        """
-        return _qp.hovmoller(*args, plot="contour", **kwargs)
-
-    def pcolormesh(self, *args, **kwargs):
-        """
-        Plot a Hovmöller diagram with a pseudocolor mesh.
-
-        See :func:`earthkit.plots.quickplot.hovmoller` for full documentation.
-        """
-        return _qp.hovmoller(*args, plot="pcolormesh", **kwargs)
-
-
 geo = _GeoNamespace()
 timeseries = _TimeSeriesNamespace()
 climatology = _ClimatologyNamespace()
-hovmoller = _HovmollerNamespace()
