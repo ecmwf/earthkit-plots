@@ -77,11 +77,19 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
     """
     import xarray as xr
 
+    from earthkit.plots.sources import _is_xarray_backed_earthkit
+
     if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
         from earthkit.plots.sources.extractors.xarray import iter_plot_groups
 
         yield from iter_plot_groups(
             args[0], groupby, mode, combine_vectors=combine_vectors
+        )
+    elif len(args) == 1 and _is_xarray_backed_earthkit(args[0]):
+        from earthkit.plots.sources.extractors.xarray import iter_plot_groups
+
+        yield from iter_plot_groups(
+            args[0].to_xarray(), groupby, mode, combine_vectors=combine_vectors
         )
     elif all(isinstance(a, xr.DataArray) for a in args):
         # Multiple DataArrays — merge into a Dataset so each variable gets its
@@ -90,12 +98,15 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
 
         ds = xr.merge(args, compat="override")
         yield from iter_plot_groups(ds, groupby, mode, combine_vectors=combine_vectors)
-    else:
+    elif all(isinstance(a, FieldList) for a in args):
         from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
 
         yield from iter_plot_groups(
             _coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors
         )
+    else:
+        # Numpy arrays or other raw data — yield directly, one panel.
+        yield None, list(args)
 
 
 def _iter_plot_groups_2d(args, row_dim, col_dim, groupby, mode):
@@ -191,10 +202,10 @@ def plot(
 
     Returns
     -------
-    Figure
-        An earthkit-plots :class:`~earthkit.plots.components.figures.Figure`
-        that can be further customised and then displayed with ``.show()`` or
-        saved with ``.save()``.
+    Map or Figure
+        A :class:`~earthkit.plots.components.maps.Map` when a single panel is
+        produced, or a :class:`~earthkit.plots.components.figures.Figure` for
+        multi-panel layouts.  Both support ``.show()`` and ``.save()``.
 
     Examples
     --------
@@ -260,7 +271,7 @@ def plot(
                 warnings.warn(
                     f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
                 )
-        return figure
+        return _unwrap_if_single(figure)
 
     # --- Flat layout (original behaviour) ---
     if subplot_titles is None and groupby:
@@ -330,7 +341,7 @@ def plot(
                     f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
                 )
 
-    return figure
+    return _unwrap_if_single(figure)
 
 
 def contourf(*args, **kwargs):
@@ -363,6 +374,13 @@ def pcolormesh(*args, **kwargs):
     return plot(*args, method="pcolormesh", **kwargs)
 
 
+def _unwrap_if_single(figure):
+    """Return the sole subplot when the figure has exactly one panel."""
+    if len(figure.subplots) == 1:
+        return figure.subplots[0]
+    return figure
+
+
 def _single_map_function(method_name, data_args, domain, crs, kwargs):
     """Shared helper: create a single-panel Map and call *method_name* on it."""
     import xarray as xr
@@ -383,7 +401,7 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
             warnings.warn(
                 f"ekp.{method_name}: figure workflow step '{m}' failed with:\n{err}"
             )
-    return figure
+    return _unwrap_if_single(figure)
 
 
 def grid_cells(
@@ -412,7 +430,7 @@ def grid_cells(
 
     Returns
     -------
-    Figure
+    Map
     """
     return _single_map_function("grid_cells", args, domain, crs, kwargs)
 
@@ -443,7 +461,7 @@ def grid_points(
 
     Returns
     -------
-    Figure
+    Map
     """
     return _single_map_function("grid_points", args, domain, crs, kwargs)
 
@@ -474,7 +492,7 @@ def point_cloud(
 
     Returns
     -------
-    Figure
+    Map
     """
     return _single_map_function("point_cloud", args, domain, crs, kwargs)
 
@@ -505,7 +523,7 @@ def rgb_composite(
 
     Returns
     -------
-    Figure
+    Map
     """
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
@@ -517,7 +535,7 @@ def rgb_composite(
             warnings.warn(
                 f"ekp.rgb_composite: figure workflow step '{m}' failed with:\n{err}"
             )
-    return figure
+    return _unwrap_if_single(figure)
 
 
 def choropleth(
@@ -543,7 +561,7 @@ def choropleth(
 
     Returns
     -------
-    Figure
+    Map
     """
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
@@ -555,7 +573,7 @@ def choropleth(
             warnings.warn(
                 f"ekp.choropleth: figure workflow step '{m}' failed with:\n{err}"
             )
-    return figure
+    return _unwrap_if_single(figure)
 
 
 def spaghetti(
@@ -612,8 +630,8 @@ def spaghetti(
 
     Returns
     -------
-    Figure
-        An earthkit-plots :class:`~earthkit.plots.components.figures.Figure`.
+    Map
+        An earthkit-plots :class:`~earthkit.plots.components.maps.Map`.
 
     Examples
     --------
@@ -656,7 +674,7 @@ def spaghetti(
                 f"ekp.spaghetti: figure workflow step '{m}' failed with:\n{err}"
             )
 
-    return figure
+    return _unwrap_if_single(figure)
 
 
 def quiver(*args, domain=None, crs=None, **kwargs):

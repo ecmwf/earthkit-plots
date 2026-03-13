@@ -1054,6 +1054,15 @@ def _get_extra_dims(da):
     from earthkit.plots import identifiers
 
     spatial_dims = set(identifiers.LATITUDE + identifiers.LONGITUDE)
+    has_latlon = any(d in spatial_dims for d in da.dims)
+
+    if not has_latlon:
+        # Unstructured/HEALPix: the spatial dimension isn't a named lat/lon
+        # dimension, so we can't safely identify "extra" dims. Yield the whole
+        # field as a single panel and let the specialized-grid handlers deal
+        # with it.
+        return []
+
     return [d for d in da.dims if d not in spatial_dims and da.sizes[d] > 1]
 
 
@@ -1158,11 +1167,14 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
                         key = (var,) + tuple(sel.values())
                         yield key, [slice_da]
             else:
+                squeezed_ds = data.squeeze()
                 if vector_pair is not None:
                     u_name, v_name = vector_pair
-                    yield ("__vector__", u_name, v_name), [data[[u_name, v_name]]]
+                    yield ("__vector__", u_name, v_name), [
+                        squeezed_ds[[u_name, v_name]]
+                    ]
                 for var in remaining_vars:
-                    yield (var,), [data[var]]
+                    yield (var,), [squeezed_ds[var]]
             return
         # Single-var Dataset: unwrap
         squeezed = data.squeeze()[var_names[0]]

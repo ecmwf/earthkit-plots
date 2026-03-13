@@ -1766,15 +1766,13 @@ class Subplot:
         **kwargs : dict
             Additional arguments for the plot method(s).
         """
-        import earthkit.data
-        import xarray as xr
-        from earthkit.data.core import Base
 
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
-        if not isinstance(data, (Base, xr.DataArray, xr.Dataset)):
-            data = earthkit.data.from_object(data)
-        source = get_source(data)
+        x = kwargs.get("x", None)
+        y = kwargs.get("y", None)
+        metadata = kwargs.get("metadata", None)
+        source = get_source(data, x=x, y=y, metadata=metadata)
         if style == "auto":
             resolved_style = auto.guess_style(source, units=units, **kwargs)
             if resolved_style is not None:

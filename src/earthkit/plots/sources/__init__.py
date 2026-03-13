@@ -702,6 +702,21 @@ class Source:
         return {"base_time": None, "valid_time": None}
 
 
+def _is_xarray_backed_earthkit(data: Any) -> bool:
+    """
+    Return True for earthkit NetCDF objects that should be converted via to_xarray().
+
+    Detects any earthkit Base subclass whose module contains 'netcdf' and which
+    exposes a to_xarray() method, covering all known earthkit.data versions.
+    """
+    if not isinstance(data, ek_data.core.Base):
+        return False
+    if not hasattr(data, "to_xarray"):
+        return False
+    module = getattr(type(data), "__module__", "") or ""
+    return "netcdf" in module
+
+
 def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     """
     Factory to create appropriate extractor for data type.
@@ -721,6 +736,10 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
         return XarrayExtractor(data)
+
+    # xarray-backed earthkit objects (NetCDF FieldLists, etc.) — convert first
+    if _is_xarray_backed_earthkit(data):
+        return XarrayExtractor(data.to_xarray())
 
     # Check for earthkit types
     if isinstance(data, ek_data.core.Base):
@@ -802,9 +821,11 @@ def get_source(
     """
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
-    if isinstance(data_obj, ek_data.core.Base) and hasattr(data_obj, "to_fieldlist"):
-        data_obj = data_obj.to_fieldlist()
-    if isinstance(data_obj, ek_data.core.Base):
+    if isinstance(data_obj, ek_data.core.Base) and not _is_xarray_backed_earthkit(
+        data_obj
+    ):
+        if hasattr(data_obj, "to_fieldlist"):
+            data_obj = data_obj.to_fieldlist()
         if hasattr(data_obj, "__len__") and len(data_obj) >= 1:
             # For vector contexts, keep the full FieldList so the extractor can
             # find U/V pairs across fields. For scalar plots, collapse to [0].
