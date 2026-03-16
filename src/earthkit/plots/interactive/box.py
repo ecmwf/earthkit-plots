@@ -111,7 +111,7 @@ def box(*args, quantiles=DEFAULT_QUANTILES, time_axis=0, **kwargs):
                 x=kwargs["x"],
                 mode="markers",
                 marker={"size": 0.00001, "color": kwargs.get("line_color", "#333333")},
-                hovertemplate=f"%{{y:.2f}}<extra>P<sub>{p*100:g}%</sub></extra>",
+                hovertemplate=f"%{{y:.2f}}<extra>P<sub>{p * 100:g}%</sub></extra>",
             )
         )
 

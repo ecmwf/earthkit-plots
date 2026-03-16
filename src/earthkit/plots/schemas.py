@@ -66,11 +66,7 @@ class _set:
         self.old_kwargs = {key: self.schema.get(key) for key in keys}
         self.old_kwargs = {
             **self.old_kwargs,
-            **{
-                key: dict(value)
-                for key, value in self.old_kwargs.items()
-                if isinstance(value, Schema)
-            },
+            **{key: dict(value) for key, value in self.old_kwargs.items() if isinstance(value, Schema)},
         }
 
         self.new_kwargs = [key for key in kwargs if key not in self.schema]
@@ -174,11 +170,7 @@ class Schema(dict):
             schema_kwargs = recursive_dict_update(schema_kwargs, global_kwargs)
 
         if keys:
-            schema_kwargs = {
-                key: schema_kwargs[key]
-                for key in keys
-                if key not in Schema.PROTECTED_KEYS
-            }
+            schema_kwargs = {key: schema_kwargs[key] for key in keys if key not in Schema.PROTECTED_KEYS}
         return recursive_dict_update(schema_kwargs, kwargs)
 
     def to_stylesheet(

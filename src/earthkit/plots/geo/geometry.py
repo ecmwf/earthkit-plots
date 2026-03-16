@@ -48,9 +48,7 @@ def reproject_geometries(geometries, src_crs, target_crs):
 
         transformer = pyproj.Transformer.from_crs(
             src_proj if isinstance(src_proj, str) else pyproj.CRS.from_proj4(src_proj),
-            target_proj
-            if isinstance(target_proj, str)
-            else pyproj.CRS.from_proj4(target_proj),
+            target_proj if isinstance(target_proj, str) else pyproj.CRS.from_proj4(target_proj),
             always_xy=True,
         )
 

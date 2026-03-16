@@ -37,9 +37,7 @@ class Layer:
         Which axis ('x', 'y', or 'z') contains the primary data for unit conversion.
     """
 
-    def __init__(
-        self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None
-    ):
+    def __init__(self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None):
         if not isinstance(sources, (list, tuple)):
             sources = [sources]
         self.sources = sources
@@ -67,9 +65,7 @@ class Layer:
         if self._magnitude is None:
             if len(self.sources) != 2:
                 raise ValueError("Magnitude can only be calculated for vector data.")
-            self._magnitude = np.sqrt(
-                self.sources[0].values ** 2 + self.sources[1].values ** 2
-            )
+            self._magnitude = np.sqrt(self.sources[0].values ** 2 + self.sources[1].values ** 2)
         return self._magnitude
 
     @property
@@ -107,9 +103,7 @@ class Layer:
 
     @property
     def _default_title_template(self):
-        if all(
-            source.metadata("type", default="an") == "an" for source in self.sources
-        ):
+        if all(source.metadata("type", default="an") == "an" for source in self.sources):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

@@ -97,10 +97,7 @@ class Chart:
                         pass
                     else:
                         self._subplot_titles = list(ds.data_vars)
-                        titles = [
-                            ds[data_var].attrs.get("units", "")
-                            for data_var in ds.data_vars
-                        ]
+                        titles = [ds[data_var].attrs.get("units", "") for data_var in ds.data_vars]
                         if kwargs.get("y") is not None:
                             self._subplot_x_titles = titles
                         else:
@@ -315,9 +312,7 @@ class Chart:
 
         else:
             # Handle cases where the input is not xarray-compatible
-            raise TypeError(
-                "Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset."
-            )
+            raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
 
     def title(self, title):
         """
@@ -355,13 +350,11 @@ class Chart:
         # Temporary fix to remove _parent keys from nested dictionaries
         for k in layout:
             if isinstance(layout[k], dict):
-                layout[k] = {
-                    k2: v for k2, v in layout[k].items() if not k2.startswith("_")
-                }
+                layout[k] = {k2: v for k2, v in layout[k].items() if not k2.startswith("_")}
         self.fig.update_layout(**layout)
         for i in range(self.rows * self.columns):
-            y_key = f"yaxis{i+1 if i>0 else ''}"
-            x_key = f"xaxis{i+1 if i>0 else ''}"
+            y_key = f"yaxis{i + 1 if i > 0 else ''}"
+            x_key = f"xaxis{i + 1 if i > 0 else ''}"
             if self._subplot_x_titles:
                 self.fig.update_layout(
                     **{

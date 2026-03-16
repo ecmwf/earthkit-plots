@@ -24,9 +24,7 @@ def _convert_spec(spec):
             return spec.spec
         elif hasattr(spec, "to_dict"):
             return spec.to_dict()
-        raise ValueError(
-            "Grid spec must be a dict or have 'spec' property or a 'to_dict' method."
-        )
+        raise ValueError("Grid spec must be a dict or have 'spec' property or a 'to_dict' method.")
     return spec
 
 
@@ -91,9 +89,7 @@ class MirRegridExecutor:
             if "icon" in in_grid.get("grid", "").lower():
                 _kwargs["interpolation"] = "nn"
 
-        LOG.debug(
-            "Regridding using MIR regridder, in_grid=", in_grid, " out_grid=", out_grid
-        )
+        LOG.debug("Regridding using MIR regridder, in_grid=", in_grid, " out_grid=", out_grid)
         r = regrid(array, in_grid=in_grid, out_grid=out_grid, **_kwargs)
         v = r[0]
         return v
@@ -111,9 +107,7 @@ class Regrid:
 
     def __call__(self, array, in_grid, out_grid):
         if self.executor is None:
-            raise ImportError(
-                "Regridding not available. Please install the earthkit-regrid package."
-            )
+            raise ImportError("Regridding not available. Please install the earthkit-regrid package.")
 
         return self.executor.regrid(array, in_grid, out_grid)
 

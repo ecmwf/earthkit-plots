@@ -20,15 +20,7 @@ CLASS_KWARGS = {
 
 
 def timeseries(
-    data,
-    *args,
-    title="{variable_name}",
-    xticks=None,
-    yticks=None,
-    xlabel=None,
-    ylabel=None,
-    plot="line",
-    **kwargs
+    data, *args, title="{variable_name}", xticks=None, yticks=None, xlabel=None, ylabel=None, plot="line", **kwargs
 ):
     """
     Create a time series plot with automatic configuration.
@@ -127,9 +119,7 @@ def timeseries(
     Custom figure size:
     >>> ts = timeseries(data, size=(12, 6))
     """
-    class_kwargs = {
-        kwarg: kwargs.pop(kwarg) for kwarg in CLASS_KWARGS if kwarg in kwargs
-    }
+    class_kwargs = {kwarg: kwargs.pop(kwarg) for kwarg in CLASS_KWARGS if kwarg in kwargs}
     ts = TimeSeries(**class_kwargs)
 
     getattr(ts, plot)(data, *args, **kwargs)

@@ -36,11 +36,7 @@ def parse_yaml(file):
             if chart is None:
                 subplot_type = item["subplot"].pop("type", "map")
                 subplot = getattr(figure, f"add_{subplot_type}")(
-                    **{
-                        key: value
-                        for key, value in item["subplot"].items()
-                        if key != "layers"
-                    }
+                    **{key: value for key, value in item["subplot"].items() if key != "layers"}
                 )
             else:
                 subplot = chart

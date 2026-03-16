@@ -150,9 +150,7 @@ def quickplot(
                 getattr(subplot, m)(*args)
             except Exception as err:
                 warnings.warn(
-                    f"Failed to execute {m} on given data with: \n"
-                    f"{err}\n\n"
-                    "consider constructing the plot manually."
+                    f"Failed to execute {m} on given data with: \n{err}\n\nconsider constructing the plot manually."
                 )
 
     for m in schema.quickmap_figure_workflow:
@@ -160,9 +158,7 @@ def quickplot(
             getattr(figure, m)()
         except Exception as err:
             warnings.warn(
-                f"Failed to execute {m} on given data with: \n"
-                f"{err}\n\n"
-                "consider constructing the plot manually."
+                f"Failed to execute {m} on given data with: \n{err}\n\nconsider constructing the plot manually."
             )
 
     return figure

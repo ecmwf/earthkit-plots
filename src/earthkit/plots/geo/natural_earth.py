@@ -68,9 +68,7 @@ RESOLUTIONS = {
 
 def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="low"):
     resolutions = list(RESOLUTIONS)
-    valid_resolutions = resolutions[
-        resolutions.index(min_resolution) : resolutions.index(max_resolution) + 1
-    ]
+    valid_resolutions = resolutions[resolutions.index(min_resolution) : resolutions.index(max_resolution) + 1]
     if resolution is None:
         bbox = BoundingBox(*ax.get_extent(), crs=crs)
         latlon_extents = list(bbox.to_latlon_bbox())
@@ -133,9 +131,7 @@ def reproject_geometries(geometries, src_crs, target_crs):
 
         transformer = pyproj.Transformer.from_crs(
             src_proj if isinstance(src_proj, str) else pyproj.CRS.from_proj4(src_proj),
-            target_proj
-            if isinstance(target_proj, str)
-            else pyproj.CRS.from_proj4(target_proj),
+            target_proj if isinstance(target_proj, str) else pyproj.CRS.from_proj4(target_proj),
             always_xy=True,
         )
 
@@ -197,9 +193,7 @@ class NaturalEarthDomain:
     def record(self):
         if self._record is None:
             for source, attribute in self.NATURAL_EARTH_SOURCES.items():
-                shpfilename = shpreader.natural_earth(
-                    resolution="110m", category="cultural", name=source
-                )
+                shpfilename = shpreader.natural_earth(resolution="110m", category="cultural", name=source)
                 reader = shpreader.Reader(shpfilename)
                 for record in reader.records():
                     name = record.attributes.get(attribute) or ""
@@ -210,10 +204,7 @@ class NaturalEarthDomain:
                     continue
                 break
             else:
-                raise ValueError(
-                    f"No country or state named '{self._domain_name}' found in "
-                    f"Natural Earth's shapefiles"
-                )
+                raise ValueError(f"No country or state named '{self._domain_name}' found in Natural Earth's shapefiles")
             self._record = record
             self._source = source
 
@@ -249,9 +240,7 @@ class NaturalEarthDomain:
         return crs_bounds
 
 
-def load_layer(
-    config, resolution, ax, crs, max_resolution="high", min_resolution="low"
-):
+def load_layer(config, resolution, ax, crs, max_resolution="high", min_resolution="low"):
     """
     Load Natural Earth layer data.
 

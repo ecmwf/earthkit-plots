@@ -88,9 +88,7 @@ class TestStyleOverrides:
         original_levels = original_style._levels._levels
 
         chart = Subplot()
-        chart.pcolormesh(
-            sample_data, style=original_style, levels=[250, 260, 270, 280, 290]
-        )
+        chart.pcolormesh(sample_data, style=original_style, levels=[250, 260, 270, 280, 290])
 
         # Original style should be unchanged
         assert original_style._levels._levels == original_levels
@@ -165,9 +163,7 @@ class TestStyleUnits:
         )
 
         # Create style with Celsius units
-        style_celsius = Style(
-            units="celsius", levels=[-10, 0, 10, 20, 30], colors="coolwarm"
-        )
+        style_celsius = Style(units="celsius", levels=[-10, 0, 10, 20, 30], colors="coolwarm")
 
         chart = Subplot()
         chart.pcolormesh(data_kelvin, style=style_celsius)
