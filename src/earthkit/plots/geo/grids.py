@@ -122,9 +122,7 @@ def _guess_resolution_and_shape(
     in_shape: int | tuple[int, int] | None = None,
     in_resolution: float | tuple[float, float] | None = None,
 ) -> tuple[tuple[float, float], tuple[int, int]]:
-    """
-    Guess the resolution and shape of the grid based on the input data.
-    """
+    """Guess the resolution and shape of the grid based on the input data."""
     x_min, x_max = x.min(), x.max()
     y_min, y_max = y.min(), y.max()
 

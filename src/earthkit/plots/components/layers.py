@@ -54,9 +54,7 @@ class Layer:
             self._facecolors = None
 
     def reset_facecolors(self):
-        """
-        Reset the facecolors of the mappable object.
-        """
+        """Reset the facecolors of the mappable object."""
         if self._facecolors is not None:
             self.mappable.set_facecolor(self._facecolors)
 
@@ -84,9 +82,7 @@ class Layer:
         return [self.ax]
 
     def legend(self, *args, **kwargs):
-        """
-        Generate a legend for this specific layer.
-        """
+        """Generate a legend for this specific layer."""
         if self.style is not None:
             return self.style.legend(self, *args, **kwargs)
 

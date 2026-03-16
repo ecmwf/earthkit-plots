@@ -29,7 +29,7 @@ def bandplot(ax, x, y, colors=None, *args, **kwargs):
 
 
 def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **kwargs):
-    """Box-and-whisker plot with multiple boxes for more value intervals
+    """Box-and-whisker plot with multiple boxes for more value intervals.
 
     Parameters
     ----------

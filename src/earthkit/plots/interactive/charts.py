@@ -108,9 +108,7 @@ class Chart:
 
     @property
     def fig(self):
-        """
-        The Plotly figure object representing the chart.
-        """
+        """The Plotly figure object representing the chart."""
         if self._fig is None:
             self._fig = make_subplots(
                 rows=self.rows,
@@ -259,9 +257,7 @@ class Chart:
 
     @set_subplot_titles
     def polar(self, *args, **kwargs):
-        """
-        Adds a polar windrose plot to the chart.
-        """
+        """Adds a polar windrose plot to the chart."""
         if "specs" not in self._subplots_kwargs:
             self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 
@@ -273,9 +269,7 @@ class Chart:
 
     @set_subplot_titles
     def polar_frequency(self, *args, **kwargs):
-        """
-        Adds a polar frequency plot to the chart.
-        """
+        """Adds a polar frequency plot to the chart."""
         if "specs" not in self._subplots_kwargs:
             self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 

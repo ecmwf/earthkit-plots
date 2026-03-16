@@ -82,9 +82,7 @@ _DAY_SPEC_RE = re.compile(
 
 
 def _parse_daily_with_anchor_and_offset(spec: str):
-    """
-    Returns (step:int, anchor_date:datetime.date|None, offset:relativedelta|None).
-    """
+    """Returns (step:int, anchor_date:datetime.date|None, offset:relativedelta|None)."""
     m = _DAY_SPEC_RE.match(spec)
     if not m:
         raise ValueError(f"Bad daily spec '{spec}'")

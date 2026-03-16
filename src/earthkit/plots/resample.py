@@ -192,9 +192,7 @@ class Interpolate(Resample):
         distance_threshold: None | float | int | str = None,
         transform: bool = True,
     ):
-        """
-        Initialize the interpolation resampler.
-        """
+        """Initialize the interpolation resampler."""
         if target_shape is not None and not isinstance(target_shape, (tuple, list)):
             target_shape = (target_shape, target_shape)
 
