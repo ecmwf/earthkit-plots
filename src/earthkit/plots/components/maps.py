@@ -47,7 +47,9 @@ class Map(Subplot):
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
-        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
+        domain. See
+        https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections
+        for a list of available CRSs.
     **kwargs
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
@@ -220,7 +222,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """

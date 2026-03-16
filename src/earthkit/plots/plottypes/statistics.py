@@ -61,7 +61,8 @@ def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **k
 
     # if the width is np.timedelta-like, cast it to pandas.Timedelta in order
     # to avoid integer division issue like np.timedelta64(1, 'D') * 0.5 == np.timedelta64(0, 'D')
-    # TODO: should we add pandas explicitly to the package dependencies (even though it is already a dependency via earthkit-data)?
+    # TODO: should we add pandas explicitly to the package dependencies
+    # (even though it is already a dependency via earthkit-data)?
     if np.array(width).dtype.kind == "m":
         width = pd.Timedelta(width)
 
