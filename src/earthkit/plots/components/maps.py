@@ -560,12 +560,17 @@ class Map(Subplot):
                     if not geom.is_empty:  # Only keep visible parts
                         geometries.append(geom)
 
-                # Determine source and target CRS for features
+                # Determine source and target CRS for features.
+                # Natural Earth shapefiles are always in PlateCarree(-180..180).
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Apply transform_first optimization if requested and needed
-                if _transform_first and target_crs != src_crs:
+                # Apply transform_first optimization if requested and needed.
+                # crs_equal defaults to comparing against PlateCarree, which is
+                # exactly the Natural Earth source CRS.
+                if _transform_first and not coordinate_reference_systems.crs_equal(
+                    target_crs, match_type_only=True
+                ):
                     from earthkit.plots.geo.geometry import reproject_geometries
 
                     # Reproject geometries before adding to map for better performance
@@ -918,12 +923,17 @@ class Map(Subplot):
             if not geom.is_empty:  # Only keep visible parts
                 geometries.append(geom)
 
-        # Determine source and target CRS for features
+        # Determine source and target CRS for features.
+        # Natural Earth shapefiles are always in PlateCarree(-180..180).
         src_crs = ccrs.PlateCarree()
         target_crs = self.crs
 
-        # Apply transform_first optimization if requested and needed
-        if transform_first and target_crs != src_crs:
+        # Apply transform_first optimization if requested and needed.
+        # crs_equal defaults to comparing against PlateCarree, which is
+        # exactly the Natural Earth source CRS.
+        if transform_first and not coordinate_reference_systems.crs_equal(
+            target_crs, match_type_only=True
+        ):
             from earthkit.plots.geo.geometry import reproject_geometries
 
             # Reproject geometries before adding to map for better performance
