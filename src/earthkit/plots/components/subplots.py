@@ -2573,11 +2573,3 @@ class Subplot:
     def save(self, *args, **kwargs):
         """Save the plot to a file."""
         return self.figure.save(*args, **kwargs)
-
-    def _repr_mimebundle_(self, **kwargs):
-        """Called by Jupyter to render the figure inline."""
-        return self.figure._repr_mimebundle_(**kwargs)
-
-    def _repr_html_(self):
-        """Fallback for environments that use _repr_html_ instead."""
-        return self.figure._repr_html_()

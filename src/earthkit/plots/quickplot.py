@@ -328,9 +328,7 @@ def plot(
         try:
             getattr(figure, m)()
         except Exception as err:
-            warnings.warn(
-                f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
-            )
+            warnings.warn(f"ekp.plot: figure workflow step '{m}' failed with:\n{err}")
 
     return _unwrap_if_single(figure)
 

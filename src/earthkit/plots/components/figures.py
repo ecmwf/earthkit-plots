@@ -89,6 +89,7 @@ class Figure:
         self._ancillary_cache = {}
 
         self._style_context = None
+        self._jupyter_display_hook = None
 
         if None not in (self.rows, self.columns):
             self._setup()
@@ -101,6 +102,38 @@ class Figure:
         self.gridspec = self.fig.add_gridspec(
             self.rows, self.columns, **self._gridspec_kwargs
         )
+        self._register_jupyter_display()
+
+    def _register_jupyter_display(self):
+        """Register a post_execute hook so the figure auto-displays in Jupyter."""
+        try:
+            ip = get_ipython()  # noqa: F821
+        except NameError:
+            return
+        if ip is None:
+            return
+
+        def _display_once():
+            self._jupyter_display_hook = None
+            ip.events.unregister("post_execute", _display_once)
+            self._prepare_for_display()
+            try:
+                plt.show()
+            finally:
+                self._exit_style_context()
+
+        self._jupyter_display_hook = (_display_once, ip)
+        ip.events.register("post_execute", _display_once)
+
+    def _cancel_jupyter_display(self):
+        """Unregister the auto-display hook (called when show/save is explicit)."""
+        if self._jupyter_display_hook is not None:
+            hook_fn, ip = self._jupyter_display_hook
+            self._jupyter_display_hook = None
+            try:
+                ip.events.unregister("post_execute", hook_fn)
+            except ValueError:
+                pass
 
     def _exit_style_context(self):
         """Exit the style context, restoring matplotlib's global rcParams."""
@@ -1405,6 +1438,7 @@ class Figure:
 
         This calls :func:`matplotlib.pyplot.show` to display the figure.
         """
+        self._cancel_jupyter_display()
         self._prepare_for_display()
         try:
             return plt.show(*args, **kwargs)
@@ -1424,6 +1458,7 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.savefig`.
         """
+        self._cancel_jupyter_display()
         self._prepare_for_display()
         try:
             return plt.savefig(
@@ -1439,20 +1474,6 @@ class Figure:
         """Flush the queue and apply pre-render hooks. Safe to call multiple times."""
         self._apply_subplot_pre_render()
         self._release_queue()
-
-    def _repr_mimebundle_(self, **kwargs):
-        """Called by Jupyter to render the figure inline."""
-        self._prepare_for_display()
-        if hasattr(self.fig, "_repr_mimebundle_"):
-            return self.fig._repr_mimebundle_(**kwargs)
-        return {}
-
-    def _repr_html_(self):
-        """Fallback for environments that use _repr_html_ instead."""
-        self._prepare_for_display()
-        if hasattr(self.fig, "_repr_html_"):
-            return self.fig._repr_html_()
-        return ""
 
     def _resize(self):
         """Resize the figure to fit its axes."""
