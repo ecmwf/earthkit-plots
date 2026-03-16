@@ -314,7 +314,40 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm48t56i4"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm48t56i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm48t56i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2m-temperature-spectral-kelvin 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-temperature-spectral-kelvin</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-temperature-spectral-kelvin')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-temperature-spectral-kelvin.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2m-temperature-spectral-fahrenheit 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-temperature-spectral-fahrenheit</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-temperature-spectral-fahrenheit')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-temperature-spectral-fahrenheit.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2m-temperature-spectral-celsius 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-temperature-spectral-celsius</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-temperature-spectral-celsius')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-temperature-spectral-celsius.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm48t56i4 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm48t56i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm48t56i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm48t56i4.png
    :alt: colorbar preview
@@ -325,7 +358,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm64t52i4"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm64t52i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm64t52i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm64t52i4 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm64t52i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm64t52i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm64t52i4.png
    :alt: colorbar preview
@@ -336,7 +369,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature ct-red-i2-dash near-surface air temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-red-i2-dash</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-red-i2-dash')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature ct-red-i2-dash mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-red-i2-dash</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-red-i2-dash')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/ct-red-i2-dash.png
    :alt: contour line sample
@@ -347,7 +380,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm32t42i2"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm32t42i2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm32t42i2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm32t42i2 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm32t42i2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm32t42i2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm32t42i2.png
    :alt: colorbar preview
@@ -358,7 +391,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm48t56i4-ct-wh"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm48t56i4-ct-wh</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm48t56i4-ct-wh')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm48t56i4-ct-wh t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm48t56i4-ct-wh</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm48t56i4-ct-wh')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm48t56i4-ct-wh.png
    :alt: colorbar preview
@@ -369,7 +402,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm52t48i4"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm52t48i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm52t48i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm52t48i4 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm52t48i4</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm52t48i4')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm52t48i4.png
    :alt: colorbar preview
@@ -380,7 +413,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm52t48i4-light"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm52t48i4-light</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm52t48i4-light')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm52t48i4-light t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm52t48i4-light</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm52t48i4-light')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm52t48i4-light.png
    :alt: colorbar preview
@@ -391,7 +424,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-gry-fm72t56lst"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-gry-fm72t56lst</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-gry-fm72t56lst')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-gry-fm72t56lst t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-gry-fm72t56lst</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-gry-fm72t56lst')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-gry-fm72t56lst.png
    :alt: colorbar preview
@@ -402,7 +435,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature ct-red-i4-t3 near-surface air temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-red-i4-t3</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-red-i4-t3')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature ct-red-i4-t3 mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-red-i4-t3</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-red-i4-t3')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/ct-red-i4-t3.png
    :alt: contour line sample
@@ -415,7 +448,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm80t56i4-v2"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm80t56i4-v2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm80t56i4-v2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm80t56i4-v2 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm80t56i4-v2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm80t56i4-v2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm80t56i4-v2.png
    :alt: colorbar preview
@@ -426,7 +459,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature sh-all-fm50t58i2"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm50t58i2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm50t58i2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature sh-all-fm50t58i2 t temp_scrn temperature"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-all-fm50t58i2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-all-fm50t58i2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-all-fm50t58i2.png
    :alt: colorbar preview
@@ -437,7 +470,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="167 2 metre temperature 2t 500015 500016 air_temperature near-surface air temperature transparent-zero-blue"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">transparent-zero-blue</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'transparent-zero-blue')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature transparent-zero-blue"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">transparent-zero-blue</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'transparent-zero-blue')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/transparent-zero-blue.png
    :alt: colorbar preview
@@ -2837,48 +2870,6 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    <div class="ek-section">
-   <h2 class="ek-section-heading">Temperature At 850Hpa</h2>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="air_temperature temperature-850hpa-rainbow-celsius temperature-at-850hPa"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-850hpa-rainbow-celsius</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-850hpa-rainbow-celsius')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-850hpa-rainbow-celsius.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="air_temperature temperature-850hpa-rainbow-kelvin temperature-at-850hPa"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-850hpa-rainbow-kelvin</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-850hpa-rainbow-kelvin')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-850hpa-rainbow-kelvin.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="air_temperature temperature-850hpa-rainbow-fahrenheit temperature-at-850hPa"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-850hpa-rainbow-fahrenheit</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-850hpa-rainbow-fahrenheit')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-850hpa-rainbow-fahrenheit.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-section">
    <h2 class="ek-section-heading">Specific humidity</h2>
 
 .. raw:: html
@@ -3601,48 +3592,6 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    <div class="ek-section">
-   <h2 class="ek-section-heading">near-surface air temperature</h2>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature near-surface-air-temperature screen level temperature t temp_scrn temperature-2m-turbo-celsius"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-2m-turbo-celsius</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-2m-turbo-celsius')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-2m-turbo-celsius.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature near-surface-air-temperature screen level temperature t temp_scrn temperature-2m-turbo-kelvin"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-2m-turbo-kelvin</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-2m-turbo-kelvin')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-2m-turbo-kelvin.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature near-surface-air-temperature screen level temperature t temp_scrn temperature-2m-turbo-fahrenheit"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">temperature-2m-turbo-fahrenheit</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'temperature-2m-turbo-fahrenheit')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/temperature-2m-turbo-fahrenheit.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-section">
    <h2 class="ek-section-heading">Total precipitation</h2>
 
 .. raw:: html
@@ -4300,3 +4249,4 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    </div>
+
