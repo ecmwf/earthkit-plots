@@ -22,7 +22,7 @@ def vonmises_kde(data: np.ndarray, kappa: float, n_bins: int = 360):
 
 
 def circular_var(data):
-    """Basic circular variance calculation: V = 1 - R̄ = 1 - sqrt(C̄²-S̄²) = 1- sqrt(mean(cos(x))^2 + mean(sin(x))^2)"""
+    """Basic circular variance calculation: V = 1 - R̄ = 1 - sqrt(C̄²-S̄²) = 1- sqrt(mean(cos(x))^2 + mean(sin(x))^2)."""
     mean_cos = np.mean(np.cos(data))
     mean_sin = np.mean(np.sin(data))
     r_bar = np.sqrt(mean_cos**2 + mean_sin**2)
@@ -210,9 +210,7 @@ def windrose(*args, colors=None, **kwargs):
 
 @inputs.sanitise(axes=("r", "theta"))
 def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
-    """
-    Generates traces for a polar frequency bar chart.
-    """
+    """Generates traces for a polar frequency bar chart."""
     r_data = kwargs.get("r")
     theta_data = kwargs.get("theta")
     df = pd.DataFrame({"r": r_data, "theta": theta_data}).dropna()

@@ -20,9 +20,7 @@ GLOBE_AREA = 64800  # 360*180
 
 
 class OptimisedCRS:
-    """
-    Base class for optimised cartopy CRS classes.
-    """
+    """Base class for optimised cartopy CRS classes."""
 
     def to_ccrs(self, optimiser):
         return getattr(ccrs, self.cartopy_crs())(**self.get_kwargs(optimiser))

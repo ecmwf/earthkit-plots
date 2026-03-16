@@ -511,9 +511,7 @@ class Subplot:
         return self._ax
 
     def ylabel(self, label=None, **kwargs):
-        """
-        Add a y-axis label to the plot.
-        """
+        """Add a y-axis label to the plot."""
         if label is None:
             # Check if units metadata exists
             units = self.layers[0].sources[0].y.metadata("units")
@@ -525,9 +523,7 @@ class Subplot:
         return self.ax.set_ylabel(label, **kwargs)
 
     def xlabel(self, label=None, **kwargs):
-        """
-        Add an x-axis label to the plot.
-        """
+        """Add an x-axis label to the plot."""
         if label is None:
             # Check if units metadata exists
             units = self.layers[0].sources[0].x.metadata("units")

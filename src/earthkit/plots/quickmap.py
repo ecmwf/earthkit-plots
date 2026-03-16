@@ -47,7 +47,7 @@ def _quickmap(function):
 
 @_quickmap
 def quickplot(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 plot = quickplot
@@ -55,44 +55,44 @@ plot = quickplot
 
 @_quickmap
 def line(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def bar(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def scatter(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def point_cloud(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def block(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def contour(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def contourf(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def quiver(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""
 
 
 @_quickmap
 def barbs(*args, **kwargs):
-    """Quick plot"""
+    """Quick plot."""

@@ -22,7 +22,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     nx: image resolution in x-direction
     ny: image resolution in y-direction
     ax: axis to plot on
-    kwargs: additional arguments to imshow
+    kwargs: additional arguments to imshow.
     """
     try:
         import healpy as hp  # noqa: F401
