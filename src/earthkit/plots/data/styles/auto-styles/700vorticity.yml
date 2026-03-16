@@ -1,0 +1,318 @@
+id: 700vorticity
+optimal: 700VORTICITY_SH_BLURED_FM50T50LST_CELL
+styles:
+  700VORTICITY_SH_BLURED_FM50T50LST_CELL:
+    name: sh-blured-fm50t50lst-cell
+    type: Style
+    colors:
+    - '#000080ff'
+    - '#0000b2ff'
+    - '#0000e6ff'
+    - '#0026ffff'
+    - '#004cffff'
+    - '#0073ffff'
+    - '#0099ffff'
+    - '#00bfffff'
+    - '#00d9ffff'
+    - '#33f2ffff'
+    - '#73ffffff'
+    - '#bfffffff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffe600ff'
+    - '#ffcc00ff'
+    - '#ffb200ff'
+    - '#ff9900ff'
+    - '#ff8000ff'
+    - '#ff6600ff'
+    - '#ff4c00ff'
+    - '#ff2600ff'
+    - '#e60000ff'
+    - '#b20000ff'
+    - '#800000ff'
+    levels:
+    - -100.0
+    - -75.0
+    - -50.0
+    - -30.0
+    - -20.0
+    - -15.0
+    - -13.0
+    - -11.0
+    - -9.0
+    - -7.0
+    - -5.0
+    - -3.0
+    - -1.0
+    - 1.0
+    - 3.0
+    - 5.0
+    - 7.0
+    - 9.0
+    - 11.0
+    - 13.0
+    - 15.0
+    - 20.0
+    - 30.0
+    - 50.0
+    - 75.0
+    - 100.0
+    extend: both
+    units: 1e5 s-1
+  700VORTICITY_SH_BLURED_FM50T50LST:
+    name: sh-blured-fm50t50lst
+    type: Style
+    colors:
+    - '#000080ff'
+    - '#0000b2ff'
+    - '#0000e6ff'
+    - '#0026ffff'
+    - '#004cffff'
+    - '#0073ffff'
+    - '#0099ffff'
+    - '#00bfffff'
+    - '#00d9ffff'
+    - '#33f2ffff'
+    - '#73ffffff'
+    - '#bfffffff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffe600ff'
+    - '#ffcc00ff'
+    - '#ffb200ff'
+    - '#ff9900ff'
+    - '#ff8000ff'
+    - '#ff6600ff'
+    - '#ff4c00ff'
+    - '#ff2600ff'
+    - '#e60000ff'
+    - '#b20000ff'
+    - '#800000ff'
+    levels:
+    - -100.0
+    - -75.0
+    - -50.0
+    - -30.0
+    - -20.0
+    - -15.0
+    - -13.0
+    - -11.0
+    - -9.0
+    - -7.0
+    - -5.0
+    - -3.0
+    - -1.0
+    - 1.0
+    - 3.0
+    - 5.0
+    - 7.0
+    - 9.0
+    - 11.0
+    - 13.0
+    - 15.0
+    - 20.0
+    - 30.0
+    - 50.0
+    - 75.0
+    - 100.0
+    extend: both
+    units: 1e5 s-1
+  700VORTICITY_SH_BLURED_FM50T50LST_LESS:
+    name: sh-blured-fm50t50lst-less
+    type: Style
+    colors:
+    - '#000080ff'
+    - '#0000e6ff'
+    - '#004cffff'
+    - '#0073ffff'
+    - '#00bfffff'
+    - '#33f2ffff'
+    - '#73ffffff'
+    - '#bfffffff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffe600ff'
+    - '#ffcc00ff'
+    - '#ff9900ff'
+    - '#ff6600ff'
+    - '#ff4c00ff'
+    - '#e60000ff'
+    - '#800000ff'
+    levels:
+    - -100.0
+    - -50.0
+    - -20.0
+    - -15.0
+    - -11.0
+    - -7.0
+    - -5.0
+    - -3.0
+    - -1.0
+    - 1.0
+    - 3.0
+    - 5.0
+    - 7.0
+    - 11.0
+    - 15.0
+    - 20.0
+    - 50.0
+    - 100.0
+    extend: both
+    units: 1e5 s-1
+  700VORTICITY_SH_BLU_FM50TM1LST:
+    name: sh-blu-fm50tm1lst
+    type: Style
+    colors:
+    - '#000080ff'
+    - '#0000b2ff'
+    - '#0000e6ff'
+    - '#0026ffff'
+    - '#004cffff'
+    - '#0073ffff'
+    - '#0099ffff'
+    - '#00bfffff'
+    - '#00d9ffff'
+    - '#33f2ffff'
+    - '#73ffffff'
+    - '#bfffffff'
+    levels:
+    - -100.0
+    - -75.0
+    - -50.0
+    - -30.0
+    - -20.0
+    - -15.0
+    - -13.0
+    - -11.0
+    - -9.0
+    - -7.0
+    - -5.0
+    - -3.0
+    - -1.0
+    extend: min
+    units: 1e5 s-1
+  700VORTICITY_SH_RED_F1T50LST:
+    name: sh-red-f1t50lst
+    type: Style
+    colors:
+    - '#ffff00ff'
+    - '#ffe600ff'
+    - '#ffcc00ff'
+    - '#ffb200ff'
+    - '#ff9900ff'
+    - '#ff8000ff'
+    - '#ff6600ff'
+    - '#ff4c00ff'
+    - '#ff2600ff'
+    - '#e60000ff'
+    - '#b20000ff'
+    - '#800000ff'
+    levels:
+    - 1.0
+    - 3.0
+    - 5.0
+    - 7.0
+    - 9.0
+    - 11.0
+    - 13.0
+    - 15.0
+    - 20.0
+    - 30.0
+    - 50.0
+    - 75.0
+    - 100.0
+    extend: max
+    units: 1e5 s-1
+  700VORTICITY_SH_VIOBRN_FM50T50LST_LESS:
+    name: sh-viobrn-fm50t50lst-less
+    type: Style
+    colors:
+    - '#7a66b2ff'
+    - '#9980ccff'
+    - '#a88fd9ff'
+    - '#b89ee6ff'
+    - '#c7adf5ff'
+    - '#d6bdffff'
+    - '#e6ccffff'
+    - '#f2d9ffff'
+    - '#00000000'
+    - '#fff2bfff'
+    - '#ffe699ff'
+    - '#ffd673ff'
+    - '#ffc44cff'
+    - '#ffb226ff'
+    - '#ff9e00ff'
+    - '#ff8a00ff'
+    - '#f27500ff'
+    levels:
+    - -100.0
+    - -50.0
+    - -20.0
+    - -15.0
+    - -11.0
+    - -7.0
+    - -5.0
+    - -3.0
+    - -1.0
+    - 1.0
+    - 3.0
+    - 5.0
+    - 7.0
+    - 11.0
+    - 15.0
+    - 20.0
+    - 50.0
+    - 100.0
+    extend: both
+    units: 1e5 s-1
+  700VORTICITY_CT_BLURED_FM5T50:
+    name: ct-blured-fm5t50
+    type: Contour
+    colors: red
+    levels:
+    - -5.0
+    - 5.0
+    - 10.0
+    - 20.0
+    - 50.0
+    units: 1e5 s-1
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 0.5
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  700VORTICITY_SH_BLURED_FM50T50LST_NARROW_RANGE:
+    name: sh-blured-fm50t50lst-narrow-range
+    type: Style
+    colors:
+    - '#00d9ffff'
+    - '#33f2ffff'
+    - '#73ffffff'
+    - '#bfffffff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffe600ff'
+    - '#ffcc00ff'
+    - '#ffb200ff'
+    levels:
+    - -10.0
+    - -8.0
+    - -6.0
+    - -4.0
+    - -2.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    extend: both
+    units: 1e5 s-1

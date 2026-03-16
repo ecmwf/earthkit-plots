@@ -1,0 +1,5 @@
+id: 500pv
+criteria:
+- paramId: '60'
+  shortName: pv
+- long_name: Potential vorticity

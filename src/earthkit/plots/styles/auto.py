@@ -27,6 +27,11 @@ from earthkit.plots.schemas import schema
 
 METADATA = dict[str, Any | Sequence[Any]]
 
+# Colormaps cycled through when no auto-style is found for a variable.
+# Variables are assigned a cmap in the order they are first encountered.
+_FALLBACK_CMAPS = ["plasma", "viridis", "pink", "copper"]
+_fallback_cmap_assignments: dict[str, str] = {}
+
 
 def criteria_matches(data, criteria: METADATA) -> bool:
     """Test if the metadata matches the criteria."""
@@ -43,6 +48,34 @@ def criteria_matches(data, criteria: METADATA) -> bool:
     else:
         return True
     return False
+
+
+def _fallback_style(data):
+    """
+    Return a :class:`~earthkit.plots.styles.Style` with a per-variable
+    fallback colormap.  Variables are assigned a cmap from ``_FALLBACK_CMAPS``
+    in the order they are first seen; once the list is exhausted, cmaps cycle.
+    Variables that don't expose a recognisable name all share the last fallback
+    slot (same behaviour as the old ``DEFAULT_STYLE``).
+    """
+    var_name = None
+    for attr in ("name", "short_name", "param"):
+        try:
+            val = data.metadata(attr, None)
+            if val:
+                var_name = str(val)
+                break
+        except Exception:
+            pass
+
+    if var_name is None:
+        return styles.DEFAULT_STYLE
+
+    if var_name not in _fallback_cmap_assignments:
+        idx = len(_fallback_cmap_assignments) % len(_FALLBACK_CMAPS)
+        _fallback_cmap_assignments[var_name] = _FALLBACK_CMAPS[idx]
+
+    return styles.Style(colors=_fallback_cmap_assignments[var_name])
 
 
 def guess_style(data, units=None, **kwargs):
@@ -63,8 +96,12 @@ def guess_style(data, units=None, **kwargs):
         data, the data will be converted to the target units and the style
         will be adjusted accordingly.
     """
+    # Use the source's native units (before any conversion) to pick the style
+    # variant. The caller-supplied `units` is the *target* units and is used
+    # below to select the matching style variant and to label the colorbar.
+    source_units = data.source_units
     if units is None:
-        units = data.units
+        units = source_units
 
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
@@ -90,7 +127,7 @@ def guess_style(data, units=None, **kwargs):
             identity = config["id"]
             break
     else:
-        return styles.DEFAULT_STYLE
+        return _fallback_style(data)
 
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
@@ -101,7 +138,7 @@ def guess_style(data, units=None, **kwargs):
         if style_config["id"] == identity:
             break
     else:
-        return styles.DEFAULT_STYLE
+        return _fallback_style(data)
 
     if schema.use_preferred_units:
         style = style_config["styles"][style_config["optimal"]]
@@ -110,11 +147,105 @@ def guess_style(data, units=None, **kwargs):
             if are_equal(style.get("units"), units):
                 break
         else:
-            # No style matching units found; return default
+            # No style matching units found — try matching source units, or
+            # fall back to any style without explicit units
             for _, style in style_config["styles"].items():
-                if "units" not in style:
+                if are_equal(style.get("units"), source_units):
                     break
             else:
-                return styles.DEFAULT_STYLE
+                for _, style in style_config["styles"].items():
+                    if "units" not in style:
+                        break
+                else:
+                    return _fallback_style(data)
+
+    # If the caller requested a specific target units that differs from the
+    # style variant's units, override the style units so the colorbar label
+    # reflects the actual plotted units (the Source handles the conversion).
+    style_units = style.get("units")
+    if units is not None and not are_equal(units, style_units):
+        kwargs.setdefault("units", units)
 
     return styles.Style.from_dict({**style, **kwargs})
+
+
+def _iter_named_styles():
+    """
+    Yield ``(name, style_dict)`` for every named style variant across all
+    registered style libraries.
+
+    Only variants that carry a ``name`` key are yielded.
+    """
+    seen_paths = set()
+    for plugin_paths in PLUGINS.values():
+        styles_path = plugin_paths["styles"]
+        for fname in sorted(glob.glob(str(styles_path / "*"))):
+            if not os.path.isfile(fname) or fname in seen_paths:
+                continue
+            seen_paths.add(fname)
+            with open(fname) as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            for style_dict in config.get("styles", {}).values():
+                name = style_dict.get("name")
+                if name:
+                    yield name, style_dict
+
+
+def load_style(name, **kwargs):
+    """
+    Load a named style by its user-facing name.
+
+    Style names are defined in the ``name`` field of each style variant in the
+    auto-styles YAML files (e.g. ``temperature-2m-turbo-celsius``).  The full
+    list of available names can be retrieved with :func:`list_styles`.
+
+    Parameters
+    ----------
+    name : str
+        The name of the style to load, as shown in the styles gallery.
+    **kwargs
+        Additional keyword arguments passed to the ``Style`` constructor,
+        allowing individual parameters to be overridden.
+
+    Returns
+    -------
+    earthkit.plots.styles.Style
+        The instantiated style object.
+
+    Raises
+    ------
+    KeyError
+        If no style with the given name is found in any registered style
+        library.
+
+    Examples
+    --------
+    >>> import earthkit.plots
+    >>> style = earthkit.plots.styles.load_style("temperature-2m-turbo-celsius")
+    >>> chart.contourf(data, style=style)
+    """
+    for style_name, style_dict in _iter_named_styles():
+        if style_name == name:
+            return styles.Style.from_dict({**style_dict, **kwargs})
+    available = list_styles()
+    raise KeyError(f"No style named {name!r}. " f"Available styles: {available}")
+
+
+def list_styles():
+    """
+    Return a sorted list of all available named style names.
+
+    These names can be passed to :func:`load_style` or used directly as the
+    ``style`` parameter in any plotting method.
+
+    Returns
+    -------
+    list of str
+
+    Examples
+    --------
+    >>> import earthkit.plots
+    >>> earthkit.plots.styles.list_styles()
+    ['mslp-contour-hpa', 'mslp-contour-pa', 'precipitation-turbo-kg-m2', ...]
+    """
+    return sorted(name for name, _ in _iter_named_styles())

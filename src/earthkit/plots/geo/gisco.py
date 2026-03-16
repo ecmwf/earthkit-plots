@@ -41,18 +41,6 @@ _DEFAULT_DATA_DIR = Path.home() / ".cache" / "earthkit-geo"
 DATA_DIR = Path(os.environ.get("EARTHKIT_GEO_DATA_DIR", _DEFAULT_DATA_DIR))
 
 
-class GISCORecord:
-    """Wrapper to make fiona records look like cartopy shapefile records."""
-
-    def __init__(self, feature):
-        from shapely.geometry import shape
-
-        self._feature = feature
-        self.geometry = shape(feature["geometry"])
-        # Use properties as attributes
-        self.attributes = feature["properties"]
-
-
 def _get_gisco_resolution(resolution):
     """
     Map human-readable resolution names to GISCO resolution codes.
@@ -86,7 +74,7 @@ def _get_gisco_resolution(resolution):
 
 def _load_shapefile_records(shapefile_path):
     """
-    Load shapefile records using fiona and wrap them in GISCORecord objects.
+    Load shapefile records using cartopy's shapereader.
 
     Parameters
     ----------
@@ -96,16 +84,11 @@ def _load_shapefile_records(shapefile_path):
     Returns
     -------
     list
-        List of GISCORecord objects
+        List of cartopy Record objects
     """
-    import fiona
+    import cartopy.io.shapereader as shpreader
 
-    records_list = []
-    with fiona.open(shapefile_path) as src:
-        for feature in src:
-            records_list.append(GISCORecord(feature))
-
-    return records_list
+    return list(shpreader.Reader(shapefile_path).records())
 
 
 def _get_gisco_cache_dir():

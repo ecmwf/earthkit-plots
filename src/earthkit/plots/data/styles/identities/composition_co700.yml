@@ -1,0 +1,9 @@
+id: composition_co700
+criteria:
+- levelist:
+  - '700'
+  paramId: '210123'
+  shortName: co
+- level:
+  - '700'
+  long_name: Carbon monoxide

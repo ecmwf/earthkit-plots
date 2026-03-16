@@ -78,6 +78,7 @@ Or even more simply:
    :caption: Documentation
 
    user-guide
+   styles-gallery
    api
    development
 

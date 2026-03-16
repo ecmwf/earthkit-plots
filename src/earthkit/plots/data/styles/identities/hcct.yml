@@ -1,0 +1,5 @@
+id: hcct
+criteria:
+- paramId: '228046'
+  shortName: hcct
+- long_name: Height of convective cloud top

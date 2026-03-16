@@ -192,15 +192,21 @@ class Levels:
         return cls(**kwargs)
 
     def __eq__(self, other):
-        if self._levels is not None and other is not None:
-            is_self_arr = isinstance(self._levels, np.ndarray)
-            is_other_arr = isinstance(other._levels, np.ndarray)
-            if is_self_arr and is_other_arr:
-                return np.array_equal(self._levels, other._levels)
-            if is_self_arr != is_other_arr:
-                return False
-            return self._levels == other._levels
-        return False
+        if not isinstance(other, Levels):
+            return NotImplemented
+        # Both have no explicit levels (dynamic) → treat as equal
+        if self._levels is None and other._levels is None:
+            return True
+        # One has levels, the other doesn't
+        if (self._levels is None) != (other._levels is None):
+            return False
+        is_self_arr = isinstance(self._levels, np.ndarray)
+        is_other_arr = isinstance(other._levels, np.ndarray)
+        if is_self_arr and is_other_arr:
+            return np.array_equal(self._levels, other._levels)
+        if is_self_arr != is_other_arr:
+            return False
+        return self._levels == other._levels
 
     def __init__(
         self,

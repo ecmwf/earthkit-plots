@@ -1,0 +1,6 @@
+id: mc_cape
+criteria:
+- paramId: '59'
+  shortName: cape
+  type: cd
+- long_name: Convective available potential energy

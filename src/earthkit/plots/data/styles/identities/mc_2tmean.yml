@@ -1,0 +1,11 @@
+id: mc_2tmean
+criteria:
+- paramId:
+  - '228004'
+  - '202'
+  - '201'
+  shortName:
+  - mean2t
+  - mn2t
+  - mx2t
+  type: cd

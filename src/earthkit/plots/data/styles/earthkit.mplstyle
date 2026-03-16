@@ -18,7 +18,7 @@ axes.edgecolor: AAAAAA
 axes.grid: True
 axes.xmargin: 0.02
 axes.ymargin: 0.02
-axes.prop_cycle: cycler('color', ['545FA4', 'EB702D', 'FABC20', '9aa1cb', 'f6bfa2', 'fde19b'])
+axes.prop_cycle: cycler('color', ['8dd3c7', 'ffffb3', 'bebada', 'fb8072', '80b1d3', 'fdb462', 'b3de69', 'fccde5', 'd9d9d9', 'bc80bd', 'ccebc5', 'ffed6f'])
 
 ## Ticks
 xtick.top: False

@@ -1,0 +1,11 @@
+id: composition_ch4_surface
+criteria:
+- levtype: ml
+  levelist:
+  - '137'
+  paramId:
+  - '210062'
+  - '217004'
+  shortName:
+  - ch4
+  - ch4_c

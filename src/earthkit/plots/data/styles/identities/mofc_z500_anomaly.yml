@@ -1,0 +1,9 @@
+id: mofc_z500_anomaly
+criteria:
+- levelist:
+  - '500'
+  paramId: '171129'
+  shortName: za
+- level:
+  - '500'
+  long_name: Geopotential anomaly

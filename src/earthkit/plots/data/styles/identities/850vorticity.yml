@@ -1,0 +1,14 @@
+id: 850vorticity
+criteria:
+- levelist:
+  - '850'
+  - '300'
+  - '250'
+  paramId: '138'
+  shortName: vo
+- level:
+  - '850'
+  - '300'
+  - '250'
+  long_name: Vorticity (relative)
+  standard_name: atmosphere_relative_vorticity

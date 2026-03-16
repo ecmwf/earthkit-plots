@@ -1,0 +1,13 @@
+id: 800ws
+criteria:
+- levelist:
+  - '800'
+  - '700'
+  - '600'
+  paramId: '10'
+  shortName: ws
+- level:
+  - '800'
+  - '700'
+  - '600'
+  long_name: Wind speed

@@ -22,6 +22,110 @@ from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordina
 from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
+def iter_plot_groups(fields, groupby, mode, combine_vectors=False):
+    """
+    Yield ``(key, [Field, ...])`` tuples for an earthkit FieldList.
+
+    Parameters
+    ----------
+    fields : earthkit.data.FieldList
+        Input FieldList.
+    groupby : str or None
+        Metadata key to split on (one panel per unique value).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+    combine_vectors : bool, optional
+        When ``True``, matching U/V component pairs are identified via
+        ``parameter.variable`` and yielded together as a two-field list
+        so the caller can dispatch them to a quiver plot.  Default ``False``.
+
+    Yields
+    ------
+    key : hashable
+        Group identifier.
+    targets : list of earthkit Field
+        One or more fields to overlay on the same subplot.
+    """
+    from earthkit.plots.utils import iter_utils
+
+    if mode == "overlay":
+        yield None, list(fields)
+        return
+
+    if mode == "split":
+        for i, field in enumerate(fields):
+            yield i, [field]
+        return
+
+    # mode == "auto"
+    if groupby:
+        unique_values = iter_utils.flatten(field.metadata(groupby) for field in fields)
+        unique_values = [v for v in dict.fromkeys(unique_values) if v is not None]
+        for val in unique_values:
+            group = fields.sel(**{groupby: val})
+            group_list = list(group)
+            if group_list:
+                yield val, group_list
+    else:
+        # Group fields by variable so that all fields of the same variable
+        # share a colorbar.  Try parameter.variable first (the canonical
+        # earthkit key), then fall back to short_name and paramId.
+        def _var_key(field):
+            for key in ("parameter.variable", "short_name", "paramId"):
+                try:
+                    val = field.metadata(key)
+                    if val is not None:
+                        return (key, val)
+                except Exception:
+                    pass
+            return ("__index__", id(field))
+
+        # Preserve insertion order of first occurrence
+        seen = {}
+        for field in fields:
+            k = _var_key(field)
+            seen.setdefault(k, []).append(field)
+
+        if len(seen) > 1:
+            # Multiple variables — optionally combine UV pairs, then yield
+            # each variable's fields as individual panels.
+            var_names = [k[1] for k in seen]
+
+            vector_pair = None
+            remaining_keys = list(seen.keys())
+            if combine_vectors:
+                from earthkit.plots import identifiers
+
+                pair = identifiers.find_uv_pair(var_names)
+                if pair is not None:
+                    u_name, v_name = pair
+                    vector_pair = (u_name, v_name)
+                    remaining_keys = [k for k in seen if k[1] not in pair]
+
+            if vector_pair is not None:
+                u_name, v_name = vector_pair
+                u_key = next(k for k in seen if k[1] == u_name)
+                v_key = next(k for k in seen if k[1] == v_name)
+                u_fields = seen[u_key]
+                v_fields = seen[v_key]
+                # Pair up U and V fields positionally (one panel per pair)
+                for u_field, v_field in zip(u_fields, v_fields):
+                    yield ("__vector__", u_name, v_name), [u_field, v_field]
+
+            for k in remaining_keys:
+                group_fields = seen[k]
+                var_name = k[1]
+                if len(group_fields) == 1:
+                    yield var_name, group_fields
+                else:
+                    for field in group_fields:
+                        yield var_name, [field]
+        else:
+            # Single variable or unable to detect — one panel per field.
+            for field in fields:
+                yield None, [field]
+
+
 class EarthkitExtractor(BaseExtractor):
     """
     Extractor for earthkit.data objects (Field, FieldList, etc.).
@@ -133,28 +237,18 @@ class EarthkitExtractor(BaseExtractor):
             (x, y) arrays in the data's native CRS.
         """
         # Try to_points method first - gives native coordinates
-        if hasattr(self.data, "to_points"):
+        if hasattr(self.data.geography, "points"):
             try:
-                points = self.data.to_points(flatten=False)
-                # Check for x/y (projected coordinates) first
-                if "x" in points and "y" in points:
-                    return points["x"], points["y"]
-                # Then check for lon/lat (geographic coordinates)
-                elif "lon" in points and "lat" in points:
-                    return points["lon"], points["lat"]
-            except (AttributeError, NotImplementedError):
+                return self.data.geography.points(flatten=False)
+            except (AttributeError, NotImplementedError, ValueError):
                 pass
 
         # Fallback to to_latlon if to_points not available
-        if hasattr(self.data, "to_latlon"):
+        if hasattr(self.data.geography, "latlons"):
             try:
-                coords = self.data.to_latlon(flatten=False)
-                if isinstance(coords, dict):
-                    return coords.get("lon"), coords.get("lat")
-                elif isinstance(coords, tuple) and len(coords) == 2:
-                    lat, lon = coords
-                    return lon, lat
-            except (AttributeError, NotImplementedError):
+                lats, lons = self.data.geography.latlons(flatten=False)
+                return lons, lats  # Return in (x, y) order as (lon, lat)
+            except (AttributeError, NotImplementedError, ValueError):
                 pass
 
         # Last resort: generate index arrays
@@ -407,32 +501,19 @@ class EarthkitExtractor(BaseExtractor):
         """
         Try to auto-detect U/V from earthkit FieldList.
 
-        Examines 'param' or 'shortName' metadata to identify UV pairs.
+        Uses data.get("parameter.variable") to retrieve parameter names for
+        all fields, then identifies UV pairs via the identifiers module.
 
         Returns
         -------
         tuple[Optional[CoordinateInfo], Optional[CoordinateInfo]]
             (u_info, v_info) if detected, else (None, None).
         """
-        if not hasattr(self.data, "metadata"):
-            return None, None
-
         from earthkit.plots import identifiers
 
-        # Get list of parameter names
         try:
-            # Try to get all parameters from the FieldList
-            params = []
-            for i in range(len(self.data)):
-                for key in ["param", "shortName"]:
-                    try:
-                        param = self.data[i].metadata(key)
-                        if param:
-                            params.append(param)
-                            break
-                    except (AttributeError, KeyError):
-                        continue
-        except (TypeError, AttributeError):
+            params = self.data.get("parameter.variable")
+        except (AttributeError, KeyError, TypeError):
             return None, None
 
         if not params:
@@ -445,22 +526,14 @@ class EarthkitExtractor(BaseExtractor):
 
         u_param, v_param = uv_pair
 
-        # Extract fields
-        u_field = None
-        v_field = None
-        for key in ["param", "short_name"]:
-            try:
-                u_field = self.data.sel(**{key: u_param})
-                v_field = self.data.sel(**{key: v_param})
-                break
-            except (AttributeError, KeyError):
-                continue
+        u_field = self.data.sel(**{"parameter.variable": u_param})
+        v_field = self.data.sel(**{"parameter.variable": v_param})
 
-        if u_field is None or v_field is None:
+        if not u_field or not v_field:
             return None, None
 
         # Build CoordinateInfo objects
-        u_values = u_field.to_numpy(flatten=False)
+        u_values = u_field.to_numpy(flatten=False).squeeze()
         u_metadata = self._extract_all_metadata_from_field(u_field)
         u_units = u_metadata.get("units")
         u_info = CoordinateInfo(
@@ -470,7 +543,7 @@ class EarthkitExtractor(BaseExtractor):
             metadata=u_metadata,
         )
 
-        v_values = v_field.to_numpy(flatten=False)
+        v_values = v_field.to_numpy(flatten=False).squeeze()
         v_metadata = self._extract_all_metadata_from_field(v_field)
         v_units = v_metadata.get("units")
         v_info = CoordinateInfo(

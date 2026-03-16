@@ -1,0 +1,36 @@
+id: composition_uvindex
+optimal: COMPOSITION_UVINDEX_SH_ALL_UVINDEX
+styles:
+  COMPOSITION_UVINDEX_SH_ALL_UVINDEX:
+    name: sh-all-uvindex
+    type: Style
+    colors:
+    - '#42a631ff'
+    - '#a5c600ff'
+    - '#fff300ff'
+    - '#ffd700ff'
+    - '#f7b200ff'
+    - '#ef8a00ff'
+    - '#e66900ff'
+    - '#e63510ff'
+    - '#e62484ff'
+    - '#b565a5ff'
+    - '#847db5ff'
+    - '#7ba6ffff'
+    - '#63beffff'
+    levels:
+    - 1.0
+    - 2.0
+    - 3.0
+    - 4.0
+    - 5.0
+    - 6.0
+    - 7.0
+    - 8.0
+    - 9.0
+    - 10.0
+    - 11.0
+    - 13.0
+    - 15.0
+    - 18.0
+    extend: max

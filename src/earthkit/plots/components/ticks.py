@@ -37,28 +37,28 @@ from earthkit.plots.temporal.anchors import (
 DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
-TIME_PREFIX_YEAR = "Y"  # Yearly frequency
-TIME_PREFIX_WY = "WY"  # Water year frequency
-TIME_PREFIX_QUARTER = "Q"  # Quarterly frequency
-TIME_PREFIX_SEASON = "SEAS"  # Seasonal frequency
-TIME_PREFIX_MONTH = "M"  # Monthly frequency
-TIME_PREFIX_WEEK = "W"  # Weekly frequency
-TIME_PREFIX_DAY = "D"  # Daily frequency
-TIME_PREFIX_HOUR = "H"  # Hourly frequency
-TIME_PREFIX_MINUTE = "m"  # Minutely frequency
-TIME_PREFIX_SECOND = "S"  # Secondly frequency
+TIME_SUFFIX_YEAR = "Y"  # Yearly frequency
+TIME_SUFFIX_WY = "WY"  # Water year frequency
+TIME_SUFFIX_QUARTER = "Q"  # Quarterly frequency
+TIME_SUFFIX_SEASON = "SEAS"  # Seasonal frequency
+TIME_SUFFIX_MONTH = "M"  # Monthly frequency
+TIME_SUFFIX_WEEK = "W"  # Weekly frequency
+TIME_SUFFIX_DAY = "D"  # Daily frequency
+TIME_SUFFIX_HOUR = "H"  # Hourly frequency
+TIME_SUFFIX_MINUTE = "m"  # Minutely frequency
+TIME_SUFFIX_SECOND = "S"  # Secondly frequency
 
-TIME_PREFIXES = (
-    TIME_PREFIX_YEAR,
-    TIME_PREFIX_WY,
-    TIME_PREFIX_QUARTER,
-    TIME_PREFIX_SEASON,
-    TIME_PREFIX_MONTH,
-    TIME_PREFIX_WEEK,
-    TIME_PREFIX_DAY,
-    TIME_PREFIX_HOUR,
-    TIME_PREFIX_MINUTE,
-    TIME_PREFIX_SECOND,
+TIME_SUFFIXES = (
+    TIME_SUFFIX_YEAR,
+    TIME_SUFFIX_WY,
+    TIME_SUFFIX_QUARTER,
+    TIME_SUFFIX_SEASON,
+    TIME_SUFFIX_MONTH,
+    TIME_SUFFIX_WEEK,
+    TIME_SUFFIX_DAY,
+    TIME_SUFFIX_HOUR,
+    TIME_SUFFIX_MINUTE,
+    TIME_SUFFIX_SECOND,
 )
 
 SEASON_ANCHOR_MONTH = 12  # DJF anchor (Dec). Can be overridden via kwargs.
@@ -73,7 +73,7 @@ _SEASON_TOKEN_RE = re.compile(r"\{season(?::\s*(%[bBcCsSN]))?\}")
 # D<step>[@YYYY-MM-DD][+offset...], offsets like +7h-30m etc.
 _DAY_SPEC_RE = re.compile(
     r"""
-    ^D(?P<step>\d+)?                           # D, D2, D10
+    ^(?P<step>\d+)?D                           # D, 2D, 10D
     (?:@(?P<anchor>\d{4}-\d{2}-\d{2}))?        # @YYYY-MM-DD (optional)
     (?P<offset>(?:[+\-]\d+(?:\.\d+)?[Wdhms])*) # +2d+12h-30m etc. (optional)
     $""",
@@ -309,9 +309,7 @@ def set_ticks(
             if hasattr(ax, "get_xdata") and len(ax.get_xdata()) > 0:
                 ax.get_xdata()  # Check if data exists
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().startswith(p) for p in TIME_PREFIXES
-            ):
+            if frequency and any(frequency.upper().endswith(p) for p in TIME_SUFFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
@@ -322,9 +320,7 @@ def set_ticks(
             if hasattr(ax, "get_ydata") and len(ax.get_ydata()) > 0:
                 ax.get_ydata()
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().startswith(p) for p in TIME_PREFIXES
-            ):
+            if frequency and any(frequency.upper().endswith(p) for p in TIME_SUFFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
@@ -474,7 +470,7 @@ def _set_time_ticks(
 
 _YEAR_SPEC_RE = re.compile(
     r"""
-    ^Y(?P<step>\d+)?                  # step: Y, Y2, Y10
+    ^(?P<step>\d+)?Y                  # step: Y, Y2, Y10
     (?:@(?P<anchor>\d{4})             # @YYYY (required if @ present)
        (?:-(?P<mm>\d{2})              # optional -MM sugar (month-of-year)
           (?:-(?P<dd>\d{2}))?         # optional -DD (rare; becomes extra offset)
@@ -554,24 +550,37 @@ def _parse_month_anchor_token(token: str) -> int:
     raise ValueError(f"Unrecognised month anchor '{token}'. Try Jan/January/1/01.")
 
 
+def _parse_interval(s):
+    """
+    Extract the integer interval from a frequency token, ignoring unit letters.
+
+    Accepts both unit-first (``"M6"``, ``"D7"``) and number-first (``"6M"``,
+    ``"7D"``) orderings.  Returns 1 if no digits are found.
+    """
+    import re
+
+    digits = re.sub(r"[^0-9]", "", s)
+    return int(digits) if digits else 1
+
+
 def _get_time_locator(frequency):
     f = frequency
     F = f.upper()
 
-    if F.startswith("D"):
+    if F.endswith("D"):
         step, adate, rd = _parse_daily_with_anchor_and_offset(f.strip())
         if adate is None and rd is None:
             return mdates.DayLocator(interval=step)
         else:
             return AnchoredDayLocator(base=step, anchor_date=adate, offset=rd)
 
-    elif F.startswith("M"):
+    elif F.endswith("M"):
         s = f.strip()
         at = s.find("@")
         main = s if at == -1 else s[:at]
         anchor = None if at == -1 else s[at + 1 :].strip()
 
-        interval = int(main[1:] or "1")
+        interval = _parse_interval(main)
 
         if not anchor:
             return mdates.MonthLocator(interval=interval)
@@ -579,7 +588,7 @@ def _get_time_locator(frequency):
             anchor_month = _parse_month_anchor_token(anchor)
             return AnchoredMonthLocator(base=interval, anchor_month=anchor_month)
 
-    elif F.startswith("Y"):
+    elif F.endswith("Y"):
         step, anchor_year, rd = _parse_yearly_with_anchor_and_offset(f.strip())
         if anchor_year is None and rd is None:
             return mdates.YearLocator(base=step)
@@ -588,26 +597,26 @@ def _get_time_locator(frequency):
                 base=step, anchor_year=anchor_year or 2000, offset=rd
             )
 
-    elif F.startswith("W"):
-        interval = int(f[1:] or "1")
+    elif F.endswith("W"):
+        interval = _parse_interval(f)
         return mdates.WeekdayLocator(
             byweekday=mdates.MO, interval=interval
         )  # or expose start day
 
-    elif F.startswith("H"):
-        interval = int(f[1:] or "1")
+    elif F.endswith("H"):
+        interval = _parse_interval(f)
         return mdates.HourLocator(interval=interval)
 
-    elif f.startswith("m"):  # minutes (lower-case)
-        interval = int(f[1:] or "1")
+    elif f.endswith("m"):  # minutes (lower-case)
+        interval = _parse_interval(f)
         return mdates.MinuteLocator(interval=interval)
 
-    elif F.startswith("SEAS"):
-        interval = int(f[4:] or "1")
+    elif F.endswith("SEAS"):
+        interval = _parse_interval(f)
         return mdates.MonthLocator(bymonth=[12, 3, 6, 9], interval=interval)
 
-    elif F.startswith("S"):  # seconds
-        interval = int(f[1:] or "1")
+    elif F.endswith("S"):  # seconds
+        interval = _parse_interval(f)
         return mdates.SecondLocator(interval=interval)
 
     else:
@@ -619,32 +628,31 @@ def _get_period_minor_locator(frequency):
     f = frequency
     F = f.upper()
 
-    if F.startswith("D"):
-        interval = int(f[1:] or "1")
+    if F.endswith("D"):
         return mdates.HourLocator(interval=1, byhour=12)
 
-    elif F.startswith("M"):
-        interval = int(f[1:] or "1")
+    elif F.endswith("M"):
+        interval = _parse_interval(f)
         return mdates.MonthLocator(interval=interval, bymonthday=16)
 
-    elif F.startswith("Y"):
-        interval = int(f[1:] or "1")
+    elif F.endswith("Y"):
+        interval = _parse_interval(f)
         return mdates.YearLocator(base=interval, month=7, day=1)
 
-    elif F.startswith("W"):
-        interval = int(f[1:] or "1")
+    elif F.endswith("W"):
+        interval = _parse_interval(f)
         return mdates.WeekdayLocator(
             byweekday=mdates.TH, interval=interval
         )  # or expose start day
 
-    elif F.startswith("SEAS"):
-        interval = int(f[4:] or "1")
+    elif F.endswith("SEAS"):
+        interval = _parse_interval(f)
         return mdates.MonthLocator(
             bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16
         )
 
-    elif F.startswith("S"):  # seconds
-        interval = int(f[1:] or "1")
+    elif F.endswith("S"):  # seconds
+        interval = _parse_interval(f)
         return mdates.SecondLocator(interval=interval)
     else:
         # For other frequencies, use the same locator but with adjusted parameters

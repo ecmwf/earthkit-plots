@@ -4,6 +4,7 @@ optimal: SNOW_WATER_EQUIVALENT_IN_KG_M-2
 styles:
 
   SNOW_WATER_EQUIVALENT_IN_KG_M-2:
+    name: snow-water-equivalent-kg-m2
     type: Style
     colors:
     - [0.5064, 0.5809, 0.4858]

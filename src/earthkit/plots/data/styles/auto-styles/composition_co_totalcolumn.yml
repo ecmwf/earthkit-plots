@@ -1,0 +1,37 @@
+id: composition_co_totalcolumn
+optimal: COMPOSITION_CO_TOTALCOLUMN_SH_ALL_TCCO
+styles:
+  COMPOSITION_CO_TOTALCOLUMN_SH_ALL_TCCO:
+    name: sh-all-tcco
+    type: Style
+    colors:
+    - '#99c7e8ff'
+    - '#009cdeff'
+    - '#007abdff'
+    - '#24599eff'
+    - '#248f6eff'
+    - '#69b059ff'
+    - '#a6c769ff'
+    - '#fff49bff'
+    - '#f2cf36ff'
+    - '#e8b236ff'
+    - '#db8540ff'
+    - '#cc3333ff'
+    - '#991421ff'
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 1.5
+    - 2.0
+    - 2.5
+    - 3.0
+    - 3.5
+    - 4.0
+    - 4.5
+    - 5.0
+    - 5.5
+    - 6.0
+    - 10.0
+    - 20.0
+    extend: max

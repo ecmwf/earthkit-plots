@@ -1,0 +1,115 @@
+id: mofc_2t_pdist
+optimal: MOFC_2T_PDIST_SH_MF_PDIST
+styles:
+  MOFC_2T_PDIST_SH_MF_PDIST:
+    name: sh-mf-pdist
+    type: Style
+    colors:
+    - '#7805c4ff'
+    - '#6b54d4ff'
+    - '#2442f0ff'
+    - '#0282dbff'
+    - '#06adb8ff'
+    - '#03d1d9ff'
+    - '#75f2bfff'
+    - '#26de94ff'
+    - '#96e30cff'
+    - '#e0f22bff'
+    - '#fcb806ff'
+    - '#eb7d21ff'
+    levels:
+    - -10.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 33.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 80.0
+    - 90.0
+    extend: max
+  MOFC_2T_PDIST_SH_MF_PDIST_2:
+    name: sh-mf-pdist-2
+    type: Style
+    colors:
+    - '#7805c4ff'
+    - '#2442f0ff'
+    - '#06adb8ff'
+    - '#26de94ff'
+    - '#69fa01ff'
+    - '#ebf221ff'
+    - '#fcb806ff'
+    - '#e63030ff'
+    levels:
+    - -10.0
+    - 5.0
+    - 15.0
+    - 25.0
+    - 40.0
+    - 55.0
+    - 70.0
+    - 85.0
+    - 150.0
+  MOFC_2T_PDIST_SH_MF_2T_TERCILE:
+    name: sh-mf-2t-tercile
+    type: Style
+    colors:
+    - '#0055ffff'
+    - '#6699ffff'
+    - '#ffffffff'
+    - '#ffcdccff'
+    - '#ff6966ff'
+    - '#ff0400ff'
+    - '#990300ff'
+    levels:
+    - 0.0
+    - 10.0
+    - 20.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 110.0
+  MOFC_2T_PDIST_SH_MF_PDIST_QUINTILE:
+    name: sh-mf-pdist-quintile
+    type: Style
+    colors:
+    - '#0055ffff'
+    - '#6699ffff'
+    - '#ffffffff'
+    - '#ffcdccff'
+    - '#ff6966ff'
+    - '#ff0400ff'
+    - '#990300ff'
+    levels:
+    - 0.0
+    - 10.0
+    - 15.0
+    - 25.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 110.0
+  MOFC_2T_PDIST_SH_MF_PDIST_DECILE:
+    name: sh-mf-pdist-decile
+    type: Style
+    colors:
+    - '#0055ffff'
+    - '#6699ffff'
+    - '#ffffffff'
+    - '#ffcdccff'
+    - '#ff6966ff'
+    - '#ff0400ff'
+    levels:
+    - 0.0
+    - 5.0
+    - 8.0
+    - 12.0
+    - 20.0
+    - 40.0
+    - 60.0
+    extend: max

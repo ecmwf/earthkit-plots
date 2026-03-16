@@ -1,0 +1,6 @@
+id: mc_capeshear
+criteria:
+- paramId: '228044'
+  shortName: capes
+  type: cd
+- long_name: Convective available potential energy shear

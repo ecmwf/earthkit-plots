@@ -1,0 +1,5 @@
+id: composition_co2_totalcolumn
+criteria:
+- paramId: '210064'
+  shortName: tcco2
+- long_name: CO2 column-mean molar fraction

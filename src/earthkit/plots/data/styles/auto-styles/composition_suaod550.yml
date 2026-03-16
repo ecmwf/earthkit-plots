@@ -1,0 +1,139 @@
+id: composition_suaod550
+optimal: COMPOSITION_SUAOD550_SH_ALL_AOD
+styles:
+  COMPOSITION_SUAOD550_SH_ALL_AOD:
+    name: sh-all-aod
+    type: Style
+    colors:
+    - '#0000f1ff'
+    - '#004cffff'
+    - '#00b1ffff'
+    - '#29ffceff'
+    - '#7dff7aff'
+    - '#ceff29ff'
+    - '#ffc400ff'
+    - '#ff6800ff'
+    - '#f10800ff'
+    levels:
+    - 0.1
+    - 0.15
+    - 0.2
+    - 0.25
+    - 0.3
+    - 0.35
+    - 0.4
+    - 0.5
+    - 0.8
+    - 1.0
+    extend: max
+  COMPOSITION_SUAOD550_SH_BUYLRD_AOD:
+    name: sh-buylrd-aod
+    type: Style
+    colors:
+    - '#d3d7ebff'
+    - '#a8afd7ff'
+    - '#8892bfff'
+    - '#a3a891ff'
+    - '#bebd65ff'
+    - '#d8d239ff'
+    - '#f3e70bff'
+    - '#f4c60aff'
+    - '#f6a508ff'
+    - '#f88406ff'
+    - '#f96205ff'
+    - '#fb4103ff'
+    - '#fd2001ff'
+    levels:
+    - 0.1
+    - 0.16
+    - 0.23
+    - 0.29
+    - 0.36
+    - 0.42
+    - 0.49
+    - 0.55
+    - 0.61
+    - 0.68
+    - 0.74
+    - 0.81
+    - 0.87
+    - 0.94
+    extend: max
+  COMPOSITION_SUAOD550_SH_BUYLRD_AOD_LOWTHRESHOLD:
+    name: sh-buylrd-aod-lowthreshold
+    type: Style
+    colors:
+    - '#d3d7ebff'
+    - '#a8afd7ff'
+    - '#8892bfff'
+    - '#a3a891ff'
+    - '#bebd65ff'
+    - '#d8d239ff'
+    - '#f3e70bff'
+    - '#f4c60aff'
+    - '#f6a508ff'
+    - '#f88406ff'
+    - '#f96205ff'
+    - '#fb4103ff'
+    - '#fd2001ff'
+    levels:
+    - 0.01
+    - 0.04
+    - 0.1
+    - 0.16
+    - 0.23
+    - 0.29
+    - 0.36
+    - 0.42
+    - 0.49
+    - 0.55
+    - 0.61
+    - 0.68
+    - 0.74
+    - 0.81
+    extend: max
+  COMPOSITION_SUAOD550_SH_ORANGES_AOD:
+    name: sh-oranges-aod
+    type: Style
+    colors:
+    - '#ffefe00d'
+    - '#fee9d41a'
+    - '#fee2c626'
+    - '#fdd9b433'
+    - '#fdd0a240'
+    - '#fdc38d4c'
+    - '#fdb57659'
+    - '#fda76266'
+    - '#fd9a4e73'
+    - '#fd8c3b80'
+    - '#f87f2c8c'
+    - '#f3701b99'
+    - '#ec620fa6'
+    - '#e25508b2'
+    - '#d84801bf'
+    - '#c54102cc'
+    - '#b03903d9'
+    - '#9e3303e6'
+    - '#8e2d04f2'
+    levels:
+    - 0.1
+    - 0.145
+    - 0.19
+    - 0.235
+    - 0.28
+    - 0.325
+    - 0.37
+    - 0.415
+    - 0.46
+    - 0.505
+    - 0.55
+    - 0.595
+    - 0.64
+    - 0.685
+    - 0.73
+    - 0.775
+    - 0.82
+    - 0.865
+    - 0.91
+    - 0.955
+    extend: max

@@ -146,10 +146,13 @@ DEFAULT_FORECAST_TITLE = (
     "Valid time: {valid_time:%H:%M} on {valid_time:%Y-%m-%d} (T+{lead_time})"
 )
 
-#: Default title for analysis plots.
+#: Default title for analysis plots (with time).
 DEFAULT_ANALYSIS_TITLE = (
     "{variable_name} at {valid_time:%H:%M} on {valid_time:%Y-%m-%d}"
 )
+
+#: Default title when no time information is available.
+DEFAULT_NO_TIME_TITLE = "{variable_name}"
 
 #: Keys that are related to time.
 TIME_KEYS = ["base_time", "valid_time", "lead_time", "time", "utc_offset"]
@@ -179,7 +182,14 @@ MAGIC_KEYS = {
         "function": format_month,
     },
     "values": {
-        "function": lambda data: data.values,
+        "function": lambda data: data.y.values if data.y is not None else None,
+    },
+    "value": {
+        "function": lambda data: (
+            data.y.values.flat[0]
+            if data.y is not None and data.y.values is not None
+            else None
+        ),
     },
 }
 

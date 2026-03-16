@@ -1,0 +1,5 @@
+id: visibility
+criteria:
+- paramId: '3020'
+  shortName: vis
+- long_name: Visibility

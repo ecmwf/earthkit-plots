@@ -1,0 +1,104 @@
+id: mc_10fg
+optimal: MC_10FG_SH_MC_WIND_F0T80
+styles:
+  MC_10FG_SH_MC_WIND_F0T80:
+    name: sh-mc-wind-f0t80
+    type: Style
+    colors:
+    - '#d9fcedff'
+    - '#73faf5ff'
+    - '#00baffff'
+    - '#002effff'
+    - '#0803a3ff'
+    - '#29fc24ff'
+    - '#91ff00ff'
+    - '#d4ff00ff'
+    - '#fffa00ff'
+    - '#ffd900ff'
+    - '#ffa100ff'
+    - '#ff6600ff'
+    - '#ff1f00ff'
+    - '#ff00abff'
+    - '#d900ffff'
+    levels:
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 15.0
+    - 18.0
+    - 21.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 45.0
+    - 50.0
+    extend: max
+  MC_10FG_CT_MC_WIND_F0T80_BLACK:
+    name: ct-mc-wind-f0t80-black
+    type: Contour
+    colors: black
+    levels:
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 15.0
+    - 18.0
+    - 21.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 45.0
+    - 50.0
+    extend: max
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+  MC_10FG_CT_MC_WIND_F0T80_BLUE:
+    name: ct-mc-wind-f0t80-blue
+    type: Contour
+    colors: blue
+    levels:
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 15.0
+    - 18.0
+    - 21.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 45.0
+    - 50.0
+    extend: max
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid

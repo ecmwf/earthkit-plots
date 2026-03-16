@@ -82,11 +82,14 @@ class Figure:
 
         self._queue = []
         self._subplot_queue = []
+        self._released = False
 
         self.attributions = []
         self.logos = []
+        self._ancillary_cache = {}
 
         self._style_context = None
+        self._jupyter_display_hook = None
 
         if None not in (self.rows, self.columns):
             self._setup()
@@ -99,6 +102,38 @@ class Figure:
         self.gridspec = self.fig.add_gridspec(
             self.rows, self.columns, **self._gridspec_kwargs
         )
+        self._register_jupyter_display()
+
+    def _register_jupyter_display(self):
+        """Register a post_execute hook so the figure auto-displays in Jupyter."""
+        try:
+            ip = get_ipython()  # noqa: F821
+        except NameError:
+            return
+        if ip is None:
+            return
+
+        def _display_once():
+            self._jupyter_display_hook = None
+            ip.events.unregister("post_execute", _display_once)
+            self._prepare_for_display()
+            try:
+                plt.show()
+            finally:
+                self._exit_style_context()
+
+        self._jupyter_display_hook = (_display_once, ip)
+        ip.events.register("post_execute", _display_once)
+
+    def _cancel_jupyter_display(self):
+        """Unregister the auto-display hook (called when show/save is explicit)."""
+        if self._jupyter_display_hook is not None:
+            hook_fn, ip = self._jupyter_display_hook
+            self._jupyter_display_hook = None
+            try:
+                ip.events.unregister("post_execute", hook_fn)
+            except ValueError:
+                pass
 
     def _exit_style_context(self):
         """Exit the style context, restoring matplotlib's global rcParams."""
@@ -183,16 +218,30 @@ class Figure:
 
         @functools.wraps(method)
         def wrapper(self, data, *args, **kwargs):
-            if not hasattr(data, "__len__"):
-                data = [data]
+            import xarray as xr
+
+            groupby = kwargs.pop("groupby", None)
+            if groupby is not None:
+                from earthkit.plots.quickplot import _coerce_to_fieldlist, _group_data
+
+                fields = _coerce_to_fieldlist(data)
+                grouped = _group_data(fields, groupby)
+                data_items = list(grouped.values())
+            elif isinstance(data, xr.Dataset):
+                # Yield one DataArray per variable so subplots pair correctly.
+                data_items = [data[v] for v in data.data_vars]
+            else:
+                if not hasattr(data, "__len__"):
+                    data = [data]
+                data_items = list(data)
             if not self.subplots:
                 self.rows, self.columns = rows_cols(
-                    len(data), rows=self.rows, columns=self.columns
+                    len(data_items), rows=self.rows, columns=self.columns
                 )
                 self._setup()
-                for _ in range(len(data)):
+                for _ in range(len(data_items)):
                     self.add_map()
-            for datum, subplot in zip(data, self.subplots):
+            for datum, subplot in zip(data_items, self.subplots):
                 getattr(subplot, method.__name__)(datum, *args, **kwargs)
 
         return wrapper
@@ -215,6 +264,46 @@ class Figure:
                 row = row + 1
         self._last_subplot_location = row, column
         return row, column
+
+    @apply_to_subplots
+    def xticks(self, *args, **kwargs):
+        """
+        Set x-ticks on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_xticks`.
+        """
+
+    @apply_to_subplots
+    def yticks(self, *args, **kwargs):
+        """
+        Set y-ticks on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_yticks`.
+        """
+
+    @apply_to_subplots
+    def xlabel(self, *args, **kwargs):
+        """
+        Set x-label on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_xlabel`.
+        """
+
+    @apply_to_subplots
+    def ylabel(self, *args, **kwargs):
+        """
+        Set y-label on all subplots.
+
+        Parameters
+        ----------
+        Accepts the same arguments as `matplotlib.axes.Axes.set_ylabel`.
+        """
 
     def add_subplot(self, row=None, column=None, **kwargs):
         """
@@ -262,6 +351,122 @@ class Figure:
         subplot = Map(
             row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
         )
+        self.subplots.append(subplot)
+        return subplot
+
+    @_defer_subplot
+    def add_timeseries(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.temporal.timeseries.TimeSeries` subplot
+        to the figure.
+
+        Returns a :class:`TimeSeries` instance pre-configured for time series
+        visualisation (sensible default size, automatic time-axis margin
+        removal on show/save).
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        kwargs : dict, optional
+            Additional keyword arguments passed to the
+            :class:`~earthkit.plots.temporal.timeseries.TimeSeries` constructor.
+
+        Returns
+        -------
+        TimeSeries
+
+        Examples
+        --------
+        >>> fig = ekp.Figure(rows=2, columns=1)
+        >>> ts1 = fig.add_timeseries()
+        >>> ts1.line(t2m_da, x="valid_time", units="celsius")
+        >>> ts2 = fig.add_timeseries()
+        >>> ts2.band(mean_da, std_da, x="valid_time", units="celsius")
+        >>> fig.show()
+        """
+        from earthkit.plots.temporal.timeseries import TimeSeries
+
+        row, column = self._determine_row_column(row, column)
+        subplot = TimeSeries(row=row, column=column, size=None, figure=self, **kwargs)
+        self.subplots.append(subplot)
+        return subplot
+
+    def add_hovmoller(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` subplot
+        to the figure.
+
+        Returns a :class:`Hovmoller` instance pre-configured for Hovmöller
+        diagrams (time on one axis, pressure/height on the other, with
+        automatic axis inversion for pressure coordinates).
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Additional keyword arguments passed to the
+            :class:`~earthkit.plots.temporal.hovmoller.Hovmoller` constructor.
+            Key options include ``time_axis`` (``"x"`` or ``"y"``) and
+            ``invert_vertical`` (``True``, ``False``, or ``"auto"``).
+
+        Returns
+        -------
+        Hovmoller
+
+        Examples
+        --------
+        >>> fig = ekp.Figure()
+        >>> hov = fig.add_hovmoller()
+        >>> hov.contourf(da, style="auto")
+        >>> fig.show()
+        """
+        from earthkit.plots.temporal.hovmoller import Hovmoller
+
+        row, column = self._determine_row_column(row, column)
+        subplot = Hovmoller(row=row, column=column, size=None, figure=self, **kwargs)
+        self.subplots.append(subplot)
+        return subplot
+
+    def add_climatology(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.temporal.climatology.Climatology` subplot
+        to the figure.
+
+        Returns a :class:`Climatology` instance whose :meth:`line` method
+        automatically splits multi-year data by year and remaps each year onto
+        a common Jan-to-Dec x-axis.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Additional keyword arguments passed to the
+            :class:`~earthkit.plots.temporal.climatology.Climatology` constructor.
+
+        Returns
+        -------
+        Climatology
+
+        Examples
+        --------
+        >>> fig = ekp.Figure(rows=1, columns=1)
+        >>> ax = fig.add_climatology()
+        >>> ax.line(da)
+        >>> fig.show()
+        """
+        from earthkit.plots.temporal.climatology import Climatology
+
+        row, column = self._determine_row_column(row, column)
+        subplot = Climatology(row=row, column=column, size=None, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -332,6 +537,8 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to the Subplot legend method.
         """
+        import matplotlib.lines as mlines
+
         legends = []
 
         anchor = None
@@ -348,16 +555,39 @@ class Figure:
                     location=loc,
                     **kwargs,
                 )
-            if legend.__class__.__name__ != "Colorbar":
-                non_cbar_layers.append(layer)
-            else:
-                anchor = layer.axes[0].get_anchor()
-            legends.append(legend)
+                if legend.__class__.__name__ != "Colorbar":
+                    non_cbar_layers.append(layer)
+                else:
+                    anchor = layer.axes[0].get_anchor()
+                legends.append(legend)
 
         if anchor is not None:
             for layer in non_cbar_layers:
                 for ax in layer.axes:
                     ax.set_anchor(anchor)
+
+        # Collect proxy-label layers (e.g. from spaghetti or labelled contours)
+        # and render them as a line legend on each subplot that has them.
+        _subplots = subplots if subplots is not None else self.subplots
+        for subplot in _subplots:
+            proxy_handles = []
+            for layer in subplot.layers:
+                proxy_label = getattr(layer, "proxy_label", None)
+                if proxy_label is not None:
+                    color = getattr(layer, "_proxy_color", None)
+                    lw = getattr(layer, "_proxy_linewidth", 1.0)
+                    if color is None:
+                        try:
+                            color = layer.mappable.collections[0].get_edgecolor()[0]
+                        except (AttributeError, IndexError):
+                            color = "black"
+                    proxy_handles.append(
+                        mlines.Line2D(
+                            [], [], color=color, linewidth=lw, label=proxy_label
+                        )
+                    )
+            if proxy_handles:
+                subplot.ax.legend(handles=proxy_handles)
 
         return legends
 
@@ -483,12 +713,12 @@ class Figure:
             generated based on the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
@@ -510,10 +740,6 @@ class Figure:
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
-
-    @iterate_subplots
-    def plot(self, *args, **kwargs):
-        """"""
 
     @iterate_subplots
     def quickplot(self, *args, **kwargs):
@@ -540,12 +766,12 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
@@ -574,12 +800,12 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
@@ -608,18 +834,318 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Interpolate, dict, optional
-            A :class:`plots.resample.Interpolate` class which will be applied to data
+        interpolate: earthkit.plots.resample.Unstructured, dict, optional
+            A :class:`plots.resample.Unstructured` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
             but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Interpolate` class.
-            If not provided and the data is unstructured, an `Interpolate` class is created
+            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
+            If not provided and the data is unstructured, an `Unstructured` class is created
             by detecting the resolution of the data.
         units : str, optional
             The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
+
+    @iterate_subplots
+    def line(self, *args, **kwargs):
+        """
+        Plot a line on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or array-like
+            The data to plot.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.line`.
+        """
+
+    @iterate_subplots
+    def multiboxplot(self, *args, **kwargs):
+        """
+        Plot a multiboxplot on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray
+            The data to plot.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.multiboxplot`.
+        """
+
+    def plot(
+        self,
+        method,
+        data,
+        *args,
+        row=None,
+        col=None,
+        subplot_class=None,
+        subplot_titles=None,
+        rows=None,
+        columns=None,
+        size=None,
+        **kwargs,
+    ):
+        """
+        Apply a plotting method across panels of an xarray Dataset.
+
+        This is the generic FacetGrid-style engine for ``Figure``.  It splits
+        *data* into a grid of subplots according to *row* and *col*, creates
+        one subplot per panel using *subplot_class*, and calls *method* on
+        each panel's data slice.
+
+        Parameters
+        ----------
+        method : str
+            Name of the subplot method to call on each panel
+            (e.g. ``"line"``, ``"bar"``, ``"contourf"``).
+        data : xarray.Dataset or xarray.DataArray
+            The data to distribute across panels.  When *data* is a Dataset,
+            ``"variable"`` is a special token for *row* / *col* that means
+            "split by data variable".  Any other string is treated as a
+            coordinate name along which to select unique values.
+        *args :
+            Positional arguments forwarded to the subplot method.
+        row : str or None, optional
+            Dimension to vary along rows.  Use ``"variable"`` to put each
+            Dataset variable in its own row, or pass a coordinate name
+            (e.g. ``"step"``).  Default is ``None`` (single row).
+        col : str or None, optional
+            Dimension to vary along columns.  Same tokens as *row*.
+            Default is ``None`` (single column).
+        subplot_class : type, optional
+            Subplot class to instantiate for each panel.  Defaults to
+            :class:`~earthkit.plots.components.subplots.Subplot`.
+        subplot_titles : str or None, optional
+            Format string for per-panel titles.  Supports metadata
+            placeholders such as ``"{variable_name}"``.  Set to ``None``
+            to suppress titles.
+        rows : int, optional
+            Override the total number of rows in the Figure grid.
+        columns : int, optional
+            Override the total number of columns in the Figure grid.
+        size : tuple, optional
+            Figure size ``(width, height)`` in inches.  Defaults to
+            ``(8 * n_cols, 4 * n_rows)``.
+        **kwargs :
+            Additional keyword arguments forwarded to the subplot method.
+
+        Returns
+        -------
+        self
+            Returns the Figure so calls can be chained.
+
+        Examples
+        --------
+        Two-variable Dataset, one row per variable:
+
+        >>> fig = ekp.Figure()
+        >>> fig.plot("line", ds, row="variable")
+        >>> fig.show()
+
+        Variable × step grid:
+
+        >>> fig = ekp.Figure()
+        >>> fig.plot("line", ds, row="variable", col="step")
+        >>> fig.show()
+
+        Single DataArray across ensemble members:
+
+        >>> fig = ekp.Figure()
+        >>> fig.plot("line", ds["t2m"], col="number")
+        >>> fig.show()
+        """
+        import xarray as xr
+
+        if subplot_class is None:
+            subplot_class = Subplot
+
+        # --- Resolve row/col dimensions into (row_vals, col_vals) lists ------
+        def _dim_vals(data, dim):
+            """Return the unique values for a panel dimension token."""
+            if dim is None:
+                return [None]
+            if dim == "variable":
+                if isinstance(data, xr.Dataset):
+                    return list(data.data_vars)
+                return [None]
+            # Treat as a coordinate name
+            if isinstance(data, xr.Dataset):
+                coord = data[list(data.data_vars)[0]][dim]
+            else:
+                coord = data[dim]
+            return list(dict.fromkeys(coord.values.tolist()))
+
+        row_vals = _dim_vals(data, row)
+        col_vals = _dim_vals(data, col)
+
+        n_rows = rows if rows is not None else len(row_vals)
+        n_cols = columns if columns is not None else len(col_vals)
+
+        # --- Set up the Figure grid if not already done ----------------------
+        if self.rows is None or self.columns is None:
+            self.rows = n_rows
+            self.columns = n_cols
+        if self.fig is None:
+            if size is None:
+                size = (8 * n_cols, 4 * n_rows)
+            self._figsize = self._parse_size(size)
+            self._setup()
+
+        # --- Build panels -----------------------------------------------------
+        def _slice(data, row_dim, row_val, col_dim, col_val):
+            """Extract the DataArray/Dataset slice for one panel."""
+            result = data
+            for dim, val in ((row_dim, row_val), (col_dim, col_val)):
+                if dim is None or val is None:
+                    continue
+                if dim == "variable":
+                    result = result[val] if isinstance(result, xr.Dataset) else result
+                else:
+                    result = result.sel({dim: val})
+            return result
+
+        for r_i, r_val in enumerate(row_vals):
+            for c_i, c_val in enumerate(col_vals):
+                panel_data = _slice(data, row, r_val, col, c_val)
+                sp = subplot_class(row=r_i, column=c_i, figure=self)
+                self.subplots.append(sp)
+                getattr(sp, method)(panel_data, *args, **kwargs)
+                if subplot_titles is not None:
+                    try:
+                        sp.title(subplot_titles)
+                    except Exception:
+                        pass
+
+        return self
+
+    def timeseries(
+        self,
+        data,
+        *args,
+        row=None,
+        col=None,
+        plot="line",
+        subplot_titles="{variable_name}",
+        rows=None,
+        columns=None,
+        size=None,
+        xticks=None,
+        yticks=None,
+        xlabel=None,
+        ylabel=None,
+        **kwargs,
+    ):
+        """
+        Plot time series data across a grid of panels.
+
+        A convenience wrapper around :meth:`plot` that uses
+        :class:`~earthkit.plots.temporal.timeseries.TimeSeries` subplots and
+        applies time-axis formatting.
+
+        When *data* is an xarray Dataset with more than one variable, ``row``
+        defaults to ``"variable"`` so each variable appears in its own row.
+
+        Parameters
+        ----------
+        data : xarray.Dataset or xarray.DataArray
+            The time series data to distribute across panels.
+        *args :
+            Positional arguments forwarded to the subplot plot method.
+        row : str or None, optional
+            Dimension to vary along rows.  Defaults to ``"variable"`` when
+            *data* is a multi-variable Dataset.
+        col : str or None, optional
+            Dimension to vary along columns (e.g. a coordinate name like
+            ``"step"`` or ``"number"``).  Default is ``None``.
+        plot : str, optional
+            Subplot method to call on each panel.  Default is ``"line"``.
+        subplot_titles : str or None, optional
+            Per-panel title format string.  Default is ``"{variable_name}"``.
+        rows : int, optional
+            Override the total number of rows.
+        columns : int, optional
+            Override the total number of columns.
+        size : tuple, optional
+            Figure size ``(width, height)`` in inches.
+        xticks : str or dict, optional
+            Tick configuration for the x-axis of every panel.
+        yticks : str or dict, optional
+            Tick configuration for the y-axis of every panel.
+        xlabel : str, optional
+            x-axis label applied to every panel.
+        ylabel : str, optional
+            y-axis label applied to every panel.
+        **kwargs :
+            Additional keyword arguments forwarded to the subplot method.
+
+        Returns
+        -------
+        self
+
+        Examples
+        --------
+        Multi-variable Dataset – one row per variable:
+
+        >>> fig = ekp.Figure()
+        >>> fig.timeseries(ds)
+        >>> fig.show()
+
+        Variable × step grid:
+
+        >>> fig = ekp.Figure()
+        >>> fig.timeseries(ds, row="variable", col="step")
+        >>> fig.show()
+        """
+        import xarray as xr
+
+        from earthkit.plots.temporal.timeseries import TimeSeries
+
+        # Default row to "variable" for multi-variable Datasets
+        if (
+            row is None
+            and col is None
+            and isinstance(data, xr.Dataset)
+            and len(data.data_vars) > 1
+        ):
+            row = "variable"
+
+        self.plot(
+            plot,
+            data,
+            *args,
+            row=row,
+            col=col,
+            subplot_class=TimeSeries,
+            subplot_titles=subplot_titles,
+            rows=rows,
+            columns=columns,
+            size=size,
+            **kwargs,
+        )
+
+        # Apply time-axis formatting to every TimeSeries subplot
+        for sp in self.subplots:
+            if isinstance(sp, TimeSeries):
+                if xlabel is not None:
+                    sp.xlabel(xlabel)
+                if ylabel is not None:
+                    sp.ylabel(ylabel)
+                if xticks is not None:
+                    if isinstance(xticks, str):
+                        sp.xticks(frequency=xticks)
+                    else:
+                        sp.xticks(**xticks)
+                if yticks is not None:
+                    if isinstance(yticks, str):
+                        sp.yticks(frequency=yticks)
+                    else:
+                        sp.yticks(**yticks)
+
+        return self
 
     @_defer_until_setup
     def gridlines(self, *args, sharex=True, sharey=True, **kwargs):
@@ -712,6 +1238,23 @@ class Figure:
 
         result = self.fig.suptitle(label, y=y, **kwargs)
         return result
+
+    def set_title(self, label=None, **kwargs):
+        """
+        Set the top-level title of the figure.
+
+        Alias for :meth:`title` that matches the matplotlib ``set_title``
+        convention. Accepts the same arguments.
+
+        Parameters
+        ----------
+        label : str, optional
+            The title text. Can contain metadata keys in curly braces,
+            e.g. ``"{variable_name}"``.
+        **kwargs
+            Additional keyword arguments forwarded to :meth:`title`.
+        """
+        return self.title(label, **kwargs)
 
     def draw(self):
         """
@@ -808,6 +1351,9 @@ class Figure:
         return self.subplots[0]._default_title_template
 
     def _release_queue(self):
+        if self._released:
+            return self
+        self._released = True
         if self._subplot_queue:
             self.rows, self.columns = rows_cols(
                 len(self._subplot_queue), rows=self.rows, columns=self.columns
@@ -816,24 +1362,43 @@ class Figure:
         for item in self._subplot_queue:
             method, args, kwargs = item
             method(self, *args, **kwargs)
+        self._subplot_queue.clear()
         for queued_method, queued_args, queued_kwargs in self._queue:
             queued_method(self, *queued_args, **queued_kwargs)
+        self._queue.clear()
         if self.attributions:
-            attribution_text = "; ".join(self.attributions)
-            x = 0.5 if not self.logos else 0.05
-            y = -0.02
-            ha = "center" if not self.logos else "left"
+            _location_coords = {
+                "upper left": (0.0, 1.0, "left", "bottom"),
+                "upper center": (0.5, 1.0, "center", "bottom"),
+                "upper right": (1.0, 1.0, "right", "bottom"),
+                "center left": (0.0, 0.5, "left", "center"),
+                "center": (0.5, 0.5, "center", "center"),
+                "center right": (1.0, 0.5, "right", "center"),
+                "lower left": (0.0, -0.02, "left", "top"),
+                "lower center": (0.5, -0.02, "center", "top"),
+                "lower right": (1.0, -0.02, "right", "top"),
+            }
+            # Group attributions by location
+            from collections import defaultdict
 
-            self.fig.text(
-                x,
-                y,
-                attribution_text,
-                ha=ha,
-                va="top",
-                fontsize=9,
-                color="gray",
-                wrap=True,
-            )
+            groups = defaultdict(list)
+            group_kwargs = {}
+            for text, loc, kw in self.attributions:
+                groups[loc].append(text)
+                if loc not in group_kwargs:
+                    group_kwargs[loc] = kw
+            for loc, texts in groups.items():
+                combined = "; ".join(texts)
+                x, y, ha, va = _location_coords.get(loc, (0.5, -0.02, "center", "top"))
+                text_kwargs = dict(
+                    ha=ha,
+                    va=va,
+                    fontsize=9,
+                    color="gray",
+                    wrap=True,
+                )
+                text_kwargs.update(group_kwargs[loc])
+                self.fig.text(x, y, combined, **text_kwargs)
         if self.logos:
             # Place each logo horizontally, bottom-right, with some spacing
             logo_width = 0.12  # fraction of figure width
@@ -859,13 +1424,22 @@ class Figure:
             self._style_context.__exit__(None, None, None)
             self._style_context = None
 
+    def _apply_subplot_pre_render(self):
+        """Apply any pre-render hooks on subplots (e.g. tight time axis)."""
+        from earthkit.plots.temporal.timeseries import TimeSeries
+
+        for subplot in self.subplots:
+            if isinstance(subplot, TimeSeries):
+                subplot._apply_tight_time_axis()
+
     def show(self, *args, **kwargs):
         """
         Display the figure.
 
         This calls :func:`matplotlib.pyplot.show` to display the figure.
         """
-        self._release_queue()
+        self._cancel_jupyter_display()
+        self._prepare_for_display()
         try:
             return plt.show(*args, **kwargs)
         finally:
@@ -884,7 +1458,8 @@ class Figure:
         kwargs : dict, optional
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.savefig`.
         """
-        self._release_queue()
+        self._cancel_jupyter_display()
+        self._prepare_for_display()
         try:
             return plt.savefig(
                 *args,
@@ -895,12 +1470,17 @@ class Figure:
         finally:
             self._exit_style_context()
 
+    def _prepare_for_display(self):
+        """Flush the queue and apply pre-render hooks. Safe to call multiple times."""
+        self._apply_subplot_pre_render()
+        self._release_queue()
+
     def _resize(self):
         """Resize the figure to fit its axes."""
         self._release_queue()
         return resize_figure_to_fit_axes(self.fig)
 
-    def add_attribution(self, attribution):
+    def attribution(self, attribution, location="lower center", **kwargs):
         """
         Add an attribution to the figure.
 
@@ -908,9 +1488,17 @@ class Figure:
         ----------
         attribution : str
             The attribution text to add to the figure.
+        location : str, optional
+            The location of the attribution text. Accepts the same values as
+            matplotlib legend locations: 'upper left', 'upper right',
+            'lower left', 'lower right', 'upper center', 'lower center',
+            'center left', 'center right', 'center'. Default is 'lower center'.
+        **kwargs
+            Additional keyword arguments passed to ``matplotlib.figure.Figure.text``.
         """
-        if attribution not in self.attributions:
-            self.attributions.append(attribution)
+        entry = (attribution, location, kwargs)
+        if entry not in self.attributions:
+            self.attributions.append(entry)
 
     def add_logo(self, logo):
         """

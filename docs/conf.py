@@ -10,6 +10,10 @@ import os
 import sys
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
+sys.path.insert(0, os.path.abspath("../"))
+sys.path.insert(0, os.path.abspath("."))
+
+import generate_styles_page  # noqa: E402
 
 if on_rtd:
     version = os.environ.get("READTHEDOCS_VERSION", "latest")
@@ -25,6 +29,13 @@ if rtd_version_type in ("branch", "tag"):
     source_branch = rtd_version
 else:
     source_branch = "main"
+# -- Styles gallery generation -----------------------------------------------
+
+
+_docs_dir = os.path.dirname(os.path.abspath(__file__))
+generate_styles_page.generate(docs_dir=_docs_dir)
+
+# -- Project information -----------------------------------------------------
 
 sys.path.insert(0, os.path.abspath("../../src"))
 
@@ -90,7 +101,7 @@ intersphinx_mapping = {
     "cartopy": ("https://cartopy.readthedocs.io/stable/", None),
     "earthkit": ("https://earthkit.readthedocs.io/en/latest/", None),
     "earthkit-data": ("https://earthkit-data.readthedocs.io/en/latest/", None),
-    "earthkit-regrid": ("https://earthkit-regrid.readthedocs.io/en/latest/", None),
+    "earthkit-geo": ("https://earthkit-geo.readthedocs.io/en/latest/", None),
 }
 
 # Add any paths that contain templates here, relative to this directory.

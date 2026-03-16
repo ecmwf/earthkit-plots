@@ -1,0 +1,25 @@
+id: sot_tp_n90
+criteria:
+- paramId:
+  - '132228'
+  - '132167'
+  - '132202'
+  - '132201'
+  - '132165'
+  - '132049'
+  - '132059'
+  - '132044'
+  - '132216'
+  - '132144'
+  shortName:
+  - tpi
+  - 2ti
+  - mn2ti
+  - mx2ti
+  - 10wsi
+  - 10fgi
+  - capei
+  - capesi
+  - maxswhi
+  - sfi
+  type: sot

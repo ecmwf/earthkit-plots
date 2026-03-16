@@ -1,0 +1,67 @@
+id: cin
+optimal: CIN_SH_RED_F0T900
+styles:
+  CIN_SH_RED_F0T900:
+    name: sh-red-f0t900
+    type: Style
+    colors:
+    - '#fc0606ff'
+    - '#fc8502ff'
+    - '#fafa0fff'
+    - '#137826ff'
+    - '#09f519ff'
+    - '#265eebff'
+    levels:
+    - 0.0
+    - 25.0
+    - 50.0
+    - 100.0
+    - 150.0
+    - 200.0
+    - 300.0
+    extend: max
+  CIN_SH_BLACK_F0T900:
+    name: sh-black-f0t900
+    type: Style
+    colors:
+    - '#ffffffff'
+    - '#d6d6d6ff'
+    - '#c4c2c2ff'
+    - '#a8a6a6ff'
+    - '#807a7aff'
+    - '#666363ff'
+    - '#473b3bff'
+    levels:
+    - 0.0
+    - 25.0
+    - 50.0
+    - 100.0
+    - 150.0
+    - 200.0
+    - 300.0
+    - 500.0
+    extend: max
+  CIN_SH_GREY_MIN50:
+    name: sh-grey-min50
+    type: Style
+    colors:
+    - '#bfbfbfcc'
+    levels:
+    - 50.0
+    - 1100.0
+  CIN_SH_GREY_MIN100:
+    name: sh-grey-min100
+    type: Style
+    colors:
+    - '#bfbfbfcc'
+    levels:
+    - 100.0
+    - 1100.0
+  CIN_SH_GREY_MIN200:
+    name: sh-grey-min200
+    type: Style
+    colors:
+    - '#bfbfbfcc'
+    levels:
+    - 200.0
+    - 1100.0

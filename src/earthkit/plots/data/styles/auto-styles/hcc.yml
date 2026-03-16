@@ -1,0 +1,84 @@
+id: hcc
+optimal: HCC_TRANSPARENCY_WHITE
+styles:
+  HCC_TRANSPARENCY_WHITE:
+    name: transparency-white
+    type: Style
+    colors:
+    - '#00000000'
+    - '#ffffff00'
+    - '#ffffff1a'
+    - '#ffffff33'
+    - '#ffffff4c'
+    - '#ffffff66'
+    - '#ffffff80'
+    - '#ffffff99'
+    - '#ffffffb2'
+    - '#ffffffcc'
+    - '#ffffffe6'
+    levels:
+    - 0.0
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    extend: max
+  HCC_SH_WHI_F0T1LST:
+    name: sh-whi-f0t1lst
+    type: Style
+    colors:
+    - '#e0e0e0ff'
+    - '#e3e3e3ff'
+    - '#e8e8e8ff'
+    - '#edededff'
+    - '#f2f2f2ff'
+    - '#f7f7f7ff'
+    - '#fcfcfcff'
+    - '#ffffffff'
+    levels:
+    - 0.01
+    - 0.1875
+    - 0.3125
+    - 0.4375
+    - 0.5625
+    - 0.6875
+    - 0.8125
+    - 0.99
+    - 1.2
+  HCC_SH_BLUGRY_F0T1LST:
+    name: sh-blugry-f0t1lst
+    type: Style
+    colors:
+    - '#f2fafaff'
+    - '#e6f0f0ff'
+    - '#d9e6e6ff'
+    - '#ccdbdbff'
+    - '#c2d4d4ff'
+    - '#b8ccccff'
+    - '#adc4c4ff'
+    - '#a3bdbdff'
+    levels:
+    - 0.01
+    - 0.1875
+    - 0.3125
+    - 0.4375
+    - 0.5625
+    - 0.6875
+    - 0.8125
+    - 0.99
+    - 1.5
+  HCC_TRAN_WHI_F03T1LST:
+    name: tran-whi-f03t1lst
+    type: Style
+    colors:
+    - '#ffffff33'
+    - '#ffffff80'
+    levels:
+    - 0.3125
+    - 0.6875
+    - 1.2

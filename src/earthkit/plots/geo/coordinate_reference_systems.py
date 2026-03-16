@@ -179,6 +179,43 @@ def parse_crs(crs):
     return crs
 
 
+def crs_equal(crs_a, crs_b=None, match_type_only=False):
+    """
+    Test whether two cartopy CRS instances are equivalent.
+
+    Cartopy CRS objects do not implement ``__eq__`` based on their parameters,
+    so two separately constructed ``ccrs.PlateCarree()`` objects compare as
+    not-equal even though they represent the same projection.  This function
+    compares by type and ``proj4_params`` instead.
+
+    Parameters
+    ----------
+    crs_a : cartopy.crs.CRS
+        First CRS to compare.
+    crs_b : cartopy.crs.CRS, optional
+        Second CRS to compare.  Defaults to ``ccrs.PlateCarree()`` — the CRS
+        used by Natural Earth shapefiles — so callers can write
+        ``crs_equal(self.crs)`` to test whether the map projection matches the
+        Natural Earth source CRS without constructing a temporary object.
+    match_type_only : bool, optional
+        If True, only compare the CRS type (class), ignoring parameters such as
+        ``central_longitude``.  Useful when the source data is in a fixed
+        variant of a projection (e.g. Natural Earth in PlateCarree(-180..180))
+        and the map uses the same projection family but with different
+        parameters — cartopy handles the coordinate offset internally so no
+        reprojection is needed.
+
+    Returns
+    -------
+    bool
+    """
+    if crs_b is None:
+        crs_b = DEFAULT_CRS
+    if match_type_only:
+        return type(crs_a) is type(crs_b)
+    return type(crs_a) is type(crs_b) and crs_a.proj4_params == crs_b.proj4_params
+
+
 def is_cylindrical(crs):
     """
     Determine whether a CRS is cylindrical.

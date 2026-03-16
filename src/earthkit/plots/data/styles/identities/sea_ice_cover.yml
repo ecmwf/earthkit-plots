@@ -1,0 +1,7 @@
+id: sea_ice_cover
+criteria:
+- paramId: '31'
+  shortName: ci
+- long_name: Sea-ice cover
+- long_name: Sea Ice Area Fraction
+  standard_name: sea_ice_area_fraction
