@@ -77,7 +77,6 @@ Or even more simply:
    :maxdepth: 1
    :caption: Documentation
 
-   user-guide
    styles-gallery
    api
    development
