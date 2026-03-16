@@ -25,10 +25,13 @@ repos:
     rev: 0.7.17
     hooks:
       - id: mdformat
-  - repo: https://github.com/google/yamlfmt
-    rev: v0.13.0
+  - repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
+    rev: v2.16.0
     hooks:
-      - id: yamlfmt
+      - id: pretty-format-yaml
+        args: [--autofix, --preserve-quotes]
+      - id: pretty-format-toml
+        args: [--autofix]
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.21.2
     hooks:
