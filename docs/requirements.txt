@@ -8,6 +8,7 @@ nbsphinx
 setuptools
 sphinx-autoapi
 sphinxcontrib-bibtex
+furo
 entrypoints
 pandas
 tqdm
