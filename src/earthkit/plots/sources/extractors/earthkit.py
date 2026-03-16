@@ -60,10 +60,12 @@ def iter_plot_groups(fields, groupby, mode, combine_vectors=False):
     # mode == "auto"
     if groupby:
         unique_values = iter_utils.flatten(field.metadata(groupby) for field in fields)
-        unique_values = list(dict.fromkeys(unique_values))
+        unique_values = [v for v in dict.fromkeys(unique_values) if v is not None]
         for val in unique_values:
             group = fields.sel(**{groupby: val})
-            yield val, list(group)
+            group_list = list(group)
+            if group_list:
+                yield val, group_list
     else:
         # Group fields by variable so that all fields of the same variable
         # share a colorbar.  Try parameter.variable first (the canonical

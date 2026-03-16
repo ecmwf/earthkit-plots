@@ -325,21 +325,12 @@ def plot(
                 pass
 
     for m in schema.quickmap_figure_workflow:
-        if m == "legend" and len(figure.subplots) > 1:
-            # Multiple subplots: give each one its own per-subplot legend so
-            # different variables don't share a single colorbar.
-            for subplot in figure.subplots:
-                try:
-                    subplot.legend()
-                except Exception as err:
-                    warnings.warn(f"ekp.plot: subplot legend failed with:\n{err}")
-        else:
-            try:
-                getattr(figure, m)()
-            except Exception as err:
-                warnings.warn(
-                    f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
-                )
+        try:
+            getattr(figure, m)()
+        except Exception as err:
+            warnings.warn(
+                f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
+            )
 
     return _unwrap_if_single(figure)
 
