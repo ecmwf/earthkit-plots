@@ -212,7 +212,11 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+            See the `matplotlib scatter documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+            for the full list of accepted arguments.
         """
         if "resample" in kwargs:
             raise ValueError(
@@ -240,7 +244,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
         """
         import warnings
 
@@ -265,7 +270,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.annotate`.
         """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
@@ -276,20 +282,27 @@ class Map(Subplot):
     @schema.point_cloud.apply()
     def point_cloud(self, *args, **kwargs):
         """
-        Plot a point cloud on the map.
+        Plot data values as a coloured point cloud on the map.
+
+        Each data point is rendered as a scatter point coloured by its value.
+        Suitable for sparse or unstructured observation data.
 
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot grid_points.
+            The data to plot.
         x : str, optional
             The name of the x-coordinate variable in the data source.
         y : str, optional
             The name of the y-coordinate variable in the data source.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+            See the `matplotlib scatter documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+            for the full list of accepted arguments.
         """
         return self.scatter(*args, **kwargs)
 
@@ -622,16 +635,20 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def coastlines(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add coastlines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     @schema.borders.apply()
@@ -657,15 +674,20 @@ class Map(Subplot):
 
         Parameters
         ----------
-        source: (str, optional)
-            Data source to use. Valid options: "natural_earth" (default) or "gisco".
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            data source. For GISCO, also accepts explicit resolutions like
-            "01M", "03M", "10M", "20M", "60M".
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for borders.
+        source : str, optional
+            Data source to use. Valid options: ``"natural_earth"`` (default)
+            or ``"gisco"``.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the data source. For GISCO, also accepts explicit resolutions
+            like ``"01M"``, ``"03M"``, ``"10M"``, ``"20M"``, ``"60M"``.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     @schema.unit_boundaries.apply()
@@ -686,16 +708,23 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def unit_boundaries(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add map-unit boundary lines from Natural Earth.
+
+        These are boundaries between territories that share a country code
+        (e.g. overseas territories and metropolitan areas).
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     @schema.disputed_boundaries.apply()
@@ -716,16 +745,20 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def disputed_boundaries(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add disputed and breakaway territory boundary lines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     @schema.administrative_areas.apply()
@@ -742,16 +775,20 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def administrative_areas(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add administrative (sub-national) boundary lines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     @schema.countries.apply()
@@ -776,15 +813,20 @@ class Map(Subplot):
 
         Parameters
         ----------
-        source: (str, optional)
-            Data source to use. Valid options: "natural_earth" (default) or "gisco".
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            data source. For GISCO, also accepts explicit resolutions like
-            "01M", "03M", "10M", "20M", "60M".
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for countries.
+        source : str, optional
+            Data source to use. Valid options: ``"natural_earth"`` (default)
+            or ``"gisco"``.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the data source. For GISCO, also accepts explicit resolutions
+            like ``"01M"``, ``"03M"``, ``"10M"``, ``"20M"``, ``"60M"``.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
     def nuts_regions(
@@ -1163,6 +1205,25 @@ class Map(Subplot):
         """
         self.ax.stock_img(*args, **kwargs)
 
+    def add_wms(self, *args, **kwargs):
+        """
+        Add a WMS (Web Map Service) image to the map.
+
+        All arguments are forwarded directly to cartopy's
+        :meth:`GeoAxes.add_wms
+        <cartopy.mpl.geoaxes.GeoAxes.add_wms>`.
+
+        Parameters
+        ----------
+        *args
+            Positional arguments passed to
+            :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
+        **kwargs
+            Keyword arguments passed to
+            :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
+        """
+        self.ax.add_wms(*args, **kwargs)
+
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
         Add an image to the map.
@@ -1523,10 +1584,11 @@ class Map(Subplot):
             created for each Layer with a unique Style. If a single Style is
             provided, a single legend is created based on that Style.
         location : str or tuple, optional
-            The location of the legend(s). Must be a valid matplotlib location
-            (see :func:`matplotlib.pyplot.legend`).
+            The location of the legend(s). Must be a valid matplotlib legend
+            location string (e.g. ``"upper right"``, ``"lower left"``).
+            See :func:`matplotlib.pyplot.legend` for the full list.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
+            Additional keyword arguments passed to :func:`matplotlib.pyplot.legend`.
         """
         from earthkit.plots.components.layers import Layer
         from earthkit.plots.sources import get_source

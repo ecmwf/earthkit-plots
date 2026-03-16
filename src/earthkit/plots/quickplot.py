@@ -258,15 +258,12 @@ def plot(
                         "Consider building the plot manually using ekp.Figure and ekp.Map."
                     )
                     raise
-            if subplot_titles:
-                try:
-                    subplot.title(subplot_titles)
-                except Exception:
-                    pass
-
-        for m in schema.quickmap_figure_workflow:
+        for m in schema.geo.fig.workflow:
             try:
-                getattr(figure, m)()
+                if m == "subplot_titles" and subplot_titles:
+                    figure.subplot_titles(subplot_titles)
+                else:
+                    getattr(figure, m)()
             except Exception as err:
                 warnings.warn(
                     f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
@@ -318,49 +315,64 @@ def plot(
                 "Consider building the plot manually using ekp.Figure and ekp.Map."
             )
             raise
-        if subplot_titles:
-            try:
-                subplot.title(subplot_titles)
-            except Exception:
-                pass
-
-    for m in schema.quickmap_figure_workflow:
+    for m in schema.geo.fig.workflow:
         try:
-            getattr(figure, m)()
+            if m == "subplot_titles" and subplot_titles:
+                figure.subplot_titles(subplot_titles)
+            else:
+                getattr(figure, m)()
         except Exception as err:
             warnings.warn(f"ekp.plot: figure workflow step '{m}' failed with:\n{err}")
 
     return _unwrap_if_single(figure)
 
 
-def contourf(*args, **kwargs):
+def contourf(*args, style=None, **kwargs):
     """
     Plot filled contours on a map.
 
-    Equivalent to ``ekp.plot(*args, method="contourf", **kwargs)``.
+    A shortcut for ``ekp.plot(*args, method="contourf", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
+
+    The filled contours are rendered via
+    :meth:`matplotlib.axes.Axes.contourf` — see the `matplotlib contourf
+    documentation
+    <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contourf.html>`_
+    for the full list of accepted ``**kwargs``.
     """
-    return plot(*args, method="contourf", **kwargs)
+    return plot(*args, method="contourf", style=style, **kwargs)
 
 
-def contour(*args, **kwargs):
+def contour(*args, style=None, **kwargs):
     """
     Plot contour lines on a map.
 
-    Equivalent to ``ekp.plot(*args, method="contour", **kwargs)``.
+    A shortcut for ``ekp.plot(*args, method="contour", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
+
+    The contour lines are rendered via
+    :meth:`matplotlib.axes.Axes.contour` — see the `matplotlib contour
+    documentation
+    <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contour.html>`_
+    for the full list of accepted ``**kwargs``.
     """
-    return plot(*args, method="contour", **kwargs)
+    return plot(*args, method="contour", style=style, **kwargs)
 
 
-def pcolormesh(*args, **kwargs):
+def pcolormesh(*args, style=None, **kwargs):
     """
     Plot a pseudocolor mesh on a map.
 
-    Equivalent to ``ekp.plot(*args, method="pcolormesh", **kwargs)``.
+    A shortcut for ``ekp.plot(*args, method="pcolormesh", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
+
+    The mesh is rendered via
+    :meth:`matplotlib.axes.Axes.pcolormesh` — see the `matplotlib pcolormesh
+    documentation
+    <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html>`_
+    for the full list of accepted ``**kwargs``.
     """
-    return plot(*args, method="pcolormesh", **kwargs)
+    return plot(*args, method="pcolormesh", style=style, **kwargs)
 
 
 def _unwrap_if_single(figure):
@@ -383,7 +395,7 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
     else:
         fields = _coerce_to_fieldlist(*data_args)
         getattr(subplot, method_name)(fields, **kwargs)
-    for m in schema.quickmap_figure_workflow:
+    for m in schema.geo.fig.workflow:
         try:
             getattr(figure, m)()
         except Exception as err:
@@ -517,7 +529,7 @@ def rgb_composite(
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.rgb_composite(*args, **kwargs)
-    for m in schema.quickmap_figure_workflow:
+    for m in schema.geo.fig.workflow:
         try:
             getattr(figure, m)()
         except Exception as err:
@@ -555,7 +567,7 @@ def choropleth(
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.choropleth(data, **kwargs)
-    for m in schema.quickmap_figure_workflow:
+    for m in schema.geo.fig.workflow:
         try:
             getattr(figure, m)()
         except Exception as err:
@@ -655,7 +667,7 @@ def spaghetti(
         **kwargs,
     )
 
-    for m in schema.quickmap_figure_workflow:
+    for m in schema.geo.fig.workflow:
         try:
             getattr(figure, m)()
         except Exception as err:
@@ -796,6 +808,35 @@ def _apply_ticks(subplot, xticks, yticks):
             subplot.yticks(**yticks)
 
 
+def _run_timeseries_subplot_workflow(
+    ts, xlabel=None, ylabel=None, xticks=None, yticks=None
+):
+    """Apply schema.timeseries.subplot.workflow steps to a TimeSeries subplot."""
+    for m in schema.timeseries.subplot.workflow:
+        try:
+            if m == "xlabel":
+                ts.xlabel(xlabel) if xlabel is not None else ts.xlabel()
+            elif m == "ylabel":
+                ts.ylabel(ylabel) if ylabel is not None else ts.ylabel()
+            else:
+                getattr(ts, m)()
+        except Exception as err:
+            warnings.warn(f"timeseries subplot workflow step '{m}' failed with:\n{err}")
+    _apply_ticks(ts, xticks, yticks)
+
+
+def _run_timeseries_fig_workflow(fig, subplot_titles=None):
+    """Apply schema.timeseries.fig.workflow steps to a Figure."""
+    for m in schema.timeseries.fig.workflow:
+        try:
+            if m == "subplot_titles" and subplot_titles:
+                fig.subplot_titles(subplot_titles)
+            else:
+                getattr(fig, m)()
+        except Exception as err:
+            warnings.warn(f"timeseries fig workflow step '{m}' failed with:\n{err}")
+
+
 def timeseries(
     data,
     *args,
@@ -896,7 +937,9 @@ def timeseries(
                 fig.title(title)
             except Exception:
                 pass
-        fig.legend()
+        # subplot_titles already handled inside fig.timeseries(); pass None to
+        # avoid a second overwriting call from the workflow.
+        _run_timeseries_fig_workflow(fig, subplot_titles=None)
         return fig
 
     # ------------------------------------------------------------------
@@ -934,8 +977,9 @@ def timeseries(
                 getattr(ts, plot)(da, *args, **kwargs)
                 ts._ax = original_ax
                 layers_by_ax[target_ax].extend(ts.layers[layers_before:])
-        ts.xlabel(xlabel)
-        _apply_ticks(ts, xticks, yticks)
+        _run_timeseries_subplot_workflow(
+            ts, xlabel=xlabel, ylabel=None, xticks=xticks, yticks=yticks
+        )
         for ax, ax_layers in layers_by_ax.items():
             if ylabel is not None:
                 ax.set_ylabel(ylabel)
@@ -949,13 +993,21 @@ def timeseries(
                     pass
         if title:
             ts.title(title)
-        ts.figure.legend()
+        _run_timeseries_fig_workflow(ts.figure, subplot_titles=subplot_titles)
         return ts
 
     # ------------------------------------------------------------------
     # groupby → one panel per unique value (DataArray or single-var Dataset)
     # ------------------------------------------------------------------
+    # For single-variable paths, "{variable_name}" as the default subplot title
+    # is redundant (all panels show the same variable); suppress it unless the
+    # user set it explicitly or we're splitting by groupby (where we auto-set it).
+    if groupby is None and subplot_titles == "{variable_name}":
+        subplot_titles = None
+
     if groupby is not None:
+        if subplot_titles is None:
+            subplot_titles = f"{{{groupby}}}"
         groups = list(_iter_plot_groups((data,), groupby, mode="split"))
         n_plots = len(groups)
         _rows, _cols = layouts.rows_cols(n_plots, rows, columns)
@@ -965,22 +1017,15 @@ def timeseries(
             ts = fig.add_timeseries()
             for target in targets:
                 getattr(ts, plot)(target, *args, **kwargs)
-            if xlabel is not None:
-                ts.xlabel(xlabel)
-            if ylabel is not None:
-                ts.ylabel(ylabel)
-            _apply_ticks(ts, xticks, yticks)
-            if subplot_titles:
-                try:
-                    ts.title(subplot_titles)
-                except Exception:
-                    pass
+            _run_timeseries_subplot_workflow(
+                ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks
+            )
         if title:
             try:
                 fig.title(title)
             except Exception:
                 pass
-        fig.legend()
+        _run_timeseries_fig_workflow(fig, subplot_titles=subplot_titles)
         return fig
 
     # ------------------------------------------------------------------
@@ -989,12 +1034,10 @@ def timeseries(
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
     ts = TimeSeries(**class_kwargs)
     getattr(ts, plot)(data, *args, **kwargs)
-    if xlabel is not None:
-        ts.xlabel(xlabel)
-    if ylabel is not None:
-        ts.ylabel(ylabel)
-    _apply_ticks(ts, xticks, yticks)
+    _run_timeseries_subplot_workflow(
+        ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks
+    )
     if title:
         ts.title(title)
-    ts.figure.legend()
+    _run_timeseries_fig_workflow(ts.figure, subplot_titles=subplot_titles)
     return ts

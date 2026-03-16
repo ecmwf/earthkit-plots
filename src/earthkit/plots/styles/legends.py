@@ -172,6 +172,10 @@ def vector(layer, *args, **kwargs):
 
 
 def quiverkey(layer, *args, vector_reference=16, **kwargs):
+    from matplotlib.quiver import Barbs
+
+    if isinstance(layer.mappable, Barbs):
+        return vector(layer, *args, **kwargs)
     layer.axes[-1].quiverkey(
         layer.mappable,
         1,

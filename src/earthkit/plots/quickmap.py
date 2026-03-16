@@ -36,9 +36,7 @@ def _quickmap(function):
                 "constructing the plot manually."
             )
             raise e
-        for method in (
-            schema.quickmap_subplot_workflow + schema.quickmap_figure_workflow
-        ):
+        for method in schema.geo.subplot.workflow + schema.geo.fig.workflow:
             try:
                 getattr(subplot, method)()
             except Exception:

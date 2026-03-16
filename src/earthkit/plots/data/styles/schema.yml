@@ -83,13 +83,23 @@ interactive_layout:
 # *************************************************************************** #
 # * QUICKPLOT WORKFLOW                                                      * #
 # *************************************************************************** #
-quickmap_subplot_workflow:
-- title
+geo:
+  subplot:
+    workflow:
+    - title
+  fig:
+    workflow:
+    - coastlines
+    - legend
 
-quickmap_figure_workflow:
-- coastlines
-- legend
-- subplot_titles
+timeseries:
+  subplot:
+    workflow:
+    - ylabel
+    - xlabel
+    - title
+  fig:
+    workflow: []
 
 quickplot_workflow: []
 
@@ -124,6 +134,7 @@ contour:
   regrid: true
   labels: true
   transform_first: true
+  linewidths: 1
 isolines:
   regrid: true
   transform_first: true

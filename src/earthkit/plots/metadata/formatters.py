@@ -105,6 +105,21 @@ class BaseFormatter(Formatter):
         keys = (i[1] for i in self.parse(format_string) if i[1] is not None)
         for key in keys:
             main_key, *methods = key.split(".")
+            # If the key contains dots, first try resolving the full dotted key
+            # as a single metadata lookup (e.g. "time.valid_datetime" from
+            # earthkit-data's namespaced metadata API).  Only fall back to the
+            # chained-method path (x.units, y.variable_name, …) when the full
+            # key produces nothing useful.
+            if methods:
+                full_result = self.format_key(key)
+                resolved = (
+                    full_result[0]
+                    if isinstance(full_result, list) and len(full_result) == 1
+                    else full_result
+                )
+                if resolved is not None and not isinstance(resolved, DimensionInfo):
+                    kwargs[key] = full_result
+                    continue
             result = self.format_key(main_key)
             for method in methods:
                 if method in SPECIAL_METHODS:
@@ -340,19 +355,29 @@ class LayerFormatter(BaseFormatter):
             if key in self.SUBPLOT_ATTRIBUTES:
                 value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
             elif key == "units":
-                # Always check axis_units first (set by fix_x/y_units or per-call units=),
-                # then fall back to source.units (applied/converted), then raw metadata.
+                # Priority order:
+                # 1. axis_units (set by fix_x/y_units or per-call units=)
+                # 2. style.units (explicitly set by the user on the Style object)
+                # 3. source.units (applied/converted units from the data source)
+                # 4. raw metadata extraction from source
                 axis_specific_units = (
                     self.layer.axis_units.get(self._axis)
                     if hasattr(self.layer, "axis_units") and self._axis is not None
                     else None
                 )
+                style_units = (
+                    getattr(self.layer.style, "units", None)
+                    if self.layer.style is not None
+                    else None
+                )
                 if axis_specific_units is not None:
                     value = [f"__units__{axis_specific_units}"]
+                elif style_units:
+                    value = [f"__units__{style_units}"]
                 else:
                     value = [
                         f"__units__{source.units}"
-                        if source.units is not None
+                        if source.units
                         else metadata.labels.extract(
                             source,
                             key,

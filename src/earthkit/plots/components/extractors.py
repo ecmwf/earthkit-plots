@@ -177,7 +177,7 @@ def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
     is_1d = method_name in ("line", "scatter", "bar", "barh", "plot", "stripes")
 
     # Check if this is a vector plot
-    is_vector = method_name in ("quiver", "barbs")
+    is_vector = method_name in ("quiver", "barbs", "streamplot")
 
     if is_map:
         if is_vector:
@@ -1139,9 +1139,13 @@ def extract_plottables_vector_2D(
             pass
 
     # Step 3: Configure the plotting style
-    style = configure_style(
-        method_name, style, source, units, auto_style, {**kwargs, "colors": colors}
-    )
+    # Only forward `colors` to configure_style when it was explicitly provided
+    # (i.e. not the False sentinel default), so that a user-supplied style's
+    # own colors are not overwritten.
+    style_kwargs = {**kwargs}
+    if colors is not False:
+        style_kwargs["colors"] = colors
+    style = configure_style(method_name, style, source, units, auto_style, style_kwargs)
 
     # Step 4: Extract x, y coordinate values.
     # Squeeze to remove any leading size-1 field-count dimension that arises
@@ -1502,6 +1506,8 @@ def configure_style(
     if not auto_style:
         if style_kwargs or units:
             style = style_class(**{**style_kwargs, "units": units})
+        elif style_class is not Style:
+            style = style_class()
         else:
             style = DEFAULT_STYLE
     else:

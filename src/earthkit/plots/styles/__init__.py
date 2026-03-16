@@ -632,25 +632,44 @@ class Style:
         """
         cmap = None
         norm = None
+        magnitude = None
         kwargs = {**self._kwargs, **kwargs}
         if self._colors:
             magnitude = np.sqrt(u**2 + v**2)
             kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
             cmap = kwargs.pop("cmap", None)
             norm = kwargs.pop("norm", None)
-            if cmap and norm:
-                kwargs["color"] = cmap(norm(magnitude))[0]
-        mappable = ax.quiver(x, y, u, v, *args, **kwargs)
+        if cmap and norm and magnitude is not None:
+            mappable = ax.quiver(
+                x, y, u, v, magnitude.ravel(), *args, cmap=cmap, norm=norm, **kwargs
+            )
+        else:
+            mappable = ax.quiver(x, y, u, v, *args, **kwargs)
         mappable.cmap = cmap
         mappable.norm = norm
-        if cmap is None:
-            mappable._colorbar = False
-        else:
-            mappable._colorbar = True
+        mappable._colorbar = cmap is not None
         return mappable
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
-        return ax.barbs(x, y, u, v, *args, **kwargs)
+        cmap = None
+        norm = None
+        magnitude = None
+        kwargs = {**self._kwargs, **kwargs}
+        if self._colors:
+            magnitude = np.sqrt(u**2 + v**2)
+            kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
+            cmap = kwargs.pop("cmap", None)
+            norm = kwargs.pop("norm", None)
+        if cmap and norm and magnitude is not None:
+            mappable = ax.barbs(
+                x, y, u, v, magnitude.ravel(), *args, cmap=cmap, norm=norm, **kwargs
+            )
+        else:
+            mappable = ax.barbs(x, y, u, v, *args, **kwargs)
+        mappable.cmap = cmap
+        mappable.norm = norm
+        mappable._colorbar = cmap is not None
+        return mappable
 
     def streamplot(self, ax, x, y, u, v, *args, **kwargs):
         """
@@ -1321,7 +1340,8 @@ class Contour(Style):
         The colors to be used for contour lines. This can be a named matplotlib
         colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
         three (four)-element lists of RGB(A) values), or a pre-defined
-        matplotlib colormap object. If not provided, ``"viridis_r"`` is used.
+        matplotlib colormap object. If not provided, the default colormap of the
+        active ``schema`` will be used.
     labels : bool, optional
         If `True`, then contour labels will be displayed.
     label_kwargs : dict, optional
@@ -1338,7 +1358,7 @@ class Contour(Style):
 
     def __init__(
         self,
-        colors="black",
+        colors=schema.default_cmap,
         labels=False,
         label_kwargs=None,
         interpolate=True,

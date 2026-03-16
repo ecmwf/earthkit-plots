@@ -790,7 +790,20 @@ class Subplot:
 
     def ylabel(self, label=None, **kwargs):
         """
-        Add a y-axis label to the plot.
+        Add a y-axis label to the subplot.
+
+        If no label is provided, one is generated automatically from the
+        plotted data's metadata (variable name and units).
+
+        Parameters
+        ----------
+        label : str, optional
+            The label text. Supports metadata format placeholders such as
+            ``"{variable_name}"`` and ``"{units}"``. If ``None``, a label is
+            inferred from the data.
+        **kwargs
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.set_ylabel`.
         """
         if label is None:
             # Check if units metadata exists
@@ -804,7 +817,20 @@ class Subplot:
 
     def xlabel(self, label=None, **kwargs):
         """
-        Add an x-axis label to the plot.
+        Add an x-axis label to the subplot.
+
+        If no label is provided, one is generated automatically from the
+        plotted data's metadata (variable name and units).
+
+        Parameters
+        ----------
+        label : str, optional
+            The label text. Supports metadata format placeholders such as
+            ``"{variable_name}"`` and ``"{units}"``. If ``None``, a label is
+            inferred from the data.
+        **kwargs
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.set_xlabel`.
         """
         if label is None:
             # Check if units metadata exists
@@ -869,7 +895,27 @@ class Subplot:
 
     @plot_1D()
     def quantiles(self, *args, **kwargs):
-        pass
+        """
+        Plot a quantile fill (shaded uncertainty band) on the Subplot.
+
+        Draws one shaded band per quantile pair (e.g. p10–p90, p25–p75)
+        centred around the median, using progressively lighter shading for
+        outer quantiles.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base
+            The data to plot. Must contain a quantile coordinate or dimension.
+        x : str or array-like, optional
+            The x-axis coordinate name or values.
+        style : earthkit.plots.styles.Style, optional
+            Style to apply. If ``None``, a style is generated automatically.
+        units : str, optional
+            Target units for value conversion.
+        **kwargs
+            Additional keyword arguments forwarded to
+            :meth:`matplotlib.axes.Axes.fill_between`.
+        """
 
     def multiboxplot(
         self,
@@ -1490,7 +1536,11 @@ class Subplot:
             The Style to use for the line. If None, a Style is automatically
             generated based on the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.plot`.
+            See the `matplotlib plot documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.plot.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.envelope.apply()
@@ -1509,7 +1559,11 @@ class Subplot:
         units : str, optional
             Units for the data values.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.fill_between`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.fill_between`.
+            See the `matplotlib fill_between documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.fill_between.html>`_
+            for the full list of accepted arguments.
         """
         x = kwargs.pop("x", None)
         drawstyle = kwargs.pop("drawstyle", None)
@@ -1600,8 +1654,10 @@ class Subplot:
             Target units for value conversion (e.g. ``"celsius"``).
         **kwargs
             Additional keyword arguments forwarded to
-            :func:`matplotlib.pyplot.fill_between` (e.g. ``color``,
-            ``zorder``, ``label``).
+            :meth:`matplotlib.axes.Axes.fill_between`.
+            See the `matplotlib fill_between documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.fill_between.html>`_
+            for the full list (e.g. ``color``, ``zorder``, ``label``).
 
         Examples
         --------
@@ -1713,7 +1769,8 @@ class Subplot:
         label : str, optional
             The label to plot.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.annotate`.
         """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
@@ -1722,18 +1779,23 @@ class Subplot:
 
     def plot(self, data, style=None, units=None, **kwargs):
         """
-        Plot a line on the Subplot.
+        Auto-detect the best plot type and render the data.
+
+        Inspects data metadata to choose the most appropriate method
+        (e.g. :meth:`contourf`, :meth:`grid_cells`, :meth:`pcolormesh`).
+        You can override the selection by passing an explicit *style*.
 
         Parameters
         ----------
-        data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot the data.
+        data : xarray.DataArray or earthkit.data.core.Base
+            The data to plot.
         style : earthkit.plots.styles.Style, optional
-            The Style to use for the data.
+            An explicit :class:`~earthkit.plots.styles.Style` to use.
+            If ``None``, a style is detected automatically from the data metadata.
         units : str, optional
-            The units to use for the data.
+            Target units for value conversion (e.g. ``"celsius"``).
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
+            Additional keyword arguments forwarded to the resolved plot method.
         """
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `plot`.")
@@ -1942,10 +2004,15 @@ class Subplot:
             The Style to use for the bar chart. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
 
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.bar`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.bar`.
+            See the `matplotlib bar documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.bar.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.scatter.apply()
@@ -1968,9 +2035,14 @@ class Subplot:
             The Style to use for the scatter plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+            See the `matplotlib scatter documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+            for the full list of accepted arguments.
         """
 
     @plot_1D()
@@ -2027,7 +2099,8 @@ class Subplot:
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         resample : earthkit.plots.resample.Resample, bool, or dict, optional
             Controls resampling of data before plotting. Pass a
             :class:`~earthkit.plots.resample.Unstructured` (or subclass) instance to
@@ -2035,7 +2108,11 @@ class Subplot:
             arguments to construct one, or ``True`` for defaults. Default is ``False``
             for pcolormesh.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.pcolormesh`.
+            See the `matplotlib pcolormesh documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.contour.apply()
@@ -2061,14 +2138,19 @@ class Subplot:
             The Style to use for the contour plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
             :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
             defaults) to reproject onto a regular target grid, or ``False`` to
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels).
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contour`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.contour`.
+            See the `matplotlib contour documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contour.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.contourf.apply()
@@ -2094,7 +2176,8 @@ class Subplot:
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
             :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
@@ -2103,7 +2186,11 @@ class Subplot:
             :class:`~earthkit.plots.resample.Unstructured` instance to interpolate
             unstructured data onto a structured grid instead.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.contourf`.
+            See the `matplotlib contourf documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contourf.html>`_
+            for the full list of accepted arguments.
         """
 
     @plot_2D()
@@ -2128,9 +2215,14 @@ class Subplot:
             The Style to use for the tripcolor plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.tripcolor`.
+            See the `matplotlib tripcolor documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.tripcolor.html>`_
+            for the full list of accepted arguments.
         """
 
     @plot_2D()
@@ -2155,9 +2247,14 @@ class Subplot:
             The Style to use for the tricontour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.tricontour`.
+            See the `matplotlib tricontour documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.tricontour.html>`_
+            for the full list of accepted arguments.
         """
 
     @plot_2D()
@@ -2182,9 +2279,14 @@ class Subplot:
             The Style to use for the filled tricontour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontourf`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.tricontourf`.
+            See the `matplotlib tricontourf documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.tricontourf.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.quiver.apply()
@@ -2213,9 +2315,14 @@ class Subplot:
             The Style to use for the quiver plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.quiver`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.quiver`.
+            See the `matplotlib quiver documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.quiver.html>`_
+            for the full list of accepted arguments.
         """
 
     @plot_vector()
@@ -2243,9 +2350,14 @@ class Subplot:
             The Style to use for the stream plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.streamplot`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.streamplot`.
+            See the `matplotlib streamplot documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.streamplot.html>`_
+            for the full list of accepted arguments.
         """
 
     @schema.barbs.apply()
@@ -2274,9 +2386,14 @@ class Subplot:
             The Style to use for the wind barbs. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.barbs`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.barbs`.
+            See the `matplotlib barbs documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.barbs.html>`_
+            for the full list of accepted arguments.
         """
 
     def block(self, *args, **kwargs):
@@ -2290,7 +2407,8 @@ class Subplot:
         *args : xarray.DataArray or earthkit.data.core.Base
             The data source for which to plot the block.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
         **kwargs
             Additional keyword arguments to pass to :meth:`pcolormesh`.
         """
@@ -2347,11 +2465,12 @@ class Subplot:
             is also set. Defaults to ``"Control"`` if ``label`` is set and
             ``highlight`` is set but ``highlight_label`` is not provided.
         **kwargs
-            Additional keyword arguments passed to matplotlib.pyplot.contour.
-            Common parameters include:
-            - linewidths : float or list - line widths for contours
-            - labels : bool - whether to show contour labels
-            - alpha : float - transparency level
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.contour` for each member.
+            See the `matplotlib contour documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contour.html>`_
+            for the full list. Common parameters include ``linewidths``,
+            ``alpha``, and ``labels``.
         """
         import earthkit.data
 

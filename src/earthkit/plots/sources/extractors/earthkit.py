@@ -59,11 +59,19 @@ def iter_plot_groups(fields, groupby, mode, combine_vectors=False):
 
     # mode == "auto"
     if groupby:
-        unique_values = iter_utils.flatten(field.metadata(groupby) for field in fields)
+        # Support xarray-style dotted keys like "time.valid_datetime".
+        # earthkit-data's Field.metadata() only accepts the leaf key, but
+        # FieldList.sel() key format has changed across versions: older versions
+        # require the full dotted key; newer versions require the leaf key.
+        # We always use the leaf for metadata extraction, and try the leaf for
+        # sel first, falling back to the full dotted key if it yields nothing.
+        meta_key = groupby.split(".")[-1] if "." in groupby else groupby
+        unique_values = iter_utils.flatten(field.metadata(meta_key) for field in fields)
         unique_values = [v for v in dict.fromkeys(unique_values) if v is not None]
         for val in unique_values:
-            group = fields.sel(**{groupby: val})
-            group_list = list(group)
+            group_list = list(fields.sel(**{meta_key: val}))
+            if not group_list and meta_key != groupby:
+                group_list = list(fields.sel(**{groupby: val}))
             if group_list:
                 yield val, group_list
     else:
@@ -358,6 +366,14 @@ class EarthkitExtractor(BaseExtractor):
         if hasattr(self.data, "metadata"):
             try:
                 value = self.data.metadata(key)
+                if value is not None:
+                    return value
+            except (AttributeError, KeyError, NotImplementedError):
+                pass
+
+        if hasattr(self.data, "get"):
+            try:
+                value = self.data.get(key)
                 if value is not None:
                     return value
             except (AttributeError, KeyError, NotImplementedError):

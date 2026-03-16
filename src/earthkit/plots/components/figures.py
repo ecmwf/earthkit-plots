@@ -268,41 +268,39 @@ class Figure:
     @apply_to_subplots
     def xticks(self, *args, **kwargs):
         """
-        Set x-ticks on all subplots.
+        Set x-axis tick locations and labels on every subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `matplotlib.axes.Axes.set_xticks`.
+        Forwards all arguments to each subplot's :meth:`Subplot.xticks` method.
+        See :meth:`~earthkit.plots.components.subplots.Subplot.xticks` for the
+        full parameter list.
         """
 
     @apply_to_subplots
     def yticks(self, *args, **kwargs):
         """
-        Set y-ticks on all subplots.
+        Set y-axis tick locations and labels on every subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `matplotlib.axes.Axes.set_yticks`.
+        Forwards all arguments to each subplot's :meth:`Subplot.yticks` method.
+        See :meth:`~earthkit.plots.components.subplots.Subplot.yticks` for the
+        full parameter list.
         """
 
     @apply_to_subplots
     def xlabel(self, *args, **kwargs):
         """
-        Set x-label on all subplots.
+        Set the x-axis label on every subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `matplotlib.axes.Axes.set_xlabel`.
+        Forwards all arguments to each subplot's :meth:`Subplot.xlabel` method,
+        which ultimately calls :meth:`matplotlib.axes.Axes.set_xlabel`.
         """
 
     @apply_to_subplots
     def ylabel(self, *args, **kwargs):
         """
-        Set y-label on all subplots.
+        Set the y-axis label on every subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `matplotlib.axes.Axes.set_ylabel`.
+        Forwards all arguments to each subplot's :meth:`Subplot.ylabel` method,
+        which ultimately calls :meth:`matplotlib.axes.Axes.set_ylabel`.
         """
 
     def add_subplot(self, row=None, column=None, **kwargs):
@@ -595,99 +593,83 @@ class Figure:
     @apply_to_subplots
     def cities(self, *args, **kwargs):
         """
-        Add cities to every `Map` subplot in the figure.
+        Add cities to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.cities`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.cities`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def coastlines(self, *args, **kwargs):
         """
-        Add coastlines to every `Map` subplot in the figure.
+        Add coastlines to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.coastlines`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.coastlines`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def countries(self, *args, **kwargs):
         """
-        Add countries to every `Map` subplot in the figure.
+        Add country boundaries to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.countries`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.countries`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def urban_areas(self, *args, **kwargs):
         """
-        Add urban areas to every `Map` subplot in the figure.
+        Add urban areas to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.urban_areas`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.urban_areas`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def land(self, *args, **kwargs):
         """
-        Add land polygons to every `Map` subplot in the figure.
+        Add land polygons to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.land`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.land`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def borders(self, *args, **kwargs):
         """
-        Add borders to every `Map` subplot in the figure.
+        Add country borders to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.borders`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.borders`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def standard_layers(self, *args, **kwargs):
         """
-        Add quick layers to every `Map` subplot in the figure.
+        Add standard geographic layers to every `Map` subplot in the figure.
 
         Parameters
         ----------
-        Accepts the same arguments as `Map.quick_layers`.
+        Accepts the same arguments as :meth:`Map.standard_layers`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def administrative_areas(self, *args, **kwargs):
         """
-        Add administrative areas to every `Map` subplot in the figure.
+        Add administrative areas to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.administrative_areas`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.administrative_areas`.
         """
 
     @_defer_until_setup
     @apply_to_subplots
     def stock_img(self, *args, **kwargs):
         """
-        Add a stock image to every `Map` subplot in the figure.
+        Add a stock background image to every :class:`~earthkit.plots.components.maps.Map` subplot.
 
-        Parameters
-        ----------
-        Accepts the same arguments as `Map.stock_img`.
+        Accepts the same arguments as :meth:`~earthkit.plots.components.maps.Map.stock_img`.
         """
 
     @iterate_subplots
@@ -695,33 +677,19 @@ class Figure:
         """
         Plot a pcolormesh on every subplot in the figure.
 
+        Deprecated: Use :meth:`pcolormesh` instead.
+
         Parameters
         ----------
         data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
             The data to plot. If None, x, y, and z must be provided.
-        x : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The x values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
-        y : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The y values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
-        z : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The z values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
         style : earthkit.plots.styles.Style, optional
-            The Style to use for the pcolormesh. If None, a Style is automatically
-            generated based on the data.
+            The Style to use. If None, a Style is automatically generated from the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
-        interpolate: earthkit.plots.resample.Unstructured, dict, optional
-            A :class:`plots.resample.Unstructured` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
-            If not provided and the data is unstructured, an `Unstructured` class is created
-            by detecting the resolution of the data.
+            Target units for value conversion.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.pcolormesh`.
         """
 
     @iterate_subplots
@@ -738,17 +706,31 @@ class Figure:
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
         """
 
     @iterate_subplots
     def quickplot(self, *args, **kwargs):
-        """"""
+        """
+        Auto-detect the best plot type and render data on every subplot.
+
+        Iterates over data items and subplots simultaneously, calling
+        :meth:`~earthkit.plots.components.subplots.Subplot.quickplot` on each.
+
+        Parameters
+        ----------
+        data : xarray.DataArray, xarray.Dataset, or earthkit.data.core.Base
+            The data to plot.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.quickplot`.
+        """
 
     @iterate_subplots
     def pcolormesh(self, *args, **kwargs):
         """
-        Plot a pcolormesh on every subplot in the figure.
+        Plot a pseudocolor mesh on every subplot in the figure.
 
         Parameters
         ----------
@@ -764,25 +746,21 @@ class Figure:
             The z values to plot. If data is provided, this is assumed to be the
             name of a coordinate in the data. If None, data must be provided.
         style : earthkit.plots.styles.Style, optional
-            The Style to use for the pcolormesh. If None, a Style is automatically
-            generated based on the data.
-        interpolate: earthkit.plots.resample.Unstructured, dict, optional
-            A :class:`plots.resample.Unstructured` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
-            If not provided and the data is unstructured, an `Unstructured` class is created
-            by detecting the resolution of the data.
+            The Style to use. If None, a Style is automatically generated from the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.pcolormesh`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.pcolormesh`.
+            See the `matplotlib pcolormesh documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html>`_
+            for the full list of accepted arguments.
         """
 
     @iterate_subplots
     def contourf(self, *args, **kwargs):
         """
-        Plot a filled contour plot on every subplot in the figure.
+        Plot filled contours on every subplot in the figure.
 
         Parameters
         ----------
@@ -800,23 +778,20 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Unstructured, dict, optional
-            A :class:`plots.resample.Unstructured` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
-            If not provided and the data is unstructured, an `Unstructured` class is created
-            by detecting the resolution of the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.contourf`.
+            See the `matplotlib contourf documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contourf.html>`_
+            for the full list of accepted arguments.
         """
 
     @iterate_subplots
     def contour(self, *args, **kwargs):
         """
-        Plot a line contour plot on every subplot in the figure.
+        Plot contour lines on every subplot in the figure.
 
         Parameters
         ----------
@@ -832,19 +807,16 @@ class Figure:
             The z values to plot. If data is provided, this is assumed to be the
             name of a coordinate in the data. If None, data must be provided.
         style : earthkit.plots.styles.Style, optional
-            The Style to use for the filled contour plot. If None, a Style is
+            The Style to use for the contour lines. If None, a Style is
             automatically generated based on the data.
-        interpolate: earthkit.plots.resample.Unstructured, dict, optional
-            A :class:`plots.resample.Unstructured` class which will be applied to data
-            prior to plotting. This is required for unstructured data with no grid information,
-            but it can also be useful if you want to view structured data at a different resolution.
-            If a dictionary, it is passed as keyword arguments to instantiate the `Unstructured` class.
-            If not provided and the data is unstructured, an `Unstructured` class is created
-            by detecting the resolution of the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            Target units for value conversion.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.contour`.
+            See the `matplotlib contour documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.contour.html>`_
+            for the full list of accepted arguments.
         """
 
     @iterate_subplots
