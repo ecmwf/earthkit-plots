@@ -45,7 +45,7 @@ def _split_by_year(da, time_dim="time"):
     entire plot shares a single Jan–Dec x-axis.  Non-leap years simply have
     no Feb 29 data point.
     """
-    for year, group in da.groupby(f"{time_dim}.year"):
+    for year, group in da.groupby(da[time_dim].dt.year):
         yield int(year), _remap_year(group, _LEAP_REF_YEAR, time_dim)
 
 
