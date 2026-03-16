@@ -168,7 +168,8 @@ def _enable_minor_grid(ax, axis: str, alpha_scale: float = 0.5):
 
 def _season_triad_months(dt, anchor_month=SEASON_ANCHOR_MONTH):
     """Return the 3 month numbers [m1, m2, m3] of the season containing dt,
-    with seasons starting at anchor, anchor+3, anchor+6, anchor+9."""
+    with seasons starting at anchor, anchor+3, anchor+6, anchor+9.
+    """
     m = dt.month
     offset = (m - anchor_month) % 12
     start_month = ((anchor_month - 1) + 3 * (offset // 3)) % 12 + 1
@@ -309,9 +310,7 @@ def set_ticks(
             if hasattr(ax, "get_xdata") and len(ax.get_xdata()) > 0:
                 ax.get_xdata()  # Check if data exists
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().startswith(p) for p in TIME_PREFIXES
-            ):
+            if frequency and any(frequency.upper().startswith(p) for p in TIME_PREFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
@@ -322,9 +321,7 @@ def set_ticks(
             if hasattr(ax, "get_ydata") and len(ax.get_ydata()) > 0:
                 ax.get_ydata()
             # Simple heuristic: if frequency looks like time format, treat as time
-            if frequency and any(
-                frequency.upper().startswith(p) for p in TIME_PREFIXES
-            ):
+            if frequency and any(frequency.upper().startswith(p) for p in TIME_PREFIXES):
                 is_time_axis = True
         except (AttributeError, TypeError, ValueError):
             pass
@@ -368,7 +365,6 @@ def _set_time_ticks(
     **kwargs,
 ):
     """Helper function to set time-based ticks."""
-
     season_anchor = kwargs.pop("season_anchor", SEASON_ANCHOR_MONTH)
     season_hemi = kwargs.pop("season_hemi", SEASON_NAME_HEMI)
     season_sep = kwargs.pop("season_sep", SEASON_MONTH_SEP)
@@ -442,9 +438,7 @@ def _set_time_ticks(
     # Set minor ticks if specified
     if minor_frequency is not None:
         minor_locator = _get_time_locator(minor_frequency)
-        _enable_minor_grid(
-            ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25
-        )
+        _enable_minor_grid(ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25)
 
         # Set minor tick format - use format if minor_format is None
         if minor_format is not None:
@@ -584,15 +578,11 @@ def _get_time_locator(frequency):
         if anchor_year is None and rd is None:
             return mdates.YearLocator(base=step)
         else:
-            return AnchoredYearLocator(
-                base=step, anchor_year=anchor_year or 2000, offset=rd
-            )
+            return AnchoredYearLocator(base=step, anchor_year=anchor_year or 2000, offset=rd)
 
     elif F.startswith("W"):
         interval = int(f[1:] or "1")
-        return mdates.WeekdayLocator(
-            byweekday=mdates.MO, interval=interval
-        )  # or expose start day
+        return mdates.WeekdayLocator(byweekday=mdates.MO, interval=interval)  # or expose start day
 
     elif F.startswith("H"):
         interval = int(f[1:] or "1")
@@ -633,15 +623,11 @@ def _get_period_minor_locator(frequency):
 
     elif F.startswith("W"):
         interval = int(f[1:] or "1")
-        return mdates.WeekdayLocator(
-            byweekday=mdates.TH, interval=interval
-        )  # or expose start day
+        return mdates.WeekdayLocator(byweekday=mdates.TH, interval=interval)  # or expose start day
 
     elif F.startswith("SEAS"):
         interval = int(f[4:] or "1")
-        return mdates.MonthLocator(
-            bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16
-        )
+        return mdates.MonthLocator(bymonth=[1, 4, 7, 10], interval=interval, bymonthday=16)
 
     elif F.startswith("S"):  # seconds
         interval = int(f[1:] or "1")
@@ -652,9 +638,7 @@ def _get_period_minor_locator(frequency):
         return _get_time_locator(frequency)
 
 
-def _set_numeric_ticks(
-    ax, axis_obj, frequency, minor_frequency, format, minor_format, labels, **kwargs
-):
+def _set_numeric_ticks(ax, axis_obj, frequency, minor_frequency, format, minor_format, labels, **kwargs):
     """Helper function to set numeric ticks."""
     # For numeric axis, we'll use numeric tickers
     if frequency is not None:
@@ -688,9 +672,7 @@ def _set_numeric_ticks(
             minor_locator = ticker.AutoMinorLocator()
 
         axis_obj.set_minor_locator(minor_locator)
-        _enable_minor_grid(
-            ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25
-        )
+        _enable_minor_grid(ax, axis="x" if axis_obj is ax.xaxis else "y", alpha_scale=0.25)
 
         # Only set minor tick format if we want to show minor labels
         if labels in ["minor", "both"]:
@@ -703,9 +685,7 @@ def _set_numeric_ticks(
                 minor_format_str = None
 
             if minor_format_str:
-                axis_obj.set_minor_formatter(
-                    ticker.FormatStrFormatter(minor_format_str)
-                )
+                axis_obj.set_minor_formatter(ticker.FormatStrFormatter(minor_format_str))
         else:
             # Hide minor labels by setting null formatter
             axis_obj.set_minor_formatter(ticker.NullFormatter())

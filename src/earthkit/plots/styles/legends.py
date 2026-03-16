@@ -59,9 +59,7 @@ def colorbar(layer, *args, ax=None, color="black", **kwargs):
     """
     label = kwargs.pop("label", None)
     if label is None:
-        label = layer.format_string(
-            DEFAULT_LEGEND_LABEL, default="", issue_warnings=False
-        )
+        label = layer.format_string(DEFAULT_LEGEND_LABEL, default="", issue_warnings=False)
     else:
         label = layer.format_string(label)
 
@@ -125,26 +123,17 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
         # Try to extract boundaries directly
         if isinstance(norm, mcolors.BoundaryNorm):
             levels = norm.boundaries  # Correct method for unevenly spaced levels
-        elif hasattr(layer.mappable, "colorbar") and hasattr(
-            layer.mappable.colorbar, "boundaries"
-        ):
+        elif hasattr(layer.mappable, "colorbar") and hasattr(layer.mappable.colorbar, "boundaries"):
             levels = layer.mappable.colorbar.boundaries  # Backup if available
         else:
-            levels = np.linspace(
-                norm.vmin, norm.vmax, cmap.N
-            )  # Fallback, but not ideal
+            levels = np.linspace(norm.vmin, norm.vmax, cmap.N)  # Fallback, but not ideal
 
         # Generate color patches manually
-        artists = [
-            Patch(facecolor=cmap(norm(level)), edgecolor="#555", linewidth=0.5)
-            for level in levels
-        ]
+        artists = [Patch(facecolor=cmap(norm(level)), edgecolor="#555", linewidth=0.5) for level in levels]
 
     labels = kwargs.pop("labels", layer.style._bin_labels) or labels
 
-    kwargs["ncols"] = kwargs.get(
-        "ncols", estimate_legend_cols(layer.axes, labels, position=location)
-    )
+    kwargs["ncols"] = kwargs.get("ncols", estimate_legend_cols(layer.axes, labels, position=location))
 
     legend = source.legend(
         artists,
@@ -205,15 +194,11 @@ def estimate_legend_cols(axes, labels, position="top"):
     if position in ["top", "bottom"]:
         # Calculate the total width of all axes
         total_width = sum(ax.get_position().width for ax in axes)
-        available_width = (
-            total_width * axes[0].figure.get_figwidth() * axes[0].figure.dpi
-        )
+        available_width = total_width * axes[0].figure.get_figwidth() * axes[0].figure.dpi
     else:  # 'left', 'right'
         # Calculate the total height of all axes
         total_height = sum(ax.get_position().height for ax in axes)
-        available_width = (
-            total_height * axes[0].figure.get_figheight() * axes[0].figure.dpi
-        )
+        available_width = total_height * axes[0].figure.get_figheight() * axes[0].figure.dpi
 
     # Sum of label widths
     total_label_width = np.sum(label_widths)

@@ -16,9 +16,7 @@ def vonmises_kde(data: np.ndarray, kappa: float, n_bins: int = 360):
     bins = np.linspace(0.0, 2 * np.pi, n_bins)
     x = np.linspace(0.0, 2 * np.pi, n_bins)
     kappa = min(kappa, 700)
-    kde = np.exp(kappa * np.cos(x[:, None] - data[None, :])).sum(1) / (
-        2 * np.pi * scipy.special.i0(kappa)
-    )
+    kde = np.exp(kappa * np.cos(x[:, None] - data[None, :])).sum(1) / (2 * np.pi * scipy.special.i0(kappa))
     kde /= np.trapezoid(kde, x=bins)
     return bins, kde
 
@@ -60,15 +58,9 @@ def calculate_wind_density_hybrid_vonmises_on_grid(
 
     try:
         dir_radians = np.radians(direction_data_clean)
-        kappa = (
-            700 if circular_var(dir_radians) < 1e-9 else 1.0 / circular_var(dir_radians)
-        )
-        dir_grid_rad, dir_kde = vonmises_kde(
-            dir_radians, kappa, n_bins=num_direction_points
-        )
-        dir_density = np.interp(
-            np.radians(direction_grid_deg), dir_grid_rad, dir_kde, period=2 * np.pi
-        )
+        kappa = 700 if circular_var(dir_radians) < 1e-9 else 1.0 / circular_var(dir_radians)
+        dir_grid_rad, dir_kde = vonmises_kde(dir_radians, kappa, n_bins=num_direction_points)
+        dir_density = np.interp(np.radians(direction_grid_deg), dir_grid_rad, dir_kde, period=2 * np.pi)
     except Exception as e:
         print(f"Von Mises KDE failed: {e}. Using uniform density.")
         dir_density = np.ones(num_direction_points) / num_direction_points
@@ -107,12 +99,8 @@ def _calculate_density_adaptive_kde(x, y, params=None):
 
 def _calculate_density_hybrid_vonmises(r, theta, params=None):
     params = params or {}
-    density_map, dir_grid_deg, r_grid = calculate_wind_density_hybrid_vonmises_on_grid(
-        r, theta, **params
-    )
-    interpolator = RegularGridInterpolator(
-        (dir_grid_deg, r_grid), density_map, bounds_error=False, fill_value=0
-    )
+    density_map, dir_grid_deg, r_grid = calculate_wind_density_hybrid_vonmises_on_grid(r, theta, **params)
+    interpolator = RegularGridInterpolator((dir_grid_deg, r_grid), density_map, bounds_error=False, fill_value=0)
     query_points = np.vstack([theta % 360, r]).T
     return interpolator(query_points)
 
@@ -160,13 +148,9 @@ def windrose(*args, colors=None, **kwargs):
         theta_rad = np.deg2rad(theta_deg)
         x_coords, y_coords = r_speed * np.cos(theta_rad), r_speed * np.sin(theta_rad)
         if density_method == "adaptive_kde":
-            density = _calculate_density_adaptive_kde(
-                x_coords, y_coords, density_params
-            )
+            density = _calculate_density_adaptive_kde(x_coords, y_coords, density_params)
         elif density_method == "hybrid_vonmises":
-            density = _calculate_density_hybrid_vonmises(
-                r_speed, theta_deg, density_params
-            )
+            density = _calculate_density_hybrid_vonmises(r_speed, theta_deg, density_params)
         elif density_method == "kde":
             density = _calculate_density_kde(x_coords, y_coords)
         else:
@@ -198,9 +182,7 @@ def windrose(*args, colors=None, **kwargs):
         for region in regions:
             n_points = int(len(df_sorted) * region["percentage"])
             subset_points = df_sorted.iloc[:n_points][["x", "y"]].values
-            r_smooth, theta_smooth = generate_smoothed_hull_contour(
-                subset_points, region["smoothing"]
-            )
+            r_smooth, theta_smooth = generate_smoothed_hull_contour(subset_points, region["smoothing"])
             if r_smooth.size > 0:
                 traces.append(
                     go.Scatterpolar(
@@ -237,19 +219,14 @@ def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
 
     # Angular data
     sector_width = 360.0 / n_angular_sectors
-    df["theta_bin"] = (
-        (df["theta"] + sector_width / 2.0) // sector_width * sector_width
-    ) % 360
+    df["theta_bin"] = ((df["theta"] + sector_width / 2.0) // sector_width * sector_width) % 360
 
     # Radial data
     if radial_bins is None:
         min_val, max_val = df["r"].min(), df["r"].max()
         radial_bins = np.linspace(min_val, max_val, 6).tolist()
 
-    radial_labels = [
-        f"{radial_bins[i]:.1f}-{radial_bins[i+1]:.1f}"
-        for i in range(len(radial_bins) - 1)
-    ]
+    radial_labels = [f"{radial_bins[i]:.1f}-{radial_bins[i + 1]:.1f}" for i in range(len(radial_bins) - 1)]
 
     df["r_bin"] = pd.cut(
         df["r"],
@@ -260,11 +237,7 @@ def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
     )
 
     # Frequency
-    freq_df = (
-        df.groupby(["theta_bin", "r_bin"], observed=False)
-        .size()
-        .reset_index(name="frequency")
-    )
+    freq_df = df.groupby(["theta_bin", "r_bin"], observed=False).size().reset_index(name="frequency")
 
     traces = []
     for r_label in radial_labels:

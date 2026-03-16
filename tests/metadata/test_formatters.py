@@ -280,6 +280,7 @@ def test_TimeFormatter_named_time_fallback():
 
 def test_SubplotFormatter_layer_indexing():
     """Test that SubplotFormatter handles layer indexing correctly."""
+
     # Mock subplot with multiple layers
     class MockLayer:
         def __init__(self, value):

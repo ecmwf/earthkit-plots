@@ -125,18 +125,14 @@ class BaseFormatter(Formatter):
                     elif method in metadata.labels.MAGIC_KEYS:
                         # Handle magic keys by calling metadata() on the dimension
                         # Get the preference list for this magic key
-                        candidates = metadata.labels.MAGIC_KEYS[method].get(
-                            "preference", [method]
-                        )
+                        candidates = metadata.labels.MAGIC_KEYS[method].get("preference", [method])
                         value = None
                         for candidate in candidates:
                             value = dim_info.metadata(candidate)
                             if value is not None:
                                 break
                         # Apply transformations
-                        if value is not None and metadata.labels.MAGIC_KEYS[method].get(
-                            "remove_underscores"
-                        ):
+                        if value is not None and metadata.labels.MAGIC_KEYS[method].get("remove_underscores"):
                             if isinstance(value, str):
                                 value = value.replace("_", " ")
                         result = [value]
@@ -177,9 +173,7 @@ class BaseFormatter(Formatter):
             The format specification.
         """
         if isinstance(value, str) and value.startswith("__units__"):
-            return metadata.units.format_units(
-                value.replace("__units__", ""), format_spec
-            )
+            return metadata.units.format_units(value.replace("__units__", ""), format_spec)
 
         # Handle coordinate format specifiers
         if format_spec.startswith("%Lt"):
@@ -339,25 +333,15 @@ class LayerFormatter(BaseFormatter):
                         value = [f"__units__{axis_specific_units}"]
                     else:
                         # For legend formatting (when axis is None) or primary axis, prioritize style units
-                        is_primary_axis = (
-                            hasattr(self.layer, "primary_axis")
-                            and self.layer.primary_axis == self._axis
-                        )
+                        is_primary_axis = hasattr(self.layer, "primary_axis") and self.layer.primary_axis == self._axis
                         is_legend_formatting = self._axis is None
 
-                        if (
-                            is_primary_axis or is_legend_formatting
-                        ) and value is not None:
+                        if (is_primary_axis or is_legend_formatting) and value is not None:
                             # This is the primary data axis or legend formatting - use style units
                             if isinstance(value, list):
-                                value = [
-                                    f"__units__{v}" if v is not None else ""
-                                    for v in value
-                                ]
+                                value = [f"__units__{v}" if v is not None else "" for v in value]
                             else:
-                                value = [
-                                    f"__units__{value}" if value is not None else ""
-                                ]
+                                value = [f"__units__{value}" if value is not None else ""]
                         else:
                             # This is a coordinate axis or no style units available - use source units
                             value = [
@@ -394,9 +378,7 @@ class LayerFormatter(BaseFormatter):
         # Handle list values from single sources (e.g., vector fields returning ["wind U", "wind V"])
         if isinstance(_value, list):
             # Apply format_spec to each element
-            formatted_values = [
-                super().format_field(str(v), format_spec) for v in _value
-            ]
+            formatted_values = [super().format_field(str(v), format_spec) for v in _value]
             # Get unique values
             unique_values = list(dict.fromkeys(formatted_values))
             # If all values are the same, return just one
@@ -440,10 +422,7 @@ class SubplotFormatter(BaseFormatter):
         if key in self.SUBPLOT_ATTRIBUTES:
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
-            values = [
-                LayerFormatter(layer, axis=self._axis).format_key(key)
-                for layer in self.subplot.layers
-            ]
+            values = [LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers]
         return values
 
     def format_field(self, value, format_spec):
@@ -480,9 +459,7 @@ class FigureFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
-        values = [
-            SubplotFormatter(subplot).format_key(key) for subplot in self.subplots
-        ]
+        values = [SubplotFormatter(subplot).format_key(key) for subplot in self.subplots]
         values = [item for sublist in values for item in sublist]
         return values
 
@@ -533,13 +510,9 @@ class TimeFormatter:
             if self._time_zone is not None:
                 if None in [t.tzinfo for t in result]:
                     logger.warning(
-                        "Attempting time zone conversion, but some data has no "
-                        "time zone metadata; assuming UTC"
+                        "Attempting time zone conversion, but some data has no time zone metadata; assuming UTC"
                     )
-                    result = [
-                        t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
-                        for t in result
-                    ]
+                    result = [t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC")) for t in result]
                 result = [t.astimezone(tz=self._time_zone) for t in result]
             return result
 
@@ -559,13 +532,8 @@ class TimeFormatter:
         """The offset in hours from UTC."""
         valid_times = self.valid_time
         if None in [vt.tzinfo for vt in valid_times]:
-            logger.warning(
-                "Some of the data is missing time zone metadata; assuming UTC"
-            )
-            valid_times = [
-                t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
-                for t in valid_times
-            ]
+            logger.warning("Some of the data is missing time zone metadata; assuming UTC")
+            valid_times = [t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC")) for t in valid_times]
         offsets = [vt.utcoffset().seconds // 3600 for vt in valid_times]
         time_zones = [f"UTC{offset:+d}" for offset in offsets]
         return time_zones

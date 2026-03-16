@@ -32,17 +32,12 @@ def test_list_to_human_three_items():
 
 def test_list_to_human_oxford_comma():
     items = ["sausage", "egg", "chips"]
-    assert (
-        string_utils.list_to_human(items, oxford_comma=True)
-        == "sausage, egg, and chips"
-    )
+    assert string_utils.list_to_human(items, oxford_comma=True) == "sausage, egg, and chips"
 
 
 def test_list_to_human_conjunction():
     items = ["sausage", "egg", "chips"]
-    assert (
-        string_utils.list_to_human(items, conjunction="or") == "sausage, egg or chips"
-    )
+    assert string_utils.list_to_human(items, conjunction="or") == "sausage, egg or chips"
 
 
 def test_split_camel_case_single_chunk():
@@ -87,10 +82,7 @@ def test_magnitude_string_from_components_east_north():
 def test_magnitude_string_from_components_no_common():
     u_name = "temperature"
     v_name = "humidity"
-    assert (
-        string_utils.magnitude_string_from_components(u_name, v_name)
-        == "temperature and humidity"
-    )
+    assert string_utils.magnitude_string_from_components(u_name, v_name) == "temperature and humidity"
 
 
 def test_magnitude_string_from_components_no_common_components():

@@ -214,9 +214,7 @@ class NumpyExtractor(BaseExtractor):
             raise ValueError("No data provided for 2D plot (z is required)")
 
         if z_values.ndim > 2:
-            raise ValueError(
-                f"Expected 1D or 2D data for 2D plot, got {z_values.ndim}D array"
-            )
+            raise ValueError(f"Expected 1D or 2D data for 2D plot, got {z_values.ndim}D array")
 
         # Case 1: z is 1D - scattered point data (x, y, z all 1D with same length)
         if z_values.ndim == 1:

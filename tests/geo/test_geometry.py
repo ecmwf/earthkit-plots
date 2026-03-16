@@ -69,8 +69,7 @@ def test_reproject_geometries_linestring():
 
     # At least one vertex must move
     assert any(
-        not math.isclose(ox, nx) or not math.isclose(oy, ny)
-        for (ox, oy), (nx, ny) in zip(original_coords, new_coords)
+        not math.isclose(ox, nx) or not math.isclose(oy, ny) for (ox, oy), (nx, ny) in zip(original_coords, new_coords)
     )
 
 
@@ -105,6 +104,5 @@ def test_reproject_geometries_polygon():
 
     # At least one exterior vertex must move
     assert any(
-        not math.isclose(ox, nx) or not math.isclose(oy, ny)
-        for (ox, oy), (nx, ny) in zip(original_coords, new_coords)
+        not math.isclose(ox, nx) or not math.isclose(oy, ny) for (ox, oy), (nx, ny) in zip(original_coords, new_coords)
     )

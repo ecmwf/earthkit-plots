@@ -118,9 +118,7 @@ def is_latlon(data):
         The dataset to be checked.
     """
     dataset = data.to_xarray().squeeze()
-    return all(
-        any(name in dataset.dims for name in names) for names in (LATITUDE, LONGITUDE)
-    )
+    return all(any(name in dataset.dims for name in names) for names in (LATITUDE, LONGITUDE))
 
 
 def format_name(domain_name):
@@ -164,10 +162,7 @@ def union(domains, name=None):
     -------
     >>> union(["Norway", "Sweden", "Finland"], name="Fennoscandia")
     """
-    domains = [
-        domain if not isinstance(domain, str) else Domain.from_string(domain)
-        for domain in domains
-    ]
+    domains = [domain if not isinstance(domain, str) else Domain.from_string(domain) for domain in domains]
     if len(domains) > 1:
         domain = sum(domains[1:], domains[0])
     else:
@@ -379,9 +374,7 @@ class Domain:
             source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
-        assert (
-            values is not None or extra_values is not None
-        ), "values or extra_values must be provided"
+        assert values is not None or extra_values is not None, "values or extra_values must be provided"
         if extra_values is not None and not isinstance(extra_values, (list, tuple)):
             extra_values = [extra_values]
         _values = values if values is not None else extra_values[0]
@@ -427,9 +420,7 @@ class Domain:
                     if values is not None:
                         values = np.roll(values, roll_by, axis=1)
                     if extra_values is not None:
-                        extra_values = [
-                            np.roll(v, roll_by, axis=1) for v in extra_values
-                        ]
+                        extra_values = [np.roll(v, roll_by, axis=1) for v in extra_values]
 
             if self.can_bbox:
                 # Determine if data is gridded or unstructured
@@ -451,9 +442,7 @@ class Domain:
                         ]
                     )
                     points = np.vstack([x, y]).T
-                    mask = np.array(
-                        [polygon.contains(Point(px, py)) for px, py in points]
-                    )
+                    mask = np.array([polygon.contains(Point(px, py)) for px, py in points])
 
                     x = x[mask]
                     y = y[mask]
@@ -490,19 +479,12 @@ class Domain:
                         ]
 
                     # Case 2: Data is -180 to 180, domain spans 0 meridian
-                    elif (
-                        x_min < 0
-                        and x_max > 0
-                        and crs_bounds[0] < 0
-                        and crs_bounds[1] > 0
-                    ):
+                    elif x_min < 0 and x_max > 0 and crs_bounds[0] < 0 and crs_bounds[1] > 0:
                         crosses_meridian = True
                         adjusted_bounds = crs_bounds
 
                     # Case 3: Domain crosses 180/-180 meridian (e.g., Pacific-centered data)
-                    elif (
-                        crs_bounds[0] > crs_bounds[1]
-                    ):  # West > East indicates meridian crossing
+                    elif crs_bounds[0] > crs_bounds[1]:  # West > East indicates meridian crossing
                         crosses_meridian = True
                         adjusted_bounds = crs_bounds
 
@@ -559,19 +541,12 @@ class Domain:
 
                             if values is not None:
                                 if additional_dim is not None:
-                                    values = values[
-                                        row_start:row_end, col_start:col_end, :
-                                    ]
+                                    values = values[row_start:row_end, col_start:col_end, :]
                                 else:
-                                    values = values[
-                                        row_start:row_end, col_start:col_end
-                                    ]
+                                    values = values[row_start:row_end, col_start:col_end]
 
                             if extra_values is not None:
-                                extra_values = [
-                                    v[row_start:row_end, col_start:col_end]
-                                    for v in extra_values
-                                ]
+                                extra_values = [v[row_start:row_end, col_start:col_end] for v in extra_values]
                     else:
                         # Fallback: try without padding if no data found
                         if crosses_meridian and crs_bounds[0] > crs_bounds[1]:
@@ -608,19 +583,12 @@ class Domain:
 
                                 if values is not None:
                                     if additional_dim is not None:
-                                        values = values[
-                                            row_start:row_end, col_start:col_end, :
-                                        ]
+                                        values = values[row_start:row_end, col_start:col_end, :]
                                     else:
-                                        values = values[
-                                            row_start:row_end, col_start:col_end
-                                        ]
+                                        values = values[row_start:row_end, col_start:col_end]
 
                                 if extra_values is not None:
-                                    extra_values = [
-                                        v[row_start:row_end, col_start:col_end]
-                                        for v in extra_values
-                                    ]
+                                    extra_values = [v[row_start:row_end, col_start:col_end] for v in extra_values]
 
         if not extra_values:
             return x, y, values

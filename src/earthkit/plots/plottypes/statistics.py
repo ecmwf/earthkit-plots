@@ -93,9 +93,7 @@ def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **k
         color = itertools.cycle(colors)
         # A box for each interval defined by the column
         for yt, yb, width in zip(y[:-1, j], y[1:, j], widths):
-            add_rect(
-                (xc - 0.5 * width, yb), width, yt - yb, facecolor=next(color), **kwargs
-            )
+            add_rect((xc - 0.5 * width, yb), width, yt - yb, facecolor=next(color), **kwargs)
 
         if ny == 1:
             raise NotImplementedError

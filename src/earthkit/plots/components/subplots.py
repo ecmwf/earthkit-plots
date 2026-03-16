@@ -360,9 +360,7 @@ class Subplot:
         if format:
             formats = [format] * 6
 
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
+        formatter = mdates.ConciseDateFormatter(locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False)
         self.ax.xaxis.set_major_locator(locator)
         self.ax.xaxis.set_major_formatter(formatter)
 
@@ -421,9 +419,7 @@ class Subplot:
         if format:
             formats = [format] * 6
 
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
+        formatter = mdates.ConciseDateFormatter(locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False)
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
@@ -441,9 +437,7 @@ class Subplot:
 
         # Handle cmap as an alias for colors
         if "cmap" in kwargs and "colors" in kwargs:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
+            raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
         if "cmap" in kwargs:
             kwargs["colors"] = kwargs.pop("cmap")
 
@@ -1186,10 +1180,7 @@ class Subplot:
         """
         import warnings
 
-        warnings.warn(
-            "block is deprecated and will be removed in a future release. "
-            "Please use grid_cells instead."
-        )
+        warnings.warn("block is deprecated and will be removed in a future release. Please use grid_cells instead.")
         return self.pcolormesh(*args, **kwargs)
 
     grid_cells = pcolormesh
@@ -1299,10 +1290,7 @@ class Subplot:
         """
         if not grouped:
             return string_utils.list_to_human(
-                [
-                    LayerFormatter(layer, axis=axis).format(string)
-                    for layer in self.layers
-                ]
+                [LayerFormatter(layer, axis=axis).format(string) for layer in self.layers]
             )
         else:
             return SubplotFormatter(self, unique=unique, axis=axis).format(string)

@@ -57,9 +57,7 @@ class Figure:
         Additional keyword arguments to pass to :class:`matplotlib.gridspec.GridSpec`.
     """
 
-    def __init__(
-        self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs
-    ):
+    def __init__(self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs):
         self.rows = rows
         self.columns = columns
 
@@ -96,9 +94,7 @@ class Figure:
         self._style_context = schema.style_context()
         self._style_context.__enter__()
         self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
-        self.gridspec = self.fig.add_gridspec(
-            self.rows, self.columns, **self._gridspec_kwargs
-        )
+        self.gridspec = self.fig.add_gridspec(self.rows, self.columns, **self._gridspec_kwargs)
 
     def _exit_style_context(self):
         """Exit the style context, restoring matplotlib's global rcParams."""
@@ -172,9 +168,7 @@ class Figure:
             # except (NotImplementedError, AttributeError):
             #     continue
             if not success:
-                raise NotImplementedError(
-                    f"No subplots have method '{method.__name__}'"
-                )
+                raise NotImplementedError(f"No subplots have method '{method.__name__}'")
 
         return wrapper
 
@@ -186,9 +180,7 @@ class Figure:
             if not hasattr(data, "__len__"):
                 data = [data]
             if not self.subplots:
-                self.rows, self.columns = rows_cols(
-                    len(data), rows=self.rows, columns=self.columns
-                )
+                self.rows, self.columns = rows_cols(len(data), rows=self.rows, columns=self.columns)
                 self._setup()
                 for _ in range(len(data)):
                     self.add_map()
@@ -259,9 +251,7 @@ class Figure:
         if crs is None:
             crs = self._crs
         row, column = self._determine_row_column(row, column)
-        subplot = Map(
-            row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
-        )
+        subplot = Map(row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -643,33 +633,19 @@ class Figure:
             if draw_labels:
                 subplot_draw_labels = [item for item in draw_labels]
                 if sharex and all(
-                    sp.domain == subplot.domain
-                    for sp in [s for s in self.subplots if s.column == subplot.column]
+                    sp.domain == subplot.domain for sp in [s for s in self.subplots if s.column == subplot.column]
                 ):
                     if "top" in draw_labels and subplot.row != 0:
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "top"
-                        ]
-                    if "bottom" in draw_labels and subplot.row != max(
-                        sp.row for sp in self.subplots
-                    ):
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "bottom"
-                        ]
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "top"]
+                    if "bottom" in draw_labels and subplot.row != max(sp.row for sp in self.subplots):
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "bottom"]
                 if sharey and all(
-                    sp.domain == subplot.domain
-                    for sp in [s for s in self.subplots if s.row == subplot.row]
+                    sp.domain == subplot.domain for sp in [s for s in self.subplots if s.row == subplot.row]
                 ):
                     if "left" in draw_labels and subplot.column != 0:
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "left"
-                        ]
-                    if "right" in draw_labels and subplot.column != max(
-                        sp.column for sp in self.subplots
-                    ):
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "right"
-                        ]
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "left"]
+                    if "right" in draw_labels and subplot.column != max(sp.column for sp in self.subplots):
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "right"]
             else:
                 subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
@@ -792,15 +768,10 @@ class Figure:
             `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
         """
         if not grouped:
-            results = [
-                subplot.format_string(string, unique, grouped)
-                for subplot in self.subplots
-            ]
+            results = [subplot.format_string(string, unique, grouped) for subplot in self.subplots]
             result = string_utils.list_to_human(results)
         else:
-            result = formatters.FigureFormatter(self.subplots, unique=unique).format(
-                string
-            )
+            result = formatters.FigureFormatter(self.subplots, unique=unique).format(string)
         return result
 
     @property
@@ -809,9 +780,7 @@ class Figure:
 
     def _release_queue(self):
         if self._subplot_queue:
-            self.rows, self.columns = rows_cols(
-                len(self._subplot_queue), rows=self.rows, columns=self.columns
-            )
+            self.rows, self.columns = rows_cols(len(self._subplot_queue), rows=self.rows, columns=self.columns)
             self._setup()
         for item in self._subplot_queue:
             method, args, kwargs = item
@@ -846,9 +815,7 @@ class Figure:
                 logo = mpimg.imread(image_file)
                 left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
                 bottom = -0.05  # 0.01 margin from bottom
-                ax_logo = self.fig.add_axes(
-                    [left, bottom, logo_width, logo_height], zorder=100
-                )
+                ax_logo = self.fig.add_axes([left, bottom, logo_width, logo_height], zorder=100)
                 ax_logo.imshow(logo)
                 ax_logo.axis("off")
         return self
