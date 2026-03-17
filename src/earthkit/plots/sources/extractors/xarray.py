@@ -916,16 +916,40 @@ class XarrayExtractor(BaseExtractor):
         """
         Extract gridspec from xarray attrs.
 
+        Checks the following attribute keys in order of preference:
+        - ``ek_grid_spec`` (new earthkit/xarray standard, e.g. ``{"grid": "O320"}``)
+        - ``gridSpec`` / ``grid_spec`` (legacy keys)
+
+        For xarray DataArrays, also falls back to the parent Dataset's global
+        attributes when the variable-level attrs do not carry the gridspec.
+
         Returns
         -------
         GridSpec or None
             Grid specification if found in metadata.
         """
+        from earthkit.plots.sources.gridspec import GridSpec
+
+        _KEYS = ("ek_grid_spec", "gridSpec", "grid_spec")
+
+        def _extract(attrs):
+            for key in _KEYS:
+                if key in attrs:
+                    raw = attrs[key]
+                    if isinstance(raw, GridSpec):
+                        return raw
+                    spec = GridSpec._to_dict(raw)
+                    if spec:
+                        return GridSpec(spec)
+            return None
+
+        # Check attrs on self.data — covers both DataArrays (variable attrs) and
+        # Datasets (global attrs). xarray DataArrays don't carry a back-reference
+        # to their parent Dataset, so there is no further fallback.
         if hasattr(self.data, "attrs"):
-            if "gridSpec" in self.data.attrs:
-                return self.data.attrs["gridSpec"]
-            elif "grid_spec" in self.data.attrs:
-                return self.data.attrs["grid_spec"]
+            result = _extract(self.data.attrs)
+            if result is not None:
+                return result
 
     def _extract_uv_components(
         self,

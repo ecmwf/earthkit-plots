@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import logging
 import re
 
@@ -55,6 +56,15 @@ class GridSpec:
             return None
         if isinstance(raw, dict):
             d = dict(raw)
+        elif isinstance(raw, str):
+            # JSON string — common when attrs are round-tripped via NetCDF
+            try:
+                parsed = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                return None
+            if not isinstance(parsed, dict):
+                return None
+            d = parsed
         elif hasattr(raw, "_d"):
             # earthkit-data GridSpec / RawMetadata object
             d = dict(raw._d)
