@@ -268,7 +268,7 @@ class SourceFormatter(BaseFormatter):
 
 
 class LayerFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Layers`, enabling convient titles and labels."""
+    """Formatter of earthkit-plots `Layers`, enabling convenient titles and labels."""
 
     def __init__(self, layer, default=None, issue_warnings=True, axis=None):
         self.layer = layer
@@ -390,7 +390,7 @@ class LayerFormatter(BaseFormatter):
 
 
 class SubplotFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Subplots`, enabling convient titles and labels."""
+    """Formatter of earthkit-plots `Subplots`, enabling convenient titles and labels."""
 
     def __init__(self, subplot, unique=True, axis=None):
         self.subplot = subplot
@@ -436,7 +436,7 @@ class SubplotFormatter(BaseFormatter):
 
 
 class FigureFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Charts`, enabling convient titles and labels."""
+    """Formatter of earthkit-plots `Charts`, enabling convenient titles and labels."""
 
     def __init__(self, subplots, unique=True):
         self.subplots = subplots
@@ -473,7 +473,7 @@ class FigureFormatter(BaseFormatter):
 
 class TimeFormatter:
     """
-    Formatter of time data, enabling convient time labels.
+    Formatter of time data, enabling convenient time labels.
 
     Parameters
     ----------
