@@ -942,3 +942,143 @@ def test_xarray_vector_unit_conversion():
     expected_v = np.array([[0.5, 1.5], [2.5, 3.5]]) * 3.6
     assert np.allclose(source.u.values, expected_u, rtol=1e-5)
     assert np.allclose(source.v.values, expected_v, rtol=1e-5)
+
+
+# =============================================================================
+# Gridspec Detection Tests
+# =============================================================================
+
+
+def _make_1d_da(attrs):
+    """Helper: 1D DataArray with lat/lon coords and given attrs."""
+    return xr.DataArray(
+        np.random.rand(4),
+        dims=["values"],
+        coords={
+            "latitude": ("values", [10.0, 20.0, 30.0, 40.0]),
+            "longitude": ("values", [5.0, 15.0, 25.0, 35.0]),
+        },
+        attrs=attrs,
+    )
+
+
+def test_gridspec_ek_grid_spec_dict_reduced_gg():
+    """ek_grid_spec dict with an octahedral reduced Gaussian grid is detected."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"ek_grid_spec": {"grid": "O320"}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_ek_grid_spec_dict_healpix():
+    """ek_grid_spec dict with a HEALPix grid is detected."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"ek_grid_spec": {"grid": "H256"}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "healpix"
+
+
+def test_gridspec_ek_grid_spec_json_string():
+    """ek_grid_spec stored as a JSON string (e.g. after NetCDF round-trip) is parsed."""
+    import json
+
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"ek_grid_spec": json.dumps({"grid": "O320"})})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_legacy_gridSpec_key():
+    """Legacy 'gridSpec' attribute key is still supported."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"gridSpec": {"grid": "O320"}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_legacy_grid_spec_key():
+    """Legacy 'grid_spec' attribute key is still supported."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"grid_spec": {"grid": "N320"}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_ek_grid_spec_takes_priority_over_legacy():
+    """ek_grid_spec is preferred over legacy keys when both are present."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"ek_grid_spec": {"grid": "O320"}, "gridSpec": {"grid": "N80"}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.to_dict()["grid"] == "O320"
+
+
+def test_gridspec_none_when_no_attr():
+    """gridspec is None when no relevant attribute is present."""
+    da = _make_1d_da({"units": "K", "long_name": "temperature"})
+    source = get_source(da)
+    assert source.gridspec is None
+
+
+def test_gridspec_invalid_json_string_returns_none():
+    """A non-JSON string in ek_grid_spec does not raise and returns None."""
+    da = _make_1d_da({"ek_grid_spec": "not-valid-json"})
+    source = get_source(da)
+    assert source.gridspec is None
+
+
+def test_gridspec_dataset_global_attrs():
+    """ek_grid_spec on a Dataset's global attrs is detected."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    ds = xr.Dataset(
+        {"temperature": (["values"], np.random.rand(4))},
+        coords={
+            "latitude": ("values", [10.0, 20.0, 30.0, 40.0]),
+            "longitude": ("values", [5.0, 15.0, 25.0, 35.0]),
+        },
+        attrs={"ek_grid_spec": {"grid": "O320"}},
+    )
+    source = get_source(ds)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_is_structured_grid_integration():
+    """_is_structured_grid returns True for an xarray source with ek_grid_spec."""
+    from earthkit.plots.resample import _is_structured_grid
+
+    da = _make_1d_da({"ek_grid_spec": {"grid": "O320"}})
+    source = get_source(da)
+    assert _is_structured_grid(source.gridspec) is True
+
+
+def test_gridspec_is_not_structured_for_regular_grid():
+    """_is_structured_grid returns False when no gridspec is present."""
+    from earthkit.plots.resample import _is_structured_grid
+
+    da = xr.DataArray(
+        np.random.rand(2, 3),
+        dims=["latitude", "longitude"],
+        coords={"latitude": [10, 20], "longitude": [100, 110, 120]},
+    )
+    source = get_source(da)
+    assert _is_structured_grid(source.gridspec) is False
