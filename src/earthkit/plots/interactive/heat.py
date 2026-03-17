@@ -73,12 +73,10 @@ def heatmap(
         discrete_plotly_colorscale = []
         scale_points = np.linspace(0, 1, n_colors + 1)
         for i in range(n_colors):
-            discrete_plotly_colorscale.extend(
-                [
-                    [scale_points[i], discrete_colors[i]],
-                    [scale_points[i + 1], discrete_colors[i]],
-                ]
-            )
+            discrete_plotly_colorscale.extend([
+                [scale_points[i], discrete_colors[i]],
+                [scale_points[i + 1], discrete_colors[i]],
+            ])
 
         return go.Heatmap(
             z=binned_data,

@@ -630,20 +630,16 @@ def test_xarray_projected_crs_uses_dimension_coords():
     y_coords = np.array([5.5e6, 4.5e6, 3.5e6])
 
     # Create 2D lat/lon arrays (for reference only)
-    lon_2d = np.array(
-        [
-            [10.0, 15.0, 20.0, 25.0],
-            [10.5, 15.5, 20.5, 25.5],
-            [11.0, 16.0, 21.0, 26.0],
-        ]
-    )
-    lat_2d = np.array(
-        [
-            [50.0, 50.5, 51.0, 51.5],
-            [45.0, 45.5, 46.0, 46.5],
-            [40.0, 40.5, 41.0, 41.5],
-        ]
-    )
+    lon_2d = np.array([
+        [10.0, 15.0, 20.0, 25.0],
+        [10.5, 15.5, 20.5, 25.5],
+        [11.0, 16.0, 21.0, 26.0],
+    ])
+    lat_2d = np.array([
+        [50.0, 50.5, 51.0, 51.5],
+        [45.0, 45.5, 46.0, 46.5],
+        [40.0, 40.5, 41.0, 41.5],
+    ])
 
     # Data values
     data_values = np.random.rand(ny, nx)
@@ -707,20 +703,16 @@ def test_xarray_no_crs_uses_latlon_coords():
     y_coords = np.arange(ny)
 
     # Create 2D lat/lon arrays matching data shape
-    lon_2d = np.array(
-        [
-            [10.0, 15.0, 20.0, 25.0],
-            [10.5, 15.5, 20.5, 25.5],
-            [11.0, 16.0, 21.0, 26.0],
-        ]
-    )
-    lat_2d = np.array(
-        [
-            [50.0, 50.5, 51.0, 51.5],
-            [45.0, 45.5, 46.0, 46.5],
-            [40.0, 40.5, 41.0, 41.5],
-        ]
-    )
+    lon_2d = np.array([
+        [10.0, 15.0, 20.0, 25.0],
+        [10.5, 15.5, 20.5, 25.5],
+        [11.0, 16.0, 21.0, 26.0],
+    ])
+    lat_2d = np.array([
+        [50.0, 50.5, 51.0, 51.5],
+        [45.0, 45.5, 46.0, 46.5],
+        [40.0, 40.5, 41.0, 41.5],
+    ])
 
     # Data values
     data_values = np.random.rand(ny, nx)

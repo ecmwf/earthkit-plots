@@ -350,23 +350,19 @@ class Chart:
             y_key = f"yaxis{i + 1 if i > 0 else ''}"
             x_key = f"xaxis{i + 1 if i > 0 else ''}"
             if self._subplot_x_titles:
-                self.fig.update_layout(
-                    **{
-                        y_key: layout["yaxis"],
-                        x_key: {
-                            **layout["xaxis"],
-                            **{"title": self._subplot_x_titles[i]},
-                        },
-                    }
-                )
+                self.fig.update_layout(**{
+                    y_key: layout["yaxis"],
+                    x_key: {
+                        **layout["xaxis"],
+                        **{"title": self._subplot_x_titles[i]},
+                    },
+                })
             if self._subplot_y_titles:
-                self.fig.update_layout(
-                    **{
-                        x_key: layout["xaxis"],
-                        y_key: {
-                            **layout["yaxis"],
-                            **{"title": self._subplot_y_titles[i]},
-                        },
-                    }
-                )
+                self.fig.update_layout(**{
+                    x_key: layout["xaxis"],
+                    y_key: {
+                        **layout["yaxis"],
+                        **{"title": self._subplot_y_titles[i]},
+                    },
+                })
         return self.fig.show(*args, **kwargs)

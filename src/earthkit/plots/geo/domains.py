@@ -433,14 +433,12 @@ class Domain:
                         crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
                     ]
                     # Unstructured data: use point-in-polygon
-                    polygon = Polygon(
-                        [
-                            (_crs_bounds[0], _crs_bounds[2]),
-                            (_crs_bounds[1], _crs_bounds[2]),
-                            (_crs_bounds[1], _crs_bounds[3]),
-                            (_crs_bounds[0], _crs_bounds[3]),
-                        ]
-                    )
+                    polygon = Polygon([
+                        (_crs_bounds[0], _crs_bounds[2]),
+                        (_crs_bounds[1], _crs_bounds[2]),
+                        (_crs_bounds[1], _crs_bounds[3]),
+                        (_crs_bounds[0], _crs_bounds[3]),
+                    ])
                     points = np.vstack([x, y]).T
                     mask = np.array([polygon.contains(Point(px, py)) for px, py in points])
 
