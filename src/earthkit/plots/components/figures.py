@@ -1433,10 +1433,12 @@ class Figure:
         self._cancel_jupyter_display()
         self._prepare_for_display()
         try:
+            from matplotlib import rcParams as _rc
+
             return plt.savefig(
                 *args,
                 bbox_inches=bbox_inches,
-                dpi=kwargs.pop("dpi", schema.figure.dpi),
+                dpi=kwargs.pop("dpi", _rc["figure.dpi"]),
                 **kwargs,
             )
         finally:
