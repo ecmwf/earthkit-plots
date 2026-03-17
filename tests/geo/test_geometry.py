@@ -42,13 +42,11 @@ def test_reproject_geometries_point():
 
 
 def test_reproject_geometries_linestring():
-    geom = LineString(
-        [
-            (10.0, 40.0),
-            (12.0, 42.0),
-            (14.0, 44.0),
-        ]
-    )
+    geom = LineString([
+        (10.0, 40.0),
+        (12.0, 42.0),
+        (14.0, 44.0),
+    ])
 
     result = geometry.reproject_geometries(
         geometries=[geom],
@@ -74,15 +72,13 @@ def test_reproject_geometries_linestring():
 
 
 def test_reproject_geometries_polygon():
-    geom = Polygon(
-        [
-            (10.0, 44.0),
-            (12.0, 44.0),
-            (12.0, 46.0),
-            (10.0, 46.0),
-            (10.0, 44.0),
-        ]
-    )
+    geom = Polygon([
+        (10.0, 44.0),
+        (12.0, 44.0),
+        (12.0, 46.0),
+        (10.0, 46.0),
+        (10.0, 44.0),
+    ])
 
     result = geometry.reproject_geometries(
         geometries=[geom],

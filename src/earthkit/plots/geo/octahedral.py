@@ -56,14 +56,12 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         # Define the four corners of each cell, ensuring 5% overlap by reducing edge effect
         lat_pad = d_lat / 20
         lon_pad = d_lon / 20
-        polygons.append(
-            [
-                [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
-                [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
-                [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
-                [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad],
-            ]
-        )
+        polygons.append([
+            [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
+            [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
+            [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
+            [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad],
+        ])
         color_data.append(data[i])
 
     if style is not None:

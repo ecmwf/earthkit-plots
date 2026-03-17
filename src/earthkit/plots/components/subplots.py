@@ -1301,9 +1301,9 @@ class Subplot:
             general metadata of the subplot.
         """
         if not grouped:
-            return string_utils.list_to_human(
-                [LayerFormatter(layer, axis=axis).format(string) for layer in self.layers]
-            )
+            return string_utils.list_to_human([
+                LayerFormatter(layer, axis=axis).format(string) for layer in self.layers
+            ])
         else:
             return SubplotFormatter(self, unique=unique, axis=axis).format(string)
 

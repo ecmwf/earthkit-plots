@@ -1,11 +1,10 @@
-name: cd
-
+name: test-cd
 on:
-  push:
-    tags:
-    - '**'
-
+  pull_request:
+    branches: ["main"]
 jobs:
   pypi:
     uses: ecmwf/reusable-workflows/.github/workflows/cd-pypi.yml@v2
     secrets: inherit
+    with:
+      testpypi: true
