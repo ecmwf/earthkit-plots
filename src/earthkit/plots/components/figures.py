@@ -506,11 +506,39 @@ class Figure:
 
     @iterate_subplots
     def plot(self, *args, **kwargs):
-        """"""
+        """Plot a line on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data source for which to plot the data.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the data.
+        units : str, optional
+            The units to use for the data.
+        **kwargs
+            Additional keyword arguments to pass to :func:`matplotlib.pyplot.plot`.
+        """
 
     @iterate_subplots
     def quickplot(self, *args, **kwargs):
-        """"""
+        """Generate a convenient plot from the given data with optional grouping on every subplot in the figure.
+
+        Parameters
+        ----------
+        *args : list
+            The data to be plotted. Can be a single xarray or earthkit data object,
+            or separate x, y, z, u, v arguments.
+        methods : string or list, optional
+            The plot method(s) to apply.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the data.
+        units : string or list, optional
+            Units to convert the data to.
+        **kwargs : dict
+            Additional arguments for the plot method(s).
+
+        """
 
     @iterate_subplots
     def pcolormesh(self, *args, **kwargs):
