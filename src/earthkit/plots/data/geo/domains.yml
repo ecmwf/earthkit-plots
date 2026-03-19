@@ -23,6 +23,9 @@ domains:
   Southwest Europe: [-25, 15, 34, 45]
   Mediterranean: [-8, 36, 28, 44]
 
+  Denmark: [7, 16, 54, 58]
+  Ireland: [-11, -5, 51, 56]
+
   Svalbard: [9, 33, 76, 81]
 
   Africa: [-22, 54, -37, 40]

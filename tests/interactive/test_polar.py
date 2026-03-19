@@ -22,7 +22,7 @@ def test_vonmises_kde_properties():
     assert kde.shape == (360,)
 
     # The integral of the density function over its domain must be 1.
-    integral = np.trapz(kde, x=bins)
+    integral = np.trapezoid(kde, x=bins)
     assert integral == pytest.approx(1.0)
 
 

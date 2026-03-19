@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import functools
+from contextlib import AbstractContextManager
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -20,10 +21,11 @@ import yaml
 from matplotlib import rcParams
 
 from earthkit.plots._plugins import PLUGINS
+from earthkit.plots.definitions import DEFAULT_STYLES_DIR
 from earthkit.plots.geo.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 
-_DEFAULT_SCHEMA = "default"
+_DEFAULT_SCHEMA = "earthkit-plots"
 
 
 RCPARAMS = [
@@ -95,9 +97,14 @@ class Schema(dict):
     def __init__(self, parent=None, **kwargs):
         self._parent = parent
         self._update(**kwargs)
-        self._apply_rcParams()
 
     def _apply_rcParams(self):
+        """Apply schema settings to matplotlib's global rcParams.
+
+        This mutates matplotlib's global state and affects all subsequent plots,
+        including those made with bare matplotlib. Prefer ``style_context()`` for
+        scoped, non-global style application inside earthkit-plots functions.
+        """
         if "style_sheet" in self:
             plt.style.use(self["style_sheet"])
         for param, config in self.items():
@@ -120,8 +127,6 @@ class Schema(dict):
             self[key] = value
         except KeyError:
             raise AttributeError(key)
-        if self._parent in RCPARAMS and key not in Schema.PROTECTED_KEYS:
-            rcParams[".".join((self._parent, key))] = value
 
     def __repr__(self):
         return f"{self.__class__.__name__}({super().__repr__()})"
@@ -244,7 +249,13 @@ class Schema(dict):
                 rc.update(_flatten_section(section_name, section_value))
 
         # Optionally include style_sheet in a layered list
-        sheet = self.get("style_sheet") if include_style_sheet else None
+        sheet = dict.get(self, "style_sheet") if include_style_sheet else None
+        # Resolve a bundled style name to its absolute path so plt.style.context
+        # works even if register_styles() has not yet been called.
+        if isinstance(sheet, str) and sheet:
+            mplstyle_path = DEFAULT_STYLES_DIR / f"{sheet}.mplstyle"
+            if mplstyle_path.exists():
+                sheet = str(mplstyle_path)
         has_sheet = isinstance(sheet, str) and bool(sheet)
 
         if has_sheet and as_list_when_sheet_present:
@@ -271,6 +282,21 @@ class Schema(dict):
 
         # Default: just the rc dict
         return rc
+
+    def style_context(self):
+        """Return a matplotlib style context scoped to this schema.
+
+        Use this to apply earthkit-plots styles only within a specific block,
+        without permanently mutating matplotlib's global rcParams.
+
+        Example
+        -------
+        >>> with schema.style_context():
+        ...     fig, ax = plt.subplots()
+        ...     ax.plot(x, y)
+        ...
+        """
+        return plt.style.context(self.to_stylesheet())
 
     def _to_dict(self):
         d = dict()
@@ -321,6 +347,17 @@ class Schema(dict):
         """
         return getattr(self, key)
 
+    def reset(self):
+        """
+        Reset the schema to the earthkit-plots built-in defaults.
+
+        Example
+        -------
+        >>> schema.use("my-plugin")
+        >>> schema.reset()  # back to earthkit-plots defaults
+        """
+        self.use(_DEFAULT_SCHEMA)
+
     def use(self, name):
         """
         Use a named schema.
@@ -332,24 +369,47 @@ class Schema(dict):
 
         Example
         -------
-        >>> schema.use("default")
+        >>> schema.use("my-plugin")
         >>> schema.use("~/custom.yaml")
         """
-        if name not in PLUGINS:
+        if isinstance(name, Path):
+            file_name = name
+        elif name in PLUGINS:
+            if PLUGINS[name].get("schema") is None:
+                raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
+            file_name = PLUGINS[name]["schema"]
+        else:
             file_name = Path(name).expanduser()
             if not file_name.exists():
-                raise SchemaNotFoundError(f"No plugin '{name}' found")
-        elif PLUGINS[name].get("schema") is None:
-            raise SchemaNotFoundError(f"No schema found in '{name}' plugin")
-        else:
-            file_name = PLUGINS[name]["schema"]
+                raise SchemaNotFoundError(f"No plugin or file '{name}' found")
 
-        with open(file_name, "r") as f:
+        with open(file_name) as f:
             kwargs = yaml.load(f, Loader=yaml.SafeLoader)
 
         self._reset(**kwargs)
 
+    def style_context(self) -> AbstractContextManager:
+        """Return a matplotlib style context for this schema.
+
+        The context applies the schema's style sheet and any inline rcParams
+        overrides without mutating matplotlib's global state permanently.
+        Use as a context manager::
+
+            with schema.style_context():
+                fig = plt.figure()
+
+        Or enter/exit manually (as Figure does) to keep the context active
+        across the lifetime of the figure::
+
+            ctx = schema.style_context()
+            ctx.__enter__()
+            # ... create and populate figure ...
+            ctx.__exit__(None, None, None)
+        """
+        return plt.style.context(self.to_stylesheet())
+
     def _reset(self, **kwargs):
+        self.clear()
         self.__init__(**kwargs)
 
 

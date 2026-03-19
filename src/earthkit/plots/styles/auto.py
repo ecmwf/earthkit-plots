@@ -14,8 +14,9 @@
 
 import glob
 import os
+from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 import yaml
 
@@ -71,7 +72,7 @@ def guess_style(data, units=None, **kwargs):
     if schema.style_library not in PLUGINS:
         path = Path(schema.style_library).expanduser()
         identities_path = path / "identities"
-        styles_path = path / "styles"
+        styles_path = path / "auto-styles"
     else:
         identities_path = PLUGINS[schema.style_library]["identities"]
         styles_path = PLUGINS[schema.style_library]["styles"]
@@ -80,7 +81,7 @@ def guess_style(data, units=None, **kwargs):
 
     for fname in glob.glob(str(identities_path / "*")):
         if os.path.isfile(fname):
-            with open(fname, "r") as f:
+            with open(fname) as f:
                 config = yaml.load(f, Loader=yaml.SafeLoader)
         else:
             continue
@@ -93,7 +94,7 @@ def guess_style(data, units=None, **kwargs):
 
     for fname in glob.glob(str(styles_path / "*")):
         if os.path.isfile(fname):
-            with open(fname, "r") as f:
+            with open(fname) as f:
                 style_config = yaml.load(f, Loader=yaml.SafeLoader)
         else:
             continue

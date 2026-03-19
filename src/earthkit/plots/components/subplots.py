@@ -17,21 +17,22 @@ import warnings
 
 import matplotlib.dates as mdates
 import numpy as np
-from cartopy.util import add_cyclic_point
 
-from earthkit.plots import identifiers
+from earthkit.plots.components.extractors import (
+    extract_plottables_1D,
+    extract_plottables_2D,
+    extract_plottables_envelope,
+    extract_plottables_vector_2D,
+)
 from earthkit.plots.components.layers import Layer
-from earthkit.plots.geo import coordinate_reference_systems, grids
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import Interpolate, Regrid
+from earthkit.plots.resample import Regrid
 from earthkit.plots.schemas import schema
-from earthkit.plots.sources import get_source, get_vector_sources
-from earthkit.plots.sources.multi import MultiSource
-from earthkit.plots.sources.numpy import NumpySource
+from earthkit.plots.sources import get_source
 from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
 from earthkit.plots.utils import string_utils
 
@@ -49,6 +50,110 @@ LAYER_ZORDERS = {
     "barbs": 3,
     "streamplot": 3,
 }
+
+
+def plot_1D(method_name=None):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            z=None,
+            style=None,
+            every=None,
+            **kwargs,
+        ):
+            return extract_plottables_1D(
+                self,
+                method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                z=z,
+                style=style,
+                every=every,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
+
+
+def plot_2D(method_name=None, extract_domain=False):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            z=None,
+            style=None,
+            every=None,
+            auto_style=False,
+            **kwargs,
+        ):
+            return extract_plottables_2D(
+                subplot=self,
+                method_name=method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                z=z,
+                style=style,
+                every=every,
+                auto_style=auto_style,
+                extract_domain=extract_domain,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
+
+
+def plot_vector(method_name=None, extract_domain=False):
+    def decorator(method):
+        @functools.wraps(method)
+        def wrapper(
+            self,
+            *args,
+            x=None,
+            y=None,
+            u=None,
+            v=None,
+            colors=False,
+            style=None,
+            units=None,
+            auto_style=False,
+            source_units=None,
+            resample=Regrid(40),
+            **kwargs,
+        ):
+            return extract_plottables_vector_2D(
+                subplot=self,
+                method_name=method_name or method.__name__,
+                args=args,
+                x=x,
+                y=y,
+                u=u,
+                v=v,
+                style=style,
+                units=units,
+                auto_style=auto_style,
+                source_units=source_units,
+                extract_domain=extract_domain,
+                resample=resample,
+                colors=colors,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
 
 
 class Subplot:
@@ -116,6 +221,99 @@ class Subplot:
             Either the name of a built-in logo, or a path to the logo image file to add to the figure.
         """
         self.figure.add_logo(logo)
+
+    def xticks(
+        self,
+        frequency=None,
+        minor_frequency=None,
+        format=None,
+        minor_format=None,
+        period=False,
+        labels="major",
+        **kwargs,
+    ):
+        """
+        Set x-axis tick locations and formatting.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            Major tick frequency (e.g., "Y", "M6", "D7", "H").
+            Default is None (auto).
+        minor_frequency : str, optional
+            Minor tick frequency. If None, uses frequency.
+            Default is None.
+        format : str, optional
+            Format string for major tick labels.
+            Default is None (auto).
+        minor_format : str, optional
+            Format string for minor tick labels. If None and format is specified, uses format.
+            Default is None.
+        period : bool, optional
+            If True, centers labels between ticks for better visual balance.
+            Default is False.
+        labels : str, optional
+            Which tick labels to show: "major", "minor", "both", or None.
+            Default is "major".
+        **kwargs
+            Additional keyword arguments to pass to the tick locators.
+        """
+        from .ticks import set_xticks
+
+        set_xticks(
+            self.ax,
+            frequency=frequency,
+            minor_frequency=minor_frequency,
+            format=format,
+            minor_format=minor_format,
+            period=period,
+            labels=labels,
+            **kwargs,
+        )
+
+    def yticks(
+        self,
+        frequency=None,
+        minor_frequency=None,
+        format=None,
+        minor_format=None,
+        labels="major",
+        **kwargs,
+    ):
+        """
+        Set y-axis tick locations and formatting.
+
+        Parameters
+        ----------
+        frequency : str, optional
+            Major tick frequency (e.g., "Y", "M6", "D7", "H").
+            Default is None (auto).
+        minor_frequency : str, optional
+            Minor tick frequency. If None, uses frequency.
+            Default is None.
+        format : str, optional
+            Format string for major tick labels.
+            Default is None (auto).
+        minor_format : str, optional
+            Format string for minor tick labels. If None and format is specified, uses format.
+            Default is None.
+        labels : str, optional
+            Which tick labels to show: "major", "minor", "both", or None.
+            Default is "major".
+        **kwargs
+            Additional keyword arguments to pass to the tick locators.
+        """
+        from .ticks import set_yticks
+
+        set_yticks(
+            self.ax,
+            frequency=frequency,
+            minor_frequency=minor_frequency,
+            format=format,
+            minor_format=minor_format,
+            labels=labels,
+            **kwargs,
+        )
 
     def set_major_xticks(
         self,
@@ -229,439 +427,48 @@ class Subplot:
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
-    def plot_2D(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                z=None,
-                style=None,
-                every=None,
-                **kwargs,
-            ):
-                return self._extract_plottables_2D(
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    **kwargs,
-                )
-
-            return wrapper
-
-        return decorator
-
-    def plot_box(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(self, data=None, x=None, y=None, z=None, style=None, **kwargs):
-                source = get_source(data=data, x=x, y=y, z=z)
-                kwargs = {**self._plot_kwargs(source), **kwargs}
-                m = getattr(self.ax, method_name or method.__name__)
-                if source.extract_x() in identifiers.TIME:
-                    positions = mdates.date2num(source.x_values)
-                else:
-                    positions = source.x_values
-                widths = min(0.5, np.diff(positions).min() * 0.7)
-                mappable = m(
-                    source.z_values, positions=positions, widths=widths, **kwargs
-                )
-                self.layers.append(Layer(source, mappable, self, style))
-                if isinstance(source._x, str):
-                    if source._x in identifiers.TIME:
-                        locator = mdates.AutoDateLocator(maxticks=30)
-                        formatter = mdates.ConciseDateFormatter(
-                            locator,
-                            formats=["%Y", "%b", "%-d %b", "%H:%M", "%H:%M", "%S.%f"],
-                        )
-                        self.ax.xaxis.set_major_locator(locator)
-                        self.ax.xaxis.set_major_formatter(formatter)
-                    else:
-                        self.ax.set_xlabel(source._x)
-                if isinstance(source._z, str):
-                    self.ax.set_ylabel(source._z)
-                return mappable
-
-            return wrapper
-
-        return decorator
-
-    def plot_3D(method_name=None, extract_domain=False):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                z=None,
-                style=None,
-                every=None,
-                auto_style=False,
-                **kwargs,
-            ):
-                return self._extract_plottables(
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    auto_style=auto_style,
-                    extract_domain=extract_domain,
-                    **kwargs,
-                )
-
-            return wrapper
-
-        return decorator
-
-    def plot_vector(method_name=None):
-        def decorator(method):
-            @functools.wraps(method)
-            def wrapper(
-                self,
-                *args,
-                x=None,
-                y=None,
-                u=None,
-                v=None,
-                colors=False,
-                style=None,
-                units=None,
-                auto_style=False,
-                source_units=None,
-                resample=Regrid(40),
-                **kwargs,
-            ):
-                u_source = None
-                v_source = None
-
-                if not args:
-                    u_source = get_source(u, x=x, y=y, units=source_units)
-                    v_source = get_source(v, x=x, y=y, units=source_units)
-                elif len(args) == 1:
-                    u_source, v_source = get_vector_sources(
-                        args[0], x=x, y=y, u=u, v=v, units=source_units
-                    )
-                elif len(args) == 2:
-                    u_source = get_source(args[0], x=x, y=y, units=source_units)
-                    v_source = get_source(args[1], x=x, y=y, units=source_units)
-
-                assert (
-                    u_source is not None and v_source is not None
-                ), "Could not determine vector components from input arguments"
-
-                kwargs = {**self._plot_kwargs(u_source), **kwargs}
-
-                multi_source = MultiSource([u_source, v_source])
-
-                style = self._configure_style(
-                    method_name or method.__name__,
-                    style,
-                    multi_source,
-                    units,
-                    auto_style,
-                    {**kwargs, "colors": colors},
-                )
-                m = getattr(style, method_name or method.__name__)
-
-                x_values = u_source.x_values
-                y_values = u_source.y_values
-                u_values = style.convert_units(u_source.z_values, u_source.units)
-                v_values = style.convert_units(v_source.z_values, v_source.units)
-
-                resample = style.resample or resample
-
-                if self.domain is not None:
-                    x_values, y_values, _, [u_values, v_values] = self.domain.extract(
-                        x_values,
-                        y_values,
-                        extra_values=[u_values, v_values],
-                        source_crs=u_source.crs,
-                    )
-
-                if resample is not None:
-                    kwargs.pop("regrid_shape", None)
-                    if resample.__class__.__name__ == "Regrid":
-                        kwargs.pop("transform")
-                    args = resample.apply(
-                        x_values,
-                        y_values,
-                        u_values,
-                        v_values,
-                        source_crs=u_source.crs,
-                        target_crs=self.crs,
-                        extents=self.ax.get_extent(),
-                    )
-                else:
-                    args = [x_values, y_values, u_values, v_values]
-
-                if colors:
-                    args.append((args[2] ** 2 + args[3] ** 2) ** 0.5)
-
-                mappable = m(self.ax, *args, **kwargs)
-                self.layers.append(Layer([u_source, v_source], mappable, self, style))
-                if isinstance(u_source._x, str):
-                    self.ax.set_xlabel(u_source._x)
-                if isinstance(u_source._y, str):
-                    self.ax.set_ylabel(u_source._y)
-                return mappable
-
-            return wrapper
-
-        return decorator
-
-    def _extract_plottables_2D(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        # Step 1: Initialize the source
-        source = get_source(
-            *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
-        )
-        kwargs.update(self._plot_kwargs(source))
-
-        # Step 2: Configure the style
-        style = self._configure_style(
-            method_name, style, source, units, auto_style, kwargs
-        )
-
-        # Step 3: Process z values
-        z_values = self._process_z_values(style, source, z)
-
-        # Step 5: Process x, y values, apply sampling if specified
-        x_values, y_values = source.x_values, source.y_values
-        x_values, y_values, z_values = self._apply_sampling(
-            x_values, y_values, z_values, every
-        )
-
-        if no_style and z_values is None:
-            # We do this to ensure that the Style class has a consistent
-            # representation of z values
-            z_values = kwargs.pop("c", None)
-
-        mappable = getattr(style, method_name)(
-            self.ax, x_values, y_values, z_values, **kwargs
-        )
-
-        # Step 8: Store layer and return
-        self.layers.append(Layer(source, mappable, self, style))
-        return mappable
-
-    def _extract_plottables(
-        self,
-        method_name,
-        args,
-        x=None,
-        y=None,
-        z=None,
-        style=None,
-        no_style=False,
-        units=None,
-        every=None,
-        source_units=None,
-        extract_domain=False,
-        auto_style=False,
-        regrid=False,
-        metadata=None,
-        **kwargs,
-    ):
-        if method_name.startswith("contour"):
-            regrid = True
-        # Step 1: Initialize the source
-        source = get_source(
-            *args, x=x, y=y, z=z, units=source_units, metadata=metadata, regrid=regrid
-        )
-        kwargs.update(self._plot_kwargs(source))
-
-        # Step 2: Configure the style
-        style = self._configure_style(
-            method_name, style, source, units, auto_style, kwargs
-        )
-
-        # Step 3: Process z values
-        z_values = self._process_z_values(style, source, z)
-
-        # Step 4: Handle specific grid types
-        gs = source.gridspec
-        mappable = None
-        if method_name == "pcolormesh":
-            gs = source.gridspec
-            if gs is not None:
-                opt = {
-                    "healpix": self._plot_healpix,
-                    "reduced_gg": self._plot_octahedral,
-                }
-                method = opt.get(gs.name, None)
-                if method:
-                    mappable = method(source, z_values, style, kwargs)
-
-        if not mappable:
-            # Step 5: Process x, y values, apply sampling if specified
-            x_values, y_values = source.x_values, source.y_values
-            x_values, y_values, z_values = self._apply_sampling(
-                x_values, y_values, z_values, every
-            )
-
-            if no_style and z_values is None:
-                z_values = kwargs.pop("c", None)
-
-            # Step 6: Domain extraction
-            if self.domain and extract_domain and not no_style:
-                x_values, y_values, z_values = self.domain.extract(
-                    x_values, y_values, z_values, source_crs=source.crs
-                )
-
-            if method_name.startswith("contour") and grids.needs_cyclic_point(x_values):
-                n_x = None
-                if len(x_values.shape) != 1:
-                    n_x = x_values.shape[0]
-                    x_values = x_values[0]
-                z_values, x_values = add_cyclic_point(z_values, coord=x_values)
-                if n_x:
-                    x_values = np.tile(x_values, (n_x, 1))
-                    y_values = np.hstack((y_values, y_values[:, -1][:, np.newaxis]))
-            # Step 7: Plot with or without interpolation
-            if "transform_first" in kwargs:
-                if (
-                    self.crs.__class__
-                    in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST
-                ):
-                    kwargs["transform_first"] = False
-            if not no_style:
-                mappable = self._plot_with_interpolation(
-                    style, method_name, x_values, y_values, z_values, source.crs, kwargs
-                )
-            else:
-                print("Warning: Style not set.")
-                mappable = getattr(self.ax, method_name)(
-                    x_values, y_values, z_values, **kwargs
-                )
-
-        # Step 8: Store layer and return
-        self.layers.append(Layer(source, mappable, self, style))
-        return mappable
-
     def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
-        """Configures style based on method name, style, source, and units."""
+        """
+        Configures style based on method name, style, source, and units.
+
+        If a style is provided along with additional style kwargs, the kwargs will
+        override the corresponding attributes without modifying the original style.
+        """
+        # Handle style="auto" as an alternative to auto_style=True
+        if style == "auto":
+            auto_style = True
+            style = None
+
+        # Handle cmap as an alias for colors
+        if "cmap" in kwargs and "colors" in kwargs:
+            raise ValueError(
+                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
+            )
+        if "cmap" in kwargs:
+            kwargs["colors"] = kwargs.pop("cmap")
+
+        # Extract style-specific keyword arguments
+        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
+
+        # If a style is provided and we have style kwargs to override
+        if style and style_kwargs:
+            # Create a copy with overrides without modifying the original
+            return style.with_overrides(**style_kwargs)
+
+        # If a style is provided without overrides, return it as-is
         if style:
             return style
-        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-        # override_kwargs = {k: style_kwargs.pop(k, None) for k in _OVERRIDE_KWARGS}
+
+        # Create a new style
         style_class = get_style_class(method_name)
-        style = (
-            style_class(**{**style_kwargs, "units": units})
-            if not auto_style
-            else auto.guess_style(source, units=units or source.units)
-        )
+        if not auto_style:
+            style = style_class(**{**style_kwargs, "units": units})
+        else:
+            style = auto.guess_style(source, units=units or source.units)
+            # Apply any style kwargs as overrides to the auto-detected style
+            if style_kwargs and style is not None:
+                style = style.with_overrides(**style_kwargs)
         return style
-
-    def _process_z_values(self, style, source, z):
-        """Processes z values by converting units and applying a scale factor."""
-        if source._data is None and z is None:
-            return None
-
-        z_values = style.convert_units(source.z_values, source.units)
-        return style.apply_scale_factor(z_values)
-
-    def _apply_sampling(self, x_values, y_values, z_values, every):
-        """Applies sampling to x, y, and z values if 'every' is specified."""
-        if every:
-            x_values = x_values[::every]
-            y_values = y_values[::every]
-            if z_values is not None:
-                z_values = z_values[::every, ::every]
-        return x_values, y_values, z_values
-
-    def _plot_healpix(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import healpix
-
-        nest = source.metadata("orderingConvention", default=None) == "nested"
-        kwargs["transform"] = self.crs
-        return healpix.nnshow(z_values, ax=self.ax, nest=nest, style=style, **kwargs)
-
-    def _plot_octahedral(self, source, z_values, style, kwargs):
-        """Handles plotting for 'healpix' grid type."""
-        from earthkit.plots.geo import octahedral
-
-        return octahedral.plot_octahedral_grid(
-            source.x_values,
-            source.y_values,
-            z_values,
-            self.ax,
-            style=style,
-            **kwargs,
-        )
-
-    # def _plot_reduced_gg(self, source, z_values, style, kwargs):
-    #     """Handles plotting for 'reduced_gg' grid type."""
-    #     from earthkit.plots.geo import octahedral
-
-    #     kwargs["transform"] = self.crs
-    #     return octahedral.nnshow(
-    #         z_values,
-    #         source.x_values,
-    #         source.y_values,
-    #         ax=self.ax,
-    #         style=style,
-    #         **kwargs,
-    #     )
-
-    def _plot_with_interpolation(
-        self, style, method_name, x_values, y_values, z_values, source_crs, kwargs
-    ):
-        """Attempts to plot with or without interpolation as needed."""
-        if "interpolate" not in kwargs:
-            try:
-                return getattr(style, method_name)(
-                    self.ax, x_values, y_values, z_values, **kwargs
-                )
-            except (ValueError, TypeError):
-                warnings.warn(
-                    f"{method_name} failed with raw data, attempting interpolation to structured grid with default interpolation options."
-                )
-
-        # TODO: handle interpolate kwarg in decorator
-        interpolate = kwargs.pop("interpolate", dict())
-        if interpolate is True:
-            interpolate = Interpolate()
-        if isinstance(interpolate, dict):
-            interpolate = Interpolate(**interpolate)
-        x_values, y_values, z_values = interpolate.apply(
-            x_values,
-            y_values,
-            z_values,
-            source_crs=source_crs,
-            target_crs=self.crs,
-        )
-        _ = kwargs.pop("transform_first", None)
-        if interpolate.transform:
-            _ = kwargs.pop("transform", None)
-        return getattr(style, method_name)(
-            self.ax, x_values, y_values, z_values, **kwargs
-        )
 
     def _extract_plottables_envelope(
         self,
@@ -674,34 +481,17 @@ class Subplot:
         extract_domain=False,
         **kwargs,
     ):
-        if source_units is not None:
-            source = get_source(data=data, x=x, y=y, z=z, units=source_units)
-        else:
-            source = get_source(data=data, x=x, y=y, z=z)
-        kwargs = {**self._plot_kwargs(source), **kwargs}
-
-        if (data is None and z is None) or (z is not None and not z):
-            z_values = None
-        else:
-            z_values = source.z_values
-
-        x_values = source.x_values
-        y_values = source.y_values
-
-        if every is not None:
-            x_values = x_values[::every]
-            y_values = y_values[::every]
-            if z_values is not None:
-                z_values = z_values[::every, ::every]
-
-        if self.domain is not None and extract_domain:
-            x_values, y_values, z_values = self.domain.extract(
-                x_values,
-                y_values,
-                z_values,
-                source_crs=source.crs,
-            )
-        return x_values, y_values, z_values
+        return extract_plottables_envelope(
+            self,
+            data=data,
+            x=x,
+            y=y,
+            z=z,
+            every=every,
+            source_units=source_units,
+            extract_domain=extract_domain,
+            **kwargs,
+        )
 
     @property
     def figure(self):
@@ -725,6 +515,34 @@ class Subplot:
             subspec = self.figure.gridspec[self.row, self.column]
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
         return self._ax
+
+    def ylabel(self, label=None, **kwargs):
+        """
+        Add a y-axis label to the plot.
+        """
+        if label is None:
+            # Check if units metadata exists
+            units = self.layers[0].sources[0].y.metadata("units")
+            if units is not None:
+                label = "{variable_name} ({units})"
+            else:
+                label = "{variable_name}"
+        label = self.format_string(label, axis="y")
+        return self.ax.set_ylabel(label, **kwargs)
+
+    def xlabel(self, label=None, **kwargs):
+        """
+        Add an x-axis label to the plot.
+        """
+        if label is None:
+            # Check if units metadata exists
+            units = self.layers[0].sources[0].x.metadata("units")
+            if units is not None:
+                label = "{variable_name} ({units})"
+            else:
+                label = "{variable_name}"
+        label = self.format_string(label, axis="x")
+        return self.ax.set_xlabel(label, **kwargs)
 
     @property
     def _default_title_template(self):
@@ -775,11 +593,11 @@ class Subplot:
         """
         raise NotImplementedError
 
-    @plot_2D()
+    @plot_1D()
     def quantiles(self, *args, **kwargs):
         pass
 
-    @plot_2D()
+    @plot_1D()
     def line(self, *args, **kwargs):
         """
         Plot a line on the Subplot.
@@ -839,7 +657,7 @@ class Subplot:
         """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
-        for label, x, y in zip(labels, source.x_values, source.y_values):
+        for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), **kwargs)
 
     def plot(self, data, style=None, units=None, **kwargs):
@@ -889,8 +707,13 @@ class Subplot:
         **kwargs : dict
             Additional arguments for the plot method(s).
         """
+        import earthkit.data
+        from earthkit.data.core import Base
+
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
+        if not isinstance(data, Base):
+            data = earthkit.data.from_object(data)
         source = get_source(data)
         if style is None:
             auto_style = auto.guess_style(source, units=units, **kwargs)
@@ -925,17 +748,20 @@ class Subplot:
         green_source = get_source(green)
         blue_source = get_source(blue)
 
-        x_values = red_source.x_values
-        y_values = red_source.y_values
+        if red_source.z is None or green_source.z is None or blue_source.z is None:
+            raise ValueError("RGB plots require z values for all three channels")
 
-        red = (red_source.z_values - red_source.z_values.min()) / (
-            red_source.z_values.max() - red_source.z_values.min()
+        x_values = red_source.x.values
+        y_values = red_source.y.values
+
+        red = (red_source.z.values - red_source.z.values.min()) / (
+            red_source.z.values.max() - red_source.z.values.min()
         )
-        green = (green_source.z_values - green_source.z_values.min()) / (
-            green_source.z_values.max() - green_source.z_values.min()
+        green = (green_source.z.values - green_source.z.values.min()) / (
+            green_source.z.values.max() - green_source.z.values.min()
         )
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (
-            blue_source.z_values.max() - blue_source.z_values.min()
+        blue = (blue_source.z.values - blue_source.z.values.min()) / (
+            blue_source.z.values.max() - blue_source.z.values.min()
         )
 
         rgb = np.stack((red, green, blue), axis=-1)
@@ -983,17 +809,20 @@ class Subplot:
         green_source = get_source(green)
         blue_source = get_source(blue)
 
-        x_values = red_source.x_values
-        y_values = red_source.y_values
+        if red_source.z is None or green_source.z is None or blue_source.z is None:
+            raise ValueError("RGB plots require z values for all three channels")
 
-        red = (red_source.z_values - red_source.z_values.min()) / (
-            red_source.z_values.max() - red_source.z_values.min()
+        x_values = red_source.x.values
+        y_values = red_source.y.values
+
+        red = (red_source.z.values - red_source.z.values.min()) / (
+            red_source.z.values.max() - red_source.z.values.min()
         )
-        green = (green_source.z_values - green_source.z_values.min()) / (
-            green_source.z_values.max() - green_source.z_values.min()
+        green = (green_source.z.values - green_source.z.values.min()) / (
+            green_source.z.values.max() - green_source.z.values.min()
         )
-        blue = (blue_source.z_values - blue_source.z_values.min()) / (
-            blue_source.z_values.max() - blue_source.z_values.min()
+        blue = (blue_source.z.values - blue_source.z.values.min()) / (
+            blue_source.z.values.max() - blue_source.z.values.min()
         )
 
         rgb = np.stack((red, green, blue), axis=-1)
@@ -1014,13 +843,13 @@ class Subplot:
             dims=["y", "x", "rgb"],
         )
 
-        result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
+        result = self.pcolormesh(rgb, x=x_values, y=y_values, no_style=True)
 
         self.layers[-1].sources = [red_source, green_source, blue_source]
 
         return result
 
-    @plot_2D()
+    @plot_1D()
     def bar(self, *args, **kwargs):
         """
         Plot a bar chart on the Subplot.
@@ -1046,7 +875,7 @@ class Subplot:
         """
 
     @schema.scatter.apply()
-    @plot_2D()
+    @plot_1D()
     def scatter(self, *args, **kwargs):
         """
         Plot a scatter plot on the Subplot.
@@ -1070,7 +899,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
 
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def pcolormesh(self, *args, **kwargs):
         """
         Plot a pcolormesh on the Subplot.
@@ -1105,7 +934,7 @@ class Subplot:
         """
 
     @schema.contour.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def contour(self, *args, **kwargs):
         """
         Plot a contour plot on the Subplot.
@@ -1133,7 +962,7 @@ class Subplot:
         """
 
     @schema.contourf.apply()
-    @plot_3D(extract_domain=True)
+    @plot_2D(extract_domain=True)
     def contourf(self, *args, **kwargs):
         """
         Plot a filled contour plot on the Subplot.
@@ -1167,7 +996,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contourf`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tripcolor(self, *args, **kwargs):
         """
         Plot a tripcolor plot on the Subplot.
@@ -1194,7 +1023,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tricontour(self, *args, **kwargs):
         """
         Plot a tricontour plot on the Subplot.
@@ -1221,7 +1050,7 @@ class Subplot:
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
         """
 
-    @plot_3D()
+    @plot_2D()
     def tricontourf(self, *args, **kwargs):
         """
         Plot a filled tricontour plot on the Subplot.
@@ -1365,8 +1194,7 @@ class Subplot:
 
     grid_cells = pcolormesh
 
-    @schema.legend.apply()
-    def legend(self, style=None, location=None, **kwargs):
+    def legend(self, label=None, *args, **kwargs):
         """
         Add a legend to the Subplot.
 
@@ -1382,23 +1210,7 @@ class Subplot:
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
         """
-        legends = []
-        if style is not None:
-            dummy = [[1, 2], [3, 4]]
-            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
-            layer = Layer(NumpySource(), mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
-            legends.append(legend)
-        else:
-            for i, layer in enumerate(self.distinct_legend_layers):
-                if isinstance(location, (list, tuple)):
-                    loc = location[i]
-                else:
-                    loc = location
-                if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
-                legends.append(legend)
-        return legends
+        self.ax.legend(*args, **kwargs)
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
@@ -1465,7 +1277,7 @@ class Subplot:
         """
         return self.figure.title(*args, **kwargs)
 
-    def format_string(self, string, unique=True, grouped=True):
+    def format_string(self, string, unique=True, grouped=True, axis=None):
         """
         Format a string with metadata from the Subplot.
 
@@ -1481,13 +1293,19 @@ class Subplot:
             Whether to group metadata values from all Layers into a single
             string. If False, metadata values from each Layer are listed
             separately.
+        axis : str, optional
+            The axis to format. If None, the format string will use the
+            general metadata of the subplot.
         """
         if not grouped:
             return string_utils.list_to_human(
-                [LayerFormatter(layer).format(string) for layer in self.layers]
+                [
+                    LayerFormatter(layer, axis=axis).format(string)
+                    for layer in self.layers
+                ]
             )
         else:
-            return SubplotFormatter(self, unique=unique).format(string)
+            return SubplotFormatter(self, unique=unique, axis=axis).format(string)
 
     def show(self):
         """Display the plot."""
@@ -1496,20 +1314,3 @@ class Subplot:
     def save(self, *args, **kwargs):
         """Save the plot to a file."""
         return self.figure.save(*args, **kwargs)
-
-
-def thin_array(array, every=2):
-    """
-    Reduce the size of an array by taking every `every`th element.
-
-    Parameters
-    ----------
-    array : numpy.ndarray
-        The array to thin.
-    every : int, optional
-        The number of elements to skip.
-    """
-    if len(array.shape) == 1:
-        return array[::every]
-    else:
-        return array[::every, ::every]

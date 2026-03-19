@@ -15,10 +15,10 @@ dependencies:
 - matplotlib
 - pandas
 - cartopy
+- fiona
 - pint
 - pyyaml
 - numpy
 - plotly
 - pip:
   - adjustText
-  - earthkit-plots-default-styles>=0.1.3

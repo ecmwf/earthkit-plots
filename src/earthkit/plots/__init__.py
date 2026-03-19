@@ -15,16 +15,19 @@
 import glob
 import os
 
-from matplotlib import font_manager
+import matplotlib
+import matplotlib.pyplot as plt
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.definitions import FONTS_DIR
+from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
 from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
+from earthkit.plots.shortcuts import timeseries
 from earthkit.plots.styles import Style
+from earthkit.plots.temporal.timeseries import TimeSeries
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -43,15 +46,27 @@ __all__ = [
     "schema",
     "styles",
     "quickplot",
+    "timeseries",
+    "TimeSeries",
 ]
 
 
-def register_fonts():
+def _register_fonts():
+    """Register bundled fonts with matplotlib's font manager."""
     fontpaths = glob.glob(os.path.join(FONTS_DIR, "*"))
     for fontpath in fontpaths:
         font_files = glob.glob(os.path.join(fontpath, "*.ttf"))
         for font_file in font_files:
-            font_manager.fontManager.addfont(font_file)
+            matplotlib.font_manager.fontManager.addfont(font_file)
 
 
-register_fonts()
+def _register_styles():
+    """Register bundled .mplstyle files with matplotlib's style library."""
+    for mplstyle in DEFAULT_STYLES_DIR.glob("*.mplstyle"):
+        rc = matplotlib.rc_params_from_file(str(mplstyle), use_default_template=False)
+        plt.style.core.library[mplstyle.stem] = rc
+    plt.style.core.available[:] = sorted(plt.style.core.library.keys())
+
+
+_register_fonts()
+_register_styles()
