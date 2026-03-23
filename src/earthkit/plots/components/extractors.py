@@ -237,6 +237,7 @@ def extract_plottables_1D(
     y_units: str | None = None,
     z_units: str | None = None,
     every: int | None = None,
+    resample: Any = False,
     source_units: str | None = None,
     auto_style: bool = False,
     metadata: dict[str, Any] | None = None,
@@ -313,6 +314,11 @@ def extract_plottables_1D(
     # Step 3: Process z values (convert units, apply scale factors)
     if z is not None or (source.z is not None and source.z.values is not None):
         z_values = apply_scale_factor(style, source, z)
+        # apply_scale_factor returns None when source.z is None (e.g. numpy arrays
+        # passed as x=/y=/z= in a geographic 1D context where the extractor doesn't
+        # populate source.z). Fall back to the raw z array in that case.
+        if z_values is None and isinstance(z, np.ndarray):
+            z_values = z
     else:
         z_values = None
 
@@ -321,6 +327,57 @@ def extract_plottables_1D(
 
     # Step 5: Apply sampling if specified
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
+
+    # Step 5.1: Clip to domain before any further processing
+    if subplot.domain is not None:
+        x_values, y_values, z_values = subplot.domain.extract(
+            x_values, y_values, z_values, source_crs=source.crs
+        )
+
+    # Step 5.5: Apply data-space resampling if requested.
+    # Note: pixel-samplers (_PixelSampler subclasses like Bilinear/NearestNeighbour)
+    # cannot be applied to scatter — they produce a regular pixel grid that only
+    # makes sense for pcolormesh/contour/contourf.  Raise an informative error so
+    # the user knows to use Regrid() instead.
+    if resample is not False and resample is not None:
+        from earthkit.plots.resample import Chain, Regrid, Resample, _PixelSampler
+
+        # Check for pixel-samplers at the top level or inside a Chain
+        _top_level_pixel = isinstance(resample, _PixelSampler)
+        _chain_pixel = isinstance(resample, Chain) and resample.pixel_step is not None
+        if _top_level_pixel or _chain_pixel:
+            raise ValueError(
+                f"{resample.__class__.__name__} is a pixel-sampler and cannot be "
+                "used with scatter (it produces a regular image grid, not discrete "
+                "points).  Use Regrid() to resample to a regular lat/lon grid "
+                "before scattering, e.g. resample=Regrid()."
+            )
+
+        if isinstance(resample, Chain):
+            data_steps = resample.data_steps
+        else:
+            data_steps = [resample]
+
+        for step in data_steps:
+            if isinstance(step, Regrid):
+                context = _infer_plot_context(subplot, method_name)
+                x_values, y_values, z_values = step.apply(
+                    x_values,
+                    y_values,
+                    z_values,
+                    gridspec=source.gridspec,
+                    context=context,
+                )
+            elif isinstance(step, Unstructured):
+                x_values, y_values, z_values = step.apply(
+                    x_values,
+                    y_values,
+                    z_values,
+                    source_crs=source.crs,
+                    target_crs=getattr(subplot, "crs", None),
+                )
+            elif isinstance(step, Resample):
+                x_values, y_values, z_values = step.apply(x_values, y_values, z_values)
 
     # Step 6: Handle no-style case for z values
     if no_style and z_values is None:
@@ -746,9 +803,11 @@ def extract_plottables_2D(
             # source.crs may be None for plain lat/lon data; fall back to the
             # transform already placed in kwargs by _plot_kwargs, then PlateCarree.
             data_crs = source.crs or kwargs.get("transform") or ccrs.PlateCarree()
-            if (
-                target_crs is not None
-                and type(data_crs).__name__ != type(target_crs).__name__
+            _is_scattered = (
+                x_values.ndim == 1 and z_values is not None and z_values.ndim == 1
+            )
+            if target_crs is not None and (
+                type(data_crs).__name__ != type(target_crs).__name__ or _is_scattered
             ):
                 try:
                     bbox_target = subplot.ax.get_extent(crs=target_crs)
@@ -822,6 +881,9 @@ def extract_plottables_2D(
                         crs_target=target_crs,
                         nx=nx,
                         ny=ny,
+                        method="nearest"
+                        if isinstance(_pixel_sampler, NearestNeighbour)
+                        else "linear",
                     )
                     kwargs["transform"] = target_crs
                     will_reproject = True

@@ -3,7 +3,11 @@ import time
 
 import numpy as np
 from pyproj import Transformer
-from scipy.interpolate import LinearNDInterpolator, RegularGridInterpolator
+from scipy.interpolate import (
+    LinearNDInterpolator,
+    NearestNDInterpolator,
+    RegularGridInterpolator,
+)
 
 logger = logging.getLogger(__name__)
 ENABLE_TIMING = True
@@ -152,6 +156,7 @@ def reproject_to_grid(
     nx=500,
     ny=500,
     use_gpu=None,
+    method="linear",
 ):
     """
     Reproject a scalar field from its source CRS onto a regular grid in a target CRS,
@@ -278,7 +283,7 @@ def reproject_to_grid(
         y_src_gpu = y_src
         z_src_gpu = z_src
 
-    if x_src.ndim == 1 and y_src.ndim == 1:
+    if x_src.ndim == 1 and y_src.ndim == 1 and z_src.ndim == 2:
         # Ensure x_src and y_src are strictly monotonically ascending — required
         # by RegularGridInterpolator.  Domain extraction or unusual data ordering
         # can produce non-monotonic arrays (e.g. [0, ..., 180, -179, ..., -1]).
@@ -434,19 +439,26 @@ def reproject_to_grid(
             x_src_reproj_cpu = x_src_reproj
             y_src_reproj_cpu = y_src_reproj
 
-        interp = LinearNDInterpolator(
-            np.column_stack([x_src_cpu.flatten(), y_src_cpu.flatten()]),
-            z_src_cpu.flatten(),
-            fill_value=np.nan,
-        )
+        src_points = np.column_stack([x_src_cpu.flatten(), y_src_cpu.flatten()])
         pts = np.column_stack([x_src_reproj_cpu.ravel(), y_src_reproj_cpu.ravel()])
+        if method == "nearest":
+            interp = NearestNDInterpolator(src_points, z_src_cpu.flatten())
+        else:
+            interp = LinearNDInterpolator(
+                src_points, z_src_cpu.flatten(), fill_value=np.nan
+            )
         z_tgt_cpu = interp(pts).reshape(ny, nx)
 
         # Convert back to GPU if needed
         z_tgt = cp.asarray(z_tgt_cpu) if gpu_enabled else z_tgt_cpu
         if ENABLE_TIMING:
+            interp_name = (
+                "NearestNDInterpolator"
+                if method == "nearest"
+                else "LinearNDInterpolator"
+            )
             logger.info(
-                f"  [TIMING] reproject: LinearNDInterpolator (curvilinear, CPU): {(time.time() - t1)*1000:.2f}ms"
+                f"  [TIMING] reproject: {interp_name} (scattered, CPU): {(time.time() - t1)*1000:.2f}ms"
             )
 
     if ENABLE_TIMING:

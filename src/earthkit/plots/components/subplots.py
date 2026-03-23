@@ -73,6 +73,7 @@ def plot_1D(method_name=None):
             z=None,
             style=None,
             every=None,
+            resample=False,
             colorby=None,
             dashby=None,
             markerby=None,
@@ -133,6 +134,7 @@ def plot_1D(method_name=None):
                     z=z,
                     style=style,
                     every=every,
+                    resample=resample,
                     label=label,
                     **kwargs,
                 )
@@ -312,6 +314,7 @@ def plot_1D(method_name=None):
                         z=z,
                         style=style,
                         every=every,
+                        resample=resample,
                         **call_kwargs,
                     )
                 )
