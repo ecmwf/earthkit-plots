@@ -210,9 +210,7 @@ def extract_plottables_1D(
         z_values = kwargs.pop("c", None)
 
     # Step 7: Create the plot using the style object
-    mappable = getattr(style, method_name)(
-        subplot.ax, x_values, y_values, z_values, **kwargs
-    )
+    mappable = getattr(style, method_name)(subplot.ax, x_values, y_values, z_values, **kwargs)
 
     # Step 8: Store the layer and return the mappable
     from earthkit.plots.components.layers import Layer
@@ -226,11 +224,7 @@ def extract_plottables_1D(
         axis_units["x"] = x_units
     if y_units is not None:
         axis_units["y"] = y_units
-    if (
-        units is not None
-        and primary_axis is not None
-        and primary_axis not in axis_units
-    ):
+    if units is not None and primary_axis is not None and primary_axis not in axis_units:
         axis_units[primary_axis] = units
 
     layer = Layer(
@@ -465,17 +459,13 @@ def extract_plottables_2D(
     z_values = apply_scale_factor(style, source, z)
 
     # Step 5: Handle specialized grid types (healpix, octahedral)
-    mappable = _handle_specialized_grids(
-        subplot, source, z_values, style, method_name, kwargs
-    )
+    mappable = _handle_specialized_grids(subplot, source, z_values, style, method_name, kwargs)
 
     if not mappable:
         # Step 6: Process x, y values and apply sampling
         # For 3D plots, use source coordinates directly (no coordinate unit conversion)
         x_values, y_values = source.x.values, source.y.values
-        x_values, y_values, z_values = apply_sampling(
-            x_values, y_values, z_values, every
-        )
+        x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
         # Step 7: Handle no-style case for z values
         if no_style and z_values is None:
@@ -483,15 +473,11 @@ def extract_plottables_2D(
 
         # Step 8: Extract data within domain boundaries if requested
         if subplot.domain and extract_domain and not no_style:
-            x_values, y_values, z_values = subplot.domain.extract(
-                x_values, y_values, z_values, source_crs=source.crs
-            )
+            x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
 
         # Step 9: Handle cyclic point wrapping for contour plots
         if method_name.startswith("contour"):
-            x_values, y_values, z_values = _handle_cyclic_points(
-                x_values, y_values, z_values
-            )
+            x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
 
         # Step 10: Handle coordinate transformation settings
         kwargs = _handle_transform_settings(subplot, kwargs)
@@ -510,9 +496,7 @@ def extract_plottables_2D(
             )
         else:
             warnings.warn("Style not set - using raw matplotlib method.")
-            mappable = getattr(subplot.ax, method_name)(
-                x_values, y_values, z_values, **kwargs
-            )
+            mappable = getattr(subplot.ax, method_name)(x_values, y_values, z_values, **kwargs)
 
     # Step 12: Store the layer and return the mappable
     from earthkit.plots.components.layers import Layer
@@ -649,12 +633,8 @@ def extract_plottables_vector_2D(
         # This could be: chart.barbs(u=u_data, v=v_data)
         if u is not None and v is not None:
             # Create temporary sources to extract u and v data, then validate coordinates match
-            u_source = get_source(
-                u, x=x, y=y, context=context, units=units, metadata=metadata
-            )
-            v_source = get_source(
-                v, x=x, y=y, context=context, units=units, metadata=metadata
-            )
+            u_source = get_source(u, x=x, y=y, context=context, units=units, metadata=metadata)
+            v_source = get_source(v, x=x, y=y, context=context, units=units, metadata=metadata)
 
             # Validate that x and y coordinates match
             if not np.array_equal(u_source.x.values, v_source.x.values):
@@ -728,23 +708,17 @@ def extract_plottables_vector_2D(
             )
     elif len(args) == 2:
         # Two separate data objects for u and v (legacy)
-        u_source = get_source(
-            args[0], x=x, y=y, context=context, units=units, metadata=metadata
-        )
-        v_source = get_source(
-            args[1], x=x, y=y, context=context, units=units, metadata=metadata
-        )
+        u_source = get_source(args[0], x=x, y=y, context=context, units=units, metadata=metadata)
+        v_source = get_source(args[1], x=x, y=y, context=context, units=units, metadata=metadata)
 
         # Validate that x and y coordinates match
         if not np.array_equal(u_source.x.values, v_source.x.values):
             raise ValueError(
-                "X coordinates from u and v sources do not match. "
-                "U and V components must be defined on the same grid."
+                "X coordinates from u and v sources do not match. U and V components must be defined on the same grid."
             )
         if not np.array_equal(u_source.y.values, v_source.y.values):
             raise ValueError(
-                "Y coordinates from u and v sources do not match. "
-                "U and V components must be defined on the same grid."
+                "Y coordinates from u and v sources do not match. U and V components must be defined on the same grid."
             )
 
         # Extract values - use z if available, otherwise y
@@ -778,9 +752,7 @@ def extract_plottables_vector_2D(
     kwargs.update(subplot._plot_kwargs(source))
 
     # Step 3: Configure the plotting style
-    style = configure_style(
-        method_name, style, source, units, auto_style, {**kwargs, "colors": colors}
-    )
+    style = configure_style(method_name, style, source, units, auto_style, {**kwargs, "colors": colors})
 
     # Step 4: Extract x, y coordinate values
     x_values = source.x.values
@@ -836,9 +808,7 @@ def extract_plottables_vector_2D(
     # Step 11: Add magnitude coloring if requested
     if colors:
         # Use source.z which computes magnitude for vector fields
-        magnitude = (
-            source.z.values if source.z else np.sqrt(u_values**2 + v_values**2)
-        )
+        magnitude = source.z.values if source.z else np.sqrt(u_values**2 + v_values**2)
         plot_args.append(magnitude)
 
     # Step 12: Create the plot
@@ -1030,9 +1000,7 @@ def configure_style(
 
     # Handle cmap as an alias for colors
     if "cmap" in kwargs and "colors" in kwargs:
-        raise ValueError(
-            "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-        )
+        raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
     if "cmap" in kwargs:
         kwargs["colors"] = kwargs.pop("cmap")
 
@@ -1068,9 +1036,7 @@ def configure_style(
     return style
 
 
-def apply_scale_factor(
-    style: Style, source: Any, z: str | np.ndarray | list[float] | None
-) -> np.ndarray | None:
+def apply_scale_factor(style: Style, source: Any, z: str | np.ndarray | list[float] | None) -> np.ndarray | None:
     """
     Process z values by applying scale factors.
 
@@ -1424,9 +1390,7 @@ def plot_with_interpolation(
     # Try plotting without interpolation first
     if "interpolate" not in kwargs:
         try:
-            return getattr(style, method_name)(
-                subplot.ax, x_values, y_values, z_values, **kwargs
-            )
+            return getattr(style, method_name)(subplot.ax, x_values, y_values, z_values, **kwargs)
         except (ValueError, TypeError):
             warnings.warn(
                 f"{method_name} failed with raw data, attempting interpolation "
@@ -1455,6 +1419,4 @@ def plot_with_interpolation(
         _ = kwargs.pop("transform", None)
 
     # Plot the interpolated data
-    return getattr(style, method_name)(
-        subplot.ax, x_values, y_values, z_values, **kwargs
-    )
+    return getattr(style, method_name)(subplot.ax, x_values, y_values, z_values, **kwargs)

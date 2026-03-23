@@ -193,6 +193,4 @@ def is_cylindrical(crs):
     -------
     bool
     """
-    return any(
-        isinstance(crs, candidate) for candidate in CYLINDRICAL_COORDINATE_SYSTEMS
-    )
+    return any(isinstance(crs, candidate) for candidate in CYLINDRICAL_COORDINATE_SYSTEMS)

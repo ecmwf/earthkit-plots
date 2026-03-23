@@ -337,7 +337,9 @@ class Subplot:
         highlight_color : str, optional
             The color of the highlighted xticks.
         **kwargs : dict, optional
-            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
+            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`,
+            :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`,
+            or :class:`matplotlib.dates.HourLocator`.
         """
         formats = DEFAULT_FORMATS
         if frequency is None:
@@ -360,9 +362,7 @@ class Subplot:
         if format:
             formats = [format] * 6
 
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
+        formatter = mdates.ConciseDateFormatter(locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False)
         self.ax.xaxis.set_major_locator(locator)
         self.ax.xaxis.set_major_formatter(formatter)
 
@@ -398,7 +398,9 @@ class Subplot:
         format : str, optional
             The format of the xticks. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
         **kwargs : dict, optional
-            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
+            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`,
+            :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`,
+            or :class:`matplotlib.dates.HourLocator`.
         """
         formats = DEFAULT_FORMATS
         if frequency is None:
@@ -421,9 +423,7 @@ class Subplot:
         if format:
             formats = [format] * 6
 
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
+        formatter = mdates.ConciseDateFormatter(locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False)
         self.ax.xaxis.set_minor_locator(locator)
         self.ax.xaxis.set_minor_formatter(formatter)
 
@@ -441,9 +441,7 @@ class Subplot:
 
         # Handle cmap as an alias for colors
         if "cmap" in kwargs and "colors" in kwargs:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
+            raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
         if "cmap" in kwargs:
             kwargs["colors"] = kwargs.pop("cmap")
 
@@ -517,9 +515,7 @@ class Subplot:
         return self._ax
 
     def ylabel(self, label=None, **kwargs):
-        """
-        Add a y-axis label to the plot.
-        """
+        """Add a y-axis label to the plot."""
         if label is None:
             # Check if units metadata exists
             units = self.layers[0].sources[0].y.metadata("units")
@@ -531,9 +527,7 @@ class Subplot:
         return self.ax.set_ylabel(label, **kwargs)
 
     def xlabel(self, label=None, **kwargs):
-        """
-        Add an x-axis label to the plot.
-        """
+        """Add an x-axis label to the plot."""
         if label is None:
             # Check if units metadata exists
             units = self.layers[0].sources[0].x.metadata("units")
@@ -868,7 +862,8 @@ class Subplot:
             The Style to use for the bar chart. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
 
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.bar`.
@@ -894,7 +889,8 @@ class Subplot:
             The Style to use for the scatter plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
@@ -921,7 +917,8 @@ class Subplot:
             The Style to use for the pcolormesh. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         interpolate: earthkit.plots.resample.Interpolate, dict, optional
             A :class:`plots.resample.Interpolate` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
@@ -956,7 +953,8 @@ class Subplot:
             The Style to use for the contour plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.contour`.
         """
@@ -984,7 +982,8 @@ class Subplot:
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         interpolate: earthkit.plots.resample.Interpolate, dict, optional
             A :class:`plots.resample.Interpolate` class which will be applied to data
             prior to plotting. This is required for unstructured data with no grid information,
@@ -1018,7 +1017,8 @@ class Subplot:
             The Style to use for the tripcolor plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tripcolor`.
         """
@@ -1045,7 +1045,8 @@ class Subplot:
             The Style to use for the tricontour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontour`.
         """
@@ -1072,7 +1073,8 @@ class Subplot:
             The Style to use for the filled tricontour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.tricontourf`.
         """
@@ -1103,7 +1105,8 @@ class Subplot:
             The Style to use for the quiver plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.quiver`.
         """
@@ -1133,7 +1136,8 @@ class Subplot:
             The Style to use for the stream plot. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.streamplot`.
         """
@@ -1164,7 +1168,8 @@ class Subplot:
             The Style to use for the wind barbs. If None, a Style is automatically
             generated based on the data.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.barbs`.
         """
@@ -1180,16 +1185,14 @@ class Subplot:
         *args : xarray.DataArray or earthkit.data.core.Base
             The data source for which to plot the block.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :meth:`pcolormesh`.
         """
         import warnings
 
-        warnings.warn(
-            "block is deprecated and will be removed in a future release. "
-            "Please use grid_cells instead."
-        )
+        warnings.warn("block is deprecated and will be removed in a future release. Please use grid_cells instead.")
         return self.pcolormesh(*args, **kwargs)
 
     grid_cells = pcolormesh
@@ -1298,12 +1301,9 @@ class Subplot:
             general metadata of the subplot.
         """
         if not grouped:
-            return string_utils.list_to_human(
-                [
-                    LayerFormatter(layer, axis=axis).format(string)
-                    for layer in self.layers
-                ]
-            )
+            return string_utils.list_to_human([
+                LayerFormatter(layer, axis=axis).format(string) for layer in self.layers
+            ])
         else:
             return SubplotFormatter(self, unique=unique, axis=axis).format(string)
 

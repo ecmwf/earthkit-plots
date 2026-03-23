@@ -22,9 +22,7 @@ from earthkit.plots import schema
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_temperature_pressure():
-    temperature, pressure = earthkit.data.from_source(
-        "sample", "era5-2t-msl-1985122512.grib"
-    )
+    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
     chart = earthkit.plots.Map(domain="Europe")
     chart.quickplot(temperature, units="celsius")
     chart.quickplot(pressure, units="hPa")
@@ -44,9 +42,7 @@ def test_temperature_pressure():
 def test_efi_hatched():
     from earthkit.plots.styles import Hatched
 
-    data = earthkit.data.from_source(
-        "url", "https://get.ecmwf.int/repository/test-data/metview/gallery/efi.grib"
-    )
+    data = earthkit.data.from_source("url", "https://get.ecmwf.int/repository/test-data/metview/gallery/efi.grib")
 
     fgi = data.sel(shortName="10fgi")
     tpi = data.sel(shortName="tpi")

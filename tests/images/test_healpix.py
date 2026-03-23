@@ -18,9 +18,20 @@ import pytest
 import earthkit.plots
 from earthkit.plots import schema
 
+try:
+    import healpy  # noqa: F401
+except ImportError:
+    pytest.skip("The healpix plotting backend requires the healpy package.", allow_module_level=True)
+
+try:
+    import earthkit.regrid  # noqa: F401
+except ImportError:
+    earthkit.regrid = None  # type: ignore[assignment]
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.skipif(earthkit.regrid is None, reason="The interpolate test requires earthkit-regrid.")
 def test_healpix_interpolated():
     import warnings
 

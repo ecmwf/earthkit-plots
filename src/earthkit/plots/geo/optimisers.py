@@ -20,22 +20,14 @@ GLOBE_AREA = 64800  # 360*180
 
 
 class OptimisedCRS:
-    """
-    Base class for optimised cartopy CRS classes.
-    """
+    """Base class for optimised cartopy CRS classes."""
 
     def to_ccrs(self, optimiser):
         return getattr(ccrs, self.cartopy_crs())(**self.get_kwargs(optimiser))
 
     def get_kwargs(self, optimiser):
-        attributes = inspect.getmembers(
-            self.__class__, lambda attr: not (inspect.isroutine(attr))
-        )
-        attributes = [
-            attr
-            for attr in attributes
-            if not (attr[0].startswith("__") and attr[0].endswith("__"))
-        ]
+        attributes = inspect.getmembers(self.__class__, lambda attr: not (inspect.isroutine(attr)))
+        attributes = [attr for attr in attributes if not (attr[0].startswith("__") and attr[0].endswith("__"))]
         return {attr[0].lower(): getattr(optimiser, attr[1]) for attr in attributes}
 
     def cartopy_crs(self):
