@@ -121,6 +121,9 @@ nbsphinx_thumbnails = {
     "examples/examples/resampling/resampling-nearest-neighbour": "_static/thumbnails/resampling-nearest-neighbour.png",
     "examples/examples/resampling/resampling-regrid": "_static/thumbnails/resampling-regrid.png",
     "examples/examples/resampling/resampling-subsample": "_static/thumbnails/resampling-subsample.png",
+    "examples/examples/time-series/timeseries-introduction": "_static/thumbnails/timeseries-introduction.png",
+    "examples/examples/time-series/timeseries-climate-stripes": "_static/thumbnails/timeseries-climate-stripes.png",
+    "examples/examples/time-series/timeseries-multibox": "_static/thumbnails/timeseries-multibox.png",
 }
 
 # intersphinx configuration
