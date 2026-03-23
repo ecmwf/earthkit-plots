@@ -898,11 +898,11 @@ class XarrayExtractor(BaseExtractor):
                 data_to_convert = self.data
 
             # Convert to earthkit-data object
-            earthkit_data = ek_data.from_object(data_to_convert)
+            earthkit_data = ek_data.from_object(data_to_convert).to_fieldlist()
 
             # Extract projection and convert to cartopy CRS
-            if hasattr(earthkit_data, "projection"):
-                projection = earthkit_data.projection()
+            if hasattr(earthkit_data, "geography"):
+                projection = earthkit_data.geography.projection()
                 if projection is not None and hasattr(projection, "to_cartopy_crs"):
                     return projection.to_cartopy_crs()
 

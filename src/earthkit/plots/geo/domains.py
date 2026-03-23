@@ -276,7 +276,7 @@ class Domain:
         """
         bbox = [None, None, None, None]
         try:
-            crs = data.projection().to_cartopy_crs()
+            crs = data.geography.projection().to_cartopy_crs()
         except AttributeError:
             if is_latlon(data):
                 lons = data.to_points()["x"]

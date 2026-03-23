@@ -390,9 +390,9 @@ class EarthkitExtractor(BaseExtractor):
         CRS or None
             Coordinate reference system.
         """
-        if hasattr(self.data, "projection"):
+        if hasattr(self.data, "geography"):
             try:
-                proj = self.data.projection()
+                proj = self.data.geography.projection()
                 if hasattr(proj, "to_cartopy_crs"):
                     return proj.to_cartopy_crs()
                 return proj
