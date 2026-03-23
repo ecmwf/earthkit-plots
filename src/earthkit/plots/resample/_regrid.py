@@ -103,7 +103,18 @@ class _MirRegridExecutor:
         if isinstance(in_grid, dict) and "icon" in in_grid.get("grid", "").lower():
             _kwargs["interpolation"] = "nn"
         LOG.debug("Regridding using MIR, in_grid=%s out_grid=%s", in_grid, out_grid)
-        r = regrid(array, in_grid=in_grid, out_grid=out_grid, **_kwargs)
+        try:
+            # Attempt to regrid using precomputed weights if possible, which is much faster for repeated regridding of the same grid pair
+            r = regrid(
+                array,
+                in_grid=in_grid,
+                out_grid=out_grid,
+                backend="precomputed",
+                **_kwargs,
+            )
+        except ValueError:
+            # Fall back to mir regridding if precomputed weights are not available for this grid pair
+            r = regrid(array, in_grid=in_grid, out_grid=out_grid, **_kwargs)
         return r[0]
 
 
