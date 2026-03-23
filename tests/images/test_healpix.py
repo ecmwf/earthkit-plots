@@ -18,6 +18,11 @@ import pytest
 import earthkit.plots
 from earthkit.plots import schema
 
+try:
+    import healpy  # noqa: F401
+except ImportError:
+    pytest.skip("The healpix plotting backend requires the healpy package.", allow_module_level=True)
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
