@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import glob
-import os
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
@@ -78,6 +76,245 @@ def _fallback_style(data):
     return styles.Style(colors=_fallback_cmap_assignments[var_name])
 
 
+# ---------------------------------------------------------------------------
+# Style library cache
+# ---------------------------------------------------------------------------
+
+
+class _StyleLibraryCache:
+    """
+    Lazy, invalidatable cache for the YAML-based style library.
+
+    Motivation
+    ----------
+    ``guess_style()`` and ``load_style()`` previously scanned all identity and
+    auto-style YAML files from disk on **every call**.  With ~100 files in each
+    directory this adds measurable latency in notebooks where the same variable
+    is plotted many times.
+
+    This cache loads each plugin's YAML files exactly once per Python session
+    (or after an explicit :meth:`invalidate` call) and exposes fast in-memory
+    lookup methods.
+
+    Thread safety
+    -------------
+    The cache is populated in a single-threaded context (notebook / script) and
+    is never written to after ``_load()`` completes, so no locking is required.
+    """
+
+    def __init__(self):
+        # Keyed by plugin name; each value is the paths dict from PLUGINS.
+        self._loaded_plugin: str | None = None
+
+        # List of (criteria_list, identity_id) pairs — order preserved so that
+        # the first match wins, exactly as the original glob loop did.
+        self._identities: list[tuple[list[dict], str]] = []
+
+        # identity_id → full style_config dict (contains "styles", "optimal", …)
+        self._style_configs: dict[str, dict] = {}
+
+        # name → style_dict for named styles (across ALL plugins, dedup by path).
+        # Loaded once independently of the active plugin (all plugins contribute).
+        self._named_styles: dict[str, dict] = {}
+        self._named_styles_loaded: bool = False
+
+    # ------------------------------------------------------------------
+    # Public interface
+    # ------------------------------------------------------------------
+
+    def invalidate(self):
+        """Discard all cached data so the next access reloads from disk."""
+        self._loaded_plugin = None
+        self._identities.clear()
+        self._style_configs.clear()
+        self._named_styles.clear()
+        self._named_styles_loaded = False
+
+    def find_identity(self, data) -> str | None:
+        """
+        Return the identity id whose criteria first match *data*, or ``None``.
+        """
+        self._ensure_loaded()
+        for criteria_list, identity_id in self._identities:
+            if any(criteria_matches(data, c) for c in criteria_list):
+                return identity_id
+        return None
+
+    def get_style_config(self, identity_id: str) -> dict | None:
+        """Return the full style config dict for *identity_id*, or ``None``."""
+        self._ensure_loaded()
+        return self._style_configs.get(identity_id)
+
+    def get_named_style(self, name: str) -> dict | None:
+        """Return the raw style dict for the given *name*, or ``None``."""
+        self._ensure_loaded_named_styles()
+        return self._named_styles.get(name)
+
+    def list_named_styles(self) -> list[str]:
+        """Return a sorted list of all known named-style names."""
+        self._ensure_loaded_named_styles()
+        return sorted(self._named_styles)
+
+    # ------------------------------------------------------------------
+    # Internal loading
+    # ------------------------------------------------------------------
+
+    def _current_plugin_key(self) -> str:
+        """Derive a cache key from the active style_library setting."""
+        return str(schema.style_library)
+
+    def _resolve_plugin_paths(self) -> tuple[Path, Path]:
+        """Return (identities_path, styles_path) for the active plugin."""
+        if schema.style_library not in PLUGINS:
+            path = Path(schema.style_library).expanduser()
+            return path / "identities", path / "auto-styles"
+        plugin = PLUGINS[schema.style_library]
+        return plugin["identities"], plugin["styles"]
+
+    def _ensure_loaded(self):
+        """Load identity + style-config data if the active plugin has changed."""
+        key = self._current_plugin_key()
+        if self._loaded_plugin == key:
+            return
+
+        self._identities.clear()
+        self._style_configs.clear()
+
+        identities_path, styles_path = self._resolve_plugin_paths()
+        self._load_identities(identities_path)
+        self._load_style_configs(styles_path)
+        self._loaded_plugin = key
+
+    def _ensure_loaded_named_styles(self):
+        """Load named-style index across ALL plugins (done once per session)."""
+        if self._named_styles_loaded:
+            return
+        self._load_named_styles()
+        self._named_styles_loaded = True
+
+    def _load_identities(self, identities_path: Path):
+        if identities_path is None or not identities_path.is_dir():
+            return
+        for fpath in sorted(identities_path.iterdir()):
+            if not fpath.is_file():
+                continue
+            with fpath.open() as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            self._identities.append((config["criteria"], config["id"]))
+
+    def _load_style_configs(self, styles_path: Path):
+        if styles_path is None or not styles_path.is_dir():
+            return
+        for fpath in styles_path.iterdir():
+            if not fpath.is_file():
+                continue
+            with fpath.open() as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            self._style_configs[config["id"]] = config
+
+    def _load_named_styles(self):
+        """Index named-style variants from every registered plugin directory."""
+        seen_paths: set[str] = set()
+        for plugin_paths in PLUGINS.values():
+            styles_path = plugin_paths["styles"]
+            if styles_path is None or not styles_path.is_dir():
+                continue
+            for fpath in sorted(styles_path.iterdir()):
+                fpath_str = str(fpath)
+                if not fpath.is_file() or fpath_str in seen_paths:
+                    continue
+                seen_paths.add(fpath_str)
+                with fpath.open() as f:
+                    config = yaml.load(f, Loader=yaml.SafeLoader)
+                for style_dict in config.get("styles", {}).values():
+                    name = style_dict.get("name")
+                    if name and name not in self._named_styles:
+                        self._named_styles[name] = style_dict
+
+    def _load_named_styles_from(
+        self, styles_path: Path, seen_paths: set[str] | None = None
+    ):
+        """
+        Index named-style variants from a single *styles_path* directory.
+
+        This is a test helper — production code goes through :meth:`_load_named_styles`
+        which handles all plugins.  Tests call this directly to load from an
+        isolated ``tmp_path`` directory without touching the real PLUGINS registry.
+
+        Parameters
+        ----------
+        styles_path:
+            Directory containing auto-style YAML files.
+        seen_paths:
+            Optional deduplication set shared across multiple calls (e.g. when
+            a test simulates multiple plugin directories).
+        """
+        if styles_path is None or not styles_path.is_dir():
+            return
+        for fpath in sorted(styles_path.iterdir()):
+            fpath_str = str(fpath)
+            if not fpath.is_file():
+                continue
+            if seen_paths is not None:
+                if fpath_str in seen_paths:
+                    continue
+                seen_paths.add(fpath_str)
+            with fpath.open() as f:
+                config = yaml.load(f, Loader=yaml.SafeLoader)
+            for style_dict in config.get("styles", {}).values():
+                name = style_dict.get("name")
+                if name and name not in self._named_styles:
+                    self._named_styles[name] = style_dict
+
+
+# Module-level singleton — shared across all callers in the same process.
+_cache = _StyleLibraryCache()
+
+
+def _select_style_variant(
+    style_variants: dict, target_units: str | None, source_units: str | None
+) -> dict | None:
+    """
+    Pick the best matching style variant dict for the given units.
+
+    Selection priority:
+    1. Exact match on *target_units*
+    2. Exact match on *source_units*
+    3. Any variant that carries no ``units`` key (unit-agnostic)
+    4. ``None`` — caller should fall back to the default style
+
+    Parameters
+    ----------
+    style_variants:
+        Mapping of variant key → style dict, as stored in the YAML
+        ``styles:`` block.
+    target_units:
+        The units the caller wants to plot in (may be ``None``).
+    source_units:
+        The native units of the data (may be ``None``).
+
+    Returns
+    -------
+    dict or None
+        The chosen style variant dict, or ``None`` if no match was found.
+    """
+    candidates = list(style_variants.values())
+
+    for style in candidates:
+        if are_equal(style.get("units"), target_units):
+            return style
+
+    for style in candidates:
+        if are_equal(style.get("units"), source_units):
+            return style
+
+    for style in candidates:
+        if "units" not in style:
+            return style
+
+    return None
+
+
 def guess_style(data, units=None, **kwargs):
     """
     Guess the style to be applied to the data based on its metadata.
@@ -106,89 +343,30 @@ def guess_style(data, units=None, **kwargs):
     if not schema.automatic_styles or schema.style_library is None:
         return styles.DEFAULT_STYLE
 
-    if schema.style_library not in PLUGINS:
-        path = Path(schema.style_library).expanduser()
-        identities_path = path / "identities"
-        styles_path = path / "auto-styles"
-    else:
-        identities_path = PLUGINS[schema.style_library]["identities"]
-        styles_path = PLUGINS[schema.style_library]["styles"]
-
-    identity = None
-
-    for fname in glob.glob(str(identities_path / "*")):
-        if os.path.isfile(fname):
-            with open(fname) as f:
-                config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
-
-        if any(criteria_matches(data, c) for c in config["criteria"]):
-            identity = config["id"]
-            break
-    else:
+    identity = _cache.find_identity(data)
+    if identity is None:
         return _fallback_style(data)
 
-    for fname in glob.glob(str(styles_path / "*")):
-        if os.path.isfile(fname):
-            with open(fname) as f:
-                style_config = yaml.load(f, Loader=yaml.SafeLoader)
-        else:
-            continue
-        if style_config["id"] == identity:
-            break
-    else:
+    style_config = _cache.get_style_config(identity)
+    if style_config is None:
         return _fallback_style(data)
+
+    style_variants = style_config["styles"]
 
     if schema.use_preferred_units:
-        style = style_config["styles"][style_config["optimal"]]
+        style = style_variants[style_config["optimal"]]
     else:
-        for _, style in style_config["styles"].items():
-            if are_equal(style.get("units"), units):
-                break
-        else:
-            # No style matching units found — try matching source units, or
-            # fall back to any style without explicit units
-            for _, style in style_config["styles"].items():
-                if are_equal(style.get("units"), source_units):
-                    break
-            else:
-                for _, style in style_config["styles"].items():
-                    if "units" not in style:
-                        break
-                else:
-                    return _fallback_style(data)
+        style = _select_style_variant(style_variants, units, source_units)
+        if style is None:
+            return _fallback_style(data)
 
-    # If the caller requested a specific target units that differs from the
-    # style variant's units, override the style units so the colorbar label
-    # reflects the actual plotted units (the Source handles the conversion).
-    style_units = style.get("units")
-    if units is not None and not are_equal(units, style_units):
+    # If the caller requested specific target units that differ from the
+    # style variant's own units, override so the colorbar label reflects
+    # the actual plotted units (unit conversion is handled by Source).
+    if units is not None and not are_equal(units, style.get("units")):
         kwargs.setdefault("units", units)
 
     return styles.Style.from_dict({**style, **kwargs})
-
-
-def _iter_named_styles():
-    """
-    Yield ``(name, style_dict)`` for every named style variant across all
-    registered style libraries.
-
-    Only variants that carry a ``name`` key are yielded.
-    """
-    seen_paths = set()
-    for plugin_paths in PLUGINS.values():
-        styles_path = plugin_paths["styles"]
-        for fname in sorted(glob.glob(str(styles_path / "*"))):
-            if not os.path.isfile(fname) or fname in seen_paths:
-                continue
-            seen_paths.add(fname)
-            with open(fname) as f:
-                config = yaml.load(f, Loader=yaml.SafeLoader)
-            for style_dict in config.get("styles", {}).values():
-                name = style_dict.get("name")
-                if name:
-                    yield name, style_dict
 
 
 def load_style(name, **kwargs):
@@ -224,14 +402,13 @@ def load_style(name, **kwargs):
     >>> style = earthkit.plots.styles.load_style("temperature-2m-turbo-celsius")
     >>> chart.contourf(data, style=style)
     """
-    for style_name, style_dict in _iter_named_styles():
-        if style_name == name:
-            return styles.Style.from_dict({**style_dict, **kwargs})
-    available = list_styles()
-    raise KeyError(f"No style named {name!r}. " f"Available styles: {available}")
+    style_dict = _cache.get_named_style(name)
+    if style_dict is not None:
+        return styles.Style.from_dict({**style_dict, **kwargs})
+    raise KeyError(f"No style named {name!r}. Available styles: {list_styles()}")
 
 
-def list_styles():
+def list_styles() -> list[str]:
     """
     Return a sorted list of all available named style names.
 
@@ -245,7 +422,7 @@ def list_styles():
     Examples
     --------
     >>> import earthkit.plots
-    >>> earthkit.plots.styles.list_styles()
+    >>> earthkit.plots.list_styles()
     ['mslp-contour-hpa', 'mslp-contour-pa', 'precipitation-turbo-kg-m2', ...]
     """
-    return sorted(name for name, _ in _iter_named_styles())
+    return _cache.list_named_styles()
