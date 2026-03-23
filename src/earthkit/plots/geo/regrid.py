@@ -47,12 +47,7 @@ class LegacyRegridExecutor:
         out_grid = _convert_spec(out_grid)
 
         print(f"Regrid specs: in_grid={in_grid}, out_grid={out_grid}")
-        LOG.debug(
-            "Regridding using precomputed regridder, in_grid=",
-            in_grid,
-            " out_grid=",
-            out_grid,
-        )
+        LOG.debug(f"Regridding using precomputed regridder, in_grid={in_grid}, out_grid={out_grid}")
 
         v = interpolate(array, in_grid=in_grid, out_grid=out_grid)
         # print(f"Regrid result: {v.max()}, {v.min()}, {v.shape}")
@@ -89,7 +84,7 @@ class MirRegridExecutor:
             if "icon" in in_grid.get("grid", "").lower():
                 _kwargs["interpolation"] = "nn"
 
-        LOG.debug("Regridding using MIR regridder, in_grid=", in_grid, " out_grid=", out_grid)
+        LOG.debug(f"Regridding using MIR regridder, in_grid={in_grid}, out_grid={out_grid}")
         r = regrid(array, in_grid=in_grid, out_grid=out_grid, **_kwargs)
         v = r[0]
         return v
