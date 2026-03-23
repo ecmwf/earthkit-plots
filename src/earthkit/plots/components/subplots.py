@@ -19,7 +19,6 @@ import matplotlib.dates as mdates
 import numpy as np
 
 from earthkit.plots.components.extractors import (
-    _apply_coordinate_unit_conversion,
     extract_plottables_1D,
     extract_plottables_2D,
     extract_plottables_vector_2D,
@@ -1575,7 +1574,7 @@ class Subplot:
         source_1 = get_source(
             data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units
         )
-        x_values, y1_values = _apply_coordinate_unit_conversion(source_1)
+        x_values, y1_values = source_1.x.values, source_1.y.values
 
         # ax.fill_between cannot handle datetime x-values (unlike ax.plot
         # which runs unit conversion automatically).  Force conversion here.
@@ -1609,7 +1608,7 @@ class Subplot:
             source_2 = get_source(
                 data_2, x=x, context=PlotContext.CARTESIAN_1D, units=units
             )
-            _, y2_values = _apply_coordinate_unit_conversion(source_2)
+            _, y2_values = source_2.x.values, source_2.y.values
 
         if drawstyle == "spline":
             from earthkit.plots.styles import spline_interpolate
@@ -1706,7 +1705,7 @@ class Subplot:
 
         if isinstance(x, xr.DataArray):
             source = get_source(x, context=PlotContext.CARTESIAN_1D)
-            x_val, y_val = _apply_coordinate_unit_conversion(source)
+            x_val, y_val = source.x.values, source.y.values
             # x_val/y_val are arrays; take the first (and typically only) element
             x_val = x_val.flat[0]
             y_val = y_val.flat[0]
@@ -1748,7 +1747,7 @@ class Subplot:
 
         if isinstance(xy, xr.DataArray):
             source = get_source(xy, context=PlotContext.CARTESIAN_1D)
-            x_val, y_val = _apply_coordinate_unit_conversion(source)
+            x_val, y_val = source.x.values, source.y.values
             x_val = x_val.flat[0]
             y_val = y_val.flat[0]
             s = SourceFormatter(source).format(s)

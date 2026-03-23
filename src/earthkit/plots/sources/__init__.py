@@ -733,6 +733,10 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     DataExtractor
         Appropriate extractor for the data type.
     """
+    # No data object — coordinate-only call (e.g. line(x=lons, y=lats))
+    if data is None:
+        return NumpyExtractor(None)
+
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
         return XarrayExtractor(data)
@@ -840,7 +844,10 @@ def get_source(
             data_obj = c
         elif isinstance(z, (np.ndarray, list)):
             data_obj = z
-        else:
+        elif not isinstance(x, (np.ndarray, list)) and not isinstance(
+            y, (np.ndarray, list)
+        ):
+            # No positional data and no coordinate arrays — nothing to plot.
             raise ValueError("No data provided to get_source()")
 
     # Merge kwargs into metadata

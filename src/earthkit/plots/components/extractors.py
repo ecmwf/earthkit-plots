@@ -16,13 +16,13 @@
 Data extraction and processing functions for plotting.
 
 This module provides functions that handle the extraction, processing, and preparation
-of data for various types of plots. It centralizes the logic for data source creation,
-style configuration, value processing, and specialized plotting operations.
+of data for various types of plots. It centralises the logic for data source creation,
+style configuration, value processing, and specialised plotting operations.
 
-The module is organized into three main categories:
+The module is organised into three main categories:
 1. Main extraction functions for different plot types
 2. Style and data processing utilities
-3. Specialized plotting functions for specific grid types
+3. Specialised plotting functions for specific grid types
 """
 
 import warnings
@@ -33,8 +33,7 @@ import numpy as np
 from cartopy.util import add_cyclic_point
 
 from earthkit.plots.geo import coordinate_reference_systems
-from earthkit.plots.identifiers import identify_primary
-from earthkit.plots.resample import Unstructured
+from earthkit.plots.identifiers import identify_primary_axis
 from earthkit.plots.resample.grids import needs_cyclic_point
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
@@ -120,7 +119,7 @@ def _auto_resample_policy(
         When the method/grid combination is explicitly unsupported (e.g.
         pcolormesh with a structured grid).
     """
-    from earthkit.plots.resample import Bilinear, Chain, Regrid
+    from earthkit.plots.resample import Bilinear, Chain, Regrid, Unstructured
 
     is_contour = method_name.startswith("contour")
     is_pcolormesh = method_name == "pcolormesh"
@@ -322,8 +321,8 @@ def extract_plottables_1D(
     else:
         z_values = None
 
-    # Step 4: Apply unit conversion to x and y values if needed
-    x_values, y_values = _apply_coordinate_unit_conversion(source)
+    # Step 4: Extract x and y values (unit conversion handled inside Source)
+    x_values, y_values = source.x.values, source.y.values
 
     # Step 5: Apply sampling if specified
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
@@ -339,45 +338,17 @@ def extract_plottables_1D(
     # cannot be applied to scatter — they produce a regular pixel grid that only
     # makes sense for pcolormesh/contour/contourf.  Raise an informative error so
     # the user knows to use Regrid() instead.
-    if resample is not False and resample is not None:
-        from earthkit.plots.resample import Chain, Regrid, Resample, _PixelSampler
-
-        # Check for pixel-samplers at the top level or inside a Chain
-        _top_level_pixel = isinstance(resample, _PixelSampler)
-        _chain_pixel = isinstance(resample, Chain) and resample.pixel_step is not None
-        if _top_level_pixel or _chain_pixel:
-            raise ValueError(
-                f"{resample.__class__.__name__} is a pixel-sampler and cannot be "
-                "used with scatter (it produces a regular image grid, not discrete "
-                "points).  Use Regrid() to resample to a regular lat/lon grid "
-                "before scattering, e.g. resample=Regrid()."
-            )
-
-        if isinstance(resample, Chain):
-            data_steps = resample.data_steps
-        else:
-            data_steps = [resample]
-
-        for step in data_steps:
-            if isinstance(step, Regrid):
-                context = _infer_plot_context(subplot, method_name)
-                x_values, y_values, z_values = step.apply(
-                    x_values,
-                    y_values,
-                    z_values,
-                    gridspec=source.gridspec,
-                    context=context,
-                )
-            elif isinstance(step, Unstructured):
-                x_values, y_values, z_values = step.apply(
-                    x_values,
-                    y_values,
-                    z_values,
-                    source_crs=source.crs,
-                    target_crs=getattr(subplot, "crs", None),
-                )
-            elif isinstance(step, Resample):
-                x_values, y_values, z_values = step.apply(x_values, y_values, z_values)
+    x_values, y_values, z_values, _ = _apply_data_resampling(
+        x_values,
+        y_values,
+        z_values,
+        resample,
+        source,
+        subplot,
+        method_name,
+        allow_pixel_samplers=False,
+        kwargs=kwargs,
+    )
 
     # Step 6: Handle no-style case for z values
     if no_style and z_values is None:
@@ -392,7 +363,7 @@ def extract_plottables_1D(
     from earthkit.plots.components.layers import Layer
 
     # Determine primary axis for unit conversion display
-    primary_axis = _identify_primary_axis(source, source._x_spec, source._y_spec)
+    primary_axis = identify_primary_axis(source, source._x_spec, source._y_spec)
 
     # Store axis-specific units for formatter
     axis_units = {}
@@ -432,112 +403,124 @@ def extract_plottables_1D(
     return mappable
 
 
-def _identify_primary_axis(source, x, y):
+def _apply_data_resampling(
+    x,
+    y,
+    z,
+    resample,
+    source,
+    subplot,
+    method_name,
+    *,
+    allow_pixel_samplers: bool = True,
+    kwargs: dict | None = None,
+):
     """
-    Identify which axis (x or y) contains the primary data for unit conversion.
+    Apply data-space resampling steps to ``(x, y, z)`` coordinate arrays.
 
-    This function uses the identify_primary function from identifiers.py to determine
-    which variable contains the actual data values (as opposed to coordinate dimensions).
+    This is the shared implementation for the resampling loops in
+    :func:`extract_plottables_1D` and :func:`extract_plottables_2D`.  It
+    handles ``Chain``, ``Regrid``, ``Unstructured``, and generic ``Resample``
+    steps.  Pixel-samplers (``_PixelSampler`` subclasses such as ``Bilinear``
+    and ``NearestNeighbour``) need subplot/CRS/bbox context that is not
+    available at this stage of the pipeline.
 
     Parameters
     ----------
+    x, y, z : array-like
+        Coordinate and data arrays to resample.
+    resample : Resample or Chain or False or None
+        The resample object to apply.  ``False`` and ``None`` are no-ops
+        (returned immediately with the original arrays).
     source : Source
-        The data source object.
-    x, y : str, array-like, or None
-        X and Y coordinate values or names.
+        The data source; used for ``gridspec`` and ``crs``.
+    subplot : Subplot
+        The subplot instance; used for ``crs`` (geographic plots only).
+    method_name : str
+        The plotting method name; forwarded to ``_infer_plot_context`` when
+        a ``Regrid`` step is present.
+    allow_pixel_samplers : bool, default True
+        When ``False`` (1D / scatter context), raise ``ValueError`` if a
+        pixel-sampler step is encountered.  When ``True`` (2D context),
+        pixel steps are silently skipped here (they are applied later in
+        Step 8.5 where subplot/CRS/bbox context is available).
+    kwargs : dict or None
+        The live ``kwargs`` dict forwarded from the caller.  Modified
+        in-place when an ``Unstructured`` step with ``step.transform=True``
+        pops ``transform`` / ``transform_first`` keys.
 
     Returns
     -------
-    str or None
-        'x', 'y', or None if no primary axis can be identified.
+    x, y, z : array-like
+        Resampled coordinate and data arrays.
+    extract_domain_suppressed : bool
+        ``True`` when an ``Unstructured`` step has already clipped the
+        coordinates to the target CRS and the caller should skip the normal
+        domain-extraction step.  Always ``False`` in 1D context.
     """
-    # Try to get the underlying data object for analysis
-    data = None
-    if hasattr(source, "data") and source.data is not None:
-        data = source.data
-    elif hasattr(source, "_data") and source._data is not None:
-        data = source._data
+    if resample is False or resample is None:
+        return x, y, z, False
 
-    if data is None:
-        return None
+    from earthkit.plots.resample import (
+        Chain,
+        Regrid,
+        Resample,
+        Unstructured,
+        _PixelSampler,
+    )
 
-    # Use identify_primary to find the primary variable/dimension
-    primary = identify_primary(data)
+    extract_domain_suppressed = False
 
-    if primary is None:
-        return None
+    if isinstance(resample, Chain):
+        # _PixelSampler check applies to the pixel_step inside the Chain
+        if not allow_pixel_samplers and resample.pixel_step is not None:
+            raise ValueError(
+                f"{resample.pixel_step.__class__.__name__} is a pixel-sampler and "
+                "cannot be used with scatter (it produces a regular image grid, not "
+                "discrete points).  Use Regrid() to resample to a regular lat/lon "
+                "grid before scattering, e.g. resample=Regrid()."
+            )
+        data_steps = resample.data_steps
+    elif isinstance(resample, _PixelSampler):
+        if not allow_pixel_samplers:
+            raise ValueError(
+                f"{resample.__class__.__name__} is a pixel-sampler and cannot be "
+                "used with scatter (it produces a regular image grid, not discrete "
+                "points).  Use Regrid() to resample to a regular lat/lon grid "
+                "before scattering, e.g. resample=Regrid()."
+            )
+        # In the 2D context pixel-samplers are deferred to Step 8.5.
+        data_steps = []
+    else:
+        data_steps = [resample]
 
-    # Check if the primary variable/name corresponds to x or y coordinates
-    # If x or y were specified as strings, check if primary matches them
-    if isinstance(x, str) and primary == x:
-        return "x"
-    if isinstance(y, str) and primary == y:
-        return "y"
+    for step in data_steps:
+        if isinstance(step, Regrid):
+            context = _infer_plot_context(subplot, method_name)
+            x, y, z = step.apply(
+                x,
+                y,
+                z,
+                gridspec=source.gridspec,
+                context=context,
+            )
+        elif isinstance(step, Unstructured):
+            x, y, z = step.apply(
+                x,
+                y,
+                z,
+                source_crs=source.crs,
+                target_crs=getattr(subplot, "crs", None),
+            )
+            if step.transform:
+                if kwargs is not None:
+                    kwargs.pop("transform", None)
+                    kwargs.pop("transform_first", None)
+                extract_domain_suppressed = True
+        elif isinstance(step, Resample):
+            x, y, z = step.apply(x, y, z)
 
-    # For xarray data, check if we can infer the axis from the data structure
-    if hasattr(data, "dims"):
-        # If primary is a variable name (Dataset case), check where it maps
-        if hasattr(data, "data_vars") and primary in data.data_vars:
-            # The primary is a data variable - we need to figure out which axis it maps to
-            # This is tricky without more context, so we'll use heuristics
-
-            # If x and y are dimension names, check which one the primary variable uses
-            if isinstance(x, str) and isinstance(y, str):
-                var_dims = list(data[primary].dims)
-                if x in var_dims and y not in var_dims:
-                    return "x"
-                elif y in var_dims and x not in var_dims:
-                    return "y"
-                elif len(var_dims) == 1:
-                    # Single dimension - check if it's more likely x or y
-                    dim = var_dims[0]
-                    if dim == x:
-                        return "x"
-                    elif dim == y:
-                        return "y"
-
-            # Default heuristic: if it's a 1D variable, assume it maps to y (values)
-            if len(data[primary].dims) == 1:
-                return "y"
-
-        # If primary is a DataArray name, assume it maps to y (the data values)
-        elif hasattr(data, "name") and primary == data.name:
-            return "y"
-
-        # If primary is a dimension name (fallback case), use position heuristics
-        elif primary in data.dims:
-            dims = list(data.dims)
-            if len(dims) == 2 and dims.index(primary) == 1:
-                return "y"
-            else:
-                return "x"
-
-    return None
-
-
-def _apply_coordinate_unit_conversion(source):
-    """
-    Get x and y coordinate values from source (unit conversion already applied).
-
-    Unit conversion is now handled inside the Source class when units/x_units/y_units
-    are passed to get_source(). This function simply extracts the already-converted
-    values from the source.
-
-    Parameters
-    ----------
-    source : Source
-        The data source object (already configured with target units).
-
-    Returns
-    -------
-    tuple
-        A tuple of (x_values, y_values) with unit conversion already applied.
-    """
-    # Unit conversion is handled by Source class when accessing these properties
-    x_values = source.x.values
-    y_values = source.y.values
-
-    return x_values, y_values
+    return x, y, z, extract_domain_suppressed
 
 
 def extract_plottables_2D(
@@ -620,7 +603,7 @@ def extract_plottables_2D(
     # Step 0: Handle deprecation and extract units from style
     units, style = _prepare_style_and_units(style, units, auto_style)
 
-    from earthkit.plots.resample import _AUTO
+    from earthkit.plots.resample import _AUTO, Unstructured
 
     # Translate legacy `interpolate` kwarg to `resample`
     if "interpolate" in kwargs and resample is None:
@@ -720,53 +703,19 @@ def extract_plottables_2D(
         # later in Step 8.5 since they need subplot/CRS/bbox context that is
         # unavailable at construction time.  All other Resample subclasses
         # operate directly on coordinate arrays here.
-        if resample is not False and resample is not None:
-            from earthkit.plots.resample import Chain, Regrid, Resample, _PixelSampler
-
-            # Unwrap Chain into its data-space steps; the pixel step (if any)
-            # will be picked up at Step 8.5.
-            if isinstance(resample, Chain):
-                data_steps = resample.data_steps
-            elif not isinstance(resample, _PixelSampler):
-                data_steps = [resample]
-            else:
-                data_steps = []
-
-            for step in data_steps:
-                if isinstance(step, Regrid):
-                    # Regrid resamples to a regular lat/lon grid in data space
-                    # via earthkit-geo.  Pass the source gridspec so the
-                    # resampler can validate that the grid type is supported.
-                    context = _infer_plot_context(subplot, method_name)
-                    x_values, y_values, z_values = step.apply(
-                        x_values,
-                        y_values,
-                        z_values,
-                        gridspec=source.gridspec,
-                        context=context,
-                    )
-                elif isinstance(step, Unstructured):
-                    # Unstructured needs CRS context to transform coordinates
-                    # before building the output grid.
-                    x_values, y_values, z_values = step.apply(
-                        x_values,
-                        y_values,
-                        z_values,
-                        source_crs=source.crs,
-                        target_crs=subplot.crs,
-                    )
-                    # The output is already in the target CRS, so drop any
-                    # cartopy transform kwarg to avoid a double-transformation,
-                    # and skip domain extraction (coordinates are already clipped
-                    # to the valid projection area by the non-finite filter).
-                    if step.transform:
-                        kwargs.pop("transform", None)
-                        kwargs.pop("transform_first", None)
-                        extract_domain = False
-                elif isinstance(step, Resample):
-                    x_values, y_values, z_values = step.apply(
-                        x_values, y_values, z_values
-                    )
+        x_values, y_values, z_values, _domain_suppressed = _apply_data_resampling(
+            x_values,
+            y_values,
+            z_values,
+            resample,
+            source,
+            subplot,
+            method_name,
+            allow_pixel_samplers=True,
+            kwargs=kwargs,
+        )
+        if _domain_suppressed:
+            extract_domain = False
 
         # Step 7: Handle no-style case for z values
         if no_style and z_values is None:

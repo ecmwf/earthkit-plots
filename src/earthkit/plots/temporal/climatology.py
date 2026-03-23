@@ -748,9 +748,6 @@ class Climatology(TimeSeries):
         """
         import xarray as xr
 
-        from earthkit.plots.components.extractors import (
-            _apply_coordinate_unit_conversion,
-        )
         from earthkit.plots.metadata.formatters import SourceFormatter
         from earthkit.plots.sources import get_source
         from earthkit.plots.sources.context import PlotContext
@@ -763,7 +760,7 @@ class Climatology(TimeSeries):
             # Build source from the *original* DataArray so format strings
             # (e.g. {time:%Y}) see the real year, not the reference year.
             source = get_source(x, context=PlotContext.CARTESIAN_1D)
-            _, y_val = _apply_coordinate_unit_conversion(source)
+            _, y_val = source.x.values, source.y.values
             y_val = y_val.flat[0]
             if y is not None:
                 s = y  # text(da, "hello") calling convention
@@ -797,9 +794,6 @@ class Climatology(TimeSeries):
         """
         import xarray as xr
 
-        from earthkit.plots.components.extractors import (
-            _apply_coordinate_unit_conversion,
-        )
         from earthkit.plots.metadata.formatters import SourceFormatter
         from earthkit.plots.sources import get_source
         from earthkit.plots.sources.context import PlotContext
@@ -810,7 +804,7 @@ class Climatology(TimeSeries):
 
         if isinstance(xy, xr.DataArray):
             source = get_source(xy, context=PlotContext.CARTESIAN_1D)
-            _, y_val = _apply_coordinate_unit_conversion(source)
+            _, y_val = source.x.values, source.y.values
             y_val = y_val.flat[0]
             s = SourceFormatter(source).format(s)
             x_plot, _ = self._extract_ref_year_x(xy)

@@ -276,6 +276,72 @@ def xarray_variable_name(dataset, element=None):
     return label
 
 
+def identify_primary_axis(source, x, y):
+    """
+    Identify which axis (x or y) contains the primary data for unit conversion.
+
+    Parameters
+    ----------
+    source : Source
+        The data source object.
+    x, y : str, array-like, or None
+        X and Y coordinate values or names.
+
+    Returns
+    -------
+    str or None
+        'x', 'y', or None if no primary axis can be identified.
+    """
+    data = None
+    if hasattr(source, "data") and source.data is not None:
+        data = source.data
+    elif hasattr(source, "_data") and source._data is not None:
+        data = source._data
+
+    if data is None:
+        return None
+
+    primary = identify_primary(data)
+
+    if primary is None:
+        return None
+
+    if isinstance(x, str) and primary == x:
+        return "x"
+    if isinstance(y, str) and primary == y:
+        return "y"
+
+    if hasattr(data, "dims"):
+        if hasattr(data, "data_vars") and primary in data.data_vars:
+            if isinstance(x, str) and isinstance(y, str):
+                var_dims = list(data[primary].dims)
+                if x in var_dims and y not in var_dims:
+                    return "x"
+                elif y in var_dims and x not in var_dims:
+                    return "y"
+                elif len(var_dims) == 1:
+                    dim = var_dims[0]
+                    if dim == x:
+                        return "x"
+                    elif dim == y:
+                        return "y"
+
+            if len(data[primary].dims) == 1:
+                return "y"
+
+        elif hasattr(data, "name") and primary == data.name:
+            return "y"
+
+        elif primary in data.dims:
+            dims = list(data.dims)
+            if len(dims) == 2 and dims.index(primary) == 1:
+                return "y"
+            else:
+                return "x"
+
+    return None
+
+
 VECTOR_CHECKS: list[Callable[[set], tuple[str, str] | None]] = [find_uv_pair]
 
 
