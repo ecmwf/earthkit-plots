@@ -24,7 +24,12 @@ the responsibility of the resample module's own test suite.
 import numpy as np
 import pytest
 
-from earthkit.plots.components.extractors import _apply_data_resampling
+from earthkit.plots.components.extractors import (
+    PixelSamplingResult,
+    _apply_data_resampling,
+    _apply_pixel_sampling,
+    _get_subplot_bbox,
+)
 
 # ---------------------------------------------------------------------------
 # Minimal fakes — enough for isinstance() checks to work correctly
@@ -458,3 +463,556 @@ class TestChainDispatch:
         assert pixel.calls == []
         np.testing.assert_array_equal(rx, x * 2)
         assert suppressed is False
+
+
+# ===========================================================================
+# Tests for _apply_pixel_sampling
+#
+# Scope: verify the branching logic inside _apply_pixel_sampling.
+# CRS/subplot/style dependencies are replaced by lightweight fakes.
+# Calls to reproject_to_grid / _reproject_nn are intercepted via
+# monkeypatching so that we test dispatch logic, not reprojection numerics.
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Minimal fakes for pixel-sampling tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeCRS:
+    """Pretend CRS — only class name matters for same-CRS detection."""
+
+    def __init__(self, name="PlateCarree"):
+        self.__class__ = type(name, (_FakeCRS,), {})
+
+
+class _FakePixelSamplerResolvable(_FakePixelSampler):
+    """Pixel sampler that also exposes resolve()."""
+
+    def __init__(self, nx=10, ny=10, **kw):
+        super().__init__(**kw)
+        self._nx = nx
+        self._ny = ny
+
+    def resolve(self, bbox, crs=None):
+        return self._nx, self._ny
+
+
+class _FakeNearestNeighbour(_FakePixelSamplerResolvable):
+    """Fake NearestNeighbour sampler."""
+
+    pass
+
+
+class _FakeBilinear(_FakePixelSamplerResolvable):
+    """Fake Bilinear sampler."""
+
+    pass
+
+
+class _FakeAx:
+    """Minimal matplotlib axes fake."""
+
+    def __init__(self, extent=(-180, 180, -90, 90)):
+        self._extent = extent
+        self.imshow_calls = []
+
+    def get_extent(self, crs=None):
+        return self._extent
+
+    def imshow(self, image, extent=None, origin=None, **kwargs):
+        self.imshow_calls.append(
+            {"image": image, "extent": extent, "origin": origin, "kwargs": kwargs}
+        )
+        return object()  # fake mappable
+
+
+class _FakeSubplotWithCRS:
+    def __init__(self, crs=None, ax=None, domain=None):
+        self.crs = crs or _FakeCRS("Mollweide")
+        self.ax = ax or _FakeAx()
+        self.domain = domain
+
+
+class _FakeSubplotNoCRS:
+    """Subplot without a crs attribute — non-geographic axes."""
+
+    ax = _FakeAx()
+
+
+class _FakeSourcePS:
+    def __init__(self, crs=None):
+        self.crs = crs
+        self.domain = None
+
+
+class _FakeStyle:
+    def to_pcolormesh_kwargs(self, data):
+        return {"vmin": 0.0, "vmax": 1.0}
+
+
+# ---------------------------------------------------------------------------
+# Helpers to monkeypatch pixel-sampler isinstance checks
+# ---------------------------------------------------------------------------
+
+
+def _patch_ps_module(monkeypatch, nn_cls, bilinear_cls, pixel_sampler_cls, chain_cls):
+    import earthkit.plots.resample as rm
+
+    monkeypatch.setattr(rm, "NearestNeighbour", nn_cls, raising=False)
+    monkeypatch.setattr(rm, "Bilinear", bilinear_cls, raising=False)
+    monkeypatch.setattr(rm, "_PixelSampler", pixel_sampler_cls, raising=False)
+    monkeypatch.setattr(rm, "Chain", chain_cls, raising=False)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def regular_grid():
+    """2-D regular lat/lon meshgrid with scalar z."""
+    lons = np.linspace(-10, 10, 5)
+    lats = np.linspace(40, 60, 4)
+    lon2d, lat2d = np.meshgrid(lons, lats)
+    z = np.ones((4, 5))
+    return lon2d, lat2d, z
+
+
+@pytest.fixture()
+def scattered():
+    """1-D scattered (x, y, z) arrays."""
+    x = np.array([-5.0, 0.0, 5.0])
+    y = np.array([45.0, 50.0, 55.0])
+    z = np.array([1.0, 2.0, 3.0])
+    return x, y, z
+
+
+# ---------------------------------------------------------------------------
+# No-op guard conditions
+# ---------------------------------------------------------------------------
+
+
+class TestPixelSamplingNoOp:
+    def test_no_pixel_sampler_returns_unchanged(self, regular_grid):
+        """Non-pixel resample object → inputs returned unchanged."""
+        x, y, z = regular_grid
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=_FakeResample(),  # generic, not a _PixelSampler
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=None,
+            kwargs={},
+        )
+        assert isinstance(result, PixelSamplingResult)
+        np.testing.assert_array_equal(result.x, x)
+        assert result.reprojected is False
+        assert result.mappable is None
+
+    def test_no_style_returns_unchanged(self, monkeypatch, regular_grid):
+        """no_style=True → pixel sampling skipped entirely."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        sampler = _FakeNearestNeighbour()
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=True,
+            style=None,
+            data_crs=None,
+            kwargs={},
+        )
+        assert result.reprojected is False
+        assert result.mappable is None
+
+    def test_unsupported_method_returns_unchanged(self, monkeypatch, regular_grid):
+        """Method 'scatter' does not support pixel sampling."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        sampler = _FakeBilinear()
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="scatter",
+            no_style=False,
+            style=None,
+            data_crs=None,
+            kwargs={},
+        )
+        assert result.reprojected is False
+
+    def test_no_crs_on_subplot_returns_unchanged(self, monkeypatch, regular_grid):
+        """Non-geographic subplot (no .crs) → no-op."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        sampler = _FakeBilinear()
+        result = _apply_pixel_sampling(
+            _FakeSubplotNoCRS(),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=None,
+            kwargs={},
+        )
+        assert result.reprojected is False
+
+    def test_same_crs_non_scattered_returns_unchanged(self, monkeypatch, regular_grid):
+        """Same source and target CRS with non-scattered data → no-op."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        shared_crs = _FakeCRS("PlateCarree")
+        subplot = _FakeSubplotWithCRS(crs=shared_crs)
+        sampler = _FakeBilinear()
+        result = _apply_pixel_sampling(
+            subplot,
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=shared_crs,
+            kwargs={},
+        )
+        assert result.reprojected is False
+
+
+# ---------------------------------------------------------------------------
+# Bilinear reprojection path
+# ---------------------------------------------------------------------------
+
+
+class TestBilinearPath:
+    def test_bilinear_sets_transform_and_reprojected(self, monkeypatch, regular_grid):
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+
+        reprojected_arrays = [np.ones((10, 10)), np.ones((10, 10)), np.ones((10, 10))]
+        monkeypatch.setattr(
+            "earthkit.plots.components.extractors._reproject_bilinear",
+            lambda *a, **kw: tuple(reprojected_arrays),
+        )
+
+        target_crs = _FakeCRS("Mollweide")
+        subplot = _FakeSubplotWithCRS(crs=target_crs)
+        sampler = _FakeBilinear()
+        kwargs = {}
+
+        result = _apply_pixel_sampling(
+            subplot,
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs=kwargs,
+        )
+
+        assert result.reprojected is True
+        assert result.mappable is None
+        assert kwargs.get("transform") is target_crs
+
+    def test_pcolormesh_also_triggers_bilinear(self, monkeypatch, regular_grid):
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        monkeypatch.setattr(
+            "earthkit.plots.components.extractors._reproject_bilinear",
+            lambda *a, **kw: (x, y, z),
+        )
+        sampler = _FakeBilinear()
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide")),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="pcolormesh",
+            no_style=False,
+            style=None,
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs={},
+        )
+        assert result.reprojected is True
+
+
+# ---------------------------------------------------------------------------
+# NearestNeighbour — regular grid → imshow path
+# ---------------------------------------------------------------------------
+
+
+class TestNearestNeighbourImshowPath:
+    def test_regular_grid_produces_mappable(self, monkeypatch, regular_grid):
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+
+        fake_image = np.ones((10, 10))
+        fake_extent = (-10, 10, 40, 60)
+        monkeypatch.setattr(
+            "earthkit.plots.resample.reproject._reproject_nn",
+            lambda *a, **kw: (fake_image, fake_extent),
+        )
+        # Also patch the module-level import path used inside the function
+        import earthkit.plots.resample.reproject as rp
+
+        monkeypatch.setattr(
+            rp, "_reproject_nn", lambda *a, **kw: (fake_image, fake_extent)
+        )
+
+        ax = _FakeAx()
+        subplot = _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide"), ax=ax)
+        sampler = _FakeNearestNeighbour()
+        result = _apply_pixel_sampling(
+            subplot,
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=_FakeStyle(),
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs={},
+        )
+
+        assert result.reprojected is True
+        assert result.mappable is not None
+        assert len(ax.imshow_calls) == 1
+        call = ax.imshow_calls[0]
+        assert call["extent"] == fake_extent
+        assert call["origin"] == "lower"
+
+    def test_imshow_strips_transform_kwargs(self, monkeypatch, regular_grid):
+        """transform and transform_first must not be forwarded to imshow."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        import earthkit.plots.resample.reproject as rp
+
+        monkeypatch.setattr(
+            rp, "_reproject_nn", lambda *a, **kw: (np.ones((10, 10)), (-10, 10, 40, 60))
+        )
+
+        ax = _FakeAx()
+        subplot = _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide"), ax=ax)
+        sampler = _FakeNearestNeighbour()
+        kwargs = {"transform": "PLATE_CARREE", "transform_first": True, "alpha": 0.8}
+        _apply_pixel_sampling(
+            subplot,
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs=kwargs,
+        )
+
+        forwarded = ax.imshow_calls[0]["kwargs"]
+        assert "transform" not in forwarded
+        assert "transform_first" not in forwarded
+        assert forwarded.get("alpha") == 0.8
+
+
+# ---------------------------------------------------------------------------
+# NearestNeighbour — curvilinear fallback to Bilinear
+# ---------------------------------------------------------------------------
+
+
+class TestNearestNeighbourCurvilinearFallback:
+    def test_curvilinear_grid_falls_back_to_bilinear(self, monkeypatch):
+        """Curvilinear NN grid falls back to _reproject_bilinear."""
+        # Build a deliberately non-regular 2-D grid (rows not constant)
+        x = np.array([[0, 1, 2], [0.5, 1.5, 2.5]])
+        y = np.array([[40, 40, 40], [50, 51, 52]])  # not constant along rows
+        z = np.ones((2, 3))
+
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+
+        bilinear_called = []
+        monkeypatch.setattr(
+            "earthkit.plots.components.extractors._reproject_bilinear",
+            lambda *a, **kw: (bilinear_called.append(kw) or (x, y, z)),
+        )
+
+        sampler = _FakeNearestNeighbour()
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide")),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=sampler,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs={},
+        )
+
+        assert len(bilinear_called) == 1
+        assert bilinear_called[0]["use_nearest"] is True
+        assert result.reprojected is True
+        assert result.mappable is None
+
+
+# ---------------------------------------------------------------------------
+# Chain with pixel step
+# ---------------------------------------------------------------------------
+
+
+class TestChainWithPixelStep:
+    def test_chain_pixel_step_used_as_sampler(self, monkeypatch, regular_grid):
+        """Pixel step inside a Chain is used when CRS differs."""
+        x, y, z = regular_grid
+        _patch_ps_module(
+            monkeypatch,
+            _FakeNearestNeighbour,
+            _FakeBilinear,
+            _FakePixelSamplerResolvable,
+            _FakeChain,
+        )
+        monkeypatch.setattr(
+            "earthkit.plots.components.extractors._reproject_bilinear",
+            lambda *a, **kw: (x, y, z),
+        )
+
+        pixel = _FakeBilinear()
+        chain = _FakeChain(data_steps=[], pixel_step=pixel)
+        result = _apply_pixel_sampling(
+            _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide")),
+            _FakeSourcePS(),
+            x,
+            y,
+            z,
+            resample=chain,
+            method_name="contourf",
+            no_style=False,
+            style=None,
+            data_crs=_FakeCRS("PlateCarree"),
+            kwargs={},
+        )
+        assert result.reprojected is True
+
+
+# ---------------------------------------------------------------------------
+# _get_subplot_bbox
+# ---------------------------------------------------------------------------
+
+
+class TestGetSubplotBbox:
+    def test_uses_ax_get_extent(self):
+        ax = _FakeAx(extent=(-90, 90, -45, 45))
+        subplot = _FakeSubplotWithCRS(ax=ax)
+        bbox = _get_subplot_bbox(subplot, subplot.crs)
+        assert bbox == (-90, 90, -45, 45)
+
+    def test_falls_back_to_domain_bbox(self):
+        class _FakeAx2:
+            def get_extent(self, crs=None):
+                raise AttributeError("no get_extent")
+
+        class _FakeDomain:
+            class bbox:
+                @staticmethod
+                def to_cartopy_bounds():
+                    return (-10, 10, 40, 60)
+
+        subplot = type(
+            "S", (), {"ax": _FakeAx2(), "domain": _FakeDomain(), "crs": None}
+        )()
+        bbox = _get_subplot_bbox(subplot, None)
+        assert bbox == (-10, 10, 40, 60)
+
+    def test_falls_back_to_global_when_no_domain(self):
+        class _FakeAx3:
+            def get_extent(self, crs=None):
+                raise AttributeError
+
+        subplot = type("S", (), {"ax": _FakeAx3(), "domain": None, "crs": None})()
+        bbox = _get_subplot_bbox(subplot, None)
+        assert bbox == (-180, 180, -90, 90)

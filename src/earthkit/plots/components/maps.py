@@ -180,7 +180,7 @@ class Map(Subplot):
                 "grid_cells does not support the 'resample' argument. "
                 "Use pcolormesh with resample=Bilinear(...) or resample=NearestNeighbour(...) instead."
             )
-        from earthkit.plots.components.extractors import _USE_NN, extract_plottables_2D
+        from earthkit.plots.components.extractors import extract_plottables_2D
 
         return extract_plottables_2D(
             subplot=self,
@@ -193,7 +193,7 @@ class Map(Subplot):
             every=every,
             auto_style=auto_style,
             extract_domain=True,
-            resample=_USE_NN,
+            use_nn_sampling=True,
             grid=grid,
             **kwargs,
         )

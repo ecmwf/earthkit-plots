@@ -46,13 +46,6 @@ from earthkit.plots.styles import (
     auto,
 )
 
-# Private sentinel used internally by grid_cells to signal that the fast
-# nearest-neighbour pixel-sampling path should be used.  This is distinct from
-# plain False (which pcolormesh uses to mean "no resampling") so that
-# _handle_specialized_grids can tell the two apart.
-_USE_NN = object()
-
-
 # ---------------------------------------------------------------------------
 # Auto-resample policy
 # ---------------------------------------------------------------------------
@@ -237,7 +230,6 @@ def extract_plottables_1D(
     z_units: str | None = None,
     every: int | None = None,
     resample: Any = False,
-    source_units: str | None = None,
     auto_style: bool = False,
     metadata: dict[str, Any] | None = None,
     label: str | None = None,
@@ -268,8 +260,6 @@ def extract_plottables_1D(
         Units for the data values.
     every : int, optional
         Sampling interval for data reduction.
-    source_units : str, optional
-        Units of the source data.
     auto_style : bool, default=False
         Deprecated. Use style="auto" instead. Whether to automatically guess the appropriate style.
     metadata : dict, optional
@@ -523,6 +513,281 @@ def _apply_data_resampling(
     return x, y, z, extract_domain_suppressed
 
 
+class PixelSamplingResult:
+    """
+    Return value of :func:`_apply_pixel_sampling`.
+
+    Attributes
+    ----------
+    x, y, z : np.ndarray
+        Coordinate and data arrays after sampling (may equal the inputs
+        unchanged when no sampling was performed).
+    reprojected : bool
+        True when the data were projected onto the target CRS grid.
+        Used by the caller to suppress cyclic-point wrapping (Step 9)
+        and skip the normal plot call (Step 11).
+    mappable : matplotlib artist or None
+        Pre-rendered artist produced by the NearestNeighbour ``imshow``
+        path.  ``None`` for all other paths; the caller must render
+        the plot itself.
+    """
+
+    __slots__ = ("x", "y", "z", "reprojected", "mappable")
+
+    def __init__(self, x, y, z, *, reprojected=False, mappable=None):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.reprojected = reprojected
+        self.mappable = mappable
+
+
+def _apply_pixel_sampling(
+    subplot,
+    source,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    z_values: np.ndarray | None,
+    *,
+    resample,
+    method_name: str,
+    no_style: bool,
+    style,
+    data_crs,
+    kwargs: dict,
+) -> PixelSamplingResult:
+    """
+    Apply pixel-space resampling (Bilinear / NearestNeighbour) to the data.
+
+    Unlike the data-space resamplers handled by :func:`_apply_data_resampling`,
+    pixel samplers operate in the *target projection's pixel grid* and therefore
+    need subplot/CRS/bbox context that is only available at render time.
+
+    The function is a no-op (returns inputs unchanged) when:
+
+    * *resample* carries no pixel-sampler step.
+    * *no_style* is True (raw matplotlib path skips reprojection).
+    * *method_name* is not a contour or pcolormesh variant.
+    * The subplot has no CRS attribute (non-geographic axes).
+    * Source and target CRS are the same *and* the data is not scattered.
+
+    Parameters
+    ----------
+    subplot :
+        The target subplot; must expose ``crs`` and ``ax`` for geographic
+        plots.
+    source :
+        The data source; used to fall back to ``source.crs`` when
+        *data_crs* is None and to access ``domain``.
+    x_values, y_values, z_values :
+        Coordinate and data arrays from the preceding pipeline steps.
+    resample :
+        The active resample object (``Chain``, ``_PixelSampler``, or any
+        other value — the latter is treated as "no pixel sampler").
+    method_name : str
+        Name of the plotting method (e.g. ``"contourf"``, ``"pcolormesh"``).
+    no_style : bool
+        When True the raw matplotlib path is used; pixel sampling is skipped.
+    style :
+        The active :class:`~earthkit.plots.styles.Style`; used only by the
+        NearestNeighbour ``imshow`` path to derive colour-mapping kwargs.
+    data_crs :
+        CRS of the source data.  May be ``None`` for plain lat/lon data; the
+        function falls back to ``cartopy.crs.PlateCarree()`` in that case.
+    kwargs : dict
+        Live kwargs dict from the caller.  Modified in-place when the
+        Bilinear path sets ``kwargs["transform"]``.
+
+    Returns
+    -------
+    PixelSamplingResult
+        Contains updated ``x``, ``y``, ``z`` arrays plus ``reprojected``
+        and ``mappable`` flags (see :class:`PixelSamplingResult`).
+    """
+    from earthkit.plots.resample import Chain, NearestNeighbour, _PixelSampler
+
+    # Resolve the effective pixel sampler from a plain sampler or a Chain.
+    if isinstance(resample, Chain):
+        pixel_sampler = resample.pixel_step
+    elif isinstance(resample, _PixelSampler):
+        pixel_sampler = resample
+    else:
+        pixel_sampler = None
+
+    # Guard: nothing to do when there is no pixel sampler, when the caller
+    # has opted out of styling, or when the method doesn't support it.
+    supports_pixel_sampling = (
+        method_name.startswith("contour") or method_name == "pcolormesh"
+    )
+    if (
+        pixel_sampler is None
+        or no_style
+        or not supports_pixel_sampling
+        or not hasattr(subplot, "crs")
+    ):
+        return PixelSamplingResult(x_values, y_values, z_values)
+
+    target_crs = subplot.crs
+    resolved_data_crs = data_crs or ccrs.PlateCarree()
+
+    # Only reproject when the CRS differs OR the data is scattered (1-D arrays).
+    is_scattered = x_values.ndim == 1 and z_values is not None and z_values.ndim == 1
+    crs_differs = type(resolved_data_crs).__name__ != type(target_crs).__name__
+    if target_crs is None or (not crs_differs and not is_scattered):
+        return PixelSamplingResult(x_values, y_values, z_values)
+
+    bbox_target = _get_subplot_bbox(subplot, target_crs)
+    nx, ny = pixel_sampler.resolve(bbox_target, crs=target_crs)
+
+    # NearestNeighbour path: renders via imshow for regular rectilinear grids.
+    if isinstance(pixel_sampler, NearestNeighbour):
+        nn_result = _try_nearest_neighbour_imshow(
+            subplot,
+            x_values,
+            y_values,
+            z_values,
+            data_crs=resolved_data_crs,
+            bbox_target=bbox_target,
+            target_crs=target_crs,
+            nx=nx,
+            ny=ny,
+            style=style,
+            kwargs=kwargs,
+        )
+        if nn_result is not None:
+            return nn_result
+        # Curvilinear grid — fall through to the Bilinear path below.
+
+    # Bilinear path (also the NearestNeighbour fallback for curvilinear grids).
+    x_values, y_values, z_values = _reproject_bilinear(
+        x_values,
+        y_values,
+        z_values,
+        data_crs=resolved_data_crs,
+        bbox_target=bbox_target,
+        target_crs=target_crs,
+        nx=nx,
+        ny=ny,
+        use_nearest=isinstance(pixel_sampler, NearestNeighbour),
+    )
+    kwargs["transform"] = target_crs
+    return PixelSamplingResult(x_values, y_values, z_values, reprojected=True)
+
+
+def _get_subplot_bbox(subplot, target_crs):
+    """Return the bounding box of *subplot* in *target_crs* coordinates."""
+    try:
+        return subplot.ax.get_extent(crs=target_crs)
+    except AttributeError:
+        if subplot.domain is not None:
+            return subplot.domain.bbox.to_cartopy_bounds()
+        return (-180, 180, -90, 90)
+
+
+def _try_nearest_neighbour_imshow(
+    subplot,
+    x_values,
+    y_values,
+    z_values,
+    *,
+    data_crs,
+    bbox_target,
+    target_crs,
+    nx,
+    ny,
+    style,
+    kwargs,
+) -> PixelSamplingResult | None:
+    """
+    Attempt the NearestNeighbour fast-path via ``ax.imshow``.
+
+    Only works for regular rectilinear grids (rows and columns are constant).
+    Returns a :class:`PixelSamplingResult` with the pre-rendered mappable on
+    success, or ``None`` when the grid is curvilinear (caller should fall back
+    to Bilinear).
+    """
+    is_regular = (
+        x_values.ndim == 2
+        and y_values.ndim == 2
+        and np.allclose(x_values, x_values[0, :])
+        and np.allclose(y_values.T, y_values[:, 0])
+    )
+    if not is_regular:
+        return None
+
+    from earthkit.plots.resample.reproject import _reproject_nn
+
+    image, extent = _reproject_nn(
+        x_values[0, :],
+        y_values[:, 0],
+        z_values,
+        crs_src=data_crs,
+        bbox_target=bbox_target,
+        crs_target=target_crs,
+        nx=nx,
+        ny=ny,
+    )
+    plot_kwargs = dict(kwargs)
+    if style is not None:
+        plot_kwargs.update(style.to_pcolormesh_kwargs(image))
+    plot_kwargs.pop("transform", None)
+    plot_kwargs.pop("transform_first", None)
+    mappable = subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
+    return PixelSamplingResult(
+        x_values, y_values, z_values, reprojected=True, mappable=mappable
+    )
+
+
+def _reproject_bilinear(
+    x_values,
+    y_values,
+    z_values,
+    *,
+    data_crs,
+    bbox_target,
+    target_crs,
+    nx,
+    ny,
+    use_nearest: bool,
+):
+    """
+    Reproject data onto a regular pixel grid using bilinear (or nearest) interpolation.
+
+    For 2-D regular meshgrids the 1-D axis vectors are extracted and passed to
+    :func:`~earthkit.plots.resample.reproject.reproject_to_grid`, which uses a
+    fast ``RegularGridInterpolator``.  Curvilinear (2-D) and scattered (1-D)
+    grids are passed through directly, triggering the scattered-interpolation
+    path inside ``reproject_to_grid``.
+    """
+    from earthkit.plots.resample.reproject import reproject_to_grid
+
+    # Unwrap regular meshgrids to 1-D axis vectors for the fast path.
+    if x_values.ndim == 2 and y_values.ndim == 2:
+        if np.allclose(x_values, x_values[0, :]) and np.allclose(
+            y_values.T, y_values[:, 0]
+        ):
+            x_src = x_values[0, :]
+            y_src = y_values[:, 0]
+        else:
+            x_src = x_values  # curvilinear — use scattered path
+            y_src = y_values
+    else:
+        x_src = x_values
+        y_src = y_values
+
+    return reproject_to_grid(
+        x_src,
+        y_src,
+        z_values,
+        crs_src=data_crs,
+        bbox_target=bbox_target,
+        crs_target=target_crs,
+        nx=nx,
+        ny=ny,
+        method="nearest" if use_nearest else "linear",
+    )
+
+
 def extract_plottables_2D(
     subplot: Any,
     method_name: str,
@@ -537,12 +802,12 @@ def extract_plottables_2D(
     y_units: str | None = None,
     z_units: str | None = None,
     every: int | None = None,
-    source_units: str | None = None,
     extract_domain: bool = False,
     auto_style: bool = False,
     metadata: dict[str, Any] | None = None,
     resample=None,
     grid="auto",
+    use_nn_sampling: bool = False,
     **kwargs: Any,
 ) -> Any:
     """
@@ -571,8 +836,6 @@ def extract_plottables_2D(
         Units for the data values.
     every : int, optional
         Sampling interval for data reduction.
-    source_units : str, optional
-        Units of the source data.
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
@@ -586,6 +849,11 @@ def extract_plottables_2D(
         enable sampling at a custom resolution, ``False`` to disable, or
         ``None`` to use the method's default. Only applies to contour/contourf/pcolormesh
         on geographic plots.
+    use_nn_sampling : bool, default False
+        When True, activate the fast nearest-neighbour pixel-sampling path for
+        structured (HEALPix / reduced Gaussian) and regular rectilinear grids.
+        Set by :meth:`~earthkit.plots.components.maps.Map.grid_cells`; not
+        intended for direct use by callers.
     **kwargs
         Additional keyword arguments passed to the plotting method.
 
@@ -681,22 +949,22 @@ def extract_plottables_2D(
 
     # Step 5: Handle specialized grid types (healpix, octahedral)
     mappable = _handle_specialized_grids(
-        subplot, source, z_values, style, method_name, kwargs, resample=resample
+        subplot,
+        source,
+        z_values,
+        style,
+        method_name,
+        kwargs,
+        resample=resample,
+        use_nn_sampling=use_nn_sampling,
     )
 
     if not mappable:
         # Step 6: Process x, y values and apply sampling
-        # For 3D plots, use source coordinates directly (no coordinate unit conversion)
         x_values, y_values = source.x.values, source.y.values
         x_values, y_values, z_values = apply_sampling(
             x_values, y_values, z_values, every
         )
-
-        # If _USE_NN reached here it means _handle_regular_grid_nn returned None
-        # (e.g. CRS matched, so NN was not needed). Treat it as False for the
-        # remainder of the pipeline so the plain pcolormesh path is used.
-        if resample is _USE_NN:
-            resample = False
 
         # Step 6.5: Apply data-space resampling if requested.
         # _PixelSampler subclasses (Bilinear, NearestNeighbour) are handled
@@ -728,118 +996,28 @@ def extract_plottables_2D(
             )
 
         # Step 8.5: Pixel-sampling on the target projection (Bilinear /
-        # NearestNeighbour).  These cannot use apply() like other resamplers
-        # because they need subplot/CRS/bbox context unavailable at construction
-        # time.  All other Resample subclasses were already applied in Step 6.5.
-        will_reproject = False
-        from earthkit.plots.resample import Chain, NearestNeighbour, _PixelSampler
-
-        # Extract the effective pixel sampler — handles plain sampler and Chain.
-        _pixel_sampler = (
-            resample.pixel_step
-            if isinstance(resample, Chain)
-            else resample
-            if isinstance(resample, _PixelSampler)
-            else None
+        # NearestNeighbour).  Deferred from Step 6.5 because these samplers
+        # need subplot/CRS/bbox context unavailable at construction time.
+        ps_result = _apply_pixel_sampling(
+            subplot,
+            source,
+            x_values,
+            y_values,
+            z_values,
+            resample=resample,
+            method_name=method_name,
+            no_style=no_style,
+            style=style,
+            data_crs=source.crs or kwargs.get("transform"),
+            kwargs=kwargs,
         )
-        if (
-            _pixel_sampler is not None
-            and not no_style
-            and (method_name.startswith("contour") or method_name == "pcolormesh")
-            and hasattr(subplot, "crs")
-        ):
-            target_crs = subplot.crs
-            # source.crs may be None for plain lat/lon data; fall back to the
-            # transform already placed in kwargs by _plot_kwargs, then PlateCarree.
-            data_crs = source.crs or kwargs.get("transform") or ccrs.PlateCarree()
-            _is_scattered = (
-                x_values.ndim == 1 and z_values is not None and z_values.ndim == 1
-            )
-            if target_crs is not None and (
-                type(data_crs).__name__ != type(target_crs).__name__ or _is_scattered
-            ):
-                try:
-                    bbox_target = subplot.ax.get_extent(crs=target_crs)
-                except AttributeError:
-                    if subplot.domain is not None:
-                        bbox_target = subplot.domain.bbox.to_cartopy_bounds()
-                    else:
-                        bbox_target = (-180, 180, -90, 90)
+        x_values, y_values, z_values = ps_result.x, ps_result.y, ps_result.z
+        if ps_result.mappable is not None:
+            mappable = ps_result.mappable
 
-                nx, ny = _pixel_sampler.resolve(bbox_target, crs=target_crs)
-
-                if isinstance(_pixel_sampler, NearestNeighbour):
-                    # NearestNeighbour path: only valid for regular rectilinear
-                    # grids; fall back to Bilinear if the grid is curvilinear.
-                    is_regular = (
-                        x_values.ndim == 2
-                        and y_values.ndim == 2
-                        and np.allclose(x_values, x_values[0, :])
-                        and np.allclose(y_values.T, y_values[:, 0])
-                    )
-                    if is_regular:
-                        from earthkit.plots.resample.reproject import _reproject_nn
-
-                        image, extent = _reproject_nn(
-                            x_values[0, :],
-                            y_values[:, 0],
-                            z_values,
-                            crs_src=data_crs,
-                            bbox_target=bbox_target,
-                            crs_target=target_crs,
-                            nx=nx,
-                            ny=ny,
-                        )
-                        plot_kwargs = dict(kwargs)
-                        if style is not None:
-                            plot_kwargs.update(style.to_pcolormesh_kwargs(image))
-                        plot_kwargs.pop("transform", None)
-                        plot_kwargs.pop("transform_first", None)
-                        mappable = subplot.ax.imshow(
-                            image, extent=extent, origin="lower", **plot_kwargs
-                        )
-                        will_reproject = True  # suppress Steps 9 and 11
-
-                if not will_reproject:
-                    # Bilinear (or NearestNeighbour fallback for curvilinear grids)
-                    from earthkit.plots.resample.reproject import reproject_to_grid
-
-                    # Extract 1D coordinate arrays if data came as a regular meshgrid.
-                    # For curvilinear (2D) grids, pass the 2D arrays directly so
-                    # reproject_to_grid uses its scattered-interpolation path.
-                    if x_values.ndim == 2 and y_values.ndim == 2:
-                        # Check if it's a proper regular meshgrid (rows/cols constant)
-                        if np.allclose(x_values, x_values[0, :]) and np.allclose(
-                            y_values.T, y_values[:, 0]
-                        ):
-                            x_src = x_values[0, :]
-                            y_src = y_values[:, 0]
-                        else:
-                            x_src = x_values
-                            y_src = y_values
-                    else:
-                        x_src = x_values
-                        y_src = y_values
-
-                    x_values, y_values, z_values = reproject_to_grid(
-                        x_src,
-                        y_src,
-                        z_values,
-                        crs_src=data_crs,
-                        bbox_target=bbox_target,
-                        crs_target=target_crs,
-                        nx=nx,
-                        ny=ny,
-                        method="nearest"
-                        if isinstance(_pixel_sampler, NearestNeighbour)
-                        else "linear",
-                    )
-                    kwargs["transform"] = target_crs
-                    will_reproject = True
-
-        # Step 9: Handle cyclic point wrapping for contour plots
-        # Skip if we already reprojected (reprojected data is already a complete regular grid)
-        if method_name.startswith("contour") and not will_reproject:
+        # Step 9: Handle cyclic point wrapping for contour plots.
+        # Skip when pixel-sampling already produced a complete regular grid.
+        if method_name.startswith("contour") and not ps_result.reprojected:
             x_values, y_values, z_values = _handle_cyclic_points(
                 x_values, y_values, z_values
             )
@@ -847,8 +1025,9 @@ def extract_plottables_2D(
         # Step 10: Handle coordinate transformation settings
         kwargs = _handle_transform_settings(subplot, kwargs)
 
-        # Step 11: Create the plot
-        # (skipped when the NearestNeighbour path already produced a mappable)
+        # Step 11: Create the plot.
+        # Skipped when _apply_pixel_sampling already produced a mappable
+        # (i.e. the NearestNeighbour imshow path was taken).
         if not mappable:
             if not no_style:
                 mappable = getattr(style, method_name)(
@@ -915,7 +1094,6 @@ def extract_plottables_vector_2D(
     v_units: str | None = None,
     x_units: str | None = None,
     y_units: str | None = None,
-    source_units: str | None = None,
     extract_domain: bool = False,
     auto_style: bool = False,
     resample: Any | None = None,
@@ -956,8 +1134,6 @@ def extract_plottables_vector_2D(
         Target units for u and v components.
     x_units, y_units : str, optional
         Target units for x and y coordinates.
-    source_units : str, optional
-        Deprecated. Use 'units' instead.
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     auto_style : bool, default=False
@@ -989,10 +1165,6 @@ def extract_plottables_vector_2D(
     >>> # Legacy two-source approach
     >>> mappable = extract_plottables_vector_3D(subplot, "barbs", (u_data, v_data))
     """
-    # Support deprecated source_units parameter
-    if source_units is not None and units is None:
-        units = source_units
-
     # Handle deprecation and extract units from style
     units, style = _prepare_style_and_units(style, units, auto_style)
 
@@ -1150,9 +1322,10 @@ def extract_plottables_vector_2D(
             pass
 
     # Step 3: Configure the plotting style
-    # Only forward `colors` to configure_style when it was explicitly provided
-    # (i.e. not the False sentinel default), so that a user-supplied style's
-    # own colors are not overwritten.
+    # Pass a copy so that configure_style's style-key stripping does not
+    # affect the original kwargs dict (which is still needed below for the
+    # matplotlib call).  Also inject `colors` only when explicitly provided so
+    # that a user-supplied style's own colors are not overwritten.
     style_kwargs = {**kwargs}
     if colors is not False:
         style_kwargs["colors"] = colors
@@ -1317,7 +1490,6 @@ def extract_plottables_envelope(
     x_units: str | None = None,
     y_units: str | None = None,
     z_units: str | None = None,
-    source_units: str | None = None,
     extract_domain: bool = False,
     **kwargs: Any,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None]:
@@ -1345,8 +1517,6 @@ def extract_plottables_envelope(
         Target units for y coordinates.
     z_units : str, optional
         Target units for z coordinates.
-    source_units : str, optional
-        Deprecated. Use 'units' instead.
     extract_domain : bool, default=False
         Whether to extract data within the subplot's domain boundaries.
     **kwargs
@@ -1365,10 +1535,6 @@ def extract_plottables_envelope(
     """
     # Step 1: Infer plot context and create data source
     context = PlotContext.CARTESIAN_2D  # Envelope plots are always cartesian
-
-    # Support deprecated source_units parameter
-    if source_units is not None and units is None:
-        units = source_units
 
     source = get_source(
         data=data,
@@ -1456,8 +1622,11 @@ def configure_style(
     auto_style : bool
         Whether to automatically guess the appropriate style.
     kwargs : dict
-        Keyword arguments that may contain style parameters. Style parameters will
-        override attributes in the provided style without modifying the original.
+        Live kwargs dict forwarded from the caller.  Any key that belongs to
+        ``_STYLE_KWARGS`` (e.g. ``levels``, ``colors``, ``extend``) is **popped
+        from this dict** so that only matplotlib-native keys remain after this
+        call returns.  Callers that need to preserve their kwargs should pass a
+        copy (``{**kwargs}``).
 
     Returns
     -------
@@ -1472,7 +1641,7 @@ def configure_style(
     ...     "contour", my_style, source, None, False, {"levels": [0, 10, 20]}
     ... )
     """
-    # Handle style="auto" as an alternative to auto_style=True
+    # Handle style="auto" as an alternative to auto_style=True.
     # Named-style strings are already resolved to Style objects by
     # _prepare_style_and_units before this function is called.
     if style == "auto":
@@ -1487,7 +1656,8 @@ def configure_style(
     if "cmap" in kwargs:
         kwargs["colors"] = kwargs.pop("cmap")
 
-    # Extract style-specific keyword arguments
+    # Pop style-specific keys so only matplotlib-native kwargs remain in the
+    # caller's dict after this function returns.
     style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
 
     # If a style is provided and we have style kwargs to override
@@ -1626,6 +1796,7 @@ def _handle_specialized_grids(
     method_name: str,
     kwargs: dict[str, Any],
     resample: Any = None,
+    use_nn_sampling: bool = False,
 ) -> Any | None:
     """
     Handle plotting for specialized grid types like healpix and octahedral,
@@ -1647,10 +1818,12 @@ def _handle_specialized_grids(
     kwargs : dict
         Keyword arguments for plotting.
     resample : Any, optional
-        The resample argument from the calling method. When ``_USE_NN`` (the
-        sentinel set by ``grid_cells``), the fast NN path is eligible. Any
-        other value means the caller has its own resampling strategy, so the
-        NN path is skipped.
+        The resample argument from the calling method.
+    use_nn_sampling : bool, default False
+        When True (set by ``grid_cells``), activate the fast nearest-neighbour
+        pixel-sampling path for structured and regular rectilinear grids.
+        When False, the caller has its own resampling strategy and the NN
+        path is skipped.
 
     Returns
     -------
@@ -1663,17 +1836,17 @@ def _handle_specialized_grids(
     gridspec = source.gridspec
 
     # Guard: pcolormesh cannot render HEALPix / reduced Gaussian data directly.
-    # When the user passes a resample that will handle the structured grid
-    # (Regrid, or a Chain whose first data step is Regrid), we let it through
-    # to Step 6.5.  Otherwise raise a clear error rather than letting matplotlib
-    # crash with a cryptic shape mismatch.
-    if gridspec is not None and resample is not _USE_NN:
+    # When grid_cells is the caller it handles structured grids via its own
+    # NN backends, so the error is suppressed.  For all other callers, raise a
+    # clear error rather than letting matplotlib crash with a cryptic shape
+    # mismatch — unless the caller supplied a Regrid-based resample that will
+    # handle the conversion in Step 6.5.
+    if gridspec is not None and not use_nn_sampling:
         from earthkit.plots.resample import Chain
         from earthkit.plots.resample import Regrid as _Regrid
         from earthkit.plots.resample import _is_structured_grid
 
         if _is_structured_grid(gridspec):
-            # Check whether the supplied resample will handle the structured grid
             _has_regrid = isinstance(resample, _Regrid) or (
                 isinstance(resample, Chain)
                 and any(isinstance(s, _Regrid) for s in resample.data_steps)
@@ -1695,11 +1868,11 @@ def _handle_specialized_grids(
                     "Alternatively, use grid_cells() for automatic cell rendering."
                 )
 
+    if not use_nn_sampling:
+        return None
+
     # Specialised grid backends (HEALPix, octahedral reduced Gaussian).
-    # Only activated when the caller is grid_cells (_USE_NN sentinel).
-    # When the user supplied their own resample (e.g. Regrid(5)), Step 6.5
-    # handles it instead.
-    if resample is _USE_NN and gridspec is not None:
+    if gridspec is not None:
         grid_handlers = {
             "healpix": plot_healpix,
             "reduced_gg": plot_octahedral,
@@ -1708,12 +1881,8 @@ def _handle_specialized_grids(
         if handler is not None:
             return handler(subplot, source, z_values, style, kwargs)
 
-    # Fast NN pixel-sampling for regular (non-structured) grids with a CRS
-    # mismatch.  Only applies when the _USE_NN sentinel is present (grid_cells).
-    if resample is _USE_NN:
-        return _handle_regular_grid_nn(subplot, source, z_values, style, kwargs)
-
-    return None
+    # Fast NN pixel-sampling for regular (non-structured) grids with a CRS mismatch.
+    return _handle_regular_grid_nn(subplot, source, z_values, style, kwargs)
 
 
 def _handle_regular_grid_nn(

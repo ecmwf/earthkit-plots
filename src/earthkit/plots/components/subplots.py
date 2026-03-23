@@ -387,7 +387,6 @@ def plot_vector(method_name=None, extract_domain=False):
             style=None,
             units=None,
             auto_style=False,
-            source_units=None,
             resample=Bilinear(40),
             **kwargs,
         ):
@@ -402,7 +401,6 @@ def plot_vector(method_name=None, extract_domain=False):
                 style=style,
                 units=units,
                 auto_style=auto_style,
-                source_units=source_units,
                 extract_domain=extract_domain,
                 resample=resample,
                 colors=colors,
