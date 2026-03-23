@@ -139,16 +139,12 @@ class XarrayExtractor(BaseExtractor):
                 if coord_name in identifiers.LONGITUDE:
                     auto_x_values = coord.values
                     auto_x_name = coord_name
-                    auto_x_metadata = (
-                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
-                    )
+                    auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
                     auto_x_units = auto_x_metadata.get("units")
                 elif coord_name in identifiers.LATITUDE:
                     auto_y_values = coord.values
                     auto_y_name = coord_name
-                    auto_y_metadata = (
-                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
-                    )
+                    auto_y_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
                     auto_y_units = auto_y_metadata.get("units")
         else:
             # Cartesian: x=independent, y=data (default roles)
@@ -169,9 +165,7 @@ class XarrayExtractor(BaseExtractor):
                     coord = da.coords[dim_name]
                     auto_x_values = coord.values
                     auto_x_name = dim_name
-                    auto_x_metadata = (
-                        dict(coord.attrs) if hasattr(coord, "attrs") else {}
-                    )
+                    auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
                     auto_x_units = auto_x_metadata.get("units")
                 else:
                     auto_x_values = np.arange(da.sizes[dim_name])
@@ -184,34 +178,24 @@ class XarrayExtractor(BaseExtractor):
         if context == PlotContext.GEOGRAPHIC_1D:
             # Geographic: override auto-detected if user specified
             if x is not None:
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
-                    da, x
-                )
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
             elif auto_x_values is not None:
                 x_values = auto_x_values
                 x_name = auto_x_name
                 x_metadata = auto_x_metadata
                 x_units = auto_x_units
             else:
-                raise ValueError(
-                    "Could not infer longitude coordinate. "
-                    "Please specify x (longitude) explicitly."
-                )
+                raise ValueError("Could not infer longitude coordinate. Please specify x (longitude) explicitly.")
 
             if y is not None:
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
-                    da, y
-                )
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
             elif auto_y_values is not None:
                 y_values = auto_y_values
                 y_name = auto_y_name
                 y_metadata = auto_y_metadata
                 y_units = auto_y_units
             else:
-                raise ValueError(
-                    "Could not infer latitude coordinate. "
-                    "Please specify y (latitude) explicitly."
-                )
+                raise ValueError("Could not infer latitude coordinate. Please specify y (latitude) explicitly.")
 
             # Z is the data values
             z_values = da.values
@@ -231,17 +215,11 @@ class XarrayExtractor(BaseExtractor):
             # then swap: y becomes the coordinate, x becomes the data
 
             if x is not None and y is not None:
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
-                    da, x
-                )
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
-                    da, y
-                )
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
             elif y is not None and x is None:
                 # Only y specified - check if it matches the auto-detected x coordinate
-                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(
-                    da, y
-                )
+                y_values, y_name, y_metadata, y_units = self._resolve_coordinate_spec(da, y)
 
                 # Check if user's y matches what would be the default x (coordinate)
                 if isinstance(y, str) and y in da.coords and y != da.name:
@@ -258,9 +236,7 @@ class XarrayExtractor(BaseExtractor):
                     x_units = auto_x_units
             elif x is not None and y is None:
                 # Only x specified - check if it matches the auto-detected y (data)
-                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(
-                    da, x
-                )
+                x_values, x_name, x_metadata, x_units = self._resolve_coordinate_spec(da, x)
 
                 # Check if user's x matches what would be the default y (data)
                 if isinstance(x, str) and x == da.name:
@@ -387,9 +363,7 @@ class XarrayExtractor(BaseExtractor):
                 x_coord = da.coords[x_dim]
                 auto_x_values = x_coord.values
                 auto_x_name = x_dim
-                auto_x_metadata = (
-                    dict(x_coord.attrs) if hasattr(x_coord, "attrs") else {}
-                )
+                auto_x_metadata = dict(x_coord.attrs) if hasattr(x_coord, "attrs") else {}
                 auto_x_units = auto_x_metadata.get("units")
             else:
                 auto_x_values = np.arange(nx)
@@ -398,9 +372,7 @@ class XarrayExtractor(BaseExtractor):
                 y_coord = da.coords[y_dim]
                 auto_y_values = y_coord.values
                 auto_y_name = y_dim
-                auto_y_metadata = (
-                    dict(y_coord.attrs) if hasattr(y_coord, "attrs") else {}
-                )
+                auto_y_metadata = dict(y_coord.attrs) if hasattr(y_coord, "attrs") else {}
                 auto_y_units = auto_y_metadata.get("units")
             else:
                 auto_y_values = np.arange(ny)
@@ -779,26 +751,14 @@ class XarrayExtractor(BaseExtractor):
                 return dict(self.data[key].attrs) if self.data[key].attrs else {}
             # Check in coordinates
             if key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
+                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
         elif isinstance(self.data, xr.DataArray):
             # Check in coordinates
             if key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
+                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
             # Check in dimensions
             if key in self.data.dims and key in self.data.coords:
-                return (
-                    dict(self.data.coords[key].attrs)
-                    if self.data.coords[key].attrs
-                    else {}
-                )
+                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
 
         # Not a coordinate/variable name - look for metadata key in attrs
         # Prefer selected DataArray attrs if available (for Dataset case)
@@ -893,11 +853,7 @@ class XarrayExtractor(BaseExtractor):
         # Case 1: Both u and v explicitly specified
         if u is not None and v is not None:
             # Use current DataArray or Dataset
-            da = (
-                self._selected_dataarray
-                if self._selected_dataarray is not None
-                else self.data
-            )
+            da = self._selected_dataarray if self._selected_dataarray is not None else self.data
 
             u_values, u_name, u_metadata, u_units = self._resolve_coordinate_spec(da, u)
             v_values, v_name, v_metadata, v_units = self._resolve_coordinate_spec(da, v)

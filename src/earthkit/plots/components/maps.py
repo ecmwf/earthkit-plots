@@ -47,7 +47,9 @@ class Map(Subplot):
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
-        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
+        domain. See
+        https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections
+        for a list of available CRSs.
     **kwargs
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
@@ -179,8 +181,7 @@ class Map(Subplot):
         import warnings
 
         warnings.warn(
-            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. "
-            "Please use grid_points instead."
+            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. Please use grid_points instead."
         )
         return self.grid_points(*args, **kwargs)
 
@@ -221,7 +222,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to understand the units of your input data.
+            The units to convert the data to. Relies on well-formatted metadata to
+            understand the units of your input data.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
         """
@@ -354,16 +356,11 @@ class Map(Subplot):
                 transform_first=None,
                 **kwargs,
             ):
-                _transform_first = (
-                    default_transform_first
-                    if transform_first is None
-                    else transform_first
-                )
+                _transform_first = default_transform_first if transform_first is None else transform_first
 
                 if source not in sources:
                     raise ValueError(
-                        f"source='{source}' is not supported for this method. "
-                        f"Valid sources are: {list(sources.keys())}"
+                        f"source='{source}' is not supported for this method. Valid sources are: {list(sources.keys())}"
                     )
 
                 source_config = sources[source]
@@ -376,12 +373,8 @@ class Map(Subplot):
                 if source == "gisco":
                     from earthkit.plots.geo import gisco
 
-                    records_list, attribute_key, label_key = gisco.load_layer(
-                        source_config, resolution
-                    )
-                    self.figure.add_attribution(
-                        "© EuroGeographics for the administrative boundaries"
-                    )
+                    records_list, attribute_key, label_key = gisco.load_layer(source_config, resolution)
+                    self.figure.add_attribution("© EuroGeographics for the administrative boundaries")
 
                 elif source == "natural_earth":
                     records_list, attribute_key, label_key = natural_earth.load_layer(
@@ -404,10 +397,7 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record in records_list:
                         for style in special_styles:
-                            if (
-                                record.attributes.get(style["key"], None)
-                                in style["values"]
-                            ):
+                            if record.attributes.get(style["key"], None) in style["values"]:
                                 special_records.append([record, style["kwargs"]])
                             else:
                                 filtered_records.append(record)
@@ -415,29 +405,15 @@ class Map(Subplot):
                     filtered_records = records_list
 
                 if include is not None or exclude is not None:
-                    exclude = (
-                        [exclude]
-                        if not (isinstance(exclude, (list, tuple)) or exclude is None)
-                        else exclude
-                    )
-                    include = (
-                        [include]
-                        if not (isinstance(include, (list, tuple)) or include is None)
-                        else include
-                    )
+                    exclude = [exclude] if not (isinstance(exclude, (list, tuple)) or exclude is None) else exclude
+                    include = [include] if not (isinstance(include, (list, tuple)) or include is None) else include
 
                     filtered_records = [
                         record
                         for record in records_list
                         if (
-                            (
-                                include is None
-                                or record.attributes.get(attribute_key) in include
-                            )
-                            and (
-                                exclude is None
-                                or record.attributes.get(attribute_key) not in exclude
-                            )
+                            (include is None or record.attributes.get(attribute_key) in include)
+                            and (exclude is None or record.attributes.get(attribute_key) not in exclude)
                         )
                     ]
 
@@ -747,14 +723,10 @@ class Map(Subplot):
             kwargs["facecolor"] = "none"
 
         # Load NUTS regions data
-        records_list, attribute_key, label_key = gisco.load_nuts_layer(
-            level, resolution, geometry_type, year
-        )
+        records_list, attribute_key, label_key = gisco.load_nuts_layer(level, resolution, geometry_type, year)
 
         # Add attribution
-        self.figure.add_attribution(
-            "© EuroGeographics for the administrative boundaries"
-        )
+        self.figure.add_attribution("© EuroGeographics for the administrative boundaries")
 
         # Common processing (filter records, add labels, add geometries)
         filtered_records = []
@@ -771,16 +743,8 @@ class Map(Subplot):
             filtered_records = records_list
 
         if include is not None or exclude is not None:
-            exclude = (
-                [exclude]
-                if not (isinstance(exclude, (list, tuple)) or exclude is None)
-                else exclude
-            )
-            include = (
-                [include]
-                if not (isinstance(include, (list, tuple)) or include is None)
-                else include
-            )
+            exclude = [exclude] if not (isinstance(exclude, (list, tuple)) or exclude is None) else exclude
+            include = [include] if not (isinstance(include, (list, tuple)) or include is None) else include
 
             filtered_records = [
                 record
@@ -987,9 +951,7 @@ class Map(Subplot):
         density = natural_earth.get_resolution(density, self.ax, self.crs)
 
         if capital_cities_kwargs is None:
-            capital_cities_kwargs = (
-                kwargs or natural_earth.DEFAULT_CAPITAL_CITIES_KWARGS
-            )
+            capital_cities_kwargs = kwargs or natural_earth.DEFAULT_CAPITAL_CITIES_KWARGS
         if medium_cities_kwargs is None:
             medium_cities_kwargs = kwargs or natural_earth.DEFAULT_MEDIUM_CITIES_KWARGS
         if small_cities_kwargs is None:
@@ -1108,14 +1070,10 @@ class Map(Subplot):
         """
         if isinstance(shapes, str):
             shapes = shpreader.Reader(shapes)
-        results = self.ax.add_geometries(
-            shapes.geometries(), transform, *args, **kwargs
-        )
+        results = self.ax.add_geometries(shapes.geometries(), transform, *args, **kwargs)
         if labels:
             label_key = labels if isinstance(labels, str) else None
-            self._add_polygon_labels(
-                list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels
-            )
+            self._add_polygon_labels(list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels)
         return results
 
     @schema.legend.apply()

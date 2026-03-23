@@ -119,9 +119,7 @@ def test_schema_apply_basic_functionality():
 
 def test_schema_apply_with_keys_filter():
     """Test apply with keys parameter to filter specific keys."""
-    schema = Schema(
-        parent="contour", linewidth=2, color="red", linestyle="dashed", alpha=0.5
-    )
+    schema = Schema(parent="contour", linewidth=2, color="red", linestyle="dashed", alpha=0.5)
 
     with mock.patch("earthkit.plots.schemas.schema") as mock_global:
         # Mock global schema to not have 'contour', so it falls back to init schema
@@ -151,9 +149,7 @@ def test_schema_apply_with_global_schema():
         mock_global.contour = contour_schema
         mock_global.__contains__ = lambda self, key: key == "contour"
         mock_global.get.return_value = contour_schema
-        mock_global.__getitem__ = (
-            lambda self, key: contour_schema if key == "contour" else None
-        )
+        mock_global.__getitem__ = lambda self, key: contour_schema if key == "contour" else None
 
         # Use the actual pattern: @schema.contour.apply()
         @mock_global.contour.apply()
@@ -193,9 +189,7 @@ def test_schema_apply_hierarchy_with_nested_parent():
 
         mock_global.__contains__ = lambda self, key: key == "plot"
         mock_global.get.side_effect = get_side_effect
-        mock_global.__getitem__ = (
-            lambda self, key: plot_schema if key == "plot" else Schema()
-        )
+        mock_global.__getitem__ = lambda self, key: plot_schema if key == "plot" else Schema()
 
         @nested_schema.apply()
         def mock_function(**kwargs):
@@ -212,9 +206,7 @@ def test_schema_apply_hierarchy_with_nested_parent():
 
 def test_schema_apply_fallback_to_init_when_global_not_found():
     """Test apply falls back to init schema when global path not found."""
-    init_schema = Schema(
-        parent="nonexistent.path", linewidth=4.0, color="yellow", alpha=0.7
-    )
+    init_schema = Schema(parent="nonexistent.path", linewidth=4.0, color="yellow", alpha=0.7)
 
     with mock.patch("earthkit.plots.schemas.schema") as mock_global:
         # Global schema doesn't have the path
@@ -257,9 +249,7 @@ def test_schema_apply_complete_hierarchy():
         # But when _update_kwargs looks up parent="contour", it finds global_contour
         mock_global.__contains__ = lambda self, key: key == "contour"
         mock_global.get.return_value = global_contour
-        mock_global.__getitem__ = (
-            lambda self, key: global_contour if key == "contour" else None
-        )
+        mock_global.__getitem__ = lambda self, key: global_contour if key == "contour" else None
 
         # Use actual pattern: @schema.contour.apply()
         @mock_global.contour.apply()
@@ -388,6 +378,8 @@ def test_schema_reset_removes_added_keys():
 
     schema.reset()
     assert "my_custom_key" not in schema
+
+
 def test_import_does_not_mutate_rcparams():
     """Importing earthkit.plots must not change matplotlib's global rcParams."""
     import matplotlib

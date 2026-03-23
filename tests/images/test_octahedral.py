@@ -18,9 +18,15 @@ import pytest
 import earthkit.plots
 from earthkit.plots import schema
 
+try:
+    import earthkit.regrid  # noqa: F401
+except ImportError:
+    earthkit.regrid = None  # type: ignore[assignment]
+
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.skipif(earthkit.regrid is None, reason="The octahedral plotting backend requires earthkit-regrid.")
 def test_octahedral_interpolated():
     data = earthkit.data.from_source(
         "url",

@@ -71,8 +71,7 @@ def _validate_projection_for_tricontour(ccrs) -> bool:
     ]
     if any(proj in str(ccrs.__class__.__name__) for proj in bad_list):
         raise ValueError(
-            f"Projection {ccrs} is not suitable for tricontour plotting. "
-            "Please use a different projection."
+            f"Projection {ccrs} is not suitable for tricontour plotting. Please use a different projection."
         )
     return True
 
@@ -145,9 +144,7 @@ class Style:
         # Handle cmap as an alias for colors
         if "cmap" in kwargs:
             if colors != schema.default_cmap:
-                raise ValueError(
-                    "Cannot specify both 'colors' and 'cmap'. They are aliases for the same parameter."
-                )
+                raise ValueError("Cannot specify both 'colors' and 'cmap'. They are aliases for the same parameter.")
             colors = kwargs.pop("cmap")
 
         if categories is not None and levels is None:
@@ -163,8 +160,7 @@ class Style:
             if isinstance(levels, styles.levels.Levels)
             else styles.levels.Levels(
                 levels,
-                categorical=categories is not None
-                or self.__class__.__name__ == "Categorical",
+                categorical=categories is not None or self.__class__.__name__ == "Categorical",
             )
         )
         self.normalize = normalize
@@ -238,9 +234,7 @@ class Style:
 
         # Handle cmap as an alias for colors
         if "cmap" in overrides and "colors" in overrides:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
+            raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
         if "cmap" in overrides:
             overrides["colors"] = overrides.pop("cmap")
 
@@ -252,15 +246,9 @@ class Style:
             if hasattr(self._levels, "_step") and self._levels._step is not None:
                 # Preserve step-based configuration
                 levels_config = {"step": self._levels._step}
-                if (
-                    hasattr(self._levels, "_reference")
-                    and self._levels._reference is not None
-                ):
+                if hasattr(self._levels, "_reference") and self._levels._reference is not None:
                     levels_config["reference"] = self._levels._reference
-                if (
-                    hasattr(self._levels, "_divergence_point")
-                    and self._levels._divergence_point is not None
-                ):
+                if hasattr(self._levels, "_divergence_point") and self._levels._divergence_point is not None:
                     levels_config["divergence_point"] = self._levels._divergence_point
             else:
                 # Static levels - use the actual level values
@@ -275,9 +263,7 @@ class Style:
             "scale_factor": self.scale_factor,
             "units_label": self._units_label,
             "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
-            if self._legend_kwargs
-            else None,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs) if self._legend_kwargs else None,
             "categories": self._bin_labels,
             "preferred_method": self._preferred_method,
             "resample": self.resample,
@@ -309,10 +295,7 @@ class Style:
             if self._levels._levels is not None:
                 return self._levels._levels
             else:
-                raise ValueError(
-                    "this style uses dynamic levels; include the `data` "
-                    "argument to generate levels"
-                )
+                raise ValueError("this style uses dynamic levels; include the `data` argument to generate levels")
         return self._levels.apply(data)
 
     @property
@@ -356,9 +339,7 @@ class Style:
 
         # For temperature anomalies we do not want to convert values, just
         # change the units string
-        if "anomaly" in short_name.lower() and metadata.units.anomaly_equivalence(
-            source_units
-        ):
+        if "anomaly" in short_name.lower() and metadata.units.anomaly_equivalence(source_units):
             return values
 
         return metadata.units.convert(values, source_units, self._units)
@@ -375,9 +356,7 @@ class Style:
         levels = self.levels(data)
 
         if self.gradients is not None:
-            self._legend_kwargs.setdefault(
-                "ticks", None
-            )  # Let matplotlib auto-generate ticks
+            self._legend_kwargs.setdefault("ticks", None)  # Let matplotlib auto-generate ticks
             return colors.gradients(
                 levels,
                 self._colors,
@@ -735,12 +714,7 @@ class Style:
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
-        if (
-            values is not None
-            and missing_values is not None
-            and np.isnan(values).any()
-            and len(values.shape) > 1
-        ):
+        if values is not None and missing_values is not None and np.isnan(values).any() and len(values.shape) > 1:
             missing_idx = np.where(np.isnan(values))
             missing_x = x[missing_idx]
             missing_y = y[missing_idx]
@@ -993,9 +967,7 @@ class Style:
         """Create a quiverkey legend for this `Style`."""
         return styles.legends.quiverkey(*args, **kwargs)
 
-    def save_legend(
-        self, data=None, label=None, filename="legend.png", transparent=True, **kwargs
-    ):
+    def save_legend(self, data=None, label=None, filename="legend.png", transparent=True, **kwargs):
         """
         Save a standalone image of the legend associated with this `Style`.
 
@@ -1031,19 +1003,13 @@ class Style:
         legend = chart.legend(label=label, **kwargs)[0]
 
         chart.fig.canvas.draw()
-        bbox = legend.ax.get_window_extent().transformed(
-            chart.fig.dpi_scale_trans.inverted()
-        )
+        bbox = legend.ax.get_window_extent().transformed(chart.fig.dpi_scale_trans.inverted())
 
-        title_bbox = legend.ax.xaxis.label.get_window_extent().transformed(
-            chart.fig.dpi_scale_trans.inverted()
-        )
+        title_bbox = legend.ax.xaxis.label.get_window_extent().transformed(chart.fig.dpi_scale_trans.inverted())
 
         x, y = chart.fig.get_size_inches()
 
-        xmod, ymod = (
-            (0.05, 0.01) if legend.orientation == "horizontal" else (0.01, 0.05)
-        )
+        xmod, ymod = (0.05, 0.01) if legend.orientation == "horizontal" else (0.01, 0.05)
 
         bbox.x0 = min(bbox.x0, title_bbox.x0) - x * xmod
         bbox.x1 = max(bbox.x1, title_bbox.x1) + x * xmod
@@ -1091,9 +1057,7 @@ class Vector(Style):
 class Quiver(Vector):
     def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
         kwargs.setdefault("legend_style", "quiverkey")
-        super().__init__(
-            *args, colors=colors, preferred_method=preferred_method, **kwargs
-        )
+        super().__init__(*args, colors=colors, preferred_method=preferred_method, **kwargs)
 
 
 class Contour(Style):
@@ -1172,9 +1136,7 @@ class Contour(Style):
 
         # Handle cmap as an alias for colors
         if "cmap" in overrides and "colors" in overrides:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
+            raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
         if "cmap" in overrides:
             overrides["colors"] = overrides.pop("cmap")
 
@@ -1186,15 +1148,9 @@ class Contour(Style):
             if hasattr(self._levels, "_step") and self._levels._step is not None:
                 # Preserve step-based configuration
                 levels_config = {"step": self._levels._step}
-                if (
-                    hasattr(self._levels, "_reference")
-                    and self._levels._reference is not None
-                ):
+                if hasattr(self._levels, "_reference") and self._levels._reference is not None:
                     levels_config["reference"] = self._levels._reference
-                if (
-                    hasattr(self._levels, "_divergence_point")
-                    and self._levels._divergence_point is not None
-                ):
+                if hasattr(self._levels, "_divergence_point") and self._levels._divergence_point is not None:
                     levels_config["divergence_point"] = self._levels._divergence_point
             else:
                 # Static levels - use the actual level values
@@ -1209,9 +1165,7 @@ class Contour(Style):
             "scale_factor": self.scale_factor,
             "units_label": self._units_label,
             "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs)
-            if self._legend_kwargs
-            else None,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs) if self._legend_kwargs else None,
             "categories": self._bin_labels,
             "preferred_method": self._preferred_method,
             "resample": self.resample,
@@ -1220,9 +1174,7 @@ class Contour(Style):
         # Add Contour-specific configuration
         config["linecolors"] = self._linecolors
         config["labels"] = self.labels
-        config["label_kwargs"] = (
-            copy.deepcopy(self._label_kwargs) if self._label_kwargs else None
-        )
+        config["label_kwargs"] = copy.deepcopy(self._label_kwargs) if self._label_kwargs else None
         config["interpolate"] = self._interpolate
 
         # Add any extra kwargs stored in self._kwargs
@@ -1377,9 +1329,7 @@ class Hatched(Contour):
 
     def __eq__(self, other):
         keys = ["_levels", "_colors", "_foreground_colors", "hatches"]
-        return all(
-            [getattr(self, key, None) == getattr(other, key, None) for key in keys]
-        )
+        return all([getattr(self, key, None) == getattr(other, key, None) for key in keys])
 
     def contourf(self, *args, **kwargs):
         """
@@ -1451,9 +1401,7 @@ DEFAULT_STYLE = Style()
 
 DEFAULT_VECTOR_STYLE = Vector()
 
-_STYLE_KWARGS = list(
-    set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0])
-)
+_STYLE_KWARGS = list(set(inspect.getfullargspec(Style)[0] + inspect.getfullargspec(Contour)[0]))
 
 _OVERRIDE_KWARGS = ["labels"]
 
@@ -1474,10 +1422,7 @@ def compare_attributes(self, other, keys):
 
     # Use the is_equal function for each key in your check
     try:
-        return all(
-            is_equal(getattr(self, key, None), getattr(other, key, None))
-            for key in keys
-        )
+        return all(is_equal(getattr(self, key, None), getattr(other, key, None)) for key in keys)
     except ValueError:
         return False
 

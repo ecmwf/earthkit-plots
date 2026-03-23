@@ -67,8 +67,7 @@ class Subsample(Resample):
                 self.nx, self.ny = args
             else:
                 raise ValueError(
-                    f"{self.__class__.__name__} can take at most 2 positional "
-                    f"arguments; received {len(args)}"
+                    f"{self.__class__.__name__} can take at most 2 positional arguments; received {len(args)}"
                 )
         else:
             self.nx = nx
@@ -136,9 +135,7 @@ class Regrid(Subsample):
         target_x_grid, target_y_grid = np.meshgrid(target_x_linspace, target_y_linspace)
 
         # Transform source coordinates to target CRS
-        transformed_points = target_crs.transform_points(
-            source_crs, x_values.flatten(), y_values.flatten()
-        )
+        transformed_points = target_crs.transform_points(source_crs, x_values.flatten(), y_values.flatten())
         source_x, source_y = transformed_points[..., 0], transformed_points[..., 1]
 
         # Filter out NaNs after transformation
@@ -164,9 +161,7 @@ class Regrid(Subsample):
         return [target_x_grid, target_y_grid, *resampled_values]
 
     def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny}, mode='{self.mode}')"
-        )
+        return f"{self.__class__.__name__}(nx={self.nx}, ny={self.ny}, mode='{self.mode}')"
 
 
 class Interpolate(Resample):
@@ -197,15 +192,11 @@ class Interpolate(Resample):
         distance_threshold: None | float | int | str = None,
         transform: bool = True,
     ):
-        """
-        Initialize the interpolation resampler.
-        """
+        """Initialize the interpolation resampler."""
         if target_shape is not None and not isinstance(target_shape, (tuple, list)):
             target_shape = (target_shape, target_shape)
 
-        if target_resolution is not None and not isinstance(
-            target_resolution, (tuple, list)
-        ):
+        if target_resolution is not None and not isinstance(target_resolution, (tuple, list)):
             target_resolution = (target_resolution, target_resolution)
 
         self.target_shape = target_shape
@@ -239,9 +230,7 @@ class Interpolate(Resample):
         if self.transform:
             source_crs = source_crs or ccrs.PlateCarree()
             target_crs = target_crs or ccrs.PlateCarree()
-            transformed_points = target_crs.transform_points(
-                source_crs, x.flatten(), y.flatten()
-            )
+            transformed_points = target_crs.transform_points(source_crs, x.flatten(), y.flatten())
             target_x = transformed_points[..., 0].reshape(x.shape)
             target_y = transformed_points[..., 1].reshape(y.shape)
         else:

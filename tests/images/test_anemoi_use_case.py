@@ -22,9 +22,7 @@ import earthkit.plots
 from earthkit.plots import schema
 
 
-def _make_arrayfield(
-    field: earthkit.data.Field, *, drop_keys: list[str] | None = None
-) -> earthkit.data.ArrayField:
+def _make_arrayfield(field: earthkit.data.Field, *, drop_keys: list[str] | None = None) -> earthkit.data.ArrayField:
     data = field.to_numpy()
     metadata = {
         "param": field.metadata("param"),
@@ -49,9 +47,7 @@ def _make_arrayfield(
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_anemoi_use_single():
-    temperature, pressure = earthkit.data.from_source(
-        "sample", "era5-2t-msl-1985122512.grib"
-    )
+    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
     temperature = _make_arrayfield(temperature)
     pressure = _make_arrayfield(pressure)
 
@@ -72,32 +68,20 @@ def test_anemoi_use_single():
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_anemoi_use_fieldlist():
-    temperature, pressure = earthkit.data.from_source(
-        "sample", "era5-2t-msl-1985122512.grib"
-    )
+    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
     temperature = _make_arrayfield(temperature)
     pressure = _make_arrayfield(pressure)
 
-    chart = earthkit.plots.quickplot(
-        earthkit.data.FieldList.from_fields([temperature, pressure]), mode="overlay"
-    )
+    chart = earthkit.plots.quickplot(earthkit.data.FieldList.from_fields([temperature, pressure]), mode="overlay")
     return chart.fig
 
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_anemoi_use_fieldlist_minimal():
-    temperature, pressure = earthkit.data.from_source(
-        "sample", "era5-2t-msl-1985122512.grib"
-    )
-    temperature = _make_arrayfield(
-        temperature, drop_keys=["units", "paramId", "shortName", "param"]
-    )
-    pressure = _make_arrayfield(
-        pressure, drop_keys=["units", "paramId", "shortName", "param"]
-    )
+    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib")
+    temperature = _make_arrayfield(temperature, drop_keys=["units", "paramId", "shortName", "param"])
+    pressure = _make_arrayfield(pressure, drop_keys=["units", "paramId", "shortName", "param"])
 
-    chart = earthkit.plots.quickplot(
-        earthkit.data.FieldList.from_fields([temperature, pressure]), mode="overlay"
-    )
+    chart = earthkit.plots.quickplot(earthkit.data.FieldList.from_fields([temperature, pressure]), mode="overlay")
     return chart.fig

@@ -45,9 +45,7 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         d_lat = d_lats[i_lat]
         if i > 0 and lats[i] != current_lat:
             # We are in a new row, recalculate d_lon
-            d_lon = (
-                lons[i + 1] - lons[i]
-            )  # Assuming that the next point is in the new row
+            d_lon = lons[i + 1] - lons[i]  # Assuming that the next point is in the new row
             current_lat = lats[i]
             i_lat += 1
         elif i == 0:
@@ -58,14 +56,12 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         # Define the four corners of each cell, ensuring 5% overlap by reducing edge effect
         lat_pad = d_lat / 20
         lon_pad = d_lon / 20
-        polygons.append(
-            [
-                [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
-                [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
-                [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
-                [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad],
-            ]
-        )
+        polygons.append([
+            [lon - d_lon / 2 - lon_pad, lat - d_lat / 2 - lat_pad],
+            [lon + d_lon / 2 + lon_pad, lat - d_lat / 2 - lat_pad],
+            [lon + d_lon / 2 + lon_pad, lat + d_lat / 2 + lat_pad],
+            [lon - d_lon / 2 - lon_pad, lat + d_lat / 2 + lat_pad],
+        ])
         color_data.append(data[i])
 
     if style is not None:
@@ -76,9 +72,7 @@ def plot_octahedral_grid(lons, lats, data, ax, style=None, **kwargs):
         }
 
     # Create a PolyCollection with slight overlap to prevent gaps
-    poly_collection = mcoll.PolyCollection(
-        polygons, array=np.array(color_data), edgecolors="none", **kwargs
-    )
+    poly_collection = mcoll.PolyCollection(polygons, array=np.array(color_data), edgecolors="none", **kwargs)
 
     ax.add_collection(poly_collection)
 
@@ -91,10 +85,12 @@ def calculate_row_heights(lats):
     value lies in the center of its row, with row boundaries equidistant
     between consecutive latitudes.
 
-    Parameters:
+    Parameters
+    ----------
         lats (array-like): An array of latitude values.
 
-    Returns:
+    Returns
+    -------
         numpy.ndarray: An array containing the heights of each row.
     """
     # Ensure input is a numpy array and sort it

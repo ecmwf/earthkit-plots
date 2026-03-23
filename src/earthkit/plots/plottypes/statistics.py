@@ -29,7 +29,7 @@ def bandplot(ax, x, y, colors=None, *args, **kwargs):
 
 
 def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **kwargs):
-    """Box-and-whisker plot with multiple boxes for more value intervals
+    """Box-and-whisker plot with multiple boxes for more value intervals.
 
     Parameters
     ----------
@@ -61,7 +61,8 @@ def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **k
 
     # if the width is np.timedelta-like, cast it to pandas.Timedelta in order
     # to avoid integer division issue like np.timedelta64(1, 'D') * 0.5 == np.timedelta64(0, 'D')
-    # TODO: should we add pandas explicitly to the package dependencies (even though it is already a dependency via earthkit-data)?
+    # TODO: should we add pandas explicitly to the package dependencies
+    # (even though it is already a dependency via earthkit-data)?
     if np.array(width).dtype.kind == "m":
         width = pd.Timedelta(width)
 
@@ -93,9 +94,7 @@ def boxplot(ax, x, y, width=None, colors=None, whiskers=True, capfrac=0.618, **k
         color = itertools.cycle(colors)
         # A box for each interval defined by the column
         for yt, yb, width in zip(y[:-1, j], y[1:, j], widths):
-            add_rect(
-                (xc - 0.5 * width, yb), width, yt - yb, facecolor=next(color), **kwargs
-            )
+            add_rect((xc - 0.5 * width, yb), width, yt - yb, facecolor=next(color), **kwargs)
 
         if ny == 1:
             raise NotImplementedError

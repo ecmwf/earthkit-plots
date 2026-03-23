@@ -34,7 +34,7 @@
   <a href="https://earthkit-plots.readthedocs.io/en/latest/">Documentation</a>
 </p>
 
-> \[!IMPORTANT\]
+> [!IMPORTANT]
 > This software is **Incubating** and subject to ECMWF's guidelines on [Software Maturity](https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity).
 
 **earthkit-plots** leverages the power of the [earthkit](https://github.com/ecmwf/earthkit) ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.

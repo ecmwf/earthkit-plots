@@ -56,9 +56,7 @@ def load(source, data_type=None):
     if not matches:
         raise DataNotFoundError(f"could not find data named '{source}'")
     elif len(matches) > 1:
-        raise AmbiguousDataError(
-            f"multiple data sources named '{source}'; file extension required"
-        )
+        raise AmbiguousDataError(f"multiple data sources named '{source}'; file extension required")
 
     path = matches[0]
     reader = READERS.get(path.suffix)

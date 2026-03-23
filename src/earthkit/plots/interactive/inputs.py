@@ -70,9 +70,7 @@ def sanitise(axes=("x", "y"), multiplot=True):
                                 time_aggregation[i],
                             )()
                     else:
-                        ds = getattr(
-                            ds.resample(**{time_dim: time_frequency}), time_aggregation
-                        )()
+                        ds = getattr(ds.resample(**{time_dim: time_frequency}), time_aggregation)()
                     time_axis = 1
                 if aggregation is not None:
                     ds = getattr(ds, aggregation)(dim=times.guess_non_time_dim(ds))
@@ -84,31 +82,22 @@ def sanitise(axes=("x", "y"), multiplot=True):
                     else:
                         ds = ds.diff(dim=time_dim)
                 if len(data_vars) > 1:
-                    repeat_kwargs = {
-                        k: v for k, v in kwargs.items() if k != "time_frequency"
-                    }
+                    repeat_kwargs = {k: v for k, v in kwargs.items() if k != "time_frequency"}
                     repeat_kwargs
                     return [
-                        wrapper(
-                            ds[data_var], *args, time_axis=time_axis, **repeat_kwargs
-                        )
-                        for data_var in data_vars
+                        wrapper(ds[data_var], *args, time_axis=time_axis, **repeat_kwargs) for data_var in data_vars
                     ]
                 if len(ds.dims) == 2 and multiplot:
                     expand_dim = times.guess_non_time_dim(ds)
                     for i in range(len(ds[expand_dim])):
                         kwargs["name"] = f"{expand_dim}={ds[expand_dim][i].item()}"
-                        trace_kwargs = get_xarray_kwargs(
-                            ds.isel(**{expand_dim: i}), axes, kwargs
-                        )
+                        trace_kwargs = get_xarray_kwargs(ds.isel(**{expand_dim: i}), axes, kwargs)
                         traces.append(function(*args, **trace_kwargs))
                 else:
                     trace_kwargs = get_xarray_kwargs(ds, axes, kwargs)
                     if not multiplot:
                         if time_axis is None:
-                            time_axis = list(ds[data_vars[0]].dims).index(
-                                times.guess_non_time_dim(ds)
-                            )
+                            time_axis = list(ds[data_vars[0]].dims).index(times.guess_non_time_dim(ds))
                         trace_kwargs["time_axis"] = time_axis
                     traces.append(function(*args, **trace_kwargs))
             else:
@@ -130,18 +119,12 @@ def get_xarray_kwargs(data, axes, kwargs):
     non_time_dims = [d for d in dims if d != time_dim]
 
     axis_default = {
-        "x": (
-            time_dim
-            if time_dim in dims
-            else (non_time_dims[0] if non_time_dims else dims[-1])
-        ),
+        "x": (time_dim if time_dim in dims else (non_time_dims[0] if non_time_dims else dims[-1])),
         "y": data_vars[0],
     }
 
     axis_attrs = dict()
-    assigned_attrs = [
-        kwargs.get(axis).split(".")[-1] for axis in axes if axis in kwargs
-    ]
+    assigned_attrs = [kwargs.get(axis).split(".")[-1] for axis in axes if axis in kwargs]
     for axis in axes:
         attr = kwargs.get(axis)
         if attr is None:

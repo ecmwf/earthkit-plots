@@ -63,7 +63,8 @@ def quickplot(
         Units to convert the data to.
     combine_vectors : bool, optional
         Whether to combine vector components (u, v), and use vector based plotting, i.e. `quiver`.
-        NOTE: This is experimental and seems to have issues with some data sources. This will be addressed in release 0.6.
+        NOTE: This is experimental and seems to have issues with some data sources.
+        This will be addressed in release 0.6.
     **kwargs : dict
         Additional arguments for the plot method(s).
 
@@ -150,9 +151,7 @@ def quickplot(
                 getattr(subplot, m)(*args)
             except Exception as err:
                 warnings.warn(
-                    f"Failed to execute {m} on given data with: \n"
-                    f"{err}\n\n"
-                    "consider constructing the plot manually."
+                    f"Failed to execute {m} on given data with: \n{err}\n\nconsider constructing the plot manually."
                 )
 
     for m in schema.quickmap_figure_workflow:
@@ -160,9 +159,7 @@ def quickplot(
             getattr(figure, m)()
         except Exception as err:
             warnings.warn(
-                f"Failed to execute {m} on given data with: \n"
-                f"{err}\n\n"
-                "consider constructing the plot manually."
+                f"Failed to execute {m} on given data with: \n{err}\n\nconsider constructing the plot manually."
             )
 
     return figure

@@ -148,9 +148,7 @@ def uv_ekd_dataset():
             metadata={"param": name, "shortName": name},
         )
 
-    return earthkit.data.FieldList.from_fields(
-        [make_field("10u"), make_field("10v"), make_field("temperature")]
-    )
+    return earthkit.data.FieldList.from_fields([make_field("10u"), make_field("10v"), make_field("temperature")])
 
 
 def parse_into_fieldlist(*args):

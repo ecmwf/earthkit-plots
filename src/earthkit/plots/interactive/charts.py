@@ -97,10 +97,7 @@ class Chart:
                         pass
                     else:
                         self._subplot_titles = list(ds.data_vars)
-                        titles = [
-                            ds[data_var].attrs.get("units", "")
-                            for data_var in ds.data_vars
-                        ]
+                        titles = [ds[data_var].attrs.get("units", "") for data_var in ds.data_vars]
                         if kwargs.get("y") is not None:
                             self._subplot_x_titles = titles
                         else:
@@ -111,9 +108,7 @@ class Chart:
 
     @property
     def fig(self):
-        """
-        The Plotly figure object representing the chart.
-        """
+        """The Plotly figure object representing the chart."""
         if self._fig is None:
             self._fig = make_subplots(
                 rows=self.rows,
@@ -262,9 +257,7 @@ class Chart:
 
     @set_subplot_titles
     def polar(self, *args, **kwargs):
-        """
-        Adds a polar windrose plot to the chart.
-        """
+        """Adds a polar windrose plot to the chart."""
         if "specs" not in self._subplots_kwargs:
             self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 
@@ -276,9 +269,7 @@ class Chart:
 
     @set_subplot_titles
     def polar_frequency(self, *args, **kwargs):
-        """
-        Adds a polar frequency plot to the chart.
-        """
+        """Adds a polar frequency plot to the chart."""
         if "specs" not in self._subplots_kwargs:
             self._subplots_kwargs["specs"] = [[{"type": "polar"}]]
 
@@ -315,9 +306,7 @@ class Chart:
 
         else:
             # Handle cases where the input is not xarray-compatible
-            raise TypeError(
-                "Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset."
-            )
+            raise TypeError("Heatmap input must be convertible to an xarray.DataArray or xarray.Dataset.")
 
     def title(self, title):
         """
@@ -355,31 +344,25 @@ class Chart:
         # Temporary fix to remove _parent keys from nested dictionaries
         for k in layout:
             if isinstance(layout[k], dict):
-                layout[k] = {
-                    k2: v for k2, v in layout[k].items() if not k2.startswith("_")
-                }
+                layout[k] = {k2: v for k2, v in layout[k].items() if not k2.startswith("_")}
         self.fig.update_layout(**layout)
         for i in range(self.rows * self.columns):
-            y_key = f"yaxis{i+1 if i>0 else ''}"
-            x_key = f"xaxis{i+1 if i>0 else ''}"
+            y_key = f"yaxis{i + 1 if i > 0 else ''}"
+            x_key = f"xaxis{i + 1 if i > 0 else ''}"
             if self._subplot_x_titles:
-                self.fig.update_layout(
-                    **{
-                        y_key: layout["yaxis"],
-                        x_key: {
-                            **layout["xaxis"],
-                            **{"title": self._subplot_x_titles[i]},
-                        },
-                    }
-                )
+                self.fig.update_layout(**{
+                    y_key: layout["yaxis"],
+                    x_key: {
+                        **layout["xaxis"],
+                        **{"title": self._subplot_x_titles[i]},
+                    },
+                })
             if self._subplot_y_titles:
-                self.fig.update_layout(
-                    **{
-                        x_key: layout["xaxis"],
-                        y_key: {
-                            **layout["yaxis"],
-                            **{"title": self._subplot_y_titles[i]},
-                        },
-                    }
-                )
+                self.fig.update_layout(**{
+                    x_key: layout["xaxis"],
+                    y_key: {
+                        **layout["yaxis"],
+                        **{"title": self._subplot_y_titles[i]},
+                    },
+                })
         return self.fig.show(*args, **kwargs)
