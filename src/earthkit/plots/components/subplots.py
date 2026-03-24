@@ -2574,7 +2574,7 @@ class Subplot:
             self.ax.legend(*args, **kwargs)
 
     @schema.title.apply()
-    def title(self, label=None, unique=True, wrap=True, capitalize=True, **kwargs):
+    def title(self, label=None, unique=True, wrap=True, capitalize="auto", **kwargs):
         """
         Add a title to the plot.
 
@@ -2588,11 +2588,15 @@ class Subplot:
             metadata values from all Layers are combined.
         wrap : bool, optional
             Whether to wrap the title text. Default is True.
-        capitalize : bool, optional
-            Whether to capitalize the first letter of the title. Default is True.
+        capitalize : bool or str, optional
+            Whether to capitalize the first letter of the title. Default is "auto".
+            If "auto", capitalization is determined based on whether the title starts
+            with a format key (e.g. "{variable_name}"), in which case it is capitalized.
         **kwargs
             Additional keyword arguments to pass to :func:`matplotlib.pyplot.title`.
         """
+        if capitalize == "auto":
+            capitalize = label is not None and label[0] == "{"
         if label is None:
             label = self._default_title_template
         label = self.format_string(label, unique)
