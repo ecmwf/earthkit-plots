@@ -52,10 +52,14 @@ class Map(Subplot):
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
 
-    def __init__(self, *args, domain=None, crs=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, domain=None, crs=None, ax=None, **kwargs):
+        super().__init__(*args, ax=ax, **kwargs)
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
+        # When an existing GeoAxes is supplied, read its projection back so
+        # self.crs is consistent and _plot_kwargs() returns the right transform.
+        if ax is not None and crs is None and hasattr(ax, "projection"):
+            crs = ax.projection
         if domain is None:
             self.domain = domain
             self._crs = crs
@@ -180,7 +184,7 @@ class Map(Subplot):
                 "grid_cells does not support the 'resample' argument. "
                 "Use pcolormesh with resample=Bilinear(...) or resample=NearestNeighbour(...) instead."
             )
-        from earthkit.plots.components.extractors import extract_plottables_2D
+        from earthkit.plots.components._pipeline import extract_plottables_2D
 
         return extract_plottables_2D(
             subplot=self,
@@ -496,10 +500,10 @@ class Map(Subplot):
 
                 if cached is not None:
                     feature, special_features = cached
-                    result = self.ax.add_feature(feature, *args, **kwargs)
+                    self.ax.add_feature(feature, *args, **kwargs)
                     for sf, sf_kwargs in special_features:
                         self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
-                    return result
+                    return self
 
                 filtered_records = []
                 special_records = []
@@ -611,11 +615,10 @@ class Map(Subplot):
                         special_features,
                     )
 
-                result = self.ax.add_feature(feature, *args, **kwargs)
+                self.ax.add_feature(feature, *args, **kwargs)
                 for sf, sf_kwargs in special_features:
                     self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
-
-                return result
+                return self
 
             return wrapper
 
@@ -1346,7 +1349,7 @@ class Map(Subplot):
         import cartopy.crs as ccrs
         from matplotlib.cm import ScalarMappable
 
-        from earthkit.plots.components.extractors import configure_style
+        from earthkit.plots.components._style_utils import configure_style
         from earthkit.plots.components.layers import Layer
         from earthkit.plots.sources.geometry import GeometrySource
 
@@ -1593,15 +1596,14 @@ class Map(Subplot):
         from earthkit.plots.components.layers import Layer
         from earthkit.plots.sources import get_source
 
-        legends = []
         if style is not None:
             dummy = [[1, 2], [3, 4]]
-            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            mappable = self.layers[-1].mappable
             # Create a dummy source for legend creation
             dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
             layer = Layer(dummy_source, mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
-            legends.append(legend)
+            layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):
                 if isinstance(location, (list, tuple)):
@@ -1609,9 +1611,8 @@ class Map(Subplot):
                 else:
                     loc = location
                 if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
-                legends.append(legend)
-        return legends
+                    layer.style.legend(layer, location=loc, **kwargs)
+        return self
 
     @schema.gridlines.apply()
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
@@ -1638,6 +1639,7 @@ class Map(Subplot):
         if ystep is not None:
             kwargs["ylocs"] = step_range([-90, 90], ystep, yref)
         self.ax.gridlines(*args, **kwargs)
+        return self
 
     def standard_layers(self):
         """

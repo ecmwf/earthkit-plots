@@ -38,7 +38,16 @@ class Layer:
     """
 
     def __init__(
-        self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None
+        self,
+        sources,
+        mappable,
+        subplot,
+        style=None,
+        primary_axis=None,
+        axis_units=None,
+        proxy_label=None,
+        proxy_color=None,
+        proxy_linewidth=None,
     ):
         if not isinstance(sources, (list, tuple)):
             sources = [sources]
@@ -49,6 +58,10 @@ class Layer:
         self.primary_axis = primary_axis
         self.axis_units = axis_units or {}
         self._magnitude = None
+
+        self.proxy_label = proxy_label
+        self._proxy_color = proxy_color
+        self._proxy_linewidth = proxy_linewidth
 
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()

@@ -46,7 +46,7 @@ def _is_structured_grid(gridspec):
 
     # Prefer the .name property on GridSpec / LegacyGridSpec objects
     if hasattr(gridspec, "name"):
-        return gridspec.name in ("healpix", "reduced_gg")
+        return gridspec.name in ("healpix", "reduced_gg", "orca")
 
     # Fall back to inspecting the dict representation
     if isinstance(gridspec, dict):
@@ -61,11 +61,18 @@ def _is_structured_grid(gridspec):
     if not isinstance(grid_value, str):
         return False
 
-    import re
+    from earthkit.plots.sources.gridspec import (
+        HEALPIX_PATTERN,
+        ORCA_PATTERN,
+        RGG_PATTERN,
+    )
 
-    grid_lower = grid_value.lower()
-    # H<N> = HEALPix,  O<N> or N<N> = reduced Gaussian
-    return bool(re.match(r"^h\d+", grid_lower) or re.match(r"^[on]\d+", grid_lower))
+    # H<N> = HEALPix,  O<N> or N<N> = reduced Gaussian,  e?orca<N>_[TUVW] = ORCA
+    return bool(
+        HEALPIX_PATTERN.match(grid_value)
+        or RGG_PATTERN.match(grid_value)
+        or ORCA_PATTERN.match(grid_value)
+    )
 
 
 def _generate_latlon_grid(resolution):

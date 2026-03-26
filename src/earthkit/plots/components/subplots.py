@@ -12,32 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import functools
 import warnings
 
-import matplotlib.dates as mdates
 import numpy as np
 
-from earthkit.plots.components.extractors import (
-    extract_plottables_1D,
-    extract_plottables_2D,
-    extract_plottables_vector_2D,
-)
+from earthkit.plots.components._pipeline import plot_1D, plot_2D, plot_vector
 from earthkit.plots.components.layers import Layer
 from earthkit.plots.metadata.formatters import (
     LayerFormatter,
     SourceFormatter,
     SubplotFormatter,
 )
-from earthkit.plots.resample import _AUTO, Bilinear
 from earthkit.plots.schemas import schema
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
-from earthkit.plots.styles import _STYLE_KWARGS, auto, get_style_class
+from earthkit.plots.styles import auto
 from earthkit.plots.utils import string_utils
-
-DEFAULT_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
-ZERO_FORMATS = ["%Y", "%b", "%-d", "%H:%M", "%H:%M", "%S.%f"]
 
 DEFAULT_SINGLE_SIZE = (7, 8)
 
@@ -52,364 +42,6 @@ LAYER_ZORDERS = {
     "barbs": 3,
     "streamplot": 3,
 }
-
-
-def _darken_color(color, factor=0.25):
-    from matplotlib.colors import to_hex, to_rgb
-
-    rgb = to_rgb(color)
-    return to_hex(tuple(c * factor for c in rgb))
-
-
-def plot_1D(method_name=None):
-    def decorator(method):
-        @functools.wraps(method)
-        def wrapper(
-            self,
-            *args,
-            x=None,
-            y=None,
-            z=None,
-            style=None,
-            every=None,
-            resample=False,
-            colorby=None,
-            dashby=None,
-            markerby=None,
-            sizeby=None,
-            colors=None,
-            dashes=None,
-            markers=None,
-            sizes=None,
-            label=None,
-            **kwargs,
-        ):
-            from itertools import product
-
-            import numpy as np
-            import pandas as pd
-            import xarray as xr
-
-            # Inject subplot-level fixed units if not already specified by the caller.
-            if "x_units" not in kwargs and self._fixed_x_units is not None:
-                kwargs["x_units"] = self._fixed_x_units
-            if (
-                "y_units" not in kwargs
-                and "units" not in kwargs
-                and self._fixed_y_units is not None
-            ):
-                kwargs["y_units"] = self._fixed_y_units
-
-            # Accept underscore aliases (color_by → colorby, etc.)
-            if colorby is None:
-                colorby = kwargs.pop("color_by", None)
-            if dashby is None:
-                dashby = kwargs.pop("dash_by", None)
-            if markerby is None:
-                markerby = kwargs.pop("marker_by", None)
-            if sizeby is None:
-                sizeby = kwargs.pop("size_by", None)
-
-            # Collect active *by dimensions: param_key → coordinate name
-            by_dims = {
-                k: v
-                for k, v in [
-                    ("colorby", colorby),
-                    ("dashby", dashby),
-                    ("markerby", markerby),
-                    ("sizeby", sizeby),
-                ]
-                if v is not None
-            }
-
-            if not by_dims:
-                # Default single-call path — no grouping requested
-                return extract_plottables_1D(
-                    self,
-                    method_name or method.__name__,
-                    args=args,
-                    x=x,
-                    y=y,
-                    z=z,
-                    style=style,
-                    every=every,
-                    resample=resample,
-                    label=label,
-                    **kwargs,
-                )
-
-            # Require xarray DataArray when any *by is set
-            data = args[0] if args else None
-            if not isinstance(data, xr.DataArray):
-                raise TypeError(
-                    "colorby/dashby/markerby/sizeby require a single xarray "
-                    "DataArray as the first positional argument."
-                )
-            rest_args = args[1:]
-
-            # ------------------------------------------------------------------
-            # Helpers
-            # ------------------------------------------------------------------
-
-            def _unique_vals(da, dim):
-                """Unique values along *dim*, preserving numpy dtype for .sel()."""
-                vals = da[dim].values
-                seen = {}
-                for v in vals.flat:
-                    key = v.tobytes() if hasattr(v, "tobytes") else v
-                    if key not in seen:
-                        seen[key] = v
-                return list(seen.values())
-
-            def _to_python(val):
-                """Convert numpy scalar to a Python-native value for formatting."""
-                if isinstance(val, np.datetime64):
-                    return pd.Timestamp(val)
-                if hasattr(val, "item"):
-                    return val.item()
-                return val
-
-            def _scalar_str(val):
-                """Default human-readable string for a single value."""
-                py_val = _to_python(val)
-                if hasattr(py_val, "isoformat"):
-                    return str(py_val)[:10]
-                return str(py_val)
-
-            def _make_label(combo):
-                """Build legend label for a combination of *by values."""
-                # Map coordinate name → python value, deduplicating repeated coords
-                coord_vals = {}
-                for dim_key, val in zip(dim_keys, combo):
-                    coord = by_dims[dim_key]
-                    if coord not in coord_vals:
-                        coord_vals[coord] = _to_python(val)
-                if label is not None:
-                    return label.format(**coord_vals)
-                # Default: join unique values with " / "
-                return " / ".join(_scalar_str(v) for v in coord_vals.values())
-
-            # ------------------------------------------------------------------
-            # Build visual mappings for each *by dimension
-            # list  → positional assignment (index order matches unique values)
-            # dict  → explicit mapping (coord value string → visual value)
-            # None  → use defaults
-            # ------------------------------------------------------------------
-
-            _DEFAULT_DASHES = ["solid", "dashed", "dotted", "dashdot"]
-            _DEFAULT_MARKERS = ["o", "s", "^", "D", "v", "p", "X", "*"]
-
-            from matplotlib import rcParams
-
-            # Call _unique_vals ONCE per dimension so id() keys are stable
-            # throughout the entire function.
-            dim_keys = list(by_dims.keys())
-            dim_unique = {dk: _unique_vals(data, by_dims[dk]) for dk in dim_keys}
-
-            def _build_map(unique, user_values, default_fn):
-                """Return {id(val): visual_value} for a *by dimension."""
-                n = len(unique)
-                if user_values is None:
-                    vis_vals = [default_fn(i) for i in range(n)]
-                elif isinstance(user_values, dict):
-                    vis_vals = [
-                        user_values.get(str(_to_python(v)), default_fn(i))
-                        for i, v in enumerate(unique)
-                    ]
-                else:
-                    cycle = list(user_values)
-                    vis_vals = [cycle[i % len(cycle)] for i in range(n)]
-                return {id(v): vis for v, vis in zip(unique, vis_vals)}
-
-            prop_cycle_colors = [p["color"] for p in rcParams["axes.prop_cycle"]]
-
-            color_map = (
-                _build_map(
-                    dim_unique["colorby"],
-                    colors,
-                    lambda i: prop_cycle_colors[i % len(prop_cycle_colors)],
-                )
-                if colorby is not None
-                else {}
-            )
-            dash_map = (
-                _build_map(
-                    dim_unique["dashby"],
-                    dashes,
-                    lambda i: _DEFAULT_DASHES[i % len(_DEFAULT_DASHES)],
-                )
-                if dashby is not None
-                else {}
-            )
-            marker_map = (
-                _build_map(
-                    dim_unique["markerby"],
-                    markers,
-                    lambda i: _DEFAULT_MARKERS[i % len(_DEFAULT_MARKERS)],
-                )
-                if markerby is not None
-                else {}
-            )
-            size_map = (
-                _build_map(
-                    dim_unique["sizeby"],
-                    sizes,
-                    lambda i: float(
-                        np.linspace(0.8, 2.0, max(len(dim_unique["sizeby"]), 1))[i]
-                    ),
-                )
-                if sizeby is not None
-                else {}
-            )
-
-            # ------------------------------------------------------------------
-            # Iterate over the cartesian product of all *by dimensions
-            # ------------------------------------------------------------------
-
-            combos = list(product(*[dim_unique[dk] for dk in dim_keys]))
-
-            seen_label_keys = set()
-            mappables = []
-
-            for combo in combos:
-                sel = {}
-                call_kwargs = dict(kwargs)
-
-                for dim_key, val in zip(dim_keys, combo):
-                    coord = by_dims[dim_key]
-                    sel[coord] = val
-                    if dim_key == "colorby":
-                        call_kwargs["color"] = color_map[id(val)]
-                    elif dim_key == "dashby":
-                        call_kwargs["linestyle"] = dash_map[id(val)]
-                    elif dim_key == "markerby":
-                        call_kwargs["marker"] = marker_map[id(val)]
-                    elif dim_key == "sizeby":
-                        call_kwargs["linewidth"] = size_map[id(val)]
-
-                slice_da = data.sel(sel)
-
-                # One legend entry per unique combination of *by coord values;
-                # suppress duplicates (e.g. same coord used in colorby + dashby).
-                label_key = tuple(
-                    id(combo[i])
-                    for i, dk in enumerate(dim_keys)
-                    # deduplicate by coord name — only first occurrence counts
-                    if by_dims[dk] not in [by_dims[dim_keys[j]] for j in range(i)]
-                )
-                if label_key not in seen_label_keys:
-                    call_kwargs["label"] = _make_label(combo)
-                    seen_label_keys.add(label_key)
-                else:
-                    call_kwargs["label"] = "_nolegend_"
-
-                mappables.append(
-                    extract_plottables_1D(
-                        self,
-                        method_name or method.__name__,
-                        args=(slice_da, *rest_args),
-                        x=x,
-                        y=y,
-                        z=z,
-                        style=style,
-                        every=every,
-                        resample=resample,
-                        **call_kwargs,
-                    )
-                )
-
-            return mappables
-
-        return wrapper
-
-    return decorator
-
-
-def plot_2D(method_name=None, extract_domain=False, default_resample=_AUTO):
-    def decorator(method):
-        @functools.wraps(method)
-        def wrapper(
-            self,
-            *args,
-            x=None,
-            y=None,
-            z=None,
-            style=None,
-            every=None,
-            auto_style=False,
-            resample=_AUTO,
-            **kwargs,
-        ):
-            if resample is _AUTO:
-                # "auto": resolved later in extract_plottables_2D once the
-                # source gridspec is known (Regrid for HEALPix/reduced_gg,
-                # Bilinear for everything else).
-                if default_resample is False:
-                    resample = False  # method explicitly opts out of resampling
-                # else: keep _AUTO — the pipeline will resolve it
-            elif resample is True:
-                resample = Bilinear()
-            elif isinstance(resample, list):
-                from earthkit.plots.resample import Chain
-
-                resample = Chain(resample)
-            return extract_plottables_2D(
-                subplot=self,
-                method_name=method_name or method.__name__,
-                args=args,
-                x=x,
-                y=y,
-                z=z,
-                style=style,
-                every=every,
-                auto_style=auto_style,
-                extract_domain=extract_domain,
-                resample=resample,
-                **kwargs,
-            )
-
-        return wrapper
-
-    return decorator
-
-
-def plot_vector(method_name=None, extract_domain=False):
-    def decorator(method):
-        @functools.wraps(method)
-        def wrapper(
-            self,
-            *args,
-            x=None,
-            y=None,
-            u=None,
-            v=None,
-            colors=False,
-            style=None,
-            units=None,
-            auto_style=False,
-            resample=Bilinear(40),
-            **kwargs,
-        ):
-            return extract_plottables_vector_2D(
-                subplot=self,
-                method_name=method_name or method.__name__,
-                args=args,
-                x=x,
-                y=y,
-                u=u,
-                v=v,
-                style=style,
-                units=units,
-                auto_style=auto_style,
-                extract_domain=extract_domain,
-                resample=resample,
-                colors=colors,
-                **kwargs,
-            )
-
-        return wrapper
-
-    return decorator
 
 
 class Subplot:
@@ -427,21 +59,26 @@ class Subplot:
         The column index of the subplot in the Figure.
     figure : Figure, optional
         The Figure to which the subplot belongs.
+
     **kwargs
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` constructor.
     """
 
     def __init__(
-        self, row=0, column=0, figure=None, size=DEFAULT_SINGLE_SIZE, **kwargs
+        self, row=0, column=0, figure=None, size=DEFAULT_SINGLE_SIZE, ax=None, **kwargs
     ):
-        self._figure = figure
-
-        if figure is not None and size is not None:
+        # When an existing axes is supplied we bypass the lazy-creation path
+        # entirely: _ax is pre-populated and _figure is derived from ax.figure
+        # so self.fig always returns the correct matplotlib Figure.
+        if ax is not None:
+            self._ax = ax
+            self._figure = figure  # may still be None; figure property handles it
             self._size = None
         else:
-            self._size = size
+            self._ax = None
+            self._figure = figure
+            self._size = None if figure is not None else size
 
-        self._ax = None
         self._ax_kwargs = kwargs
 
         self.layers = []
@@ -610,169 +247,26 @@ class Subplot:
             **kwargs,
         )
 
-    def set_major_xticks(
-        self,
-        frequency=None,
-        format=None,
-        highlight=None,
-        highlight_color="red",
-        **kwargs,
-    ):
-        """
-        Set the major xticks of the subplot.
-
-        Parameters
-        ----------
-        frequency : str, optional
-            The frequency of the xticks.
-        format : str, optional
-            The format of the xticks. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
-        highlight : dict, optional
-            A dictionary of highlight conditions. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
-        highlight_color : str, optional
-            The color of the highlighted xticks.
-        **kwargs : dict, optional
-            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
-        """
-        formats = DEFAULT_FORMATS
-        if frequency is None:
-            locator = mdates.AutoDateLocator(maxticks=30)
-        else:
-            if frequency.startswith("D"):
-                interval = frequency.lstrip("D") or 1
-                if interval is not None:
-                    interval = int(interval)
-                locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif frequency.startswith("M"):
-                interval = int(frequency.lstrip("M") or "1")
-                locator = mdates.MonthLocator(interval=interval, bymonthday=15)
-            elif frequency.startswith("Y"):
-                locator = mdates.YearLocator()
-            elif frequency.startswith("H"):
-                interval = int(frequency.lstrip("H") or "1")
-                locator = mdates.HourLocator(interval=interval)
-
-        if format:
-            formats = [format] * 6
-
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
-        self.ax.xaxis.set_major_locator(locator)
-        self.ax.xaxis.set_major_formatter(formatter)
-
-        if highlight is not None:
-            dates = [mdates.num2date(i) for i in self.ax.get_xticks()]
-            for i, date in enumerate(dates):
-                highlight_this = False
-                for key, value in highlight.items():
-                    attr = getattr(date, key)
-                    attr = attr if not callable(attr) else attr()
-                    if isinstance(value, list):
-                        if attr in value:
-                            highlight_this = True
-                    else:
-                        if attr == value:
-                            highlight_this = True
-                if highlight_this:
-                    self.ax.get_xticklabels()[i].set_color(highlight_color)
-
-    def set_minor_xticks(
-        self,
-        frequency=None,
-        format=None,
-        **kwargs,
-    ):
-        """
-        Set the minor xticks of the subplot.
-
-        Parameters
-        ----------
-        frequency : str, optional
-            The frequency of the xticks.
-        format : str, optional
-            The format of the xticks. See :class:`matplotlib.dates.ConciseDateFormatter` for more details.
-        **kwargs : dict, optional
-            Additional keyword arguments to pass to :class:`matplotlib.dates.DayLocator`, :class:`matplotlib.dates.MonthLocator`, :class:`matplotlib.dates.YearLocator`, or :class:`matplotlib.dates.HourLocator`.
-        """
-        formats = DEFAULT_FORMATS
-        if frequency is None:
-            locator = mdates.AutoDateLocator(maxticks=30)
-        else:
-            if frequency.startswith("D"):
-                interval = frequency.lstrip("D") or 1
-                if interval is not None:
-                    interval = int(interval)
-                locator = mdates.DayLocator(interval=interval, **kwargs)
-            elif frequency.startswith("M"):
-                interval = int(frequency.lstrip("M") or "1")
-                locator = mdates.MonthLocator(interval=interval, bymonthday=15)
-            elif frequency.startswith("Y"):
-                locator = mdates.YearLocator()
-            elif frequency.startswith("H"):
-                interval = int(frequency.lstrip("H") or "1")
-                locator = mdates.HourLocator(interval=interval)
-
-        if format:
-            formats = [format] * 6
-
-        formatter = mdates.ConciseDateFormatter(
-            locator, formats=formats, zero_formats=ZERO_FORMATS, show_offset=False
-        )
-        self.ax.xaxis.set_minor_locator(locator)
-        self.ax.xaxis.set_minor_formatter(formatter)
-
-    def _configure_style(self, method_name, style, source, units, auto_style, kwargs):
-        """
-        Configures style based on method name, style, source, and units.
-
-        If a style is provided along with additional style kwargs, the kwargs will
-        override the corresponding attributes without modifying the original style.
-        """
-        # Handle style="auto" as an alternative to auto_style=True
-        if style == "auto":
-            auto_style = True
-            style = None
-
-        # Handle cmap as an alias for colors
-        if "cmap" in kwargs and "colors" in kwargs:
-            raise ValueError(
-                "Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter."
-            )
-        if "cmap" in kwargs:
-            kwargs["colors"] = kwargs.pop("cmap")
-
-        # Extract style-specific keyword arguments
-        style_kwargs = {k: kwargs.pop(k) for k in _STYLE_KWARGS if k in kwargs}
-
-        # If a style is provided and we have style kwargs to override
-        if style and style_kwargs:
-            # Create a copy with overrides without modifying the original
-            return style.with_overrides(**style_kwargs)
-
-        # If a style is provided without overrides, return it as-is
-        if style:
-            return style
-
-        # Create a new style
-        style_class = get_style_class(method_name)
-        if not auto_style:
-            style = style_class(**{**style_kwargs, "units": units})
-        else:
-            style = auto.guess_style(source, units=units or source.units)
-            # Apply any style kwargs as overrides to the auto-detected style
-            if style_kwargs and style is not None:
-                style = style.with_overrides(**style_kwargs)
-        return style
-
     @property
     def figure(self):
         """The :class:`earthkit.plots.components.figures.Figure` object."""
         from earthkit.plots.components.figures import Figure
 
         if self._figure is None:
-            self._figure = Figure(1, 1, size=self._size)
-            self._figure.subplots = [self]
+            if self._ax is not None:
+                # Wrap the existing matplotlib Figure so self.fig is consistent,
+                # but skip gridspec setup — we don't own this figure's layout.
+                self._figure = Figure.__new__(Figure)
+                self._figure.fig = self._ax.figure
+                self._figure.gridspec = None
+                self._figure.subplots = [self]
+                self._figure._style_context = None
+                self._figure.attributions = []
+                self._figure.logos = []
+                self._figure._ancillary_cache = {}
+            else:
+                self._figure = Figure(1, 1, size=self._size)
+                self._figure.subplots = [self]
         return self._figure
 
     @property
@@ -813,7 +307,8 @@ class Subplot:
             else:
                 label = "{variable_name}"
         label = self.format_string(label, axis="y")
-        return self.ax.set_ylabel(label, **kwargs)
+        self.ax.set_ylabel(label, **kwargs)
+        return self
 
     def xlabel(self, label=None, **kwargs):
         """
@@ -840,7 +335,8 @@ class Subplot:
             else:
                 label = "{variable_name}"
         label = self.format_string(label, axis="x")
-        return self.ax.set_xlabel(label, **kwargs)
+        self.ax.set_xlabel(label, **kwargs)
+        return self
 
     @property
     def _default_title_template(self):
@@ -997,282 +493,37 @@ class Subplot:
         list
             List of matplotlib artists drawn for this layer.
         """
-        import xarray as xr
-        from matplotlib.colors import to_rgb
-        from matplotlib.patches import Rectangle
+        from earthkit.plots.metadata.formatters import LayerFormatter
+        from earthkit.plots.plottypes.multiboxplot import draw_multiboxplot
 
-        # ------------------------------------------------------------------ #
-        # 1. Normalise input                                                  #
-        # ------------------------------------------------------------------ #
-        if isinstance(data, xr.Dataset):
-            data_vars = [v for v in data.data_vars if data[v].ndim > 0]
-            if len(data_vars) != 1:
-                raise ValueError(
-                    "Dataset must have exactly one non-scalar variable; "
-                    f"got {data_vars}"
-                )
-            data = data[data_vars[0]]
-
-        data = data.squeeze()
-
-        # ------------------------------------------------------------------ #
-        # 2. Resolve target units (y_units > units)                           #
-        # ------------------------------------------------------------------ #
+        # Resolve subplot-level fixed units; y_units takes precedence over units.
         if self._fixed_y_units is not None and units is None and y_units is None:
             units = self._fixed_y_units
         if self._fixed_x_units is not None and x_units is None:
             x_units = self._fixed_x_units
         target_yunits = y_units or units
 
-        # ------------------------------------------------------------------ #
-        # 3. Compute / validate quantiles                                     #
-        # ------------------------------------------------------------------ #
-        if quantiles is None:
-            # Pre-computed: dim must name the quantile dimension
-            if dim is None:
-                raise ValueError(
-                    "When quantiles=None (pre-computed), 'dim' must name the "
-                    "dimension that holds the quantile values."
-                )
-            if dim not in data.dims:
-                raise ValueError(
-                    f"Dimension '{dim}' not found; available: {list(data.dims)}"
-                )
-            quantile_data = data
-            quantile_dim = dim
-            if dim in data.coords:
-                q_list = sorted(data.coords[dim].values.tolist())
-            else:
-                q_list = list(range(data.sizes[dim]))
-        else:
-            if quantiles == "auto":
-                quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
-            quantiles = sorted(quantiles)
-            if not all(0.0 <= q <= 1.0 for q in quantiles):
-                raise ValueError("All quantiles must be between 0 and 1.")
-            if len(data.dims) < 2:
-                raise ValueError(
-                    "Data must have at least 2 dimensions for multiboxplot "
-                    f"(got {list(data.dims)})."
-                )
-            if dim is None:
-                dim = data.dims[0]
-            elif dim not in data.dims:
-                raise ValueError(
-                    f"Dimension '{dim}' not found; available: {list(data.dims)}"
-                )
-            # Unit-convert the raw data before computing quantiles so the
-            # box positions are in the target units.
-            if target_yunits is not None:
-                data_slice = data.isel({dim: 0})
-                src_original = get_source(
-                    data_slice,
-                    context=PlotContext.CARTESIAN_1D,
-                )
-                src_converted = get_source(
-                    data_slice,
-                    context=PlotContext.CARTESIAN_1D,
-                    units=target_yunits,
-                )
-                original = src_original.y.values
-                converted = src_converted.y.values
-                if not np.array_equal(original, converted) and len(original) > 1:
-                    scale = (converted[1] - converted[0]) / (original[1] - original[0])
-                    offset = converted[0] - scale * original[0]
-                    attrs = data.attrs.copy()
-                    coord_attrs = {c: data.coords[c].attrs.copy() for c in data.coords}
-                    data = xr.DataArray(
-                        data.values * scale + offset,
-                        dims=data.dims,
-                        coords=data.coords,
-                        attrs=attrs,
-                    )
-                    for c, a in coord_attrs.items():
-                        if c in data.coords:
-                            data.coords[c].attrs.update(a)
+        result = draw_multiboxplot(
+            self.ax,
+            data,
+            x=x,
+            dim=dim,
+            quantiles=quantiles,
+            color=color,
+            target_yunits=target_yunits,
+            boxprops=boxprops,
+            whiskerprops=whiskerprops,
+            medianprops=medianprops,
+            capprops=capprops,
+            showcaps=showcaps,
+        )
 
-            attrs_backup = data.attrs.copy()
-            coord_attrs_backup = {c: data.coords[c].attrs.copy() for c in data.coords}
-            quantile_data = data.quantile(quantiles, dim=dim)
-            quantile_dim = "quantile"
-            q_list = quantiles
-            quantile_data.attrs.update(attrs_backup)
-            for c, a in coord_attrs_backup.items():
-                if c in quantile_data.coords:
-                    quantile_data.coords[c].attrs.update(a)
-
-        # ------------------------------------------------------------------ #
-        # 4. Determine x dimension and values                                 #
-        # ------------------------------------------------------------------ #
-        remaining = [d for d in quantile_data.dims if d != quantile_dim]
-        if len(remaining) != 1:
-            raise ValueError(
-                f"After quantile processing, expected 1 remaining dim, got {remaining}."
-            )
-        x_dim = remaining[0]
-        x_values = quantile_data[x_dim].values
-        q_values = quantile_data.values  # shape: (n_quantiles, n_x)
-
-        # ------------------------------------------------------------------ #
-        # 5. Pair quantiles symmetrically                                     #
-        # ------------------------------------------------------------------ #
-        n_q = len(q_list)
-        pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
+        # Build a representative Source from the median (or midpoint) slice so
+        # the Layer carries correct metadata for titles and formatters.
+        n_q = len(result.quantiles)
         median_idx = n_q // 2 if n_q % 2 == 1 else None
-
-        # ------------------------------------------------------------------ #
-        # 6. Resolve styling                                                  #
-        # ------------------------------------------------------------------ #
-        boxprops = boxprops or {}
-        box_edgecolor = boxprops.get("edgecolor", "black")
-        box_linewidth = boxprops.get("linewidth", 1.0)
-        box_linestyle = boxprops.get("linestyle", "solid")
-
-        if color is None:
-            color = self.ax._get_lines.get_next_color()
-        plot_color = color
-
-        whiskerprops = whiskerprops or {}
-        whisker_color = whiskerprops.get("color", box_edgecolor)
-        whisker_linewidth = whiskerprops.get("linewidth", box_linewidth)
-        whisker_linestyle = whiskerprops.get("linestyle", "solid")
-
-        medianprops = medianprops or {}
-        median_color = medianprops.get("color", _darken_color(plot_color, 0.25))
-        median_linewidth = medianprops.get("linewidth", 1.5)
-        median_linestyle = medianprops.get("linestyle", "solid")
-        median_alpha = medianprops.get("alpha", 1.0)
-
-        if showcaps:
-            capprops = capprops or {}
-            cap_color = capprops.get("color", whisker_color)
-            cap_linewidth = capprops.get("linewidth", whisker_linewidth)
-            cap_linestyle = capprops.get("linestyle", "solid")
-            cap_width_factor = capprops.get("capwidth", 1.0)
-
-        # ------------------------------------------------------------------ #
-        # 7. Compute box widths from x spacing                               #
-        # ------------------------------------------------------------------ #
-        is_datetime = np.issubdtype(x_values.dtype, np.datetime64)
-        if len(x_values) > 1:
-            if is_datetime:
-                from matplotlib.dates import date2num
-
-                x_num = date2num(x_values)
-                x_spacing = float(np.min(np.diff(x_num)))
-            else:
-                x_spacing = float(np.min(np.diff(x_values.astype(float))))
-        else:
-            x_spacing = 1.0
-        base_width = 0.6 * x_spacing
-
-        # ------------------------------------------------------------------ #
-        # 8. Draw boxes                                                       #
-        # ------------------------------------------------------------------ #
-        mappables = []
-
-        # Register the x-axis as a date axis before drawing any patches or
-        # lines with numeric (date2num) coordinates.  Without this, matplotlib
-        # never installs the date converter and the x-axis shows raw floats.
-        if is_datetime:
-            self.ax.plot([], [], visible=False)
-            self.ax.xaxis.update_units(x_values)
-
-        def _x_pos_num(x_val):
-            if is_datetime:
-                from matplotlib.dates import date2num
-
-                return date2num(x_val)
-            return float(x_val)
-
-        for x_idx, x_val in enumerate(x_values):
-            xp = _x_pos_num(x_val)
-
-            for pair_idx, (lo_i, hi_i) in enumerate(pairs):
-                width_factor = (pair_idx + 1) / len(pairs)
-                box_width = base_width * width_factor
-                y_lo = float(q_values[lo_i, x_idx])
-                y_hi = float(q_values[hi_i, x_idx])
-
-                if pair_idx == 0:
-                    # Outermost pair → whisker line
-                    line = self.ax.plot(
-                        [xp, xp],
-                        [y_lo, y_hi],
-                        color=whisker_color,
-                        linewidth=whisker_linewidth,
-                        linestyle=whisker_linestyle,
-                        zorder=3,
-                    )
-                    if x_idx == 0:
-                        mappables.extend(line)
-
-                    if showcaps:
-                        hw = base_width * cap_width_factor / 2
-                        for y_cap in (y_lo, y_hi):
-                            self.ax.plot(
-                                [xp - hw, xp + hw],
-                                [y_cap, y_cap],
-                                color=cap_color,
-                                linewidth=cap_linewidth,
-                                linestyle=cap_linestyle,
-                                zorder=3,
-                            )
-                else:
-                    # Inner pair → box
-                    norm_i = (pair_idx - 1) / max(1, len(pairs) - 2)
-                    lightness = 0.4 * (1.0 - norm_i)
-                    rgb = to_rgb(plot_color)
-                    box_color = tuple(c * (1 - lightness) + lightness for c in rgb)
-
-                    rect = Rectangle(
-                        (xp - box_width / 2, y_lo),
-                        box_width,
-                        y_hi - y_lo,
-                        facecolor=box_color,
-                        edgecolor=box_edgecolor,
-                        linewidth=box_linewidth,
-                        linestyle=box_linestyle,
-                        zorder=4,
-                    )
-                    self.ax.add_patch(rect)
-                    if x_idx == 0 and pair_idx == 1:
-                        mappables.append(rect)
-
-            # Median line
-            if median_idx is not None:
-                y_med = float(q_values[median_idx, x_idx])
-                mw = base_width * 0.95
-                med_line = self.ax.plot(
-                    [xp - mw / 2, xp + mw / 2],
-                    [y_med, y_med],
-                    color=median_color,
-                    linewidth=median_linewidth,
-                    linestyle=median_linestyle,
-                    alpha=median_alpha,
-                    zorder=5,
-                )
-                if x_idx == 0:
-                    mappables.extend(med_line)
-
-        # ------------------------------------------------------------------ #
-        # 9. Axis limits                                                       #
-        # ------------------------------------------------------------------ #
-        if is_datetime:
-            from matplotlib.dates import date2num
-
-            x_num = date2num(x_values)
-            self.ax.set_xlim(x_num[0] - base_width, x_num[-1] + base_width)
-        else:
-            xf = x_values.astype(float)
-            self.ax.set_xlim(float(xf[0]) - base_width, float(xf[-1]) + base_width)
-        self.ax.autoscale_view(scalex=False, scaley=True)
-
-        # ------------------------------------------------------------------ #
-        # 10. Create Layer using the current Source machinery                 #
-        # ------------------------------------------------------------------ #
         median_or_mid = median_idx if median_idx is not None else n_q // 2
-        rep_data = quantile_data.isel({quantile_dim: median_or_mid})
+        rep_data = result.quantile_data.isel({result.quantile_dim: median_or_mid})
         source = get_source(rep_data, context=PlotContext.CARTESIAN_1D)
 
         axis_units = {}
@@ -1283,7 +534,7 @@ class Subplot:
 
         layer = Layer(
             source,
-            mappables,
+            result.mappables,
             self,
             style=None,
             primary_axis="y",
@@ -1291,27 +542,16 @@ class Subplot:
         )
 
         if label is not None:
-            from earthkit.plots.metadata.formatters import LayerFormatter
-
             formatted_label = LayerFormatter(layer).format(label)
-            if mappables:
-                mappables[0].set_label(formatted_label)
+            if result.mappables:
+                result.mappables[0].set_label(formatted_label)
 
-        # Store metadata on the layer so multiboxplot_legend() can read it.
-        layer._layer_type = "multiboxplot"
-        layer._multiboxplot_quantiles = q_list
-        layer._multiboxplot_color = plot_color
-        layer._multiboxplot_styling = {
-            "whisker_color": whisker_color,
-            "whisker_linewidth": whisker_linewidth,
-            "box_edgecolor": box_edgecolor,
-            "box_linewidth": box_linewidth,
-            "median_color": median_color,
-            "median_linewidth": median_linewidth,
-        }
+        # Attach the typed result so multiboxplot_legend() can read it without
+        # relying on ad-hoc attribute names.
+        layer._multiboxplot_result = result
 
         self.layers.append(layer)
-        return mappables
+        return self
 
     def multiboxplot_legend(
         self,
@@ -1366,156 +606,32 @@ class Subplot:
             If no :meth:`multiboxplot` has been drawn yet, or *location* is
             invalid.
         """
-        from matplotlib.colors import to_rgb
-        from matplotlib.patches import Rectangle
-        from mpl_toolkits.axes_grid1 import make_axes_locatable
+        from earthkit.plots.plottypes.multiboxplot import draw_multiboxplot_legend
 
-        # ------------------------------------------------------------------ #
-        # 1. Retrieve metadata from the most recent multiboxplot layer        #
-        # ------------------------------------------------------------------ #
         mbp_layers = [
             layer
             for layer in self.layers
-            if getattr(layer, "_layer_type", None) == "multiboxplot"
+            if getattr(layer, "_multiboxplot_result", None) is not None
         ]
         if not mbp_layers:
             raise ValueError(
                 "No multiboxplot has been drawn yet. "
                 "Call multiboxplot() before multiboxplot_legend()."
             )
-        last = mbp_layers[-1]
-        quantiles = [float(q) for q in last._multiboxplot_quantiles]
-        stored_color = last._multiboxplot_color
-        stored_styling = last._multiboxplot_styling
 
-        # ------------------------------------------------------------------ #
-        # 2. Resolve colours / styling                                        #
-        # ------------------------------------------------------------------ #
-        base_color = color if color is not None else stored_color
-        rgb = to_rgb(base_color)
-
-        whiskerprops = whiskerprops or {}
-        whisker_color = whiskerprops.get(
-            "color", stored_styling.get("whisker_color", (0.3, 0.3, 0.3))
+        draw_multiboxplot_legend(
+            self.ax,
+            mbp_layers[-1]._multiboxplot_result,
+            location=location,
+            fontsize=fontsize,
+            color=color,
+            boxprops=boxprops,
+            whiskerprops=whiskerprops,
+            medianprops=medianprops,
+            size=kwargs.pop("size", 0.75),
+            pad=kwargs.pop("pad", 0.1),
         )
-        whisker_linewidth = whiskerprops.get(
-            "linewidth", stored_styling.get("whisker_linewidth", 0.8)
-        )
-
-        boxprops = boxprops or {}
-        box_edgecolor = boxprops.get(
-            "edgecolor", stored_styling.get("box_edgecolor", base_color)
-        )
-        box_linewidth = boxprops.get(
-            "linewidth", stored_styling.get("box_linewidth", 0.5)
-        )
-
-        medianprops = medianprops or {}
-        median_color = medianprops.get(
-            "color",
-            stored_styling.get("median_color", tuple(c * 0.6 for c in rgb)),
-        )
-        median_linewidth = medianprops.get(
-            "linewidth", stored_styling.get("median_linewidth", 1.5)
-        )
-
-        # ------------------------------------------------------------------ #
-        # 3. Validate location and create legend axes                         #
-        # ------------------------------------------------------------------ #
-        valid_locations = ("right", "left", "top", "bottom")
-        if location not in valid_locations:
-            raise ValueError(
-                f"Invalid location {location!r}. " f"Choose from: {valid_locations}"
-            )
-
-        size = kwargs.pop("size", 0.75)
-        pad = kwargs.pop("pad", 0.1)
-
-        divider = make_axes_locatable(self.ax)
-        legend_ax = divider.append_axes(location, size=size, pad=pad)
-        legend_ax.set_aspect("equal", adjustable="box")
-
-        # ------------------------------------------------------------------ #
-        # 4. Draw the miniature box structure                                 #
-        # ------------------------------------------------------------------ #
-        n_q = len(quantiles)
-        pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
-        median_idx = n_q // 2 if n_q % 2 == 1 else None
-
-        x_center = 0.25
-        base_width = 0.15
-
-        for pair_idx, (lo_i, hi_i) in enumerate(pairs):
-            width_factor = (pair_idx + 1) / len(pairs)
-            box_width = base_width * width_factor
-            y_lo, y_hi = quantiles[lo_i], quantiles[hi_i]
-
-            if pair_idx == 0:
-                legend_ax.plot(
-                    [x_center, x_center],
-                    [y_lo, y_hi],
-                    color=whisker_color,
-                    linewidth=whisker_linewidth,
-                    zorder=1,
-                )
-            else:
-                norm_i = (pair_idx - 1) / max(1, len(pairs) - 2)
-                lightness = 0.4 * (1.0 - norm_i)
-                box_color = tuple(c * (1 - lightness) + lightness for c in rgb)
-                legend_ax.add_patch(
-                    Rectangle(
-                        (x_center - box_width / 2, y_lo),
-                        box_width,
-                        y_hi - y_lo,
-                        facecolor=box_color,
-                        edgecolor=box_edgecolor,
-                        linewidth=box_linewidth,
-                        zorder=2,
-                    )
-                )
-
-        if median_idx is not None:
-            mw = base_width * 0.95
-            legend_ax.plot(
-                [x_center - mw / 2, x_center + mw / 2],
-                [quantiles[median_idx], quantiles[median_idx]],
-                color=median_color,
-                linewidth=median_linewidth,
-                zorder=10,
-            )
-
-        # ------------------------------------------------------------------ #
-        # 5. Add quantile labels                                              #
-        # ------------------------------------------------------------------ #
-        for q in quantiles:
-            if q == 0:
-                label_text = "min"
-            elif q == 1:
-                label_text = "max"
-            elif q == 0.5:
-                label_text = "median"
-            else:
-                label_text = f"{int(round(q * 100))}%"
-            legend_ax.text(
-                0.4,
-                q,
-                label_text,
-                ha="left",
-                va="center",
-                fontsize=fontsize - 1,
-            )
-
-        # ------------------------------------------------------------------ #
-        # 6. Clean up axes                                                    #
-        # ------------------------------------------------------------------ #
-        legend_ax.set_xlim(0, 1)
-        legend_ax.set_ylim(-0.05, 1.05)
-        legend_ax.set_xticks([])
-        legend_ax.set_yticks([])
-        for spine in legend_ax.spines.values():
-            spine.set_visible(False)
-
-        return legend_ax
+        return self
 
     @plot_1D()
     def line(self, *args, **kwargs):
@@ -1916,12 +1032,12 @@ class Subplot:
             dims=["y", "x", "rgb"],
         )
 
-        result = self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
+        self.pcolormesh(c=rgb, x=x_values, y=y_values, no_style=True)
 
         self.layers[-1].sources = [red_source, green_source, blue_source]
         self.layers[-1].style = None
 
-        return result
+        return self
 
     def rgb_composite(self, *args):
         """
@@ -1933,7 +1049,7 @@ class Subplot:
             The data sources for the R, G, and B channels. If a single argument
             is provided, it is assumed to be a tuple of (R, G, B).
         """
-        import xarray as xr
+        from earthkit.plots.plottypes.rgb_composite import prepare_rgb_composite
 
         if len(args) == 1:
             red, green, blue = args[0]
@@ -1944,46 +1060,18 @@ class Subplot:
         green_source = get_source(green)
         blue_source = get_source(blue)
 
-        if red_source.z is None or green_source.z is None or blue_source.z is None:
-            raise ValueError("RGB plots require z values for all three channels")
+        result = prepare_rgb_composite(red_source, green_source, blue_source)
 
-        x_values = red_source.x.values
-        y_values = red_source.y.values
-
-        red = (red_source.z.values - red_source.z.values.min()) / (
-            red_source.z.values.max() - red_source.z.values.min()
-        )
-        green = (green_source.z.values - green_source.z.values.min()) / (
-            green_source.z.values.max() - green_source.z.values.min()
-        )
-        blue = (blue_source.z.values - blue_source.z.values.min()) / (
-            blue_source.z.values.max() - blue_source.z.values.min()
+        self.pcolormesh(
+            result.rgb_array, x=result.x_values, y=result.y_values, no_style=True
         )
 
-        rgb = np.stack((red, green, blue), axis=-1)
-
-        if x_values.ndim == 2:
-            x_values = x_values[0, :]  # Extract unique x-coordinates
-        if y_values.ndim == 2:
-            y_values = y_values[:, 0]  # Extract unique y-coordinates
-
-        # Turn RGB into an xarray
-        rgb = xr.DataArray(
-            rgb,
-            coords={
-                "y": y_values,
-                "x": x_values,
-                "rgb": ["red", "green", "blue"],
-            },  # Ensure 1D  # Ensure 1D
-            dims=["y", "x", "rgb"],
-        )
-
-        result = self.pcolormesh(rgb, x=x_values, y=y_values, no_style=True)
-
+        # Replace the single source the pcolormesh layer recorded with all
+        # three channel sources so metadata formatters have the full picture.
         self.layers[-1].sources = [red_source, green_source, blue_source]
         self.layers[-1].style = None
 
-        return result
+        return self
 
     @plot_1D()
     def bar(self, *args, **kwargs):
@@ -2572,6 +1660,7 @@ class Subplot:
             self.ax.legend(handles=proxy_handles, *args, **kwargs)
         else:
             self.ax.legend(*args, **kwargs)
+        return self
 
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize="auto", **kwargs):
@@ -2610,7 +1699,8 @@ class Subplot:
             kwargs["fontsize"] = schema.reference_fontsize * scale_factor
         if capitalize and label:
             label = label[0].upper() + label[1:]
-        return self.ax.set_title(label, wrap=wrap, **kwargs)
+        self.ax.set_title(label, wrap=wrap, **kwargs)
+        return self
 
     def set_title(self, label=None, **kwargs):
         """

@@ -396,7 +396,7 @@ class EarthkitExtractor(BaseExtractor):
                 if hasattr(proj, "to_cartopy_crs"):
                     return proj.to_cartopy_crs()
                 return proj
-            except (AttributeError, NotImplementedError):
+            except (AttributeError, NotImplementedError, KeyError):
                 pass
 
         # Default to PlateCarree for geographic data

@@ -225,9 +225,9 @@ class Unstructured(Resample):
 
         # Drop points where the CRS transformation produced non-finite coordinates
         # (e.g. points that project to infinity in a regional or polar projection).
-        valid = np.isfinite(target_x) & np.isfinite(target_y)
-        target_x = target_x[valid]
-        target_y = target_y[valid]
+        valid = (np.isfinite(target_x) & np.isfinite(target_y)).flatten()
+        target_x = target_x.flatten()[valid]
+        target_y = target_y.flatten()[valid]
         z = z.flatten()[valid]
 
         nx, ny = self._resolve_shape(target_x, target_y)

@@ -11,3 +11,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+from earthkit.plots.plottypes.multiboxplot import (
+    MultiboxplotResult,
+    draw_multiboxplot,
+    draw_multiboxplot_legend,
+)
+from earthkit.plots.plottypes.rgb_composite import (
+    RGBCompositeResult,
+    prepare_rgb_composite,
+)
+from earthkit.plots.plottypes.statistics import bandplot, boxplot
+
+__all__ = [
+    "bandplot",
+    "boxplot",
+    "draw_multiboxplot",
+    "draw_multiboxplot_legend",
+    "MultiboxplotResult",
+    "prepare_rgb_composite",
+    "RGBCompositeResult",
+]

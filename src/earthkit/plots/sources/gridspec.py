@@ -20,6 +20,7 @@ LOG = logging.getLogger(__name__)
 
 HEALPIX_PATTERN = re.compile(r"^[Hh]\d+$")
 RGG_PATTERN = re.compile(r"^[OoNn]\d+$")
+ORCA_PATTERN = re.compile(r"^e?ORCA\d+_[TUVW]$", re.IGNORECASE)
 
 # Keys that are not part of the canonical gridspec and should be removed
 _REMOVE_KEYS = {
@@ -139,13 +140,15 @@ class GridSpec:
 
     @property
     def name(self) -> str:
-        """Return the canonical grid name: 'healpix', 'reduced_gg', or 'unknown'."""
+        """Return the canonical grid name: 'healpix', 'reduced_gg', 'orca', or 'unknown'."""
         grid = self._spec.get("grid")
         if isinstance(grid, str):
             if HEALPIX_PATTERN.match(grid):
                 return "healpix"
             if RGG_PATTERN.match(grid):
                 return "reduced_gg"
+            if ORCA_PATTERN.match(grid):
+                return "orca"
         return "unknown"
 
 
