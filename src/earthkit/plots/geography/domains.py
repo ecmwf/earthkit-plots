@@ -18,8 +18,8 @@ import numpy as np
 from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
-from earthkit.plots.geo.bounds import BoundingBox
-from earthkit.plots.geo.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
+from earthkit.plots.geography.bounds import BoundingBox
+from earthkit.plots.geography.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
 from earthkit.plots.identifiers import LATITUDE, LONGITUDE
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
@@ -206,7 +206,7 @@ class Domain:
         crs : cartopy.crs.CRS, optional
             The coordinate reference system to be used.
         """
-        from earthkit.plots.geo import natural_earth
+        from earthkit.plots.geography import natural_earth
 
         domain_name = format_name(string)
         domain_lookup = load("domains", data_type="geo")

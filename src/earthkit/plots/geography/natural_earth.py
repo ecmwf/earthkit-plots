@@ -16,7 +16,7 @@ import warnings
 
 import cartopy.io.shapereader as shpreader
 
-from earthkit.plots.geo.bounds import BoundingBox
+from earthkit.plots.geography.bounds import BoundingBox
 from earthkit.plots.utils import string_utils
 
 DEFAULT_CAPITAL_CITIES_KWARGS = {
