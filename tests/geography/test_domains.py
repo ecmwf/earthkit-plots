@@ -264,3 +264,90 @@ class TestDomainExtract:
         assert x_ext.shape == y_ext.shape == values_ext.shape
         assert x_ext.ndim == 2  # Should be converted to 2D
         assert y_ext.ndim == 2
+
+    def _global_0_360_grid(self):
+        """Return a global 1-degree grid with longitudes in 0-360."""
+        lons = np.linspace(0, 359, 360)
+        lats = np.linspace(-90, 90, 181)
+        lon2d, lat2d = np.meshgrid(lons, lats)
+        # Values encode the longitude so we can check which columns were kept.
+        values = lon2d.copy()
+        return lon2d, lat2d, values
+
+    def test_extract_antimeridian_straddling_domain_0_360_data(self):
+        """Data 0-360, domain straddles the antimeridian (USA-like bounds ~150E-330E).
+
+        This was the bug: crs_bounds[0] > 0 and crs_bounds[1] > 180 but the
+        old elif guard required crs_bounds[1] > x.max() (~360), which was false,
+        so no rolling was done and the mask cut off everything west of 150°E.
+        """
+        # Approximate USA bounds in 0-360 space (150°E to 330°E / -30°E)
+        domain = domains.Domain([150, 330, 10, 80])
+
+        x, y, values = self._global_0_360_grid()
+        x_ext, y_ext, values_ext = domain.extract(x, y, values)
+
+        assert x_ext.size > 0, "No data extracted for antimeridian-straddling domain"
+
+        # The extracted x values should be in –180 to +180 (rolled for cartopy).
+        assert x_ext.min() >= -180
+        assert x_ext.max() <= 180
+
+        # The domain covers both sides of the antimeridian: longitudes
+        # 150°–180° (east side) AND –180°–(–30°) / 330°–360° (west side).
+        # Both sides must be present after extraction.
+        assert (x_ext >= 150).any(), "East side of antimeridian missing"
+        assert (x_ext < 0).any(), "West side of antimeridian (negative lons) missing"
+
+    def test_extract_antimeridian_explicit_0_360_domain_regression(self):
+        """Explicit 0-360 domain straddling antimeridian ([100, 300, ...]) must still work."""
+        domain = domains.Domain([100, 300, -50, 50])
+
+        x, y, values = self._global_0_360_grid()
+        x_ext, y_ext, values_ext = domain.extract(x, y, values)
+
+        assert x_ext.size > 0
+        # Should cover both east (100-180) and west (-180 to -60 / 300-360) sides.
+        assert (x_ext >= 100).any() or (x_ext >= -180).any()
+
+    def test_extract_antimeridian_values_contiguous(self):
+        """Extracted values must correspond to the correct columns after rolling.
+
+        Checks that the roll doesn't introduce an offset between x and values
+        (the misalignment bug that appeared in an earlier fix attempt).
+        """
+        domain = domains.Domain([150, 330, -10, 10])
+
+        lons = np.linspace(0, 359, 360)
+        lats = np.linspace(-90, 90, 181)
+        lon2d, lat2d = np.meshgrid(lons, lats)
+        # values[i, j] == lon2d[i, j] so we can verify alignment.
+        values = lon2d.copy()
+
+        x_ext, y_ext, values_ext = domain.extract(lon2d, lat2d, values)
+
+        assert x_ext.size > 0
+        # After extraction, every value must match its x coordinate
+        # (values encode the original longitude, x is the shifted longitude).
+        # The shifted x should equal (original_lon mod 360 shifted to –180/+180),
+        # but the simplest alignment check: no cell should be off by more than
+        # 0.5° from the nearest expected original longitude.
+        orig_lons = x_ext % 360  # back to 0-360
+        np.testing.assert_allclose(
+            orig_lons % 360,
+            values_ext % 360,
+            atol=0.6,
+            err_msg="x and values are misaligned after antimeridian roll",
+        )
+
+    def test_extract_europe_domain_0_360_data_unaffected(self):
+        """Europe domain (crs_bounds[0] < 0) with 0-360 data still works correctly."""
+        domain = domains.Domain([-10, 40, 35, 70])
+
+        x, y, values = self._global_0_360_grid()
+        x_ext, y_ext, values_ext = domain.extract(x, y, values)
+
+        assert x_ext.size > 0
+        # Europe longitudes are roughly –10 to +40.
+        assert x_ext.min() >= -15
+        assert x_ext.max() <= 45

@@ -19,7 +19,10 @@ from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
 from earthkit.plots.geography.bounds import BoundingBox
-from earthkit.plots.geography.coordinate_reference_systems import DEFAULT_CRS, dict_to_crs
+from earthkit.plots.geography.coordinate_reference_systems import (
+    DEFAULT_CRS,
+    dict_to_crs,
+)
 from earthkit.plots.identifiers import LATITUDE, LONGITUDE
 from earthkit.plots.schemas import schema
 from earthkit.plots.utils import string_utils
@@ -406,6 +409,14 @@ class Domain:
                     x = force_minus_180_to_180(x)
                     for i in range(2):
                         crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
+            elif crs_bounds[1] > 180 and (x > 180).any():
+                # Domain straddles the antimeridian in 0-360 space (e.g. USA,
+                # Pacific-centred domains).  Roll data to –180/+180 so the domain
+                # bounds and the data longitudes are in the same contiguous range.
+                roll_by = roll_from_0_360_to_minus_180_180(x)
+                x = force_minus_180_to_180(x)
+                for i in range(2):
+                    crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
             elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
                 if crs_bounds[1] > x.max():
                     roll_by = roll_from_minus_180_180_to_0_360(x)
