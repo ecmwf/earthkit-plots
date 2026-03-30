@@ -20,7 +20,11 @@ import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
+from earthkit.plots.geography import (
+    coordinate_reference_systems,
+    domains,
+    natural_earth,
+)
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
@@ -43,7 +47,7 @@ class Map(Subplot):
         The Figure to which the subplot belongs.
     domain : str, tuple, list or Domain, optional
         The domain of the map. Can be a string, a tuple or a list of
-        coordinates, or a :class:`earthkit.plots.geo.domains.Domain` object. This is used to set the extent and
+        coordinates, or a :class:`earthkit.plots.geography.domains.Domain` object. This is used to set the extent and
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
@@ -457,7 +461,7 @@ class Map(Subplot):
 
                 # Load data using source-specific loader
                 if source == "gisco":
-                    from earthkit.plots.geo import gisco
+                    from earthkit.plots.geography import gisco
 
                     records_list, attribute_key, label_key = gisco.load_layer(
                         source_config, resolution
@@ -591,7 +595,7 @@ class Map(Subplot):
                 if _transform_first and not coordinate_reference_systems.crs_equal(
                     target_crs, match_type_only=True
                 ):
-                    from earthkit.plots.geo.geometry import reproject_geometries
+                    from earthkit.plots.geography.geometry import reproject_geometries
 
                     # Reproject geometries before adding to map for better performance
                     geometries = reproject_geometries(geometries, src_crs, target_crs)
@@ -613,7 +617,9 @@ class Map(Subplot):
                                 target_crs, match_type_only=True
                             )
                         ):
-                            from earthkit.plots.geo.geometry import reproject_geometries
+                            from earthkit.plots.geography.geometry import (
+                                reproject_geometries,
+                            )
 
                             geom = reproject_geometries([geom], src_crs, target_crs)[0]
                         if not geom.is_empty:
@@ -898,7 +904,7 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to the add_feature method.
         """
-        from earthkit.plots.geo import gisco
+        from earthkit.plots.geography import gisco
 
         # Set default resolution
         if resolution is None:
@@ -997,7 +1003,7 @@ class Map(Subplot):
         if transform_first and not coordinate_reference_systems.crs_equal(
             target_crs, match_type_only=True
         ):
-            from earthkit.plots.geo.geometry import reproject_geometries
+            from earthkit.plots.geography.geometry import reproject_geometries
 
             # Reproject geometries before adding to map for better performance
             geometries = reproject_geometries(geometries, src_crs, target_crs)
@@ -1008,7 +1014,7 @@ class Map(Subplot):
 
         # Add optimized features
         feature = cfeature.ShapelyFeature(geometries, feature_crs)
-        result = self.ax.add_feature(feature, *args, **kwargs)
+        self.ax.add_feature(feature, *args, **kwargs)
 
         if special_styles is not None:
             for record, style in special_records:
@@ -1017,7 +1023,7 @@ class Map(Subplot):
                     feature = cfeature.ShapelyFeature([geom], self.crs)
                     self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
-        return result
+        return self
 
     @schema.land.apply()
     @ancillary_layer(
@@ -1211,7 +1217,7 @@ class Map(Subplot):
             from adjustText import adjust_text
 
             adjust_text(texts)
-        return texts
+        return self
 
     def stock_img(self, *args, **kwargs):
         """
@@ -1225,6 +1231,7 @@ class Map(Subplot):
             Keyword arguments to pass to the stock_img method.
         """
         self.ax.stock_img(*args, **kwargs)
+        return self
 
     def add_wms(self, *args, **kwargs):
         """
@@ -1244,6 +1251,7 @@ class Map(Subplot):
             :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
         """
         self.ax.add_wms(*args, **kwargs)
+        return self
 
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
@@ -1264,7 +1272,8 @@ class Map(Subplot):
             import PIL
 
             img = PIL.Image.open(img)
-        return self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
+        self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
+        return self
 
     @schema.shapes.apply()
     def shapes(
@@ -1299,15 +1308,13 @@ class Map(Subplot):
         """
         if isinstance(shapes, str):
             shapes = shpreader.Reader(shapes)
-        results = self.ax.add_geometries(
-            shapes.geometries(), transform, *args, **kwargs
-        )
+        self.ax.add_geometries(shapes.geometries(), transform, *args, **kwargs)
         if labels:
             label_key = labels if isinstance(labels, str) else None
             self._add_polygon_labels(
                 list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels
             )
-        return results
+        return self
 
     def choropleth(
         self,
@@ -1404,8 +1411,8 @@ class Map(Subplot):
 
         # Infer domain from geometries if none is set
         if self.domain is None and geometries:
-            from earthkit.plots.geo import domains
-            from earthkit.plots.geo.bounds import BoundingBox
+            from earthkit.plots.geography import domains
+            from earthkit.plots.geography.bounds import BoundingBox
 
             bbox = None
             for geom in geometries:
@@ -1470,7 +1477,7 @@ class Map(Subplot):
                 source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs
             )
 
-        return collection
+        return self
 
     def _add_choropleth_labels(
         self, source, label_column=None, exclude_nan_labels=True, **kwargs
@@ -1673,3 +1680,4 @@ class Map(Subplot):
         self.coastlines()
         self.borders()
         self.gridlines()
+        return self

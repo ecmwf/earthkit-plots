@@ -36,6 +36,7 @@ TARGET_DENSITY = 40
 LAYER_ZORDERS = {
     "contourf": 1,
     "pcolormesh": 1,
+    "imshow": 1,
     "scatter": 2,
     "contour": 3,
     "quiver": 3,
@@ -110,6 +111,31 @@ class Subplot:
 
         self._fixed_x_units = None
         self._fixed_y_units = None
+        self._wrap_longitudes = None  # "x" or "y"
+        self._x_tick_format_spec = None
+        self._y_tick_format_spec = None
+
+    def wrap_longitudes(self, axis="x"):
+        """
+        Roll the longitude coordinate from 0–360 to –180 to +180.
+
+        Call this before plotting when your data's longitude coordinate runs
+        from 0° to 360° but you want it displayed in the –180° to +180° range
+        (e.g. to align a meridional-mean line chart with a map panel).
+
+        Parameters
+        ----------
+        axis : str, optional
+            The axis that carries longitude values. ``"x"`` (default) for the
+            common case where longitude is the x-axis; ``"y"`` for transposed
+            plots.
+
+        Returns
+        -------
+        self
+        """
+        self._wrap_longitudes = axis
+        return self
 
     def fix_x_units(self, units):
         """
@@ -124,6 +150,7 @@ class Subplot:
             Target units string (e.g. ``"celsius"``).
         """
         self._fixed_x_units = units
+        return self
 
     def fix_y_units(self, units):
         """
@@ -138,6 +165,97 @@ class Subplot:
             Target units string (e.g. ``"celsius"``).
         """
         self._fixed_y_units = units
+        return self
+
+    def format_x_ticks(self, format_spec):
+        """
+        Apply a tick formatter to the x-axis.
+
+        Supports the same format specifiers as title/label strings:
+
+        - ``"%Ln"`` — longitude with E/W direction (e.g. ``45°E``, ``10°W``)
+        - ``"%Ln.1f"`` — longitude with custom decimal precision
+        - ``"%Lt"`` — latitude with N/S direction (e.g. ``45°N``)
+        - ``"%Lt.1f"`` — latitude with custom decimal precision
+        - Any standard Python format spec (e.g. ``".1f"``)
+
+        Parameters
+        ----------
+        format_spec : str
+            Format specifier string.
+
+        Returns
+        -------
+        self
+        """
+        self._x_tick_format_spec = format_spec
+        if self._ax is not None:
+            self._apply_tick_formatter("x")
+        return self
+
+    def format_y_ticks(self, format_spec):
+        """
+        Apply a tick formatter to the y-axis.
+
+        Supports the same format specifiers as title/label strings:
+
+        - ``"%Lt"`` — latitude with N/S direction (e.g. ``45°N``, ``30°S``)
+        - ``"%Lt.1f"`` — latitude with custom decimal precision
+        - ``"%Ln"`` — longitude with E/W direction (e.g. ``45°E``)
+        - ``"%Ln.1f"`` — longitude with custom decimal precision
+        - Any standard Python format spec (e.g. ``".1f"``)
+
+        Parameters
+        ----------
+        format_spec : str
+            Format specifier string.
+
+        Returns
+        -------
+        self
+        """
+        self._y_tick_format_spec = format_spec
+        if self._ax is not None:
+            self._apply_tick_formatter("y")
+        return self
+
+    def _apply_tick_formatter(self, axis):
+        """Apply stored tick format specs to the given axis."""
+        import re
+
+        from matplotlib.ticker import FuncFormatter
+
+        format_spec = (
+            self._x_tick_format_spec if axis == "x" else self._y_tick_format_spec
+        )
+        if format_spec is None:
+            return
+
+        if format_spec.startswith("%Lt"):
+            precision = (
+                int(m.group(1)) if (m := re.match(r"%Lt\.(\d+)", format_spec)) else 0
+            )
+
+            def formatter(val, _, p=precision):
+                direction = "N" if val >= 0 else "S"
+                return f"{abs(val):.{p}f}°{direction}"
+
+        elif format_spec.startswith("%Ln"):
+            precision = (
+                int(m.group(1)) if (m := re.match(r"%Ln\.(\d+)", format_spec)) else 0
+            )
+
+            def formatter(val, _, p=precision):
+                direction = "E" if val >= 0 else "W"
+                return f"{abs(val):.{p}f}°{direction}"
+
+        else:
+
+            def formatter(val, _):
+                return format(val, format_spec)
+
+        mpl_axis = self.ax.xaxis if axis == "x" else self.ax.yaxis
+        mpl_axis.set_major_formatter(FuncFormatter(formatter))
 
     @property
     def crs(self):
@@ -161,6 +279,7 @@ class Subplot:
             Additional keyword arguments passed to ``matplotlib.figure.Figure.text``.
         """
         self.figure.attribution(attribution, location=location, **kwargs)
+        return self
 
     def add_logo(self, logo):
         """
@@ -172,6 +291,7 @@ class Subplot:
             Either the name of a built-in logo, or a path to the logo image file to add to the figure.
         """
         self.figure.add_logo(logo)
+        return self
 
     def xticks(
         self,
@@ -221,6 +341,7 @@ class Subplot:
             labels=labels,
             **kwargs,
         )
+        return self
 
     def yticks(
         self,
@@ -265,6 +386,7 @@ class Subplot:
             labels=labels,
             **kwargs,
         )
+        return self
 
     @property
     def figure(self):
@@ -299,6 +421,10 @@ class Subplot:
         if self._ax is None:
             subspec = self.figure.gridspec[self.row, self.column]
             self._ax = self.figure.fig.add_subplot(subspec, **self._ax_kwargs)
+            if self._x_tick_format_spec is not None:
+                self._apply_tick_formatter("x")
+            if self._y_tick_format_spec is not None:
+                self._apply_tick_formatter("y")
         return self._ax
 
     def ylabel(self, label=None, **kwargs):
@@ -809,6 +935,7 @@ class Subplot:
         >>> ts.fill_between(values)
         """
         self.envelope(y1, y2, x=x, units=units, alpha=alpha, **kwargs)
+        return self
 
     def text(self, x, y=None, s="", **kwargs):
         """
@@ -850,6 +977,7 @@ class Subplot:
         else:
             s = self.format_string(s)
             self.ax.text(x, y, s, **kwargs)
+        return self
 
     def annotate(self, s, xy, xytext=None, **kwargs):
         """
@@ -892,6 +1020,7 @@ class Subplot:
             self.ax.annotate(s, xy=xy, xytext=xytext, **kwargs)
         else:
             self.ax.annotate(s, xy=xy, **kwargs)
+        return self
 
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """
@@ -911,6 +1040,7 @@ class Subplot:
         labels = SourceFormatter(source).format(label)
         for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), **kwargs)
+        return self
 
     def plot(self, data, style=None, units=None, **kwargs):
         """
@@ -1219,6 +1349,48 @@ class Subplot:
             :meth:`matplotlib.axes.Axes.pcolormesh`.
             See the `matplotlib pcolormesh documentation
             <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.pcolormesh.html>`_
+            for the full list of accepted arguments.
+        """
+
+    @plot_2D(extract_domain=True, default_resample=False)
+    def imshow(self, *args, **kwargs):
+        """
+        Plot an image (imshow) on the Subplot.
+
+        Follows the same pipeline as :meth:`pcolormesh` — data is wrapped in a
+        :class:`~earthkit.plots.sources.Source`, style is resolved, and the
+        result is attached as a :class:`~earthkit.plots.components.layers.Layer`.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the image. If None, a Style is automatically
+            generated based on the data.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). Unit
+            conversion relies on CF-compliant ``units`` metadata in the data.
+        resample : earthkit.plots.resample.Resample, bool, or dict, optional
+            Controls resampling of data before plotting. Pass a
+            :class:`~earthkit.plots.resample.Unstructured` (or subclass) instance to
+            interpolate unstructured data onto a regular grid, a dict of keyword
+            arguments to construct one, or ``True`` for defaults. Default is ``False``
+            for imshow.
+        **kwargs
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.imshow`.
+            See the `matplotlib imshow documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.imshow.html>`_
             for the full list of accepted arguments.
         """
 
@@ -1641,6 +1813,7 @@ class Subplot:
                     )
                 else:
                     self.layers[-1].proxy_label = None
+        return self
 
     def legend(self, label=None, *args, **kwargs):
         """
@@ -1679,6 +1852,101 @@ class Subplot:
             self.ax.legend(handles=proxy_handles, *args, **kwargs)
         else:
             self.ax.legend(*args, **kwargs)
+        return self
+
+    def quiverkey(
+        self,
+        u=None,
+        x=0.9,
+        y=1.02,
+        label=None,
+        **kwargs,
+    ):
+        """
+        Add a quiverkey (reference arrow) to the plot.
+
+        Finds the first quiver layer on this subplot and calls
+        :func:`matplotlib.axes.Axes.quiverkey` on it.
+
+        Parameters
+        ----------
+        u : float, optional
+            The length of the reference arrow in data units. If not provided,
+            a sensible value is chosen automatically from the data range,
+            picked from the sequence 0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50,
+            100, 200, 500, 1000, 2000, …
+        x : float, optional
+            X position of the quiverkey in axes coordinates (0–1). Default 0.85.
+        y : float, optional
+            Y position of the quiverkey in axes coordinates. Default 1.02
+            (just above the axes).
+        label : str, optional
+            Label for the reference arrow. Defaults to ``"{u} {units}"`` where
+            ``{u}`` is the value of *u* and ``{units}`` comes from the layer's
+            style units or source metadata.
+        **kwargs
+            Additional keyword arguments passed directly to
+            :func:`matplotlib.axes.Axes.quiverkey`, e.g. ``coordinates``,
+            ``labelpos``, ``fontproperties``.
+        """
+        from matplotlib.quiver import Quiver
+
+        # Find the first quiver layer.
+        quiver_layer = None
+        for layer in self.layers:
+            if isinstance(layer.mappable, Quiver):
+                quiver_layer = layer
+                break
+        if quiver_layer is None:
+            raise ValueError(
+                "No quiver layer found on this subplot. "
+                "Call .quiver() before .quiverkey()."
+            )
+
+        # Determine u from the data magnitude if not supplied.
+        if u is None:
+            source = quiver_layer.sources[0]
+            if source.u is not None and source.v is not None:
+                magnitudes = np.sqrt(
+                    source.u.values.ravel() ** 2 + source.v.values.ravel() ** 2
+                )
+            else:
+                magnitudes = np.abs(source.z.values.ravel())
+            finite = magnitudes[np.isfinite(magnitudes)]
+            mid = float(np.median(finite)) if len(finite) else 1.0
+            _candidates = [
+                0.1,
+                0.2,
+                0.5,
+                1,
+                2,
+                5,
+                10,
+                20,
+                50,
+                100,
+                200,
+                500,
+                1000,
+                2000,
+                5000,
+            ]
+            u = min(_candidates, key=lambda c: abs(np.log(c) - np.log(max(mid, 1e-10))))
+
+        # Build the label.
+        if label is None:
+            style = quiver_layer.style
+            units_str = (
+                style.units
+                if style is not None and style.units is not None
+                else quiver_layer.sources[0].units or ""
+            )
+            label = f"{u} {units_str}".strip()
+
+        kwargs.setdefault("coordinates", "axes")
+        kwargs.setdefault("labelpos", "E")
+
+        self.ax.quiverkey(quiver_layer.mappable, x, y, u, label, **kwargs)
         return self
 
     @schema.title.apply()
@@ -1766,7 +2034,8 @@ class Subplot:
         kwargs : dict, optional
             Keyword argument to :func:`matplotlib.pyplot.suptitle`.
         """
-        return self.figure.title(*args, **kwargs)
+        self.figure.title(*args, **kwargs)
+        return self
 
     def format_string(self, string, unique=True, grouped=True, axis=None):
         """

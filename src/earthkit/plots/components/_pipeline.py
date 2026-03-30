@@ -212,6 +212,20 @@ def extract_plottables_1D(
     # Step 4: Extract x/y values (unit conversion already applied by Source).
     x_values, y_values = source.x.values, source.y.values
 
+    # Step 4.1: Roll 0–360 longitudes to –180 to +180 if requested.
+    if getattr(subplot, "_wrap_longitudes", None) == "x" and np.any(x_values > 180):
+        from earthkit.plots.geography.domains import force_minus_180_to_180
+
+        sort_idx = np.argsort(force_minus_180_to_180(x_values))
+        x_values = force_minus_180_to_180(x_values)[sort_idx]
+        y_values = y_values[sort_idx]
+    elif getattr(subplot, "_wrap_longitudes", None) == "y" and np.any(y_values > 180):
+        from earthkit.plots.geography.domains import force_minus_180_to_180
+
+        sort_idx = np.argsort(force_minus_180_to_180(y_values))
+        y_values = force_minus_180_to_180(y_values)[sort_idx]
+        x_values = x_values[sort_idx]
+
     # Step 5: Stride-based thinning.
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
@@ -654,6 +668,14 @@ def _resolve_vector_sources(
         _validate_uv_grids(u_source, v_source)
         u_arr = (u_source.z.values if u_source.z else u_source.y.values).squeeze()
         v_arr = (v_source.z.values if v_source.z else v_source.y.values).squeeze()
+        # Carry u_source metadata into the rebuilt source so it has long_name etc.
+        merged_metadata = {}
+        for key in ("long_name", "standard_name", "name", "short_name", "units"):
+            val = u_source.metadata(key)
+            if val is not None:
+                merged_metadata[key] = val
+        if metadata:
+            merged_metadata.update(metadata)
         # Rebuild a unified source so downstream code has a single object.
         source = get_source(
             u_source._data,
@@ -667,7 +689,7 @@ def _resolve_vector_sources(
             v_units=v_units,
             x_units=x_units,
             y_units=y_units,
-            metadata=metadata,
+            metadata=merged_metadata or None,
         )
         u_values = source.u.values if source.u else None
         v_values = source.v.values if source.v else None
@@ -766,6 +788,32 @@ def extract_plottables_vector_2D(
         args, x, y, u, v, context, units, u_units, v_units, x_units, y_units, metadata
     )
 
+    # Step 1.5: Infer a sensible variable name for the vector field.
+    # The source may carry long_name like "U component of wind" (single-arg path
+    # with a u-only FieldList) or a list ["U component of wind", "V component of
+    # wind"] (single-arg path with a combined FieldList). Strip the component
+    # prefix to get a clean name like "wind".
+    if "long_name" not in (metadata or {}):
+        import re as _re
+
+        existing_raw = (
+            source.metadata("long_name")
+            or source.metadata("standard_name")
+            or source.metadata("name")
+            or ""
+        )
+        # Unwrap lists: take the first element (the U-component name).
+        if isinstance(existing_raw, list):
+            existing = existing_raw[0] if existing_raw else ""
+        else:
+            existing = existing_raw
+        # Strip "U/V component of " phrasing, e.g. "U component of wind" -> "wind"
+        cleaned = _re.sub(
+            r"\b[uv]\s+component\s+of\s+", "", existing, flags=_re.IGNORECASE
+        ).strip()
+        if cleaned and cleaned.lower() != existing.lower():
+            source._metadata_resolver.user_metadata["long_name"] = cleaned
+
     # Step 2: Inject subplot-level plot kwargs.
     kwargs.update(subplot._plot_kwargs(source))
 
@@ -774,8 +822,8 @@ def extract_plottables_vector_2D(
     # established first.
     if subplot.domain is None and hasattr(subplot, "ax"):
         try:
-            from earthkit.plots.geo import domains as _domains
-            from earthkit.plots.geo.domains import force_minus_180_to_180
+            from earthkit.plots.geography import domains as _domains
+            from earthkit.plots.geography.domains import force_minus_180_to_180
 
             x_ext = source.x.values.squeeze()
             y_ext = source.y.values.squeeze()
@@ -794,11 +842,21 @@ def extract_plottables_vector_2D(
             pass
 
     # Step 3: Resolve the Style object.
-    # Pass a copy so that configure_style's key-popping does not affect kwargs.
+    # Pass a copy so that configure_style's key-popping does not affect kwargs,
+    # then strip the same style-specific keys from kwargs so they don't leak
+    # into the matplotlib call (e.g. cmap="turbo" must not bypass the Style's
+    # discretised colormap built from the magnitude data).
     style_kwargs = {**kwargs}
     if colors is not False:
         style_kwargs["colors"] = colors
     style = configure_style(method_name, style, source, units, auto_style, style_kwargs)
+
+    from earthkit.plots.styles import _STYLE_KWARGS
+
+    for _k in _STYLE_KWARGS:
+        kwargs.pop(_k, None)
+    # cmap is a user-friendly alias for colors; remove it too.
+    kwargs.pop("cmap", None)
 
     # Step 4: Extract and normalise coordinate arrays.
     # Squeeze away any leading size-1 field-count dimension (single earthkit
@@ -807,7 +865,7 @@ def extract_plottables_vector_2D(
     x_values = source.x.values.squeeze()
     y_values = source.y.values.squeeze()
     if np.any(x_values > 180):
-        from earthkit.plots.geo.domains import (
+        from earthkit.plots.geography.domains import (
             force_minus_180_to_180,
             roll_from_0_360_to_minus_180_180,
         )

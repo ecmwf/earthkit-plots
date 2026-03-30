@@ -630,6 +630,11 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.quiver`.
         """
+        if self.extend is not None or kwargs.get("extend") is not None:
+            raise ValueError(
+                "'extend' is not supported for quiver styles. "
+                "Remove 'extend' from your Style definition."
+            )
         cmap = None
         norm = None
         magnitude = None
@@ -645,12 +650,17 @@ class Style:
             )
         else:
             mappable = ax.quiver(x, y, u, v, *args, **kwargs)
-        mappable.cmap = cmap
-        mappable.norm = norm
-        mappable._colorbar = cmap is not None
+            # Mark as non-coloured so colorbar is skipped
+            mappable.cmap = None
+            mappable.norm = None
         return mappable
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
+        if self.extend is not None or kwargs.get("extend") is not None:
+            raise ValueError(
+                "'extend' is not supported for barbs styles. "
+                "Remove 'extend' from your Style definition."
+            )
         cmap = None
         norm = None
         magnitude = None
@@ -666,9 +676,8 @@ class Style:
             )
         else:
             mappable = ax.barbs(x, y, u, v, *args, **kwargs)
-        mappable.cmap = cmap
-        mappable.norm = norm
-        mappable._colorbar = cmap is not None
+            mappable.cmap = None
+            mappable.norm = None
         return mappable
 
     def streamplot(self, ax, x, y, u, v, *args, **kwargs):
@@ -1194,8 +1203,13 @@ class Style:
         # A colorbar requires a ScalarMappable. If the layer's mappable is a
         # list (e.g. Line2D objects from a line plot) skip silently.
         layer = args[0] if args else None
-        if layer is not None and not hasattr(layer.mappable, "cmap"):
-            return None
+        if layer is not None:
+            m = layer.mappable
+            if not hasattr(m, "cmap"):
+                return None
+            # quiver/barbs set .cmap = None when not coloured by magnitude
+            if getattr(m, "cmap", None) is None or getattr(m, "norm", None) is None:
+                return None
         ticks = self._legend_kwargs.get("ticks")
         if ticks is None and self._levels._levels is not None:
             if len(np.unique(np.ediff1d(self._levels._levels))) != 1:
@@ -1313,7 +1327,7 @@ class Vector(Style):
 
 class Quiver(Vector):
     def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
-        kwargs.setdefault("legend_style", "quiverkey")
+        kwargs.setdefault("legend_style", "vector")
         super().__init__(
             *args, colors=colors, preferred_method=preferred_method, **kwargs
         )

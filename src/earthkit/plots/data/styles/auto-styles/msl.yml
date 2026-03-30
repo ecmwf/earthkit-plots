@@ -1,6 +1,30 @@
 id: msl
-optimal: MSL_CT_BLK_I5_T2
+optimal: MEAN_SEA_LEVEL_PRESSURE_IN_HPA
+
 styles:
+
+  MEAN_SEA_LEVEL_PRESSURE_IN_PA:
+    name: mslp-contour-pa
+    type: Contour
+    colors: "#33334d"
+    linewidths: [0.5, 0.5, 0.5, 1]
+    labels: true
+    levels:
+      step: 400
+    units: Pa
+    legend_style:
+
+  MEAN_SEA_LEVEL_PRESSURE_IN_HPA:
+    name: mslp-contour-hpa
+    type: Contour
+    colors: "#33334d"
+    linewidths: [0.5, 0.5, 0.5, 1]
+    labels: true
+    levels:
+      step: 4
+    units: hPa
+    legend_style:
+
   MSL_CT_BLK_I5_T2:
     name: ct-blk-i5-t2
     type: Contour

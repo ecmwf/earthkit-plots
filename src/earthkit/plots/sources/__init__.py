@@ -318,18 +318,31 @@ class Source:
         DimensionInfo
             Built dimension with values, units, and metadata.
         """
+
+        def _unwrap_units(u):
+            """Unwrap single-element lists that earthkit metadata() can return."""
+            if isinstance(u, list):
+                return u[0] if u else None
+            return u
+
         # Start with source values and units
         values = coord_info.values
-        user_units = self._metadata_resolver.user_metadata.get("units")
-        applied_units = user_units or coord_info.source_units
+        user_units = _unwrap_units(self._metadata_resolver.user_metadata.get("units"))
+        applied_units = user_units or _unwrap_units(coord_info.source_units)
 
         # Attempt unit conversion if target_units specified
         if target_units is not None:
             # source_units priority:
             # 1. User-provided metadata (metadata={"units": "..."}) — highest priority
             # 2. Units embedded in the coordinate by the extractor
-            user_units = self._metadata_resolver.user_metadata.get("units")
-            source_units = user_units or coord_info.source_units or self.source_units
+            user_units = _unwrap_units(
+                self._metadata_resolver.user_metadata.get("units")
+            )
+            source_units = (
+                user_units
+                or _unwrap_units(coord_info.source_units)
+                or _unwrap_units(self.source_units)
+            )
 
             if source_units is not None:
                 converted, success = self._convert_values(

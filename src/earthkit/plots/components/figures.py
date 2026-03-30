@@ -65,6 +65,7 @@ class Figure:
         domain=None,
         crs=None,
         size=None,
+        gridspec=None,
         **kwargs,
     ):
         if size is not None:
@@ -78,6 +79,21 @@ class Figure:
             )
             if figsize is None:
                 figsize = size
+
+        self._external_gridspec = gridspec
+
+        if gridspec is not None:
+            nrows, ncols = gridspec.get_geometry()
+            if rows is not None and rows != nrows:
+                raise ValueError(
+                    f"rows={rows} conflicts with the provided GridSpec ({nrows} rows)."
+                )
+            if columns is not None and columns != ncols:
+                raise ValueError(
+                    f"columns={columns} conflicts with the provided GridSpec ({ncols} columns)."
+                )
+            rows = nrows
+            columns = ncols
 
         self.rows = rows
         self.columns = columns
@@ -118,9 +134,13 @@ class Figure:
         self._style_context = schema.style_context()
         self._style_context.__enter__()
         self.fig = plt.figure(figsize=self._figsize, constrained_layout=True)
-        self.gridspec = self.fig.add_gridspec(
-            self.rows, self.columns, **self._gridspec_kwargs
-        )
+        if self._external_gridspec is not None:
+            self._external_gridspec.figure = self.fig
+            self.gridspec = self._external_gridspec
+        else:
+            self.gridspec = self.fig.add_gridspec(
+                self.rows, self.columns, **self._gridspec_kwargs
+            )
         self._register_jupyter_display()
 
     def _register_jupyter_display(self):
@@ -777,6 +797,33 @@ class Figure:
         """
 
     @iterate_subplots
+    def imshow(self, *args, **kwargs):
+        """
+        Plot an image on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use. If None, a Style is automatically generated from the data.
+        units : str, optional
+            Target units for value conversion.
+        **kwargs
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.imshow`.
+        """
+
+    @iterate_subplots
     def contourf(self, *args, **kwargs):
         """
         Plot filled contours on every subplot in the figure.
@@ -1399,6 +1446,7 @@ class Figure:
             groups = defaultdict(list)
             group_kwargs = {}
             for text, loc, kw in self.attributions:
+                text = self.format_string(text)
                 groups[loc].append(text)
                 if loc not in group_kwargs:
                     group_kwargs[loc] = kw
@@ -1516,6 +1564,7 @@ class Figure:
         entry = (attribution, location, kwargs)
         if entry not in self.attributions:
             self.attributions.append(entry)
+        return self
 
     def add_logo(self, logo):
         """

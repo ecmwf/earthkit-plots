@@ -601,6 +601,10 @@ class EarthkitExtractor(BaseExtractor):
             for key in keys:
                 try:
                     value = field.metadata(key)
+                    # field.metadata() on a FieldList returns a list; unwrap
+                    # single-element lists so downstream code gets a plain scalar.
+                    if isinstance(value, list) and len(value) == 1:
+                        value = value[0]
                     if value is not None:
                         metadata[key] = value
                 except (AttributeError, KeyError):

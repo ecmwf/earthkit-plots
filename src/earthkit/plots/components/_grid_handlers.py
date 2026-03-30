@@ -36,7 +36,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from cartopy.util import add_cyclic_point
 
-from earthkit.plots.geo import coordinate_reference_systems
+from earthkit.plots.geography import coordinate_reference_systems
 from earthkit.plots.resample.grids import needs_cyclic_point
 
 if TYPE_CHECKING:

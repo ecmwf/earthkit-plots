@@ -607,6 +607,7 @@ class TimeSeries(Subplot):
         elif drawstyle is not None:
             kwargs["drawstyle"] = drawstyle
         super().fill_between(y1, y2, *args, **kwargs)
+        return self
 
     @_with_resampling
     def multiboxplot(
