@@ -54,11 +54,12 @@ from earthkit.plots.components._pixel_sampling import (
 )
 from earthkit.plots.components._style_utils import (
     _prepare_style_and_units,
-    apply_scale_factor,
     apply_sampling,
+    apply_scale_factor,
     configure_style,
 )
 from earthkit.plots.identifiers import identify_primary_axis
+from earthkit.plots.metadata.units import are_equal as _units_are_equal
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.styles import Style
@@ -191,6 +192,13 @@ def extract_plottables_1D(
     # Step 2: Resolve the Style object.
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
+    # Step 2.5: If the style carries preferred units (use_preferred_units path),
+    # update the source so that unit conversion is applied when .z is accessed.
+    if style._units is not None and not _units_are_equal(
+        style._units, source.source_units
+    ):
+        source.update_units(style._units)
+
     # Step 3: Apply style scale factor to z values (e.g. Pa → hPa).
     if z is not None or (source.z is not None and source.z.values is not None):
         z_values = apply_scale_factor(style, source, z)
@@ -248,7 +256,11 @@ def extract_plottables_1D(
         axis_units["x"] = x_units
     if y_units is not None:
         axis_units["y"] = y_units
-    if units is not None and primary_axis is not None and primary_axis not in axis_units:
+    if (
+        units is not None
+        and primary_axis is not None
+        and primary_axis not in axis_units
+    ):
         axis_units[primary_axis] = units
 
     layer = Layer(
@@ -414,6 +426,13 @@ def extract_plottables_2D(
     # Step 3: Resolve the Style object.
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
+    # Step 3.5: If the style carries preferred units (use_preferred_units path),
+    # update the source so that unit conversion is applied when .z is accessed.
+    if style._units is not None and not _units_are_equal(
+        style._units, source.source_units
+    ):
+        source.update_units(style._units)
+
     # Remove earthkit-internal schema keys that are not valid matplotlib kwargs.
     kwargs.pop("regrid", None)
 
@@ -526,7 +545,9 @@ def extract_plottables_2D(
     if units is not None and "z" not in axis_units:
         axis_units["z"] = units
 
-    proxy_color_val = proxy_color[0] if isinstance(proxy_color, (list, tuple)) else proxy_color
+    proxy_color_val = (
+        proxy_color[0] if isinstance(proxy_color, (list, tuple)) else proxy_color
+    )
     layer = Layer(
         source,
         mappable,
@@ -536,7 +557,9 @@ def extract_plottables_2D(
         axis_units=axis_units,
         proxy_label=proxy_label,
         proxy_color=proxy_color_val,
-        proxy_linewidth=kwargs.get("linewidths", 1.0) if proxy_label is not None else None,
+        proxy_linewidth=kwargs.get("linewidths", 1.0)
+        if proxy_label is not None
+        else None,
     )
 
     subplot.layers.append(layer)
@@ -584,8 +607,12 @@ def _resolve_vector_sources(
                 "chart.quiver(data, u='u_var', v='v_var'), or "
                 "chart.quiver(u=u_data, v=v_data)"
             )
-        u_source = get_source(u, x=x, y=y, context=context, units=units, metadata=metadata)
-        v_source = get_source(v, x=x, y=y, context=context, units=units, metadata=metadata)
+        u_source = get_source(
+            u, x=x, y=y, context=context, units=units, metadata=metadata
+        )
+        v_source = get_source(
+            v, x=x, y=y, context=context, units=units, metadata=metadata
+        )
         _validate_uv_grids(u_source, v_source)
         source = u_source
         u_values = u_source.z.values.squeeze() if u_source.z else None
@@ -595,7 +622,10 @@ def _resolve_vector_sources(
         # Single data object — auto-detect or use explicit u/v names.
         source = get_source(
             args[0],
-            x=x, y=y, u=u, v=v,
+            x=x,
+            y=y,
+            u=u,
+            v=v,
             context=context,
             units=units,
             u_units=u_units,
@@ -615,8 +645,12 @@ def _resolve_vector_sources(
 
     elif len(args) == 2:
         # Legacy two-argument form: quiver(u_data, v_data)
-        u_source = get_source(args[0], x=x, y=y, context=context, units=units, metadata=metadata)
-        v_source = get_source(args[1], x=x, y=y, context=context, units=units, metadata=metadata)
+        u_source = get_source(
+            args[0], x=x, y=y, context=context, units=units, metadata=metadata
+        )
+        v_source = get_source(
+            args[1], x=x, y=y, context=context, units=units, metadata=metadata
+        )
         _validate_uv_grids(u_source, v_source)
         u_arr = (u_source.z.values if u_source.z else u_source.y.values).squeeze()
         v_arr = (v_source.z.values if v_source.z else v_source.y.values).squeeze()
@@ -838,25 +872,41 @@ def extract_plottables_vector_2D(
                 x_src, y_src = x_values, y_values
 
             x_values, y_values, u_values = reproject_to_grid(
-                x_src, y_src, u_values,
-                crs_src=data_crs, bbox_target=bbox_target, crs_target=target_crs,
-                nx=nx, ny=ny,
+                x_src,
+                y_src,
+                u_values,
+                crs_src=data_crs,
+                bbox_target=bbox_target,
+                crs_target=target_crs,
+                nx=nx,
+                ny=ny,
             )
             _, _, v_values = reproject_to_grid(
-                x_src, y_src, v_values,
-                crs_src=data_crs, bbox_target=bbox_target, crs_target=target_crs,
-                nx=nx, ny=ny,
+                x_src,
+                y_src,
+                v_values,
+                crs_src=data_crs,
+                bbox_target=bbox_target,
+                crs_target=target_crs,
+                nx=nx,
+                ny=ny,
             )
             kwargs["transform"] = target_crs
 
         elif isinstance(resample, Unstructured):
             x_values, y_values, u_values = resample.apply(
-                x_values, y_values, u_values,
-                source_crs=source.crs, target_crs=subplot.crs,
+                x_values,
+                y_values,
+                u_values,
+                source_crs=source.crs,
+                target_crs=subplot.crs,
             )
             _, _, v_values = resample.apply(
-                x_values, y_values, v_values,
-                source_crs=source.crs, target_crs=subplot.crs,
+                x_values,
+                y_values,
+                v_values,
+                source_crs=source.crs,
+                target_crs=subplot.crs,
             )
         elif isinstance(resample, Resample):
             x_values, y_values, u_values, v_values = resample.apply(
@@ -940,7 +990,9 @@ def extract_plottables_envelope(
     """
     source = get_source(
         data=data,
-        x=x, y=y, z=z,
+        x=x,
+        y=y,
+        z=z,
         context=PlotContext.CARTESIAN_2D,
         units=units,
         x_units=x_units,
@@ -1190,7 +1242,6 @@ def plot_1D(method_name=None):
             combos = list(product(*[dim_unique[dk] for dk in dim_keys]))
 
             seen_label_keys = set()
-            mappables = []
 
             for combo in combos:
                 sel = {}

@@ -136,6 +136,7 @@ def plot(
     column=None,
     rows=None,
     columns=None,
+    figsize=None,
     size=None,
     units=None,
     style="auto",
@@ -143,6 +144,9 @@ def plot(
     method="quickplot",
     mode="auto",
     combine_vectors=False,
+    title=True,
+    legend=True,
+    coastlines=True,
     **kwargs,
 ):
     """
@@ -197,6 +201,19 @@ def plot(
         When *groupby* is set this defaults to ``"{<groupby key>}"``.
     method : str, optional
         The plotting method to call on each subplot (default ``"quickplot"``).
+    title : bool or str, optional
+        ``True`` (default) adds an automatic title from the data metadata.
+        Pass a string to use a custom title.  ``False`` suppresses the title.
+        For full control (font size, position, etc.) pass ``False`` and call
+        ``.title()`` on the returned object.
+    legend : bool, optional
+        ``True`` (default) adds a legend/colorbar.  ``False`` suppresses it.
+        For full control pass ``False`` and call ``.legend()`` on the returned
+        object.
+    coastlines : bool, optional
+        ``True`` (default) overlays coastlines on the map.  ``False``
+        suppresses them.  For full control (resolution, styling, etc.) pass
+        ``False`` and call ``.coastlines()`` on the returned object.
     **kwargs :
         Additional keyword arguments forwarded to the plotting method.
 
@@ -226,6 +243,16 @@ def plot(
 
     >>> ekp.plot(data, method="contourf", domain="Europe").show()
     """
+    if size is not None:
+        warnings.warn(
+            "The 'size' argument is deprecated and will be removed in a future release. "
+            "Use 'figsize' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if figsize is None:
+            figsize = size
+
     # --- 2-D structured layout (row/column as dimension names) ---
     if row is not None or column is not None:
         groups_2d = list(_iter_plot_groups_2d(args, row, column, groupby, mode))
@@ -235,7 +262,9 @@ def plot(
         n_rows = len(row_keys) if row_keys != [None] else (rows or 1)
         n_cols = len(col_keys) if col_keys != [None] else (columns or 1)
         figure = Figure(
-            rows=n_rows, columns=n_cols, size=size or _auto_figure_size(n_rows, n_cols)
+            rows=n_rows,
+            columns=n_cols,
+            figsize=figsize or _auto_figure_size(n_rows, n_cols),
         )
 
         if not isinstance(units, (list, tuple)):
@@ -258,16 +287,7 @@ def plot(
                         "Consider building the plot manually using ekp.Figure and ekp.Map."
                     )
                     raise
-        for m in schema.geo.fig.workflow:
-            try:
-                if m == "subplot_titles" and subplot_titles:
-                    figure.subplot_titles(subplot_titles)
-                else:
-                    getattr(figure, m)()
-            except Exception as err:
-                warnings.warn(
-                    f"ekp.plot: figure workflow step '{m}' failed with:\n{err}"
-                )
+        _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
         return _unwrap_if_single(figure)
 
     # --- Flat layout (original behaviour) ---
@@ -281,7 +301,7 @@ def plot(
 
     rows, columns = layouts.rows_cols(n_plots, rows, columns)
     figure = Figure(
-        rows=rows, columns=columns, size=size or _auto_figure_size(rows, columns)
+        rows=rows, columns=columns, figsize=figsize or _auto_figure_size(rows, columns)
     )
 
     if not isinstance(units, (list, tuple)):
@@ -315,15 +335,7 @@ def plot(
                 "Consider building the plot manually using ekp.Figure and ekp.Map."
             )
             raise
-    for m in schema.geo.fig.workflow:
-        try:
-            if m == "subplot_titles" and subplot_titles:
-                figure.subplot_titles(subplot_titles)
-            else:
-                getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(f"ekp.plot: figure workflow step '{m}' failed with:\n{err}")
-
+    _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
     return _unwrap_if_single(figure)
 
 
@@ -382,10 +394,43 @@ def _unwrap_if_single(figure):
     return figure
 
 
+def _apply_map_decoration(figure, title=True, legend=True, coastlines=True):
+    """
+    Apply standard post-plot decoration to a geo Figure.
+
+    Each step is attempted independently; failures are silently skipped so
+    that a missing metadata field (e.g. no variable name for the title) does
+    not prevent the other steps from running.
+
+    coastlines and legend are figure-level (applied across all subplots).
+    title is subplot-level so each panel gets its own title from its data.
+    """
+    if coastlines:
+        try:
+            figure.coastlines()
+        except Exception:
+            pass
+    if legend:
+        try:
+            figure.legend()
+        except Exception:
+            pass
+    if title is not False:
+        label = title if isinstance(title, str) else None
+        for subplot in figure.subplots:
+            try:
+                subplot.title(label)
+            except Exception:
+                pass
+
+
 def _single_map_function(method_name, data_args, domain, crs, kwargs):
     """Shared helper: create a single-panel Map and call *method_name* on it."""
     import xarray as xr
 
+    title = kwargs.pop("title", True)
+    legend = kwargs.pop("legend", True)
+    coastlines = kwargs.pop("coastlines", True)
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
     if not data_args:
@@ -395,13 +440,7 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
     else:
         fields = _coerce_to_fieldlist(*data_args)
         getattr(subplot, method_name)(fields, **kwargs)
-    for m in schema.geo.fig.workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(
-                f"ekp.{method_name}: figure workflow step '{m}' failed with:\n{err}"
-            )
+    _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
     return _unwrap_if_single(figure)
 
 
@@ -502,6 +541,9 @@ def rgb_composite(
     *args,
     domain=None,
     crs=None,
+    title=True,
+    legend=True,
+    coastlines=True,
     **kwargs,
 ):
     """
@@ -529,13 +571,7 @@ def rgb_composite(
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.rgb_composite(*args, **kwargs)
-    for m in schema.geo.fig.workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(
-                f"ekp.rgb_composite: figure workflow step '{m}' failed with:\n{err}"
-            )
+    _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
     return _unwrap_if_single(figure)
 
 
@@ -543,6 +579,9 @@ def choropleth(
     data,
     domain=None,
     crs=None,
+    title=True,
+    legend=True,
+    coastlines=True,
     **kwargs,
 ):
     """
@@ -567,13 +606,7 @@ def choropleth(
     figure = Figure(rows=1, columns=1)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.choropleth(data, **kwargs)
-    for m in schema.geo.fig.workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(
-                f"ekp.choropleth: figure workflow step '{m}' failed with:\n{err}"
-            )
+    _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
     return _unwrap_if_single(figure)
 
 
@@ -587,6 +620,9 @@ def spaghetti(
     highlight=None,
     highlight_kwargs=None,
     highlight_label=None,
+    title=True,
+    legend=True,
+    coastlines=True,
     **kwargs,
 ):
     """
@@ -667,14 +703,7 @@ def spaghetti(
         **kwargs,
     )
 
-    for m in schema.geo.fig.workflow:
-        try:
-            getattr(figure, m)()
-        except Exception as err:
-            warnings.warn(
-                f"ekp.spaghetti: figure workflow step '{m}' failed with:\n{err}"
-            )
-
+    _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
     return _unwrap_if_single(figure)
 
 
@@ -811,8 +840,8 @@ def _apply_ticks(subplot, xticks, yticks):
 def _run_timeseries_subplot_workflow(
     ts, xlabel=None, ylabel=None, xticks=None, yticks=None
 ):
-    """Apply schema.timeseries.subplot.workflow steps to a TimeSeries subplot."""
-    for m in schema.timeseries.subplot.workflow:
+    """Apply schema.timeseries.subplot.decorate steps to a TimeSeries subplot."""
+    for m in schema.timeseries.subplot.decorate:
         try:
             if m == "xlabel":
                 ts.xlabel(xlabel) if xlabel is not None else ts.xlabel()
@@ -826,8 +855,8 @@ def _run_timeseries_subplot_workflow(
 
 
 def _run_timeseries_fig_workflow(fig, subplot_titles=None):
-    """Apply schema.timeseries.fig.workflow steps to a Figure."""
-    for m in schema.timeseries.fig.workflow:
+    """Apply schema.timeseries.fig.decorate steps to a Figure."""
+    for m in schema.timeseries.fig.decorate:
         try:
             if m == "subplot_titles" and subplot_titles:
                 fig.subplot_titles(subplot_titles)

@@ -187,6 +187,8 @@ def _apply_data_resampling(
     if resample is False or resample is None:
         return x, y, z, False
 
+    # Lazily imported here to avoid a circular dependency at module level.
+    from earthkit.plots.components._pipeline import _infer_plot_context
     from earthkit.plots.resample import (
         Chain,
         Regrid,
@@ -194,9 +196,6 @@ def _apply_data_resampling(
         Unstructured,
         _PixelSampler,
     )
-
-    # Lazily imported here to avoid a circular dependency at module level.
-    from earthkit.plots.components._pipeline import _infer_plot_context
 
     extract_domain_suppressed = False
 
@@ -225,9 +224,7 @@ def _apply_data_resampling(
     for step in data_steps:
         if isinstance(step, Regrid):
             context = _infer_plot_context(subplot, method_name)
-            x, y, z = step.apply(
-                x, y, z, gridspec=source.gridspec, context=context
-            )
+            x, y, z = step.apply(x, y, z, gridspec=source.gridspec, context=context)
         elif isinstance(step, Unstructured):
             x, y, z = step.apply(
                 x,
@@ -355,7 +352,9 @@ def _try_nearest_neighbour_imshow(
     plot_kwargs.pop("transform", None)
     plot_kwargs.pop("transform_first", None)
     mappable = subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
-    return PixelSamplingResult(x_values, y_values, z_values, reprojected=True, mappable=mappable)
+    return PixelSamplingResult(
+        x_values, y_values, z_values, reprojected=True, mappable=mappable
+    )
 
 
 def _reproject_bilinear(

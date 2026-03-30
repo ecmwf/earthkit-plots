@@ -17,5 +17,13 @@ from earthkit.plots.components import subplots
 
 def test_subplots_figure_size():
     # Test that the figure size is set correctly when creating a subplot
-    subplot = subplots.Subplot(size=[10, 5])
+    subplot = subplots.Subplot(figsize=[10, 5])
+    assert subplot.figure._figsize == [10, 5]
+
+
+def test_subplots_figure_size_deprecated():
+    import pytest
+
+    with pytest.warns(DeprecationWarning, match="figsize"):
+        subplot = subplots.Subplot(size=[10, 5])
     assert subplot.figure._figsize == [10, 5]

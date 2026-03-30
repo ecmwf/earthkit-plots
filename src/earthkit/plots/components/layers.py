@@ -62,6 +62,7 @@ class Layer:
         self.proxy_label = proxy_label
         self._proxy_color = proxy_color
         self._proxy_linewidth = proxy_linewidth
+        self.colorbar = None
 
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()
@@ -105,7 +106,10 @@ class Layer:
         Generate a legend for this specific layer.
         """
         if self.style is not None:
-            return self.style.legend(self, *args, **kwargs)
+            result = self.style.legend(self, *args, **kwargs)
+            if result is not None:
+                self.colorbar = result
+            return result
 
     def format_string(self, string, **kwargs):
         """

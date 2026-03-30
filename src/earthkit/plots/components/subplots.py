@@ -65,8 +65,27 @@ class Subplot:
     """
 
     def __init__(
-        self, row=0, column=0, figure=None, size=DEFAULT_SINGLE_SIZE, ax=None, **kwargs
+        self,
+        row=0,
+        column=0,
+        figure=None,
+        figsize=DEFAULT_SINGLE_SIZE,
+        ax=None,
+        size=None,
+        **kwargs,
     ):
+        if size is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'size' argument is deprecated and will be removed in a future release. "
+                "Use 'figsize' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if figsize is DEFAULT_SINGLE_SIZE:
+                figsize = size
+
         # When an existing axes is supplied we bypass the lazy-creation path
         # entirely: _ax is pre-populated and _figure is derived from ax.figure
         # so self.fig always returns the correct matplotlib Figure.
@@ -77,7 +96,7 @@ class Subplot:
         else:
             self._ax = None
             self._figure = figure
-            self._size = None if figure is not None else size
+            self._size = None if figure is not None else figsize
 
         self._ax_kwargs = kwargs
 
@@ -265,7 +284,7 @@ class Subplot:
                 self._figure.logos = []
                 self._figure._ancillary_cache = {}
             else:
-                self._figure = Figure(1, 1, size=self._size)
+                self._figure = Figure(1, 1, figsize=self._size)
                 self._figure.subplots = [self]
         return self._figure
 

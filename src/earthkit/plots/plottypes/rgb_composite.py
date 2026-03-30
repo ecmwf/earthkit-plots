@@ -86,7 +86,11 @@ def prepare_rgb_composite(red_source, green_source, blue_source) -> RGBComposite
     """
     import xarray as xr
 
-    for name, src in (("red", red_source), ("green", green_source), ("blue", blue_source)):
+    for name, src in (
+        ("red", red_source),
+        ("green", green_source),
+        ("blue", blue_source),
+    ):
         if src.z is None:
             raise ValueError(
                 f"RGB composite requires z values for all three channels; "

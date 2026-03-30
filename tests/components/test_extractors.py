@@ -742,7 +742,7 @@ class TestBilinearPath:
 
         reprojected_arrays = [np.ones((10, 10)), np.ones((10, 10)), np.ones((10, 10))]
         monkeypatch.setattr(
-            "earthkit.plots.components.extractors._reproject_bilinear",
+            "earthkit.plots.components._pixel_sampling._reproject_bilinear",
             lambda *a, **kw: tuple(reprojected_arrays),
         )
 
@@ -779,7 +779,7 @@ class TestBilinearPath:
             _FakeChain,
         )
         monkeypatch.setattr(
-            "earthkit.plots.components.extractors._reproject_bilinear",
+            "earthkit.plots.components._pixel_sampling._reproject_bilinear",
             lambda *a, **kw: (x, y, z),
         )
         sampler = _FakeBilinear()
@@ -915,7 +915,7 @@ class TestNearestNeighbourCurvilinearFallback:
 
         bilinear_called = []
         monkeypatch.setattr(
-            "earthkit.plots.components.extractors._reproject_bilinear",
+            "earthkit.plots.components._pixel_sampling._reproject_bilinear",
             lambda *a, **kw: (bilinear_called.append(kw) or (x, y, z)),
         )
 
@@ -957,7 +957,7 @@ class TestChainWithPixelStep:
             _FakeChain,
         )
         monkeypatch.setattr(
-            "earthkit.plots.components.extractors._reproject_bilinear",
+            "earthkit.plots.components._pixel_sampling._reproject_bilinear",
             lambda *a, **kw: (x, y, z),
         )
 

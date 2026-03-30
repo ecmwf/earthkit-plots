@@ -598,3 +598,192 @@ class TestLoadStyleIntegration:
         style_b = load_style(name)
         # Style.__eq__ compares _levels and _colors.
         assert style_a == style_b
+
+
+# ---------------------------------------------------------------------------
+# use_preferred_units — Source.update_units and pipeline integration
+# ---------------------------------------------------------------------------
+
+
+class TestUsePreferredUnits:
+    """
+    Tests for the use_preferred_units feature.
+
+    The expected behaviour is:
+      1. guess_style(..., use_preferred_units=True) returns the optimal style
+         with the preferred units (e.g. celsius), regardless of source units.
+      2. Source.update_units() resets _generic_units and clears the z-dimension
+         cache so that unit conversion is applied on the next .z access.
+      3. The pipeline correctly converts data values when use_preferred_units is
+         set and the source units differ from the preferred style units.
+    """
+
+    # ------------------------------------------------------------------
+    # Source.update_units — unit tests
+    # ------------------------------------------------------------------
+
+    def test_update_units_sets_generic_units(self):
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.sources import get_source
+
+        data = xr.DataArray(
+            np.array([[270.0, 280.0], [290.0, 300.0]]),
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K"},
+        )
+        source = get_source(data)
+        source.update_units("celsius")
+        assert source._generic_units == "celsius"
+
+    def test_update_units_clears_z_dimension_cache(self):
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.sources import get_source
+
+        data = xr.DataArray(
+            np.array([[270.0, 280.0], [290.0, 300.0]]),
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K"},
+        )
+        source = get_source(data)
+        # Trigger caching of z
+        _ = source.z
+        assert source._z_dimension is not None
+
+        source.update_units("celsius")
+        assert source._z_dimension is None
+
+    def test_update_units_conversion_applied_on_next_z_access(self):
+        """After update_units, .z.values should contain converted data."""
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.sources import get_source
+
+        kelvin_values = np.array([[273.15, 283.15], [293.15, 303.15]])
+        data = xr.DataArray(
+            kelvin_values,
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K"},
+        )
+        source = get_source(data)
+        source.update_units("celsius")
+
+        celsius_values = source.z.values
+        expected = kelvin_values - 273.15
+        np.testing.assert_allclose(celsius_values, expected, atol=1e-6)
+
+    # ------------------------------------------------------------------
+    # guess_style with use_preferred_units — style selection
+    # ------------------------------------------------------------------
+
+    def test_guess_style_returns_optimal_style_units(
+        self, fake_plugin_dir, fresh_cache, monkeypatch
+    ):
+        """guess_style with use_preferred_units=True returns a Style with celsius units."""
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.schemas import schema
+        from earthkit.plots.sources import get_source
+        from earthkit.plots.styles.auto import guess_style
+
+        _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
+        monkeypatch.setattr("earthkit.plots.styles.auto._cache", fresh_cache)
+
+        data = xr.DataArray(
+            np.array([[270.0, 280.0], [290.0, 300.0]]),
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K", "shortName": "2t"},
+        )
+        source = get_source(data)
+
+        with schema.set(use_preferred_units=True):
+            style = guess_style(source)
+
+        assert style._units == "celsius"
+
+    def test_guess_style_preferred_units_does_not_override_style_units(
+        self, fake_plugin_dir, fresh_cache, monkeypatch
+    ):
+        """
+        With use_preferred_units=True, guess_style must NOT override the style
+        units with the source units (the old bug: returned a Style with units="K").
+        """
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.schemas import schema
+        from earthkit.plots.sources import get_source
+        from earthkit.plots.styles.auto import guess_style
+
+        _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
+        monkeypatch.setattr("earthkit.plots.styles.auto._cache", fresh_cache)
+
+        data = xr.DataArray(
+            np.array([[270.0, 280.0], [290.0, 300.0]]),
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K", "shortName": "2t"},
+        )
+        source = get_source(data)
+
+        with schema.set(use_preferred_units=True):
+            style = guess_style(source)
+
+        # The style's units must be the preferred celsius, not the source K.
+        assert style._units != "K"
+        assert style._units == "celsius"
+
+    # ------------------------------------------------------------------
+    # Full pipeline: update_units converts data values
+    # ------------------------------------------------------------------
+
+    def test_pipeline_converts_values_with_preferred_units(
+        self, fake_plugin_dir, fresh_cache, monkeypatch
+    ):
+        """
+        End-to-end: build a Kelvin source, run guess_style, call update_units,
+        and verify .z.values are in celsius.
+        """
+        import numpy as np
+        import xarray as xr
+
+        from earthkit.plots.schemas import schema
+        from earthkit.plots.sources import get_source
+        from earthkit.plots.styles.auto import guess_style
+
+        _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
+        monkeypatch.setattr("earthkit.plots.styles.auto._cache", fresh_cache)
+
+        kelvin_values = np.array([[273.15, 283.15], [293.15, 303.15]])
+        data = xr.DataArray(
+            kelvin_values,
+            dims=["latitude", "longitude"],
+            coords={"latitude": [0.0, 10.0], "longitude": [0.0, 10.0]},
+            attrs={"units": "K", "shortName": "2t"},
+        )
+        source = get_source(data)
+
+        with schema.set(use_preferred_units=True):
+            style = guess_style(source)
+
+        # Simulate what the pipeline does after configure_style.
+        from earthkit.plots.metadata.units import are_equal
+
+        if style._units is not None and not are_equal(
+            style._units, source.source_units
+        ):
+            source.update_units(style._units)
+
+        celsius_values = source.z.values
+        expected = kelvin_values - 273.15
+        np.testing.assert_allclose(celsius_values, expected, atol=1e-6)
+        assert source.z.units == "celsius"

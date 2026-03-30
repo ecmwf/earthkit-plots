@@ -98,4 +98,6 @@ def _lonlat_to_xyz(lons, lats):
     lon_r = np.deg2rad(lons)
     lat_r = np.deg2rad(lats)
     cos_lat = np.cos(lat_r)
-    return np.column_stack([cos_lat * np.cos(lon_r), cos_lat * np.sin(lon_r), np.sin(lat_r)])
+    return np.column_stack(
+        [cos_lat * np.cos(lon_r), cos_lat * np.sin(lon_r), np.sin(lat_r)]
+    )

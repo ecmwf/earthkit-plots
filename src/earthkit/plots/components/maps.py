@@ -510,14 +510,17 @@ class Map(Subplot):
 
                 if special_styles is not None:
                     for record in records_list:
+                        matched = False
                         for style in special_styles:
                             if (
                                 record.attributes.get(style["key"], None)
                                 in style["values"]
                             ):
                                 special_records.append([record, style["kwargs"]])
-                            else:
-                                filtered_records.append(record)
+                                matched = True
+                                break
+                        if not matched:
+                            filtered_records.append(record)
                 else:
                     filtered_records = records_list
 
@@ -604,9 +607,21 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record, sf_kwargs in special_records:
                         geom = record.geometry
+                        if (
+                            _transform_first
+                            and not coordinate_reference_systems.crs_equal(
+                                target_crs, match_type_only=True
+                            )
+                        ):
+                            from earthkit.plots.geo.geometry import reproject_geometries
+
+                            geom = reproject_geometries([geom], src_crs, target_crs)[0]
                         if not geom.is_empty:
                             special_features.append(
-                                (cfeature.ShapelyFeature([geom], self.crs), sf_kwargs)
+                                (
+                                    cfeature.ShapelyFeature([geom], feature_crs),
+                                    sf_kwargs,
+                                )
                             )
 
                 if hasattr(self.figure, "_ancillary_cache"):
@@ -911,11 +926,14 @@ class Map(Subplot):
 
         if special_styles is not None:
             for record in records_list:
+                matched = False
                 for style in special_styles:
                     if record.attributes.get(style["key"], None) in style["values"]:
                         special_records.append([record, style["kwargs"]])
-                    else:
-                        filtered_records.append(record)
+                        matched = True
+                        break
+                if not matched:
+                    filtered_records.append(record)
         else:
             filtered_records = records_list
 
@@ -1611,7 +1629,7 @@ class Map(Subplot):
                 else:
                     loc = location
                 if layer.style is not None:
-                    layer.style.legend(layer, location=loc, **kwargs)
+                    layer.legend(location=loc, **kwargs)
         return self
 
     @schema.gridlines.apply()

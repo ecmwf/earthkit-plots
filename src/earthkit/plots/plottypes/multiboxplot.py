@@ -84,7 +84,6 @@ def _resolve_quantiles(data, quantiles, dim):
     -------
     (quantile_data, quantile_dim, q_list, x_dim)
     """
-    import xarray as xr
 
     if quantiles is None:
         # Caller asserts data already holds pre-computed quantile values.
@@ -183,7 +182,9 @@ def _apply_unit_conversion(data, dim, target_yunits):
     return result
 
 
-def _resolve_box_styling(color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops):
+def _resolve_box_styling(
+    color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops
+):
     """
     Resolve all drawing properties from the user-supplied ``*props`` dicts.
 
@@ -342,11 +343,15 @@ def draw_multiboxplot(
     # the target units.  Skip when quantiles=None because the data is already
     # pre-computed — converting would produce nonsensical position values.
     if target_yunits is not None and quantiles is not None:
-        reduce_dim = dim if dim is not None else (data.dims[0] if data.ndim >= 2 else None)
+        reduce_dim = (
+            dim if dim is not None else (data.dims[0] if data.ndim >= 2 else None)
+        )
         if reduce_dim is not None:
             data = _apply_unit_conversion(data, reduce_dim, target_yunits)
 
-    quantile_data, quantile_dim, q_list, x_dim = _resolve_quantiles(data, quantiles, dim)
+    quantile_data, quantile_dim, q_list, x_dim = _resolve_quantiles(
+        data, quantiles, dim
+    )
 
     x_values = quantile_data[x_dim].values
     q_values = quantile_data.values  # shape: (n_quantiles, n_x)
@@ -356,7 +361,9 @@ def draw_multiboxplot(
     pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
     median_idx = n_q // 2 if n_q % 2 == 1 else None
 
-    props = _resolve_box_styling(color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops)
+    props = _resolve_box_styling(
+        color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops
+    )
     plot_color = props["color"]
     rgb = to_rgb(plot_color)
 
@@ -538,8 +545,12 @@ def draw_multiboxplot_legend(
     rgb = to_rgb(base_color)
 
     whiskerprops = whiskerprops or {}
-    whisker_color = whiskerprops.get("color", stored.get("whisker_color", (0.3, 0.3, 0.3)))
-    whisker_linewidth = whiskerprops.get("linewidth", stored.get("whisker_linewidth", 0.8))
+    whisker_color = whiskerprops.get(
+        "color", stored.get("whisker_color", (0.3, 0.3, 0.3))
+    )
+    whisker_linewidth = whiskerprops.get(
+        "linewidth", stored.get("whisker_linewidth", 0.8)
+    )
 
     boxprops = boxprops or {}
     box_edgecolor = boxprops.get("edgecolor", stored.get("box_edgecolor", base_color))

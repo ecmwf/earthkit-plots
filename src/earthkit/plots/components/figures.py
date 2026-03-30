@@ -58,8 +58,27 @@ class Figure:
     """
 
     def __init__(
-        self, rows=None, columns=None, size=None, domain=None, crs=None, **kwargs
+        self,
+        rows=None,
+        columns=None,
+        figsize=None,
+        domain=None,
+        crs=None,
+        size=None,
+        **kwargs,
     ):
+        if size is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'size' argument is deprecated and will be removed in a future release. "
+                "Use 'figsize' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if figsize is None:
+                figsize = size
+
         self.rows = rows
         self.columns = columns
 
@@ -70,7 +89,7 @@ class Figure:
         self._row = 0
         self._col = 0
 
-        self._figsize = self._parse_size(size)
+        self._figsize = self._parse_size(figsize)
         self._gridspec_kwargs = kwargs
 
         self._domain = domain
@@ -858,6 +877,7 @@ class Figure:
         subplot_titles=None,
         rows=None,
         columns=None,
+        figsize=None,
         size=None,
         **kwargs,
     ):
@@ -958,13 +978,24 @@ class Figure:
         n_cols = columns if columns is not None else len(col_vals)
 
         # --- Set up the Figure grid if not already done ----------------------
+        if size is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'size' argument is deprecated and will be removed in a future release. "
+                "Use 'figsize' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if figsize is None:
+                figsize = size
         if self.rows is None or self.columns is None:
             self.rows = n_rows
             self.columns = n_cols
         if self.fig is None:
-            if size is None:
-                size = (8 * n_cols, 4 * n_rows)
-            self._figsize = self._parse_size(size)
+            if figsize is None:
+                figsize = (8 * n_cols, 4 * n_rows)
+            self._figsize = self._parse_size(figsize)
             self._setup()
 
         # --- Build panels -----------------------------------------------------
@@ -1004,6 +1035,7 @@ class Figure:
         subplot_titles="{variable_name}",
         rows=None,
         columns=None,
+        figsize=None,
         size=None,
         xticks=None,
         yticks=None,
@@ -1085,6 +1117,17 @@ class Figure:
         ):
             row = "variable"
 
+        if size is not None:
+            import warnings
+
+            warnings.warn(
+                "The 'size' argument is deprecated and will be removed in a future release. "
+                "Use 'figsize' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if figsize is None:
+                figsize = size
         self.plot(
             plot,
             data,
@@ -1095,7 +1138,7 @@ class Figure:
             subplot_titles=subplot_titles,
             rows=rows,
             columns=columns,
-            size=size,
+            figsize=figsize,
             **kwargs,
         )
 

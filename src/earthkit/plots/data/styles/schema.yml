@@ -80,28 +80,14 @@ interactive_layout:
   showlegend: false
 
 
-# *************************************************************************** #
-# * QUICKPLOT WORKFLOW                                                      * #
-# *************************************************************************** #
-geo:
-  subplot:
-    workflow:
-    - title
-  fig:
-    workflow:
-    - coastlines
-    - legend
-
 timeseries:
   subplot:
-    workflow:
+    decorate:
     - ylabel
     - xlabel
     - title
   fig:
-    workflow: []
-
-quickplot_workflow: []
+    decorate: []
 
 
 # *************************************************************************** #
@@ -203,11 +189,11 @@ borders:
   - key: BRK_A3
     values: ["B57"]
     kwargs:
-      linestyle: "dotted"
+      linestyle: "dashed"
   - key: BRK_A3
     values: ["B89"]
     kwargs:
-      linestyle: "dotted"
+      alpha: 0
 countries:
   zorder: 0
   linestyle: "-"
