@@ -350,6 +350,24 @@ class Source:
         setattr(self, cache_attr, dimension)
         return dimension
 
+    def update_units(self, units: str) -> None:
+        """
+        Update the target units for this source, clearing any cached dimension
+        so that unit conversion is applied on the next access.
+
+        This is used by the pipeline when ``use_preferred_units`` selects a
+        style after the source has already been constructed, to ensure the data
+        values are converted to the style's units before plotting.
+
+        Parameters
+        ----------
+        units :
+            The new target units string (e.g. ``"celsius"``).
+        """
+        self._generic_units = units
+        # Clear the cached z dimension so it is rebuilt with conversion applied.
+        self._z_dimension = None
+
     @property
     def x(self) -> DimensionInfo:
         """

@@ -360,11 +360,11 @@ def guess_style(data, units=None, **kwargs):
         if style is None:
             return _fallback_style(data)
 
-    # If the caller requested specific target units that differ from the
-    # style variant's own units, override so the colorbar label reflects
-    # the actual plotted units (unit conversion is handled by Source).
-    if units is not None and not are_equal(units, style.get("units")):
-        kwargs.setdefault("units", units)
+        # If the caller requested specific target units that differ from the
+        # style variant's own units, override so the colorbar label reflects
+        # the actual plotted units (unit conversion is handled by Source).
+        if units is not None and not are_equal(units, style.get("units")):
+            kwargs.setdefault("units", units)
 
     return styles.Style.from_dict({**style, **kwargs})
 
