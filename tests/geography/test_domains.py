@@ -16,7 +16,7 @@ import cartopy.crs as ccrs
 import numpy as np
 import pytest
 
-from earthkit.plots.geo import domains
+from earthkit.plots.geography import domains
 
 
 def test_format_name_UK():

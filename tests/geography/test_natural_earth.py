@@ -15,16 +15,42 @@
 import math
 
 import cartopy.crs as ccrs
+import pytest
 from shapely.geometry import LineString, Point, Polygon
 
-from earthkit.plots.geo import geometry
+from earthkit.plots.geography import natural_earth
+
+
+def test_NaturalEarthDomain_name_France():
+    ne_domain = natural_earth.NaturalEarthDomain(domain_name="France")
+    assert ne_domain.domain_name == "France"
+
+
+def test_NaturalEarthDomain_record_France():
+    ne_domain = natural_earth.NaturalEarthDomain(domain_name="France")
+    assert ne_domain.record.attributes["NAME_EN"] == "France"
+
+
+def test_NaturalEarthDomain_crs_France():
+    ne_domain = natural_earth.NaturalEarthDomain(domain_name="France")
+    assert isinstance(ne_domain.crs, ccrs.AlbersEqualArea)
+
+
+def test_NaturalEarthDomain_crs_India():
+    ne_domain = natural_earth.NaturalEarthDomain(domain_name="India")
+    assert isinstance(ne_domain.crs, ccrs.PlateCarree)
+
+
+def test_NaturalEarthDomain_bounds_France():
+    ne_domain = natural_earth.NaturalEarthDomain(domain_name="France")
+    assert ne_domain.bounds == pytest.approx([-626161, 690812, -625183, 649633])
 
 
 def test_reproject_geometries_point():
 
     geom = Point(10.0, 45.0)
 
-    result = geometry.reproject_geometries(
+    result = natural_earth.reproject_geometries(
         geometries=[geom],
         src_crs=ccrs.PlateCarree(),
         target_crs=ccrs.LambertAzimuthalEqualArea(),
@@ -50,7 +76,7 @@ def test_reproject_geometries_linestring():
         ]
     )
 
-    result = geometry.reproject_geometries(
+    result = natural_earth.reproject_geometries(
         geometries=[geom],
         src_crs=ccrs.PlateCarree(),
         target_crs=ccrs.LambertAzimuthalEqualArea(),
@@ -85,7 +111,7 @@ def test_reproject_geometries_polygon():
         ]
     )
 
-    result = geometry.reproject_geometries(
+    result = natural_earth.reproject_geometries(
         geometries=[geom],
         src_crs=ccrs.PlateCarree(),
         target_crs=ccrs.LambertAzimuthalEqualArea(),

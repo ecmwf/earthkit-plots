@@ -19,7 +19,7 @@ from unittest.mock import patch
 
 import pytest
 
-from earthkit.plots.geo import gisco
+from earthkit.plots.geography import gisco
 
 
 def test_invalid_geometry_type_raises():
