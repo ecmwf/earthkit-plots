@@ -1629,7 +1629,7 @@ class Map(Subplot):
                 else:
                     loc = location
                 if layer.style is not None:
-                    layer.legend(location=loc, **kwargs)
+                    layer._generate_legend(location=loc, **kwargs)
         return self
 
     @schema.gridlines.apply()

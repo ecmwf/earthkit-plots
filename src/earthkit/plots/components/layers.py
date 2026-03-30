@@ -62,7 +62,7 @@ class Layer:
         self.proxy_label = proxy_label
         self._proxy_color = proxy_color
         self._proxy_linewidth = proxy_linewidth
-        self.colorbar = None
+        self.legend = None
 
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()
@@ -101,14 +101,14 @@ class Layer:
         """All matplotlib axes over which this layer is plotted."""
         return [self.ax]
 
-    def legend(self, *args, **kwargs):
+    def _generate_legend(self, *args, **kwargs):
         """
         Generate a legend for this specific layer.
         """
         if self.style is not None:
             result = self.style.legend(self, *args, **kwargs)
             if result is not None:
-                self.colorbar = result
+                self.legend = result
             return result
 
     def format_string(self, string, **kwargs):
