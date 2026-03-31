@@ -678,7 +678,7 @@ class Subplot:
             )
         return AxisView(mpl_ax, self)
 
-    def ylabel(self, label=None, **kwargs):
+    def ylabel(self, label=None, side=None, **kwargs):
         """
         Add a y-axis label to the subplot.
 
@@ -703,6 +703,35 @@ class Subplot:
             :meth:`matplotlib.axes.Axes.set_ylabel`.
         """
         if not self.layers:
+            return self
+
+        # side="right" / side="left": target a specific axis by position.
+        if side is not None:
+            axes = (
+                [ax for _, ax in self._axis_registry.items()]
+                if self._axis_registry is not None
+                else [self.ax]
+            )
+            if side == "right":
+                target_ax = axes[-1] if len(axes) > 1 else axes[0]
+            else:  # "left" or primary
+                target_ax = axes[0]
+            if label is None:
+                ax_layers = [
+                    layer
+                    for layer in self.layers
+                    if getattr(layer, "render_ax", None) is target_ax
+                ]
+                if ax_layers:
+                    src = ax_layers[0].sources[0]
+                    tmpl = (
+                        "{variable_name} ({units})"
+                        if src.y.units is not None
+                        else "{variable_name}"
+                    )
+                    label = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
+            if label is not None:
+                target_ax.set_ylabel(label, **kwargs)
             return self
 
         # Multi-axis auto-label: when no label is given and the registry has
