@@ -11,26 +11,24 @@ Welcome to the earthkit-plots documentation
    :target: https://opensource.org/licenses/apache-2-0
 
 
-**earthkit-plots** leverages the power of the **earthkit** ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
+**earthkit-plots** is a high-level Python library for producing publication-quality
+scientific graphics with minimal code. Built on **matplotlib**, **cartopy**,
+**xarray**, and the broader **earthkit** ecosystem, it enriches these tools with
+domain-specific knowledge so you can focus on your data rather than plot
+configuration.
 
-It is built on top of popular data science and visualisation tools like **numpy**, **xarray**, **matplotlib** and **cartopy**, but provides a very high-level API enriched with domain-specific knowledge, making it exceptionally easy to use.
+Key features:
 
-Key features include:
-
-⚡ **Concise, high-level API**
-Generate high-quality visualisations with minimal code.
-
-🧠 **Intelligent formatting**
-Titles and labels automatically adapt based on common metadata standards.
-
-🎨 **Customisable style libraries**
-Easily swap styles to match your organisation, project, or personal preferences.
-
-🔍 **Automatic data styling**
-Detects metadata like variables and units to optionally apply appropriate formatting and styling.
-
-🌍 **Complex grids supported out-of-the-box**
-Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
+- **Concise API** - generate complex visualisations in just a few lines.
+- **Automatic data extraction** - reads GRIB, netCDF, and zarr data; works with
+  xarray DataArrays and NumPy arrays; handles geographic coordinates, grids, and
+  CRS automatically.
+- **Intelligent formatting** - titles, labels, and colour scales adapt based on
+  detected metadata, variables, and units.
+- **Style libraries** - swap styles to match your organisation, project, or
+  preferences.
+- **Complex grids out of the box** - HEALPix, reduced Gaussian, and more with no
+  extra legwork.
 
 
 .. important::
@@ -43,27 +41,17 @@ Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
 
 .. code-block:: python
 
-    chart = earthkit.plots.Map(domain="Europe")
+    (
+        ekp.geo.plot(era5_2t, domain="Europe", units="celsius")
+        .title("ERA5 monthly averaged {variable_name} over {domain} - {time:%B %Y}")
+        .borders()
+        .gridlines()
+        .show()
+    )
 
-    chart.quickplot(temperature, units="celsius")
-
-    chart.legend(location="bottom")
-
-    chart.coastlines()
-    chart.title()
-    chart.gridlines()
-
-    chart.show()
-
-
-Or even more simply:
-
-.. code-block:: python
-
-    earthkit.plots.quickplot(data, domain="Europe", units="celsius")
-
-.. image:: images/quickplot-era5-t2m-19931201.png
+.. image:: images/plot-era5-t2m-19931201.png
    :width: 600
+   :align: center
 
 
 .. toctree::
