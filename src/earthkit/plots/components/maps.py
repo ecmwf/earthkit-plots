@@ -19,6 +19,7 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
+from earthkit.plots.components._chainable import chainable_method
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.geography import (
     coordinate_reference_systems,
@@ -507,7 +508,7 @@ class Map(Subplot):
                     self.ax.add_feature(feature, *args, **kwargs)
                     for sf, sf_kwargs in special_features:
                         self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
-                    return self
+                    return None
 
                 filtered_records = []
                 special_records = []
@@ -639,12 +640,13 @@ class Map(Subplot):
                 self.ax.add_feature(feature, *args, **kwargs)
                 for sf, sf_kwargs in special_features:
                     self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
-                return self
+                return None
 
             return wrapper
 
         return decorator
 
+    @chainable_method
     @schema.coastlines.apply()
     @ancillary_layer(
         sources={
@@ -675,6 +677,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.borders.apply()
     @ancillary_layer(
         sources={
@@ -714,6 +717,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.unit_boundaries.apply()
     @ancillary_layer(
         sources={
@@ -751,6 +755,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.disputed_boundaries.apply()
     @ancillary_layer(
         sources={
@@ -785,6 +790,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.administrative_areas.apply()
     @ancillary_layer(
         sources={
@@ -815,6 +821,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.countries.apply()
     @ancillary_layer(
         sources={
@@ -853,6 +860,7 @@ class Map(Subplot):
             ``add_feature`` method.
         """
 
+    @chainable_method
     def nuts_regions(
         self,
         level,
@@ -1023,8 +1031,7 @@ class Map(Subplot):
                     feature = cfeature.ShapelyFeature([geom], self.crs)
                     self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
-        return self
-
+    @chainable_method
     @schema.land.apply()
     @ancillary_layer(
         sources={
@@ -1050,6 +1057,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.ocean.apply()
     @ancillary_layer(
         sources={
@@ -1074,6 +1082,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.urban_areas.apply()
     @ancillary_layer(
         sources={
@@ -1099,6 +1108,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.countries.apply()
     @ancillary_layer(
         sources={
@@ -1124,6 +1134,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     def cities(
         self,
         density=None,
@@ -1217,8 +1228,8 @@ class Map(Subplot):
             from adjustText import adjust_text
 
             adjust_text(texts)
-        return self
 
+    @chainable_method
     def stock_img(self, *args, **kwargs):
         """
         Add the cartopy stock image to the map.
@@ -1231,8 +1242,8 @@ class Map(Subplot):
             Keyword arguments to pass to the stock_img method.
         """
         self.ax.stock_img(*args, **kwargs)
-        return self
 
+    @chainable_method
     def add_wms(self, *args, **kwargs):
         """
         Add a WMS (Web Map Service) image to the map.
@@ -1251,8 +1262,8 @@ class Map(Subplot):
             :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
         """
         self.ax.add_wms(*args, **kwargs)
-        return self
 
+    @chainable_method
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
         Add an image to the map.
@@ -1273,8 +1284,8 @@ class Map(Subplot):
 
             img = PIL.Image.open(img)
         self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
-        return self
 
+    @chainable_method
     @schema.shapes.apply()
     def shapes(
         self,
@@ -1314,8 +1325,8 @@ class Map(Subplot):
             self._add_polygon_labels(
                 list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels
             )
-        return self
 
+    @chainable_method
     def choropleth(
         self,
         data,
@@ -1477,7 +1488,7 @@ class Map(Subplot):
                 source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs
             )
 
-        return self
+        return self.layers[-1]
 
     def _add_choropleth_labels(
         self, source, label_column=None, exclude_nan_labels=True, **kwargs
@@ -1600,6 +1611,7 @@ class Map(Subplot):
             adjust_labels=kwargs.get("adjust_labels", False),
         )
 
+    @chainable_method
     @schema.legend.apply()
     def legend(self, style=None, location=None, **kwargs):
         """
@@ -1628,7 +1640,7 @@ class Map(Subplot):
             # Create a dummy source for legend creation
             dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
             layer = Layer(dummy_source, mappable, self, style)
-            layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
+            return layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):
                 if isinstance(location, (list, tuple)):
@@ -1637,8 +1649,9 @@ class Map(Subplot):
                     loc = location
                 if layer.style is not None:
                     layer._generate_legend(location=loc, **kwargs)
-        return self
+            return None
 
+    @chainable_method
     @schema.gridlines.apply()
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
         """
@@ -1663,9 +1676,9 @@ class Map(Subplot):
             kwargs["xlocs"] = step_range([-180, 180], xstep, xref)
         if ystep is not None:
             kwargs["ylocs"] = step_range([-90, 90], ystep, yref)
-        self.ax.gridlines(*args, **kwargs)
-        return self
+        return self.ax.gridlines(*args, **kwargs)
 
+    @chainable_method
     def standard_layers(self):
         """
         Add standard map layers to the map.
@@ -1680,4 +1693,3 @@ class Map(Subplot):
         self.coastlines()
         self.borders()
         self.gridlines()
-        return self

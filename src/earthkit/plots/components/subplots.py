@@ -23,6 +23,7 @@ if TYPE_CHECKING:
 
 import numpy as np
 
+from earthkit.plots.components._chainable import chainable_method
 from earthkit.plots.components._pipeline import plot_1D, plot_2D, plot_vector
 from earthkit.plots.components.layers import Layer
 from earthkit.plots.metadata.formatters import (
@@ -123,6 +124,7 @@ class Subplot:
         figsize=DEFAULT_SINGLE_SIZE,
         ax=None,
         size=None,
+        chainable=False,
         **kwargs,
     ):
         if size is not None:
@@ -148,6 +150,8 @@ class Subplot:
             self._ax = None
             self._figure = figure
             self._size = None if figure is not None else figsize
+
+        self._chainable = chainable
 
         # auto_twin_axes must be popped before assigning _ax_kwargs so it
         # doesn't leak through to the matplotlib Axes constructor.
@@ -179,6 +183,7 @@ class Subplot:
         self._twin_axes: list[dict] = []
         self._active_ax_stack: list = []  # stack of mpl Axes; empty → use self.ax
 
+    @chainable_method
     def wrap_longitudes(self, axis="x"):
         """
         Roll the longitude coordinate from 0–360 to –180 to +180.
@@ -199,8 +204,8 @@ class Subplot:
         self
         """
         self._wrap_longitudes = axis
-        return self
 
+    @chainable_method
     def fix_x_units(self, units):
         """
         Set a permanent unit for the x-axis.
@@ -214,8 +219,8 @@ class Subplot:
             Target units string (e.g. ``"celsius"``).
         """
         self._fixed_x_units = units
-        return self
 
+    @chainable_method
     def fix_y_units(self, units):
         """
         Set a permanent unit for the y-axis.
@@ -229,8 +234,8 @@ class Subplot:
             Target units string (e.g. ``"celsius"``).
         """
         self._fixed_y_units = units
-        return self
 
+    @chainable_method
     def format_x_ticks(self, format_spec):
         """
         Apply a tick formatter to the x-axis.
@@ -255,8 +260,8 @@ class Subplot:
         self._x_tick_format_spec = format_spec
         if self._ax is not None:
             self._apply_tick_formatter("x")
-        return self
 
+    @chainable_method
     def format_y_ticks(self, format_spec):
         """
         Apply a tick formatter to the y-axis.
@@ -281,7 +286,6 @@ class Subplot:
         self._y_tick_format_spec = format_spec
         if self._ax is not None:
             self._apply_tick_formatter("y")
-        return self
 
     def _apply_tick_formatter(self, axis):
         """Apply stored tick format specs to the given axis."""
@@ -301,6 +305,7 @@ class Subplot:
         """The Coordinate Reference System of the subplot."""
         return None
 
+    @chainable_method
     def attribution(self, attribution, location="lower center", **kwargs):
         """
         Add an attribution to the figure.
@@ -318,8 +323,8 @@ class Subplot:
             Additional keyword arguments passed to ``matplotlib.figure.Figure.text``.
         """
         self.figure.attribution(attribution, location=location, **kwargs)
-        return self
 
+    @chainable_method
     def add_logo(self, logo):
         """
         Add a logo to the figure.
@@ -330,8 +335,8 @@ class Subplot:
             Either the name of a built-in logo, or a path to the logo image file to add to the figure.
         """
         self.figure.add_logo(logo)
-        return self
 
+    @chainable_method
     def xticks(
         self,
         frequency=None,
@@ -380,8 +385,8 @@ class Subplot:
             labels=labels,
             **kwargs,
         )
-        return self
 
+    @chainable_method
     def yticks(
         self,
         frequency=None,
@@ -425,7 +430,6 @@ class Subplot:
             labels=labels,
             **kwargs,
         )
-        return self
 
     @property
     def figure(self):
@@ -591,6 +595,45 @@ class Subplot:
 
         return _ctx()
 
+    def twinx(self):
+        """
+        Create a twin subplot sharing the same x-axis with an independent right y-axis.
+
+        Returns a new instance of the same class (e.g. ``TimeSeries``, ``Map``)
+        wrapping the twinx matplotlib axes.  The twin shares this subplot's
+        ``layers`` list and ``figure`` so that decoration methods called on the
+        primary subplot (``legend()``, ``title()``, ``show()``) see layers from
+        both axes.
+
+        The twin's ``_chainable`` flag matches the primary so the OO and
+        high-level APIs both behave consistently.
+
+        Example
+        -------
+        ::
+
+            ts = ekp.TimeSeries()
+            ts.line(anomaly_monthly, label="Monthly anomaly", color="goldenrod")
+
+            ts2 = ts.twinx()
+            ts2.line(relative_anomaly, label="Relative anomaly", color="orchid")
+            ts2.ylabel("Relative anomaly (%)")
+
+            ts.ylabel().legend().show()
+        """
+        mpl_twin = self.ax.twinx()
+        twin = type(self)(ax=mpl_twin, figure=self.figure, chainable=self._chainable)
+        # Share the layers list so primary-subplot legend/title sees twin layers.
+        twin.layers = self.layers
+        # Register the twin axes in the primary's registry so the auto-twin
+        # system and the explicit twinx() path stay in sync.
+        registry = self._get_axis_registry()
+        if not registry._units_to_ax:
+            # Claim the primary axes first so it is always index 0.
+            registry._units_to_ax["__primary__"] = self.ax
+        registry._units_to_ax[str(id(mpl_twin))] = mpl_twin
+        return twin
+
     def _get_axis_registry(self) -> _AxisRegistry:
         """
         Lazy-initialise and return the :class:`_AxisRegistry` for this subplot.
@@ -678,6 +721,7 @@ class Subplot:
             )
         return AxisView(mpl_ax, self)
 
+    @chainable_method
     def ylabel(self, label=None, side=None, **kwargs):
         """
         Add a y-axis label to the subplot.
@@ -703,7 +747,7 @@ class Subplot:
             :meth:`matplotlib.axes.Axes.set_ylabel`.
         """
         if not self.layers:
-            return self
+            return None
 
         # side="right" / side="left": target a specific axis by position.
         if side is not None:
@@ -731,8 +775,8 @@ class Subplot:
                     )
                     label = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
             if label is not None:
-                target_ax.set_ylabel(label, **kwargs)
-            return self
+                return target_ax.set_ylabel(label, **kwargs)
+            return None
 
         # Multi-axis auto-label: when no label is given and the registry has
         # more than one axis, label each axis from its own layers' metadata.
@@ -759,7 +803,7 @@ class Subplot:
                 )
                 lbl = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
                 ax.set_ylabel(lbl, **kwargs)
-            return self
+            return None
 
         # Single-axis path — original behaviour, also used inside twin_axis().
         if label is None:
@@ -770,9 +814,9 @@ class Subplot:
                 label = "{variable_name}"
         label = self.format_string(label, axis="y")
         # Routes to the active twin when called inside a twin_axis() context.
-        self.current_ax.set_ylabel(label, **kwargs)
-        return self
+        return self.current_ax.set_ylabel(label, **kwargs)
 
+    @chainable_method
     def xlabel(self, label=None, **kwargs):
         """
         Add an x-axis label to the subplot.
@@ -798,8 +842,7 @@ class Subplot:
             else:
                 label = "{variable_name}"
         label = self.format_string(label, axis="x")
-        self.ax.set_xlabel(label, **kwargs)
-        return self
+        return self.ax.set_xlabel(label, **kwargs)
 
     @property
     def _default_title_template(self):
@@ -876,6 +919,7 @@ class Subplot:
             :meth:`matplotlib.axes.Axes.fill_between`.
         """
 
+    @chainable_method
     def multiboxplot(
         self,
         data,
@@ -1014,8 +1058,8 @@ class Subplot:
         layer._multiboxplot_result = result
 
         self.layers.append(layer)
-        return self
 
+    @chainable_method
     def multiboxplot_legend(
         self,
         location="right",
@@ -1094,7 +1138,6 @@ class Subplot:
             size=kwargs.pop("size", 0.75),
             pad=kwargs.pop("pad", 0.1),
         )
-        return self
 
     @plot_1D()
     def line(self, *args, **kwargs):
@@ -1213,6 +1256,7 @@ class Subplot:
         )
         return mappable
 
+    @chainable_method
     def fill_between(self, y1, y2=0, x=None, alpha=0.2, units=None, **kwargs):
         """
         Fill the area between two curves.
@@ -1253,8 +1297,8 @@ class Subplot:
         >>> ts.fill_between(values)
         """
         self.envelope(y1, y2, x=x, units=units, alpha=alpha, **kwargs)
-        return self
 
+    @chainable_method
     def text(self, x, y=None, s="", **kwargs):
         """
         Add text to the Subplot at position (*x*, *y*).
@@ -1291,12 +1335,12 @@ class Subplot:
                 # called as text(da, "hello") — y holds the string
                 s = y
             s = SourceFormatter(source).format(s)
-            self.ax.text(x_val, y_val, s, **kwargs)
+            return self.ax.text(x_val, y_val, s, **kwargs)
         else:
             s = self.format_string(s)
-            self.ax.text(x, y, s, **kwargs)
-        return self
+            return self.ax.text(x, y, s, **kwargs)
 
+    @chainable_method
     def annotate(self, s, xy, xytext=None, **kwargs):
         """
         Add an annotation to the Subplot.
@@ -1335,11 +1379,11 @@ class Subplot:
             s = self.format_string(s)
 
         if xytext is not None:
-            self.ax.annotate(s, xy=xy, xytext=xytext, **kwargs)
+            return self.ax.annotate(s, xy=xy, xytext=xytext, **kwargs)
         else:
-            self.ax.annotate(s, xy=xy, **kwargs)
-        return self
+            return self.ax.annotate(s, xy=xy, **kwargs)
 
+    @chainable_method
     def labels(self, data=None, label=None, x=None, y=None, **kwargs):
         """
         Plot labels on the Subplot.
@@ -1358,7 +1402,6 @@ class Subplot:
         labels = SourceFormatter(source).format(label)
         for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), **kwargs)
-        return self
 
     def plot(self, data, style=None, units=None, **kwargs):
         """
@@ -1444,6 +1487,7 @@ class Subplot:
             data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs
         )
 
+    @chainable_method
     def hsv_composite(self, *args):
         """
         Plot an HSV composite on the Subplot.
@@ -1504,8 +1548,9 @@ class Subplot:
         self.layers[-1].sources = [red_source, green_source, blue_source]
         self.layers[-1].style = None
 
-        return self
+        return self.layers[-1]
 
+    @chainable_method
     def rgb_composite(self, *args):
         """
         Plot an RGB composite on the Subplot.
@@ -1538,7 +1583,7 @@ class Subplot:
         self.layers[-1].sources = [red_source, green_source, blue_source]
         self.layers[-1].style = None
 
-        return self
+        return self.layers[-1]
 
     @plot_1D()
     def bar(self, *args, **kwargs):
@@ -2017,6 +2062,7 @@ class Subplot:
         )
         return self.pcolormesh(*args, **kwargs)
 
+    @chainable_method
     def spaghetti(
         self,
         data_list,
@@ -2131,8 +2177,8 @@ class Subplot:
                     )
                 else:
                     self.layers[-1].proxy_label = None
-        return self
 
+    @chainable_method
     def legend(self, label=None, *args, **kwargs):
         """
         Add a legend to the Subplot.
@@ -2167,7 +2213,7 @@ class Subplot:
                 )
 
         if proxy_handles:
-            self.ax.legend(handles=proxy_handles, *args, **kwargs)
+            return self.ax.legend(handles=proxy_handles, *args, **kwargs)
         else:
             # Collect handles and labels from all axes (primary + any twinx).
             # matplotlib's ax.legend() with no arguments only sees the primary
@@ -2184,9 +2230,11 @@ class Subplot:
                     if label not in all_labels:
                         all_handles.append(handle)
                         all_labels.append(label)
-            self.ax.legend(handles=all_handles, labels=all_labels, *args, **kwargs)
-        return self
+            return self.ax.legend(
+                handles=all_handles, labels=all_labels, *args, **kwargs
+            )
 
+    @chainable_method
     def quiverkey(
         self,
         u=None,
@@ -2280,8 +2328,8 @@ class Subplot:
         kwargs.setdefault("labelpos", "E")
 
         self.ax.quiverkey(quiver_layer.mappable, x, y, u, label, **kwargs)
-        return self
 
+    @chainable_method
     @schema.title.apply()
     def title(self, label=None, unique=True, wrap=True, capitalize="auto", **kwargs):
         """
@@ -2319,8 +2367,7 @@ class Subplot:
             kwargs["fontsize"] = schema.reference_fontsize * scale_factor
         if capitalize and label:
             label = label[0].upper() + label[1:]
-        self.ax.set_title(label, wrap=wrap, **kwargs)
-        return self
+        return self.ax.set_title(label, wrap=wrap, **kwargs)
 
     def set_title(self, label=None, **kwargs):
         """
@@ -2339,6 +2386,7 @@ class Subplot:
         """
         return self.title(label, **kwargs)
 
+    @chainable_method
     def suptitle(self, *args, **kwargs):
         """
         Add a top-level title to the chart.
@@ -2368,7 +2416,6 @@ class Subplot:
             Keyword argument to :func:`matplotlib.pyplot.suptitle`.
         """
         self.figure.title(*args, **kwargs)
-        return self
 
     def format_string(self, string, unique=True, grouped=True, axis=None):
         """

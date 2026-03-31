@@ -356,7 +356,7 @@ class Figure:
             Additional keyword arguments to pass to the :class:`Subplot` constructor.
         """
         row, column = self._determine_row_column(row, column)
-        subplot = Subplot(row=row, column=column, figure=self, **kwargs)
+        subplot = Subplot(row=row, column=column, figure=self, chainable=True, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -386,7 +386,13 @@ class Figure:
             crs = self._crs
         row, column = self._determine_row_column(row, column)
         subplot = Map(
-            row=row, column=column, domain=domain, crs=crs, figure=self, **kwargs
+            row=row,
+            column=column,
+            domain=domain,
+            crs=crs,
+            figure=self,
+            chainable=True,
+            **kwargs,
         )
         self.subplots.append(subplot)
         return subplot
@@ -427,7 +433,9 @@ class Figure:
         from earthkit.plots.temporal.timeseries import TimeSeries
 
         row, column = self._determine_row_column(row, column)
-        subplot = TimeSeries(row=row, column=column, size=None, figure=self, **kwargs)
+        subplot = TimeSeries(
+            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 
@@ -466,7 +474,9 @@ class Figure:
         from earthkit.plots.temporal.hovmoller import Hovmoller
 
         row, column = self._determine_row_column(row, column)
-        subplot = Hovmoller(row=row, column=column, size=None, figure=self, **kwargs)
+        subplot = Hovmoller(
+            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 
@@ -503,7 +513,9 @@ class Figure:
         from earthkit.plots.temporal.climatology import Climatology
 
         row, column = self._determine_row_column(row, column)
-        subplot = Climatology(row=row, column=column, size=None, figure=self, **kwargs)
+        subplot = Climatology(
+            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 

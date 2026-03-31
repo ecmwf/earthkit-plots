@@ -1224,7 +1224,11 @@ def plot_1D(method_name=None):
                     label=label,
                     **kwargs,
                 )
-                return self
+                return (
+                    self
+                    if self._chainable
+                    else (self.layers[-1].mappable if self.layers else None)
+                )
 
             # Require xarray DataArray when any *by is set
             data = args[0] if args else None
@@ -1403,7 +1407,11 @@ def plot_1D(method_name=None):
                     **call_kwargs,
                 )
 
-            return self
+            return (
+                self
+                if self._chainable
+                else (self.layers[-1].mappable if self.layers else None)
+            )
 
         return wrapper
 
@@ -1453,7 +1461,11 @@ def plot_2D(method_name=None, extract_domain=False, default_resample=None):
                 resample=resample,
                 **kwargs,
             )
-            return self
+            return (
+                self
+                if self._chainable
+                else (self.layers[-1].mappable if self.layers else None)
+            )
 
         return wrapper
 
@@ -1497,7 +1509,11 @@ def plot_vector(method_name=None, extract_domain=False):
                 colors=colors,
                 **kwargs,
             )
-            return self
+            return (
+                self
+                if self._chainable
+                else (self.layers[-1].mappable if self.layers else None)
+            )
 
         return wrapper
 

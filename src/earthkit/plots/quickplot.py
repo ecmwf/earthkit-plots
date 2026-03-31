@@ -807,7 +807,7 @@ def climatology(
     from earthkit.plots.temporal.climatology import Climatology
 
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
-    ts = Climatology(**class_kwargs)
+    ts = Climatology(chainable=True, **class_kwargs)
     getattr(ts, plot)(data, *args, **kwargs)
     if xlabel is not None:
         ts.xlabel(xlabel)
@@ -978,7 +978,7 @@ def timeseries(
         class_kwargs = {
             k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs
         }
-        ts = TimeSeries(**class_kwargs)
+        ts = TimeSeries(chainable=True, **class_kwargs)
         axes_by_units = {}
         layers_by_ax = {}
         primary_ax = None
@@ -1061,7 +1061,7 @@ def timeseries(
     # Single panel
     # ------------------------------------------------------------------
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
-    ts = TimeSeries(**class_kwargs)
+    ts = TimeSeries(chainable=True, **class_kwargs)
     getattr(ts, plot)(data, *args, **kwargs)
     _run_timeseries_subplot_workflow(
         ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks
