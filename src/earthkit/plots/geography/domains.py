@@ -401,28 +401,34 @@ class Domain:
         if self.is_complete and schema.crop_domain:
             crs_bounds = list(BoundingBox.from_bbox(self.bbox, self.crs, source_crs))
 
-            # Handle longitude wrapping
+            # Handle longitude wrapping.
+            # All three branches are guarded by isinstance(_CylindricalProjection)
+            # so that projected (metre-based) CRS coordinates — which can be
+            # numerically > 180 or < 0 without being longitudes — are never
+            # mistakenly rolled or force-wrapped.
             roll_by = None
-            if crs_bounds[0] < 0:
-                if crs_bounds[0] < np.array(x).min() and (x > 180).any():
+            if isinstance(source_crs, ccrs._CylindricalProjection):
+                if crs_bounds[0] < 0:
+                    if crs_bounds[0] < np.array(x).min() and (x > 180).any():
+                        roll_by = roll_from_0_360_to_minus_180_180(x)
+                        x = force_minus_180_to_180(x)
+                        for i in range(2):
+                            crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
+                elif crs_bounds[1] > 180 and (x > 180).any():
+                    # Domain straddles the antimeridian in 0-360 space (e.g. USA,
+                    # Pacific-centred domains).  Roll data to –180/+180 so the
+                    # domain bounds and the data longitudes are in the same
+                    # contiguous range.
                     roll_by = roll_from_0_360_to_minus_180_180(x)
                     x = force_minus_180_to_180(x)
                     for i in range(2):
                         crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
-            elif crs_bounds[1] > 180 and (x > 180).any():
-                # Domain straddles the antimeridian in 0-360 space (e.g. USA,
-                # Pacific-centred domains).  Roll data to –180/+180 so the domain
-                # bounds and the data longitudes are in the same contiguous range.
-                roll_by = roll_from_0_360_to_minus_180_180(x)
-                x = force_minus_180_to_180(x)
-                for i in range(2):
-                    crs_bounds[i] = force_minus_180_to_180(crs_bounds[i])
-            elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
-                if crs_bounds[1] > x.max():
-                    roll_by = roll_from_minus_180_180_to_0_360(x)
-                    x = force_0_to_360(x)
-                    for i in range(2):
-                        crs_bounds[i] = force_0_to_360(crs_bounds[i])
+                elif crs_bounds[0] < 180 and crs_bounds[1] > 180 and (x >= 0).any():
+                    if crs_bounds[1] > x.max():
+                        roll_by = roll_from_minus_180_180_to_0_360(x)
+                        x = force_0_to_360(x)
+                        for i in range(2):
+                            crs_bounds[i] = force_0_to_360(crs_bounds[i])
 
             if roll_by is not None:
                 if x.ndim == 1:

@@ -351,3 +351,32 @@ class TestDomainExtract:
         # Europe longitudes are roughly –10 to +40.
         assert x_ext.min() >= -15
         assert x_ext.max() <= 45
+
+    def test_extract_projected_crs_data_not_treated_as_longitudes(self):
+        """Data in a projected (metre-based) CRS must not have its x values
+        treated as longitudes even when they are numerically > 180.
+
+        Regression: the antimeridian fix checked crs_bounds[1] > 180 and
+        x > 180 without guarding against projected coordinates, causing LAEA
+        data reprojected to PlateCarree to produce an empty plot.
+        """
+        laea = ccrs.LambertAzimuthalEqualArea(central_longitude=10, central_latitude=52)
+
+        # Simulate LAEA metre coordinates for a Europe-sized domain.
+        # x values are in the range -1e6 to +1e6 metres — all > 180.
+        lons_m = np.linspace(-1_000_000, 1_000_000, 50)
+        lats_m = np.linspace(-800_000, 800_000, 50)
+        x2d, y2d = np.meshgrid(lons_m, lats_m)
+        values = np.ones_like(x2d)
+
+        # Domain in LAEA space covering the same region.
+        domain = domains.Domain([-1_100_000, 1_100_000, -900_000, 900_000], crs=laea)
+
+        x_ext, y_ext, values_ext = domain.extract(x2d, y2d, values, source_crs=laea)
+
+        # All data should be returned — nothing should be dropped by a bogus roll.
+        assert x_ext.size > 0
+        # x coordinates must stay in metre range, not be collapsed to [-180, 180].
+        assert (
+            x_ext.max() > 180
+        ), "Projected x coordinates were incorrectly treated as longitudes"
