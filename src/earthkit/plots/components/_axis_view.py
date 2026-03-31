@@ -51,8 +51,8 @@ class AxisView:
 
     def __init__(
         self,
-        mpl_ax: "matplotlib.axes.Axes",
-        subplot: "Subplot",
+        mpl_ax: matplotlib.axes.Axes,
+        subplot: Subplot,
     ) -> None:
         self._ax = mpl_ax
         self._subplot = subplot
@@ -61,7 +61,7 @@ class AxisView:
     # Per-axis decoration
     # ------------------------------------------------------------------
 
-    def ylabel(self, label: str | None = None, **kwargs) -> "Subplot":
+    def ylabel(self, label: str | None = None, **kwargs) -> Subplot:
         """
         Set the y-axis label on this axis.
 
@@ -91,7 +91,7 @@ class AxisView:
         bottom: float | None = None,
         top: float | None = None,
         **kwargs,
-    ) -> "Subplot":
+    ) -> Subplot:
         """
         Set y-axis limits on this axis.
 
@@ -109,7 +109,7 @@ class AxisView:
         self._ax.set_ylim(bottom, top, **kwargs)
         return self._subplot
 
-    def format_y_ticks(self, format_spec: str) -> "Subplot":
+    def format_y_ticks(self, format_spec: str) -> Subplot:
         """
         Apply a tick formatter to the y-axis of this axis.
 
@@ -125,14 +125,15 @@ class AxisView:
         -------
         Subplot
         """
-        from earthkit.plots.components.subplots import _build_tick_formatter
         from matplotlib.ticker import FuncFormatter
+
+        from earthkit.plots.components.subplots import _build_tick_formatter
 
         formatter = _build_tick_formatter(format_spec)
         self._ax.yaxis.set_major_formatter(FuncFormatter(formatter))
         return self._subplot
 
-    def fix_y_units(self, units: str) -> "Subplot":
+    def fix_y_units(self, units: str) -> Subplot:
         """
         Pre-register *units* on this axis so the auto-routing logic always
         directs data with these units here, without waiting for a plot call.
@@ -180,6 +181,8 @@ class AxisView:
 
         src = ax_layers[0].sources[0]
         template = (
-            "{variable_name} ({units})" if src.y.units is not None else "{variable_name}"
+            "{variable_name} ({units})"
+            if src.y.units is not None
+            else "{variable_name}"
         )
         return LayerFormatter(ax_layers[0], axis="y").format(template)

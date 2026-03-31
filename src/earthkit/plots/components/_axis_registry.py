@@ -23,7 +23,8 @@ resolve to the same axis.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterator
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     import matplotlib.axes
@@ -42,7 +43,7 @@ class _AxisRegistry:
     can find the same axis.
     """
 
-    def __init__(self, subplot: "Subplot") -> None:
+    def __init__(self, subplot: Subplot) -> None:
         self._subplot = subplot
         # Insertion-ordered: canonical_units_str → mpl_axes
         self._units_to_ax: dict[str, matplotlib.axes.Axes] = {}
@@ -80,7 +81,7 @@ class _AxisRegistry:
     # Public interface
     # ------------------------------------------------------------------
 
-    def resolve(self, display_units: str) -> "matplotlib.axes.Axes":
+    def resolve(self, display_units: str) -> matplotlib.axes.Axes:
         """
         Return the Axes for *display_units*, creating it if necessary.
 
@@ -101,7 +102,7 @@ class _AxisRegistry:
         self._units_to_ax[key] = ax
         return ax
 
-    def get(self, key: str) -> "matplotlib.axes.Axes | None":
+    def get(self, key: str) -> matplotlib.axes.Axes | None:
         """
         Look up an axis by canonical units string or user-assigned name.
 
@@ -113,7 +114,7 @@ class _AxisRegistry:
             return self._units_to_ax.get(canonical)
         return self._units_to_ax.get(self._canonical(key))
 
-    def register_name(self, name: str, mpl_ax: "matplotlib.axes.Axes") -> None:
+    def register_name(self, name: str, mpl_ax: matplotlib.axes.Axes) -> None:
         """
         Associate a user-chosen *name* with the axis that owns *mpl_ax*.
 
@@ -128,7 +129,7 @@ class _AxisRegistry:
             "Call resolve() before register_name()."
         )
 
-    def items(self) -> Iterator[tuple[str, "matplotlib.axes.Axes"]]:
+    def items(self) -> Iterator[tuple[str, matplotlib.axes.Axes]]:
         """Iterate over (canonical_units, mpl_ax) pairs in insertion order."""
         return iter(self._units_to_ax.items())
 

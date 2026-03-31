@@ -2140,7 +2140,22 @@ class Subplot:
         if proxy_handles:
             self.ax.legend(handles=proxy_handles, *args, **kwargs)
         else:
-            self.ax.legend(*args, **kwargs)
+            # Collect handles and labels from all axes (primary + any twinx).
+            # matplotlib's ax.legend() with no arguments only sees the primary
+            # axis; labels set on twinx artists are missed.
+            all_handles, all_labels = [], []
+            axes_to_check = (
+                [ax for _, ax in self._axis_registry.items()]
+                if self._axis_registry is not None
+                else [self.ax]
+            )
+            for ax in axes_to_check:
+                handles, labels = ax.get_legend_handles_labels()
+                for handle, label in zip(handles, labels):
+                    if label not in all_labels:
+                        all_handles.append(handle)
+                        all_labels.append(label)
+            self.ax.legend(handles=all_handles, labels=all_labels, *args, **kwargs)
         return self
 
     def quiverkey(
