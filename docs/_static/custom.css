@@ -73,6 +73,32 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
+/* ── Release candidate badge over sidebar logo ────────────────────────── */
+
+.sidebar-logo-container {
+  position: relative;
+  display: inline-block;
+}
+
+.ek-rc-badge {
+  position: absolute;
+  bottom: 4px;
+  right: -6px;
+  background: #FCE54B;
+  color: #1a1a2e;
+  font-family: "Nunito", sans-serif;
+  font-size: 0.55em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  transform: rotate(-2deg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
 /* ── Sidebar top padding ───────────────────────────────────────────────── */
 
 .sidebar-brand {
