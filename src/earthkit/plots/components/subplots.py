@@ -12,7 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
+
 import warnings
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from earthkit.plots.components._axis_registry import _AxisRegistry
+    from earthkit.plots.components._axis_view import AxisView
 
 import numpy as np
 
@@ -30,6 +37,49 @@ from earthkit.plots.styles import auto
 from earthkit.plots.utils import string_utils
 
 DEFAULT_SINGLE_SIZE = (7, 8)
+
+
+def _build_tick_formatter(format_spec: str):
+    """
+    Return a matplotlib-compatible tick formatter callable for *format_spec*.
+
+    Supports the same specifiers as :meth:`Subplot.format_y_ticks`:
+
+    - ``%Lt[.Nf]`` — latitude with N/S direction
+    - ``%Ln[.Nf]`` — longitude with E/W direction
+    - Any standard Python format spec (e.g. ``".1f"``)
+
+    Used by both :meth:`Subplot._apply_tick_formatter` and
+    :class:`~earthkit.plots.components._axis_view.AxisView.format_y_ticks`
+    so the logic lives in one place.
+    """
+    import re
+
+    if format_spec.startswith("%Lt"):
+        precision = (
+            int(m.group(1)) if (m := re.match(r"%Lt\.(\d+)", format_spec)) else 0
+        )
+
+        def formatter(val, _, p=precision):
+            direction = "N" if val >= 0 else "S"
+            return f"{abs(val):.{p}f}°{direction}"
+
+    elif format_spec.startswith("%Ln"):
+        precision = (
+            int(m.group(1)) if (m := re.match(r"%Ln\.(\d+)", format_spec)) else 0
+        )
+
+        def formatter(val, _, p=precision):
+            direction = "E" if val >= 0 else "W"
+            return f"{abs(val):.{p}f}°{direction}"
+
+    else:
+
+        def formatter(val, _):
+            return format(val, format_spec)
+
+    return formatter
+
 
 TARGET_DENSITY = 40
 
@@ -99,6 +149,12 @@ class Subplot:
             self._figure = figure
             self._size = None if figure is not None else figsize
 
+        # auto_twin_axes must be popped before assigning _ax_kwargs so it
+        # doesn't leak through to the matplotlib Axes constructor.
+        self._auto_twin_axes: bool = kwargs.pop("auto_twin_axes", True)
+        # Lazy-initialised on first use; see _get_axis_registry().
+        self._axis_registry: _AxisRegistry | None = None
+
         self._ax_kwargs = kwargs
 
         self.layers = []
@@ -114,6 +170,14 @@ class Subplot:
         self._wrap_longitudes = None  # "x" or "y"
         self._x_tick_format_spec = None
         self._y_tick_format_spec = None
+
+        # Twin-axis support.  Each entry is a dict:
+        #   {"ax": mpl_axes, "position": "right"|"top", "index": int}
+        # "right" twins share the x-axis (twinx); "top" twins share the y-axis (twiny).
+        # _active_ax_stack is a LIFO stack used by the twin_axis() context manager so
+        # that nested twin_axis() calls (e.g. a third y-axis) compose correctly.
+        self._twin_axes: list[dict] = []
+        self._active_ax_stack: list = []  # stack of mpl Axes; empty → use self.ax
 
     def wrap_longitudes(self, axis="x"):
         """
@@ -221,8 +285,6 @@ class Subplot:
 
     def _apply_tick_formatter(self, axis):
         """Apply stored tick format specs to the given axis."""
-        import re
-
         from matplotlib.ticker import FuncFormatter
 
         format_spec = (
@@ -231,31 +293,8 @@ class Subplot:
         if format_spec is None:
             return
 
-        if format_spec.startswith("%Lt"):
-            precision = (
-                int(m.group(1)) if (m := re.match(r"%Lt\.(\d+)", format_spec)) else 0
-            )
-
-            def formatter(val, _, p=precision):
-                direction = "N" if val >= 0 else "S"
-                return f"{abs(val):.{p}f}°{direction}"
-
-        elif format_spec.startswith("%Ln"):
-            precision = (
-                int(m.group(1)) if (m := re.match(r"%Ln\.(\d+)", format_spec)) else 0
-            )
-
-            def formatter(val, _, p=precision):
-                direction = "E" if val >= 0 else "W"
-                return f"{abs(val):.{p}f}°{direction}"
-
-        else:
-
-            def formatter(val, _):
-                return format(val, format_spec)
-
         mpl_axis = self.ax.xaxis if axis == "x" else self.ax.yaxis
-        mpl_axis.set_major_formatter(FuncFormatter(formatter))
+        mpl_axis.set_major_formatter(FuncFormatter(_build_tick_formatter(format_spec)))
 
     @property
     def crs(self):
@@ -427,6 +466,218 @@ class Subplot:
                 self._apply_tick_formatter("y")
         return self._ax
 
+    @property
+    def current_ax(self):
+        """
+        The :class:`matplotlib.axes.Axes` that should receive the next plot call.
+
+        Returns the top of the twin-axis stack when inside a :meth:`twin_axis`
+        context manager, otherwise returns the primary :attr:`ax`.  All pipeline
+        render sites use ``subplot.current_ax`` so that twin-axis redirection is
+        transparent to the rest of the code.
+        """
+        if self._active_ax_stack:
+            return self._active_ax_stack[-1]
+        return self.ax
+
+    def twin_axis(self, position="right", index=None):
+        """
+        Context manager that redirects subsequent plot calls to a twin axes.
+
+        Creates a new twin axes the first time it is called for a given
+        *position* / *index* combination, then reuses it on subsequent calls.
+        Multiple independent twin axes on the same side can be created by
+        passing distinct ``index`` values.
+
+        Parameters
+        ----------
+        position : {"right", "top"}, optional
+            ``"right"`` (default) shares the *x*-axis (``twinx``), producing a
+            second independent *y*-axis on the right-hand side of the plot —
+            the typical use-case for overlaying e.g. temperature and
+            precipitation.  ``"top"`` shares the *y*-axis (``twiny``), adding
+            a second independent *x*-axis at the top.
+        index : int, optional
+            Disambiguates multiple twin axes on the same side.  ``0`` is the
+            first twin, ``1`` the second, etc.  Defaults to ``0`` for the
+            first ``twin_axis()`` call on a given *position*, incrementing
+            automatically for each new call on that position.
+
+        Returns
+        -------
+        contextmanager
+            A context manager that yields ``self`` so the existing
+            method-chaining idiom still works::
+
+                with subplot.twin_axis() as ax2:
+                    ax2.line(precip, color="blue")
+                    ax2.ylabel("Precipitation (mm)")
+
+        Examples
+        --------
+        Temperature on the left y-axis, precipitation on the right:
+
+        .. code-block:: python
+
+            ts = fig.add_timeseries()
+            ts.line(temperature, color="red")
+            ts.ylabel("Temperature (°C)")
+            with ts.twin_axis() as ts2:
+                ts2.bar(precipitation, color="blue", alpha=0.4)
+                ts2.ylabel("Precipitation (mm)")
+
+        Three independent y-axes (left + two stacked on the right):
+
+        .. code-block:: python
+
+            with subplot.twin_axis(position="right", index=0) as ax2:
+                ax2.line(data2)
+            with subplot.twin_axis(position="right", index=1) as ax3:
+                ax3.line(data3)
+        """
+        import contextlib
+
+        if position not in ("right", "top"):
+            raise ValueError(
+                f"twin_axis position must be 'right' or 'top', got {position!r}"
+            )
+
+        # When no index is given, reuse the most recently created twin on that
+        # side (so calling twin_axis() twice yields the same axes).  Only
+        # allocate a new slot when index is explicitly provided and no matching
+        # entry exists yet.
+        if index is None:
+            existing = [t for t in self._twin_axes if t["position"] == position]
+            if existing:
+                # Re-use the last twin created on this side.
+                twin_entry = existing[-1]
+            else:
+                twin_entry = None
+                index = 0
+        else:
+            twin_entry = next(
+                (
+                    t
+                    for t in self._twin_axes
+                    if t["position"] == position and t["index"] == index
+                ),
+                None,
+            )
+
+        if twin_entry is None:
+            # No matching entry — determine the next free index and create it.
+            if index is None:
+                used = [
+                    t["index"] for t in self._twin_axes if t["position"] == position
+                ]
+                index = max(used, default=-1) + 1
+            if position == "right":
+                mpl_twin = self.ax.twinx()
+            else:  # "top"
+                mpl_twin = self.ax.twiny()
+
+            twin_entry = {"ax": mpl_twin, "position": position, "index": index}
+            self._twin_axes.append(twin_entry)
+
+        twin_mpl_ax = twin_entry["ax"]
+
+        @contextlib.contextmanager
+        def _ctx():
+            self._active_ax_stack.append(twin_mpl_ax)
+            try:
+                yield self
+            finally:
+                self._active_ax_stack.pop()
+
+        return _ctx()
+
+    def _get_axis_registry(self) -> _AxisRegistry:
+        """
+        Lazy-initialise and return the :class:`_AxisRegistry` for this subplot.
+
+        The registry is not created until the first auto-routing call so that
+        subplots which never use multi-axis routing incur zero overhead.
+        """
+        if self._axis_registry is None:
+            from earthkit.plots.components._axis_registry import _AxisRegistry
+
+            self._axis_registry = _AxisRegistry(self)
+        return self._axis_registry
+
+    def _resolve_render_ax(self, display_units: str | None = None):
+        """
+        Return the matplotlib Axes that should receive the next plot call.
+
+        Priority (highest first):
+
+        1. An explicit :meth:`twin_axis` context is active → ``current_ax``
+           (explicit context always wins; existing code is unaffected).
+        2. *display_units* is ``None`` or :attr:`_auto_twin_axes` is
+           ``False`` → primary ``ax``.
+        3. Delegate to the :class:`_AxisRegistry`, which finds an existing
+           axis for *display_units* or creates a new ``twinx()``.
+
+        Parameters
+        ----------
+        display_units:
+            The units in which the data will be displayed on the y-axis.
+            Typically ``units or style._units or source.source_units``.
+        """
+        # Priority 1: explicit twin_axis() context beats everything.
+        if self._active_ax_stack:
+            return self._active_ax_stack[-1]
+
+        # Priority 2: no routing hint, or auto-twin disabled.
+        if display_units is None or not self._auto_twin_axes:
+            return self.ax
+
+        # Priority 3: registry-based routing.
+        return self._get_axis_registry().resolve(display_units)
+
+    def axis(self, key: str) -> AxisView:
+        """
+        Look up a registered y-axis by its display units or user-assigned name
+        and return an :class:`~earthkit.plots.components._axis_view.AxisView`
+        handle for per-axis decoration.
+
+        The ``AxisView`` exposes :meth:`~earthkit.plots.components._axis_view.AxisView.ylabel`,
+        :meth:`~earthkit.plots.components._axis_view.AxisView.ylim`,
+        :meth:`~earthkit.plots.components._axis_view.AxisView.format_y_ticks`, and
+        :meth:`~earthkit.plots.components._axis_view.AxisView.fix_y_units`, and
+        always returns this :class:`Subplot` so method-chaining is not broken::
+
+            ts.axis("celsius").ylabel("Temperature (°C)")
+            ts.axis("mm").ylabel("Precipitation (mm)").ylim(0, 50)
+            ts.show()
+
+        Parameters
+        ----------
+        key:
+            Canonical units string (e.g. ``"celsius"``, ``"mm"``) or a
+            name previously registered via
+            :meth:`~earthkit.plots.components._axis_view.AxisView.fix_y_units`.
+
+        Raises
+        ------
+        KeyError
+            If no axis has been registered under *key* yet.  An axis is
+            registered automatically the first time data with those units
+            is plotted when :attr:`_auto_twin_axes` is ``True``.
+        """
+        from earthkit.plots.components._axis_view import AxisView
+
+        registry = self._get_axis_registry()
+        mpl_ax = registry.get(key)
+        if mpl_ax is None:
+            registered = list(registry._units_to_ax.keys())
+            raise KeyError(
+                f"No axis registered for {key!r}.  "
+                f"Registered units: {registered}.  "
+                "An axis is registered automatically the first time data "
+                "with those units is plotted."
+            )
+        return AxisView(mpl_ax, self)
+
     def ylabel(self, label=None, **kwargs):
         """
         Add a y-axis label to the subplot.
@@ -434,25 +685,63 @@ class Subplot:
         If no label is provided, one is generated automatically from the
         plotted data's metadata (variable name and units).
 
+        When :attr:`_auto_twin_axes` is ``True`` and multiple y-axes have
+        been created by the auto-routing system, calling ``ylabel()`` with
+        no arguments labels **all** axes from their respective layer
+        metadata in one call — so you rarely need :meth:`axis` for the
+        common case.
+
         Parameters
         ----------
         label : str, optional
             The label text. Supports metadata format placeholders such as
-            ``"{variable_name}"`` and ``"{units}"``. If ``None``, a label is
-            inferred from the data.
+            ``"{variable_name}"`` and ``"{units}"``. If ``None``, a label
+            is inferred from the data. Pass an explicit string to set the
+            same label on every axis (or use :meth:`axis` to target one).
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.set_ylabel`.
         """
+        if not self.layers:
+            return self
+
+        # Multi-axis auto-label: when no label is given and the registry has
+        # more than one axis, label each axis from its own layers' metadata.
+        if (
+            label is None
+            and self._auto_twin_axes
+            and self._axis_registry is not None
+            and len(self._axis_registry) > 1
+            and not self._active_ax_stack  # not inside an explicit twin_axis() ctx
+        ):
+            for _, ax in self._axis_registry.items():
+                ax_layers = [
+                    layer
+                    for layer in self.layers
+                    if getattr(layer, "render_ax", None) is ax
+                ]
+                if not ax_layers:
+                    continue
+                src = ax_layers[0].sources[0]
+                tmpl = (
+                    "{variable_name} ({units})"
+                    if src.y.units is not None
+                    else "{variable_name}"
+                )
+                lbl = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
+                ax.set_ylabel(lbl, **kwargs)
+            return self
+
+        # Single-axis path — original behaviour, also used inside twin_axis().
         if label is None:
-            # Check if units metadata exists
             units = self.layers[0].sources[0].y.units
             if units is not None:
                 label = "{variable_name} ({units})"
             else:
                 label = "{variable_name}"
         label = self.format_string(label, axis="y")
-        self.ax.set_ylabel(label, **kwargs)
+        # Routes to the active twin when called inside a twin_axis() context.
+        self.current_ax.set_ylabel(label, **kwargs)
         return self
 
     def xlabel(self, label=None, **kwargs):
@@ -649,7 +938,7 @@ class Subplot:
         target_yunits = y_units or units
 
         result = draw_multiboxplot(
-            self.ax,
+            self.current_ax,
             data,
             x=x,
             dim=dim,
@@ -857,8 +1146,8 @@ class Subplot:
 
         if py_dates is not None:
             # Register as a date axis so tick formatters work correctly.
-            self.ax.plot([], [], visible=False)
-            self.ax.xaxis.update_units(py_dates)
+            self.current_ax.plot([], [], visible=False)
+            self.current_ax.xaxis.update_units(py_dates)
             x_values = mdates.date2num(py_dates)
 
         if isinstance(data_2, (int, float)):
@@ -875,11 +1164,11 @@ class Subplot:
             x_smooth, y1_smooth, y2_smooth = spline_interpolate(
                 np.asarray(x_values), y1_values, y2_values
             )
-            mappable = self.ax.fill_between(
+            mappable = self.current_ax.fill_between(
                 x=x_smooth, y1=y1_smooth, y2=y2_smooth, alpha=alpha, **kwargs
             )
         else:
-            mappable = self.ax.fill_between(
+            mappable = self.current_ax.fill_between(
                 x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
             )
         axis_units = {"y": units} if units is not None else {}

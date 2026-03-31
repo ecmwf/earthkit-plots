@@ -199,6 +199,14 @@ def extract_plottables_1D(
     ):
         source.update_units(style._units)
 
+    # Step 2.6: Determine the display units for axis routing.
+    # Priority: explicit caller units → style's preferred units → source's
+    # native units.  This is the value that will actually appear on the y-axis,
+    # so it is the correct key for the _AxisRegistry unit→axis map.
+    display_units = (
+        units or (style._units if style is not None else None) or source.source_units
+    )
+
     # Step 3: Apply style scale factor to z values (e.g. Pa → hPa).
     if z is not None or (source.z is not None and source.z.values is not None):
         z_values = apply_scale_factor(style, source, z)
@@ -255,9 +263,14 @@ def extract_plottables_1D(
     if no_style and z_values is None:
         z_values = kwargs.pop("c", None)
 
-    # Step 7: Render via the Style object (or directly on the axes).
+    # Step 7: Resolve the target axes and render.
+    # _resolve_render_ax handles all three routing cases:
+    #   1. explicit twin_axis() context  →  current_ax
+    #   2. auto_twin_axes disabled / no units  →  primary ax
+    #   3. unit-based auto-routing via _AxisRegistry  →  find-or-create twinx()
+    render_ax = subplot._resolve_render_ax(display_units)
     mappable = getattr(style, method_name)(
-        subplot.ax, x_values, y_values, z_values, **kwargs
+        render_ax, x_values, y_values, z_values, **kwargs
     )
 
     # Step 8: Create the Layer and attach it to the subplot.
@@ -285,6 +298,9 @@ def extract_plottables_1D(
         primary_axis=primary_axis,
         axis_units=axis_units,
     )
+    # Record which axes this layer was rendered onto so that AxisView.ylabel()
+    # and Subplot.ylabel() can auto-label each axis from its own layers.
+    layer.render_ax = render_ax
 
     if label is not None:
         label = layer.format_string(label)
@@ -418,7 +434,44 @@ def extract_plottables_2D(
     if grid != "auto":
         source._gridspec_override = grid
 
-    # Step 2.5: Resolve resample="auto" now that we know the source gridspec.
+    # Step 2.5a: Auto-fit the map extent to the data when no domain is set.
+    # This handles the case where the user passes crs= but no domain=: we derive
+    # the extent from the data's coordinate bounding box reprojected into the
+    # target CRS, so the axes are zoomed to the data rather than showing a global
+    # view.
+    if subplot.domain is None and hasattr(subplot, "crs") and source.crs is not None:
+        try:
+            import cartopy.crs as _ccrs
+
+            from earthkit.plots.geography import domains as _domains
+            from earthkit.plots.geography.domains import force_minus_180_to_180
+
+            x_ext = source.x.values.squeeze()
+            y_ext = source.y.values.squeeze()
+            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(
+                x_ext > 180
+            ):
+                x_ext = force_minus_180_to_180(x_ext)
+            domain = _domains.Domain.from_bbox(
+                bbox=[
+                    float(x_ext.min()),
+                    float(x_ext.max()),
+                    float(y_ext.min()),
+                    float(y_ext.max()),
+                ],
+                source_crs=source.crs,
+                target_crs=subplot.crs,
+            )
+            subplot.domain = domain
+            if subplot._ax is not None and None not in list(domain.bbox):
+                subplot._ax.set_extent(
+                    domain.bbox.to_cartopy_bounds(),
+                    domain.bbox.crs,
+                )
+        except Exception:
+            pass
+
+    # Step 2.5b: Resolve resample="auto" now that we know the source gridspec.
     if _resample_is_auto:
         from earthkit.plots.resample import _is_structured_grid
         from earthkit.plots.resample.grids import is_structured as _is_regular_grid
@@ -541,10 +594,10 @@ def extract_plottables_2D(
         if mappable is None:
             if not no_style:
                 mappable = getattr(style, method_name)(
-                    subplot.ax, x_values, y_values, z_values, **kwargs
+                    subplot.current_ax, x_values, y_values, z_values, **kwargs
                 )
             else:
-                mappable = getattr(subplot.ax, method_name)(
+                mappable = getattr(subplot.current_ax, method_name)(
                     x_values, y_values, z_values, **kwargs
                 )
 
@@ -822,12 +875,16 @@ def extract_plottables_vector_2D(
     # established first.
     if subplot.domain is None and hasattr(subplot, "ax"):
         try:
+            import cartopy.crs as _ccrs
+
             from earthkit.plots.geography import domains as _domains
             from earthkit.plots.geography.domains import force_minus_180_to_180
 
             x_ext = source.x.values.squeeze()
             y_ext = source.y.values.squeeze()
-            if np.any(x_ext > 180):
+            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(
+                x_ext > 180
+            ):
                 x_ext = force_minus_180_to_180(x_ext)
             subplot.domain = _domains.Domain.from_bbox(
                 bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
@@ -982,7 +1039,7 @@ def extract_plottables_vector_2D(
         plot_args.append(magnitude)
 
     # Step 11: Render.
-    mappable = getattr(style, method_name)(subplot.ax, *plot_args, **kwargs)
+    mappable = getattr(style, method_name)(subplot.current_ax, *plot_args, **kwargs)
 
     # Step 12: Create the Layer.
     from earthkit.plots.components.layers import Layer
@@ -991,9 +1048,9 @@ def extract_plottables_vector_2D(
 
     # Set axis labels from coordinate names when they were provided as strings.
     if isinstance(source._x_spec, str):
-        subplot.ax.set_xlabel(source._x_spec)
+        subplot.current_ax.set_xlabel(source._x_spec)
     if isinstance(source._y_spec, str):
-        subplot.ax.set_ylabel(source._y_spec)
+        subplot.current_ax.set_ylabel(source._y_spec)
 
     return mappable
 

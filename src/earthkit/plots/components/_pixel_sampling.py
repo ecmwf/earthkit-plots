@@ -351,6 +351,7 @@ def _try_nearest_neighbour_imshow(
         plot_kwargs.update(style.to_pcolormesh_kwargs(image))
     plot_kwargs.pop("transform", None)
     plot_kwargs.pop("transform_first", None)
+    plot_kwargs.setdefault("interpolation", "nearest")
     mappable = subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
     return PixelSamplingResult(
         x_values, y_values, z_values, reprojected=True, mappable=mappable

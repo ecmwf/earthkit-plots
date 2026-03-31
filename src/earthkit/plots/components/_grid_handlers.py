@@ -209,6 +209,7 @@ def _handle_regular_grid_nn(
         plot_kwargs.update(style.to_pcolormesh_kwargs(image))
     plot_kwargs.pop("transform", None)
     plot_kwargs.pop("transform_first", None)
+    plot_kwargs.setdefault("interpolation", "nearest")
 
     return subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
 

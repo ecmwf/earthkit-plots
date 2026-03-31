@@ -64,6 +64,11 @@ class Layer:
         self._proxy_linewidth = proxy_linewidth
         self.legend = None
 
+        # The matplotlib Axes this layer was rendered onto.  Set by the
+        # pipeline after the matplotlib call so that AxisView and ylabel()
+        # can identify which layers belong to which axis.
+        self.render_ax = None
+
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()
         else:

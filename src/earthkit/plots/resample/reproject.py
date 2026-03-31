@@ -320,10 +320,16 @@ def reproject_to_grid(
         # Many datasets use non-inclusive endpoints (e.g. [-180, ..., 179] or
         # [0, ..., 359]) so we check both the actual span and the span including
         # one extra grid step.  Both cases are treated as globally periodic.
+        #
+        # Guard: only apply for geographic (degree-range) coordinates.  Projected
+        # CRS coordinates in metres (e.g. LAEA, UTM) can have spans that are
+        # coincidentally divisible by 360, which would trigger spurious modulo
+        # normalisation and scramble the interpolation.
         x_diff = float(x_src[-1] - x_src[0])
         dx = float(x_src[1] - x_src[0]) if len(x_src) > 1 else 0.0
         _span_with_step = x_diff + dx  # span if the endpoint were included
-        is_periodic = (
+        _looks_geographic = float(x_src[0]) >= -360.0 and float(x_src[-1]) <= 360.0
+        is_periodic = _looks_geographic and (
             np.isclose(x_diff % 360, 0, atol=1e-3)
             or np.isclose(_span_with_step % 360, 0, atol=1e-3)
             or np.isclose(x_diff % (2 * np.pi), 0, atol=1e-5)

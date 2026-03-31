@@ -94,7 +94,10 @@ timeseries:
 # * GEOSPATIAL                                                              * #
 # *************************************************************************** #
 # If true, pre-process the data before plotting by extracting the target domain.
-crop_domain: true
+# Disabled by default: cartopy clips out-of-bounds data during rendering, and
+# cropping in the source CRS before reprojection can cause data to be cut off
+# incorrectly when the source and target projections differ.
+crop_domain: false
 
 # The assumed CRS for geospatial visualisation when none is found
 reference_crs: PlateCarree
