@@ -82,15 +82,11 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
     if len(args) == 1 and isinstance(args[0], (xr.DataArray, xr.Dataset)):
         from earthkit.plots.sources.extractors.xarray import iter_plot_groups
 
-        yield from iter_plot_groups(
-            args[0], groupby, mode, combine_vectors=combine_vectors
-        )
+        yield from iter_plot_groups(args[0], groupby, mode, combine_vectors=combine_vectors)
     elif len(args) == 1 and _is_xarray_backed_earthkit(args[0]):
         from earthkit.plots.sources.extractors.xarray import iter_plot_groups
 
-        yield from iter_plot_groups(
-            args[0].to_xarray(), groupby, mode, combine_vectors=combine_vectors
-        )
+        yield from iter_plot_groups(args[0].to_xarray(), groupby, mode, combine_vectors=combine_vectors)
     elif all(isinstance(a, xr.DataArray) for a in args):
         # Multiple DataArrays — merge into a Dataset so each variable gets its
         # own panel with the correct auto-style.
@@ -101,9 +97,7 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
     elif all(isinstance(a, FieldList) for a in args):
         from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
 
-        yield from iter_plot_groups(
-            _coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors
-        )
+        yield from iter_plot_groups(_coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors)
     else:
         # Numpy arrays or other raw data — yield directly, one panel.
         yield None, list(args)
@@ -122,9 +116,7 @@ def _iter_plot_groups_2d(args, row_dim, col_dim, groupby, mode):
 
         yield from iter_plot_groups_2d(args[0], row_dim, col_dim, groupby, mode)
     else:
-        raise NotImplementedError(
-            "row/column dimension layout is only supported for xarray data."
-        )
+        raise NotImplementedError("row/column dimension layout is only supported for xarray data.")
 
 
 def plot(
@@ -247,8 +239,7 @@ def plot(
     """
     if size is not None:
         warnings.warn(
-            "The 'size' argument is deprecated and will be removed in a future release. "
-            "Use 'figsize' instead.",
+            "The 'size' argument is deprecated and will be removed in a future release. Use 'figsize' instead.",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -297,9 +288,7 @@ def plot(
     if subplot_titles is None and groupby:
         subplot_titles = f"{{{groupby}}}"
 
-    groups = list(
-        _iter_plot_groups(args, groupby, mode, combine_vectors=combine_vectors)
-    )
+    groups = list(_iter_plot_groups(args, groupby, mode, combine_vectors=combine_vectors))
     n_plots = len(groups)
 
     rows, columns = layouts.rows_cols(n_plots, rows, columns)
@@ -746,9 +735,7 @@ def barbs(*args, domain=None, crs=None, **kwargs):
 
 
 def quickplot(*args, **kwargs):
-    """
-    Alias for :func:`plot`. Use ``ekp.plot()`` instead.
-    """
+    """Alias for :func:`plot`. Use ``ekp.plot()`` instead."""
     return plot(*args, **kwargs)
 
 
@@ -843,9 +830,7 @@ def _apply_ticks(subplot, xticks, yticks):
             subplot.yticks(**yticks)
 
 
-def _run_timeseries_subplot_workflow(
-    ts, xlabel=None, ylabel=None, xticks=None, yticks=None
-):
+def _run_timeseries_subplot_workflow(ts, xlabel=None, ylabel=None, xticks=None, yticks=None):
     """Apply schema.timeseries.subplot.decorate steps to a TimeSeries subplot."""
     for m in schema.timeseries.subplot.decorate:
         try:
@@ -981,9 +966,7 @@ def timeseries(
     # Multi-variable Dataset, overlaid → all vars on one subplot
     # ------------------------------------------------------------------
     if overlay and isinstance(data, xr.Dataset) and len(data.data_vars) > 1:
-        class_kwargs = {
-            k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs
-        }
+        class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
         ts = TimeSeries(chainable=True, **class_kwargs)
         axes_by_units = {}
         layers_by_ax = {}
@@ -1012,9 +995,7 @@ def timeseries(
                 getattr(ts, plot)(da, *args, **kwargs)
                 ts._ax = original_ax
                 layers_by_ax[target_ax].extend(ts.layers[layers_before:])
-        _run_timeseries_subplot_workflow(
-            ts, xlabel=xlabel, ylabel=None, xticks=xticks, yticks=yticks
-        )
+        _run_timeseries_subplot_workflow(ts, xlabel=xlabel, ylabel=None, xticks=xticks, yticks=yticks)
         for ax, ax_layers in layers_by_ax.items():
             if ylabel is not None:
                 ax.set_ylabel(ylabel)
@@ -1052,9 +1033,7 @@ def timeseries(
             ts = fig.add_timeseries()
             for target in targets:
                 getattr(ts, plot)(target, *args, **kwargs)
-            _run_timeseries_subplot_workflow(
-                ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks
-            )
+            _run_timeseries_subplot_workflow(ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks)
         if title:
             try:
                 fig.title(title)
@@ -1069,9 +1048,7 @@ def timeseries(
     class_kwargs = {k: kwargs.pop(k) for k in _TIMESERIES_CLASS_KWARGS if k in kwargs}
     ts = TimeSeries(chainable=True, **class_kwargs)
     getattr(ts, plot)(data, *args, **kwargs)
-    _run_timeseries_subplot_workflow(
-        ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks
-    )
+    _run_timeseries_subplot_workflow(ts, xlabel=xlabel, ylabel=ylabel, xticks=xticks, yticks=yticks)
     if title:
         ts.title(title)
     _run_timeseries_fig_workflow(ts.figure, subplot_titles=subplot_titles)

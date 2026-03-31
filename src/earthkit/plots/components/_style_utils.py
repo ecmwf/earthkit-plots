@@ -136,10 +136,7 @@ def configure_style(
 
     # cmap= is a user-friendly alias for colors=
     if "cmap" in kwargs and "colors" in kwargs:
-        raise ValueError(
-            "Cannot specify both 'cmap' and 'colors'. They are aliases for the "
-            "same parameter."
-        )
+        raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
     if "cmap" in kwargs:
         kwargs["colors"] = kwargs.pop("cmap")
 

@@ -43,9 +43,7 @@ def test_numpy_2d_data_single_arg():
 
 def test_numpy_explicit_x_y():
     """Test explicit x and y arrays."""
-    source = get_source(
-        [1, 2, 3], x=[10, 20, 30], y=[1, 2, 3], context=PlotContext.CARTESIAN_1D
-    )
+    source = get_source([1, 2, 3], x=[10, 20, 30], y=[1, 2, 3], context=PlotContext.CARTESIAN_1D)
     assert np.array_equal(source.x.values, np.array([10, 20, 30]))
     assert np.array_equal(source.y.values, np.array([1, 2, 3]))
     assert source.z is None
@@ -180,9 +178,7 @@ def test_numpy_context_cartesian_2d():
 
 def test_numpy_metadata():
     """Test metadata extraction from numpy source."""
-    source = get_source(
-        [1, 2, 3], metadata={"units": "meters", "long_name": "Distance"}
-    )
+    source = get_source([1, 2, 3], metadata={"units": "meters", "long_name": "Distance"})
     assert source.metadata("units") == "meters"
     assert source.metadata("long_name") == "Distance"
 

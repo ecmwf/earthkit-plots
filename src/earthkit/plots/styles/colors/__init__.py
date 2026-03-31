@@ -209,7 +209,7 @@ def adjust_lightness(color, amount=0.5):
 
 
 def symmetric_from_color(color, n):
-    """Generate a symmetric list with shades of a color
+    """Generate a symmetric list with shades of a color.
 
     color : str
         Base color.

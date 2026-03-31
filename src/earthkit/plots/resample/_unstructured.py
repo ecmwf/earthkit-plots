@@ -96,15 +96,11 @@ class Unstructured(Resample):
                 nx, ny = int(args[0]), int(args[1])
             else:
                 raise ValueError(
-                    f"{self.__class__.__name__} accepts at most 2 positional "
-                    f"arguments (nx, ny); received {len(args)}."
+                    f"{self.__class__.__name__} accepts at most 2 positional arguments (nx, ny); received {len(args)}."
                 )
 
         if resolution is not None and (nx is not None or ny is not None):
-            raise ValueError(
-                f"{self.__class__.__name__}: 'resolution' is mutually exclusive "
-                "with 'nx'/'ny'."
-            )
+            raise ValueError(f"{self.__class__.__name__}: 'resolution' is mutually exclusive with 'nx'/'ny'.")
 
         if resolution is not None:
             if isinstance(resolution, (tuple, list)):
@@ -215,9 +211,7 @@ class Unstructured(Resample):
         if self.transform:
             source_crs = source_crs or ccrs.PlateCarree()
             target_crs = target_crs or ccrs.PlateCarree()
-            transformed_points = target_crs.transform_points(
-                source_crs, x.flatten(), y.flatten()
-            )
+            transformed_points = target_crs.transform_points(source_crs, x.flatten(), y.flatten())
             target_x = transformed_points[..., 0].reshape(x.shape)
             target_y = transformed_points[..., 1].reshape(y.shape)
         else:

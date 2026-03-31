@@ -93,8 +93,7 @@ def prepare_rgb_composite(red_source, green_source, blue_source) -> RGBComposite
     ):
         if src.z is None:
             raise ValueError(
-                f"RGB composite requires z values for all three channels; "
-                f"the {name!r} channel source has no z data."
+                f"RGB composite requires z values for all three channels; the {name!r} channel source has no z data."
             )
 
     red = _normalise_channel(red_source.z.values)

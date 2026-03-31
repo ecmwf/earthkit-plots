@@ -37,7 +37,9 @@ class LocationInfo:
         if self.city:
             return self.city
         elif self.lat is not None and self.lon is not None:
-            return f"{self.lat:.2f}°{'N' if self.lat >= 0 else 'S'}, {abs(self.lon):.2f}°{'E' if self.lon >= 0 else 'W'}"
+            return (
+                f"{self.lat:.2f}°{'N' if self.lat >= 0 else 'S'}, {abs(self.lon):.2f}°{'E' if self.lon >= 0 else 'W'}"
+            )
         else:
             return "Unknown location"
 
@@ -65,9 +67,7 @@ def get_location(data):
     try:
         import reverse_geocode
     except ImportError:
-        raise ImportError(
-            "The reverse-geocode package is required to get the location."
-        )
+        raise ImportError("The reverse-geocode package is required to get the location.")
 
     # Extract coordinates from the data source
     # Try different ways to get lat/lon based on data source type
@@ -87,19 +87,11 @@ def get_location(data):
                 y_vals = data.y.values
                 x_vals = data.x.values
                 if isinstance(y_vals, np.ndarray):
-                    lat = (
-                        float(np.mean(y_vals))
-                        if y_vals.size > 1
-                        else float(y_vals.flat[0])
-                    )
+                    lat = float(np.mean(y_vals)) if y_vals.size > 1 else float(y_vals.flat[0])
                 else:
                     lat = float(y_vals)
                 if isinstance(x_vals, np.ndarray):
-                    lon = (
-                        float(np.mean(x_vals))
-                        if x_vals.size > 1
-                        else float(x_vals.flat[0])
-                    )
+                    lon = float(np.mean(x_vals)) if x_vals.size > 1 else float(x_vals.flat[0])
                 else:
                     lon = float(x_vals)
         except (AttributeError, ValueError, TypeError, IndexError):
@@ -147,9 +139,7 @@ DEFAULT_FORECAST_TITLE = (
 )
 
 #: Default title for analysis plots (with time).
-DEFAULT_ANALYSIS_TITLE = (
-    "{variable_name} at {valid_time:%H:%M} on {valid_time:%Y-%m-%d}"
-)
+DEFAULT_ANALYSIS_TITLE = "{variable_name} at {valid_time:%H:%M} on {valid_time:%Y-%m-%d}"
 
 #: Default title when no time information is available.
 DEFAULT_NO_TIME_TITLE = "{variable_name}"
@@ -185,11 +175,7 @@ MAGIC_KEYS = {
         "function": lambda data: data.y.values if data.y is not None else None,
     },
     "value": {
-        "function": lambda data: (
-            data.y.values.flat[0]
-            if data.y is not None and data.y.values is not None
-            else None
-        ),
+        "function": lambda data: data.y.values.flat[0] if data.y is not None and data.y.values is not None else None,
     },
 }
 
@@ -251,11 +237,9 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         elif hasattr(data, "metadata"):
             search = data.metadata
         else:
-            data_key = [
-                key
-                for key in data.attrs["reduce_attrs"]
-                if "reduce_dims" in data.attrs["reduce_attrs"][key]
-            ][0]
+            data_key = [key for key in data.attrs["reduce_attrs"] if "reduce_dims" in data.attrs["reduce_attrs"][key]][
+                0
+            ]
 
             def search(x, default):
                 return data.attrs["reduce_attrs"][data_key].get(x, default)
@@ -285,10 +269,7 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
 
         if remove_underscores:
             if isinstance(label, (list, tuple)):
-                label = [
-                    lab.replace("_", " ") if isinstance(lab, str) else lab
-                    for lab in label
-                ]
+                label = [lab.replace("_", " ") if isinstance(lab, str) else lab for lab in label]
             elif isinstance(label, str):
                 label = label.replace("_", " ")
 

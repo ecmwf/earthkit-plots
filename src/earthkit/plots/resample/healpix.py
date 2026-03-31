@@ -22,14 +22,12 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     nx: image resolution in x-direction
     ny: image resolution in y-direction
     ax: axis to plot on
-    kwargs: additional arguments to imshow
+    kwargs: additional arguments to imshow.
     """
     try:
         import healpy as hp  # noqa: F401
     except ImportError as e:
-        raise ImportError(
-            "The healpix plotting backend requires the healpy package."
-        ) from e
+        raise ImportError("The healpix plotting backend requires the healpy package.") from e
     kwargs.pop("transform_first", None)
     xlims = ax.get_xlim()
     ylims = ax.get_ylim()
@@ -44,9 +42,7 @@ def nnshow(var, nx=1000, ny=1000, ax=None, nest=False, style=None, **kwargs):
     xvals = np.linspace(xlims[0] + dx / 2, xlims[1] - dx / 2, nx)
     yvals = np.linspace(ylims[0] + dy / 2, ylims[1] - dy / 2, ny)
     xvals2, yvals2 = np.meshgrid(xvals, yvals)
-    latlon = ccrs.PlateCarree().transform_points(
-        ax.projection, xvals2, yvals2, np.zeros_like(xvals2)
-    )
+    latlon = ccrs.PlateCarree().transform_points(ax.projection, xvals2, yvals2, np.zeros_like(xvals2))
     valid = np.all(np.isfinite(latlon), axis=-1)
     points = latlon[valid].T
     pix = hp.ang2pix(

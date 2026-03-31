@@ -144,11 +144,6 @@ def test_criteria_matches(metadata, criteria, expected):
 
 @pytest.fixture()
 def fake_plugin_dir(tmp_path):
-    """
-    Minimal plugin directory with two variables:
-      - 2t  → identity "temperature_2m" → styles CELSIUS + KELVIN (named)
-      - msl → identity "msl"            → style HPA (named)
-    """
     identities_dir = tmp_path / "identities"
     styles_dir = tmp_path / "auto-styles"
 
@@ -258,9 +253,7 @@ class TestIdentityLookup:
         # Both match; the alphabetically-first file should win (sorted iterdir).
         assert fresh_cache.find_identity(data) == "first"
 
-    def test_missing_identities_dir_handled_gracefully(
-        self, fresh_cache, tmp_path, monkeypatch
-    ):
+    def test_missing_identities_dir_handled_gracefully(self, fresh_cache, tmp_path, monkeypatch):
         # Point at a directory that has neither identities/ nor auto-styles/
         _point_cache_at(fresh_cache, tmp_path, monkeypatch)
         data = MockedData({"shortName": "2t"})
@@ -279,15 +272,11 @@ class TestStyleConfigLookup:
         assert config is not None
         assert set(config["styles"]) == {"CELSIUS", "KELVIN"}
 
-    def test_returns_none_for_unknown_id(
-        self, fresh_cache, fake_plugin_dir, monkeypatch
-    ):
+    def test_returns_none_for_unknown_id(self, fresh_cache, fake_plugin_dir, monkeypatch):
         _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
         assert fresh_cache.get_style_config("does_not_exist") is None
 
-    def test_missing_styles_dir_handled_gracefully(
-        self, fresh_cache, tmp_path, monkeypatch
-    ):
+    def test_missing_styles_dir_handled_gracefully(self, fresh_cache, tmp_path, monkeypatch):
         _point_cache_at(fresh_cache, tmp_path, monkeypatch)
         assert fresh_cache.get_style_config("anything") is None
 
@@ -316,9 +305,7 @@ class TestNamedStyles:
         assert style_dict is not None
         assert style_dict["units"] == "hPa"
 
-    def test_get_named_style_returns_none_for_unknown_name(
-        self, fresh_cache, fake_plugin_dir
-    ):
+    def test_get_named_style_returns_none_for_unknown_name(self, fresh_cache, fake_plugin_dir):
         fresh_cache._load_named_styles_from(fake_plugin_dir / "auto-styles")
         assert fresh_cache.get_named_style("nonexistent-style") is None
 
@@ -352,9 +339,7 @@ class TestNamedStyles:
 
 
 class TestCacheInvalidation:
-    def test_invalidate_clears_all_state(
-        self, fresh_cache, fake_plugin_dir, monkeypatch
-    ):
+    def test_invalidate_clears_all_state(self, fresh_cache, fake_plugin_dir, monkeypatch):
         # Populate via the public API (goes through _ensure_loaded).
         _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
         fresh_cache.find_identity(MockedData({"shortName": "2t"}))  # triggers load
@@ -372,18 +357,14 @@ class TestCacheInvalidation:
         assert fresh_cache._loaded_plugin is None
         assert fresh_cache._named_styles_loaded is False
 
-    def test_named_styles_reload_after_invalidate(
-        self, fresh_cache, fake_plugin_dir, monkeypatch
-    ):
+    def test_named_styles_reload_after_invalidate(self, fresh_cache, fake_plugin_dir, monkeypatch):
         """Named styles should be re-indexed from disk after invalidation."""
         _point_cache_at(fresh_cache, fake_plugin_dir, monkeypatch)
         # Seed the named-styles index via the public API.
         monkeypatch.setattr(
             fresh_cache,
             "_load_named_styles",
-            lambda: fresh_cache._load_named_styles_from(
-                fake_plugin_dir / "auto-styles"
-            ),
+            lambda: fresh_cache._load_named_styles_from(fake_plugin_dir / "auto-styles"),
         )
         assert "mslp-hpa" in fresh_cache.list_named_styles()
 
@@ -392,15 +373,11 @@ class TestCacheInvalidation:
         monkeypatch.setattr(
             fresh_cache,
             "_load_named_styles",
-            lambda: fresh_cache._load_named_styles_from(
-                fake_plugin_dir / "auto-styles"
-            ),
+            lambda: fresh_cache._load_named_styles_from(fake_plugin_dir / "auto-styles"),
         )
         assert "mslp-hpa" in fresh_cache.list_named_styles()
 
-    def test_second_call_does_not_reload(
-        self, fresh_cache, fake_plugin_dir, monkeypatch
-    ):
+    def test_second_call_does_not_reload(self, fresh_cache, fake_plugin_dir, monkeypatch):
         """_ensure_loaded called twice for the same plugin key only loads once."""
         load_call_count = [0]
         original = fresh_cache._load_identities
@@ -417,9 +394,7 @@ class TestCacheInvalidation:
 
         assert load_call_count[0] == 1
 
-    def test_invalidate_triggers_reload_on_next_access(
-        self, fresh_cache, fake_plugin_dir, monkeypatch
-    ):
+    def test_invalidate_triggers_reload_on_next_access(self, fresh_cache, fake_plugin_dir, monkeypatch):
         load_call_count = [0]
         original = fresh_cache._load_identities
 
@@ -478,9 +453,7 @@ class TestPluginSwitching:
 
         active_plugin = ["plugin_a"]
 
-        monkeypatch.setattr(
-            fresh_cache, "_current_plugin_key", lambda: active_plugin[0]
-        )
+        monkeypatch.setattr(fresh_cache, "_current_plugin_key", lambda: active_plugin[0])
         monkeypatch.setattr(
             fresh_cache,
             "_resolve_plugin_paths",
@@ -577,7 +550,7 @@ class TestLoadStyleIntegration:
             load_style("no-such-style-xyz")
 
     def test_load_style_kwargs_override_applied(self):
-        """kwargs passed to load_style are forwarded to the Style constructor."""
+        """Kwargs passed to load_style are forwarded to the Style constructor."""
         from earthkit.plots.styles import Style
 
         name = list_styles()[0]
@@ -683,9 +656,7 @@ class TestUsePreferredUnits:
     # guess_style with use_preferred_units — style selection
     # ------------------------------------------------------------------
 
-    def test_guess_style_returns_optimal_style_units(
-        self, fake_plugin_dir, fresh_cache, monkeypatch
-    ):
+    def test_guess_style_returns_optimal_style_units(self, fake_plugin_dir, fresh_cache, monkeypatch):
         """guess_style with use_preferred_units=True returns a Style with celsius units."""
         import numpy as np
         import xarray as xr
@@ -710,9 +681,7 @@ class TestUsePreferredUnits:
 
         assert style._units == "celsius"
 
-    def test_guess_style_preferred_units_does_not_override_style_units(
-        self, fake_plugin_dir, fresh_cache, monkeypatch
-    ):
+    def test_guess_style_preferred_units_does_not_override_style_units(self, fake_plugin_dir, fresh_cache, monkeypatch):
         """
         With use_preferred_units=True, guess_style must NOT override the style
         units with the source units (the old bug: returned a Style with units="K").
@@ -746,9 +715,7 @@ class TestUsePreferredUnits:
     # Full pipeline: update_units converts data values
     # ------------------------------------------------------------------
 
-    def test_pipeline_converts_values_with_preferred_units(
-        self, fake_plugin_dir, fresh_cache, monkeypatch
-    ):
+    def test_pipeline_converts_values_with_preferred_units(self, fake_plugin_dir, fresh_cache, monkeypatch):
         """
         End-to-end: build a Kelvin source, run guess_style, call update_units,
         and verify .z.values are in celsius.
@@ -778,9 +745,7 @@ class TestUsePreferredUnits:
         # Simulate what the pipeline does after configure_style.
         from earthkit.plots.metadata.units import are_equal
 
-        if style._units is not None and not are_equal(
-            style._units, source.source_units
-        ):
+        if style._units is not None and not are_equal(style._units, source.source_units):
             source.update_units(style._units)
 
         celsius_values = source.z.values

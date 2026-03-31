@@ -55,7 +55,6 @@ def rows_cols(num_subplots, rows=None, columns=None, max_columns=8):
     max_columns : int, optional
         The maximum number of columns in the figure. Default is 8.
     """
-
     if rows is None and columns is None:
         if num_subplots in PRESET_SHAPES:
             rows, columns = PRESET_SHAPES[num_subplots]

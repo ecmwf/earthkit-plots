@@ -83,9 +83,7 @@ def nnshow(lons, lats, data, ax, nx=1000, ny=1000, style=None, **kwargs):
     yvals = np.linspace(ylims[0] + dy / 2, ylims[1] - dy / 2, ny)
     xvals2, yvals2 = np.meshgrid(xvals, yvals)
 
-    latlon = ccrs.PlateCarree().transform_points(
-        ax.projection, xvals2, yvals2, np.zeros_like(xvals2)
-    )
+    latlon = ccrs.PlateCarree().transform_points(ax.projection, xvals2, yvals2, np.zeros_like(xvals2))
     valid = np.all(np.isfinite(latlon), axis=-1)
 
     pixel_lons = latlon[valid, 0]  # [-180, 180]
@@ -100,9 +98,7 @@ def nnshow(lons, lats, data, ax, nx=1000, ny=1000, style=None, **kwargs):
     # north to south — we handle both via sorting below).
     if lat_bounds[0] > lat_bounds[-1]:
         # Descending: flip for searchsorted, then invert result
-        row_idx = len(unique_lats) - np.searchsorted(
-            lat_bounds[::-1], pixel_lats, side="right"
-        )
+        row_idx = len(unique_lats) - np.searchsorted(lat_bounds[::-1], pixel_lats, side="right")
     else:
         # Ascending
         row_idx = np.searchsorted(lat_bounds, pixel_lats, side="right") - 1
@@ -120,12 +116,10 @@ def nnshow(lons, lats, data, ax, nx=1000, ny=1000, style=None, **kwargs):
     # rather than 360/npts: the stored count may be a regional subset, but
     # the spacing always reflects the true full-row resolution.
     # Compute per-row d_lon from the actual lon spacing of each row's first pair.
-    row_d_lons = np.array(
-        [
-            abs(lons[start + 1] - lons[start]) if count > 1 else 360.0 / count
-            for start, count in zip(row_starts, row_counts)
-        ]
-    )
+    row_d_lons = np.array([
+        abs(lons[start + 1] - lons[start]) if count > 1 else 360.0 / count
+        for start, count in zip(row_starts, row_counts)
+    ])
     d_lon = row_d_lons[row_idx]  # cell width for each pixel's row
 
     first_lons = lons[row_starts[row_idx]]  # first stored lon of each pixel's row

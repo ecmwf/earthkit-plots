@@ -73,15 +73,11 @@ class _PixelSampler(Resample):
                 nx, ny = int(args[0]), int(args[1])
             else:
                 raise ValueError(
-                    f"{self.__class__.__name__} accepts at most 2 positional "
-                    f"arguments (nx, ny); received {len(args)}."
+                    f"{self.__class__.__name__} accepts at most 2 positional arguments (nx, ny); received {len(args)}."
                 )
 
         if resolution is not None and (nx is not None or ny is not None):
-            raise ValueError(
-                f"{self.__class__.__name__}: 'resolution' is mutually exclusive "
-                "with 'nx'/'ny'."
-            )
+            raise ValueError(f"{self.__class__.__name__}: 'resolution' is mutually exclusive with 'nx'/'ny'.")
         if resolution is not None:
             if isinstance(resolution, (tuple, list)):
                 self._dx, self._dy = float(resolution[0]), float(resolution[1])
@@ -165,9 +161,7 @@ class _PixelSampler(Resample):
                 # back into geographic coords, then forward into the target CRS
                 try:
                     # geographic centre of the bbox
-                    lon_c, lat_c, _ = plate.transform_points(
-                        crs, np.array([cx]), np.array([cy])
-                    )[0]
+                    lon_c, lat_c, _ = plate.transform_points(crs, np.array([cx]), np.array([cy]))[0]
                     # one degree east and one degree north
                     pt_east = crs.transform_points(
                         plate,
@@ -212,8 +206,7 @@ class _PixelSampler(Resample):
 
     def apply(self, *args, **kwargs):
         raise NotImplementedError(
-            f"{self.__class__.__name__} is a rendering hint; "
-            "it is handled internally during plotting."
+            f"{self.__class__.__name__} is a rendering hint; it is handled internally during plotting."
         )
 
     def _repr_size(self):

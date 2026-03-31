@@ -353,9 +353,7 @@ def _try_nearest_neighbour_imshow(
     plot_kwargs.pop("transform_first", None)
     plot_kwargs.setdefault("interpolation", "nearest")
     mappable = subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
-    return PixelSamplingResult(
-        x_values, y_values, z_values, reprojected=True, mappable=mappable
-    )
+    return PixelSamplingResult(x_values, y_values, z_values, reprojected=True, mappable=mappable)
 
 
 def _reproject_bilinear(
@@ -383,9 +381,7 @@ def _reproject_bilinear(
 
     # Unwrap regular meshgrids to 1-D axis vectors for the fast path.
     if x_values.ndim == 2 and y_values.ndim == 2:
-        if np.allclose(x_values, x_values[0, :]) and np.allclose(
-            y_values.T, y_values[:, 0]
-        ):
+        if np.allclose(x_values, x_values[0, :]) and np.allclose(y_values.T, y_values[:, 0]):
             x_src = x_values[0, :]
             y_src = y_values[:, 0]
         else:
@@ -477,15 +473,8 @@ def _apply_pixel_sampling(
     else:
         pixel_sampler = None
 
-    supports_pixel_sampling = (
-        method_name.startswith("contour") or method_name == "pcolormesh"
-    )
-    if (
-        pixel_sampler is None
-        or no_style
-        or not supports_pixel_sampling
-        or not hasattr(subplot, "crs")
-    ):
+    supports_pixel_sampling = method_name.startswith("contour") or method_name == "pcolormesh"
+    if pixel_sampler is None or no_style or not supports_pixel_sampling or not hasattr(subplot, "crs"):
         return PixelSamplingResult(x_values, y_values, z_values)
 
     target_crs = subplot.crs

@@ -80,8 +80,7 @@ def _parse_time_offset(s):
     m = _OFFSET_RE.match(s.strip())
     if not m:
         raise ValueError(
-            f"Cannot parse time_offset {s!r}. "
-            "Expected a string like '12H', '-6H', '1D', '2W', '3M', '-1Y'."
+            f"Cannot parse time_offset {s!r}. Expected a string like '12H', '-6H', '1D', '2W', '3M', '-1Y'."
         )
     sign_str, n_str, unit = m.groups()
     n = int(n_str)
@@ -97,10 +96,7 @@ def _parse_time_offset(s):
     elif unit_up == "Y":
         return pd.DateOffset(years=n)
     else:
-        raise ValueError(
-            f"Unrecognised time_offset unit {unit!r} in {s!r}. "
-            "Supported units: H, min, s, D, W, M, Y."
-        )
+        raise ValueError(f"Unrecognised time_offset unit {unit!r} in {s!r}. Supported units: H, min, s, D, W, M, Y.")
 
 
 def _resample(da, freq, method="mean", time_dim=None):
@@ -130,10 +126,7 @@ def _resample(da, freq, method="mean", time_dim=None):
         return da
 
     if method not in _VALID_RESAMPLE_METHODS:
-        raise ValueError(
-            f"Invalid resample_method {method!r}. "
-            f"Choose from: {_VALID_RESAMPLE_METHODS}"
-        )
+        raise ValueError(f"Invalid resample_method {method!r}. Choose from: {_VALID_RESAMPLE_METHODS}")
 
     if time_dim is None:
         for d in da.dims:
@@ -255,10 +248,7 @@ def _tile_clim_to_years(da, years, month_day=15, extend=False):
     elif "dayofyear" in da.dims:
         clim_dim = "dayofyear"
     else:
-        raise ValueError(
-            "_tile_clim_to_years() requires a DataArray with a 'month' or "
-            "'dayofyear' dimension."
-        )
+        raise ValueError("_tile_clim_to_years() requires a DataArray with a 'month' or 'dayofyear' dimension.")
 
     years = list(years)
     if extend:
@@ -279,20 +269,14 @@ def _tile_clim_to_years(da, years, month_day=15, extend=False):
             dates = [ref + pd.Timedelta(days=int(d) - 1) for d in vals]
 
         # Build a copy of da with clim_dim replaced by the real time coord.
-        scalar_coords = {
-            name: da.coords[name]
-            for name in da.coords
-            if name != clim_dim and da.coords[name].ndim == 0
-        }
+        scalar_coords = {name: da.coords[name] for name in da.coords if name != clim_dim and da.coords[name].ndim == 0}
         scalar_coords["time"] = dates
 
         other_dims = [d for d in da.dims if d != clim_dim]
         if other_dims:
             # Multi-dimensional: clim_dim is not the only dim.
             # We need to reassign coords including the new time.
-            new_coords = {
-                name: da.coords[name] for name in da.coords if name != clim_dim
-            }
+            new_coords = {name: da.coords[name] for name in da.coords if name != clim_dim}
             new_coords["time"] = dates
             piece = da.assign_coords({clim_dim: dates}).rename({clim_dim: "time"})
         else:
@@ -434,9 +418,7 @@ class TimeSeries(Subplot):
             if isinstance(data, xr.Dataset):
                 dvars = list(data.data_vars)
                 data = data[dvars[0]] if len(dvars) == 1 else data
-            data = _tile_clim_to_years(
-                data, repeat_years, month_day=month_day, extend=extend_years
-            )
+            data = _tile_clim_to_years(data, repeat_years, month_day=month_day, extend=extend_years)
         if time_offset is not None:
             data = _apply_time_offset(data, _parse_time_offset(time_offset))
         return super().line(data, *args, **kwargs)
@@ -482,9 +464,7 @@ class TimeSeries(Subplot):
             Forwarded to :meth:`~earthkit.plots.components.subplots.Subplot.scatter`.
         """
         if repeat_years is not None:
-            data = _tile_clim_to_years(
-                data, repeat_years, month_day=month_day, extend=extend_years
-            )
+            data = _tile_clim_to_years(data, repeat_years, month_day=month_day, extend=extend_years)
         if time_offset is not None:
             data = _apply_time_offset(data, _parse_time_offset(time_offset))
         return super().scatter(data, *args, **kwargs)
@@ -577,13 +557,9 @@ class TimeSeries(Subplot):
                     return obj[dvars[0]]
                 return obj
 
-            y1 = _tile_clim_to_years(
-                _unwrap(y1), repeat_years, month_day=month_day, extend=extend_years
-            )
+            y1 = _tile_clim_to_years(_unwrap(y1), repeat_years, month_day=month_day, extend=extend_years)
             if not isinstance(y2, (int, float)):
-                y2 = _tile_clim_to_years(
-                    _unwrap(y2), repeat_years, month_day=month_day, extend=extend_years
-                )
+                y2 = _tile_clim_to_years(_unwrap(y2), repeat_years, month_day=month_day, extend=extend_years)
 
         if resample is not None:
             y1 = _resample(y1, resample, resample_method)
@@ -669,9 +645,7 @@ class TimeSeries(Subplot):
                     break
 
         if time_offset is not None:
-            data = _apply_time_offset(
-                data, _parse_time_offset(time_offset), time_dim=time_dim
-            )
+            data = _apply_time_offset(data, _parse_time_offset(time_offset), time_dim=time_dim)
 
         return super().multiboxplot(data, dim=dim, **kwargs)
 

@@ -52,7 +52,9 @@ class Figure:
         and projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
-        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
+        domain. See
+        https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections
+        for a list of available CRSs.
     kwargs : dict, optional
         Additional keyword arguments to pass to :class:`matplotlib.gridspec.GridSpec`.
     """
@@ -74,8 +76,7 @@ class Figure:
             import warnings
 
             warnings.warn(
-                "The 'size' argument is deprecated and will be removed in a future release. "
-                "Use 'figsize' instead.",
+                "The 'size' argument is deprecated and will be removed in a future release. Use 'figsize' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -87,13 +88,9 @@ class Figure:
         if gridspec is not None:
             nrows, ncols = gridspec.get_geometry()
             if rows is not None and rows != nrows:
-                raise ValueError(
-                    f"rows={rows} conflicts with the provided GridSpec ({nrows} rows)."
-                )
+                raise ValueError(f"rows={rows} conflicts with the provided GridSpec ({nrows} rows).")
             if columns is not None and columns != ncols:
-                raise ValueError(
-                    f"columns={columns} conflicts with the provided GridSpec ({ncols} columns)."
-                )
+                raise ValueError(f"columns={columns} conflicts with the provided GridSpec ({ncols} columns).")
             rows = nrows
             columns = ncols
 
@@ -140,9 +137,7 @@ class Figure:
             self._external_gridspec.figure = self.fig
             self.gridspec = self._external_gridspec
         else:
-            self.gridspec = self.fig.add_gridspec(
-                self.rows, self.columns, **self._gridspec_kwargs
-            )
+            self.gridspec = self.fig.add_gridspec(self.rows, self.columns, **self._gridspec_kwargs)
         self._register_jupyter_display()
 
     def _register_jupyter_display(self):
@@ -248,9 +243,7 @@ class Figure:
             # except (NotImplementedError, AttributeError):
             #     continue
             if not success:
-                raise NotImplementedError(
-                    f"No subplots have method '{method.__name__}'"
-                )
+                raise NotImplementedError(f"No subplots have method '{method.__name__}'")
             return self if self._chainable else None
 
         return wrapper
@@ -277,9 +270,7 @@ class Figure:
                     data = [data]
                 data_items = list(data)
             if not self.subplots:
-                self.rows, self.columns = rows_cols(
-                    len(data_items), rows=self.rows, columns=self.columns
-                )
+                self.rows, self.columns = rows_cols(len(data_items), rows=self.rows, columns=self.columns)
                 self._setup()
                 for _ in range(len(data_items)):
                     self.add_map()
@@ -359,9 +350,7 @@ class Figure:
             Additional keyword arguments to pass to the :class:`Subplot` constructor.
         """
         row, column = self._determine_row_column(row, column)
-        subplot = Subplot(
-            row=row, column=column, figure=self, chainable=self._chainable, **kwargs
-        )
+        subplot = Subplot(row=row, column=column, figure=self, chainable=self._chainable, **kwargs)
         self.subplots.append(subplot)
         return subplot
 
@@ -650,11 +639,7 @@ class Figure:
                             color = layer.mappable.collections[0].get_edgecolor()[0]
                         except (AttributeError, IndexError):
                             color = "black"
-                    proxy_handles.append(
-                        mlines.Line2D(
-                            [], [], color=color, linewidth=lw, label=proxy_label
-                        )
-                    )
+                    proxy_handles.append(mlines.Line2D([], [], color=color, linewidth=lw, label=proxy_label))
             if proxy_handles:
                 subplot.ax.legend(handles=proxy_handles)
 
@@ -1071,8 +1056,7 @@ class Figure:
             import warnings
 
             warnings.warn(
-                "The 'size' argument is deprecated and will be removed in a future release. "
-                "Use 'figsize' instead.",
+                "The 'size' argument is deprecated and will be removed in a future release. Use 'figsize' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1198,20 +1182,14 @@ class Figure:
         from earthkit.plots.temporal.timeseries import TimeSeries
 
         # Default row to "variable" for multi-variable Datasets
-        if (
-            row is None
-            and col is None
-            and isinstance(data, xr.Dataset)
-            and len(data.data_vars) > 1
-        ):
+        if row is None and col is None and isinstance(data, xr.Dataset) and len(data.data_vars) > 1:
             row = "variable"
 
         if size is not None:
             import warnings
 
             warnings.warn(
-                "The 'size' argument is deprecated and will be removed in a future release. "
-                "Use 'figsize' instead.",
+                "The 'size' argument is deprecated and will be removed in a future release. Use 'figsize' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1273,33 +1251,19 @@ class Figure:
             if draw_labels:
                 subplot_draw_labels = [item for item in draw_labels]
                 if sharex and all(
-                    sp.domain == subplot.domain
-                    for sp in [s for s in self.subplots if s.column == subplot.column]
+                    sp.domain == subplot.domain for sp in [s for s in self.subplots if s.column == subplot.column]
                 ):
                     if "top" in draw_labels and subplot.row != 0:
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "top"
-                        ]
-                    if "bottom" in draw_labels and subplot.row != max(
-                        sp.row for sp in self.subplots
-                    ):
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "bottom"
-                        ]
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "top"]
+                    if "bottom" in draw_labels and subplot.row != max(sp.row for sp in self.subplots):
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "bottom"]
                 if sharey and all(
-                    sp.domain == subplot.domain
-                    for sp in [s for s in self.subplots if s.row == subplot.row]
+                    sp.domain == subplot.domain for sp in [s for s in self.subplots if s.row == subplot.row]
                 ):
                     if "left" in draw_labels and subplot.column != 0:
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "left"
-                        ]
-                    if "right" in draw_labels and subplot.column != max(
-                        sp.column for sp in self.subplots
-                    ):
-                        subplot_draw_labels = [
-                            loc for loc in subplot_draw_labels if loc != "right"
-                        ]
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "left"]
+                    if "right" in draw_labels and subplot.column != max(sp.column for sp in self.subplots):
+                        subplot_draw_labels = [loc for loc in subplot_draw_labels if loc != "right"]
             else:
                 subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
@@ -1440,15 +1404,10 @@ class Figure:
             `"temperature at 2023-01-01 00:00 and wind at 2023-01-01 00:00".
         """
         if not grouped:
-            results = [
-                subplot.format_string(string, unique, grouped)
-                for subplot in self.subplots
-            ]
+            results = [subplot.format_string(string, unique, grouped) for subplot in self.subplots]
             result = string_utils.list_to_human(results)
         else:
-            result = formatters.FigureFormatter(self.subplots, unique=unique).format(
-                string
-            )
+            result = formatters.FigureFormatter(self.subplots, unique=unique).format(string)
         return result
 
     @property
@@ -1460,9 +1419,7 @@ class Figure:
             return self
         self._released = True
         if self._subplot_queue:
-            self.rows, self.columns = rows_cols(
-                len(self._subplot_queue), rows=self.rows, columns=self.columns
-            )
+            self.rows, self.columns = rows_cols(len(self._subplot_queue), rows=self.rows, columns=self.columns)
             self._setup()
         for item in self._subplot_queue:
             method, args, kwargs = item
@@ -1517,9 +1474,7 @@ class Figure:
                 logo = mpimg.imread(image_file)
                 left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
                 bottom = -0.05  # 0.01 margin from bottom
-                ax_logo = self.fig.add_axes(
-                    [left, bottom, logo_width, logo_height], zorder=100
-                )
+                ax_logo = self.fig.add_axes([left, bottom, logo_width, logo_height], zorder=100)
                 ax_logo.imshow(logo)
                 ax_logo.axis("off")
         return self

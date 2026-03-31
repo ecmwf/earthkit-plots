@@ -131,9 +131,7 @@ class _StyleLibraryCache:
         self._named_styles_loaded = False
 
     def find_identity(self, data) -> str | None:
-        """
-        Return the identity id whose criteria first match *data*, or ``None``.
-        """
+        """Return the identity id whose criteria first match *data*, or ``None``."""
         self._ensure_loaded()
         for criteria_list, identity_id in self._identities:
             if any(criteria_matches(data, c) for c in criteria_list):
@@ -231,9 +229,7 @@ class _StyleLibraryCache:
                     if name and name not in self._named_styles:
                         self._named_styles[name] = style_dict
 
-    def _load_named_styles_from(
-        self, styles_path: Path, seen_paths: set[str] | None = None
-    ):
+    def _load_named_styles_from(self, styles_path: Path, seen_paths: set[str] | None = None):
         """
         Index named-style variants from a single *styles_path* directory.
 
@@ -271,9 +267,7 @@ class _StyleLibraryCache:
 _cache = _StyleLibraryCache()
 
 
-def _select_style_variant(
-    style_variants: dict, target_units: str | None, source_units: str | None
-) -> dict | None:
+def _select_style_variant(style_variants: dict, target_units: str | None, source_units: str | None) -> dict | None:
     """
     Pick the best matching style variant dict for the given units.
 

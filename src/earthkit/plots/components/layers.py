@@ -75,9 +75,7 @@ class Layer:
             self._facecolors = None
 
     def reset_facecolors(self):
-        """
-        Reset the facecolors of the mappable object.
-        """
+        """Reset the facecolors of the mappable object."""
         if self._facecolors is not None:
             self.mappable.set_facecolor(self._facecolors)
 
@@ -86,9 +84,7 @@ class Layer:
         if self._magnitude is None:
             if len(self.sources) != 2:
                 raise ValueError("Magnitude can only be calculated for vector data.")
-            self._magnitude = np.sqrt(
-                self.sources[0].values ** 2 + self.sources[1].values ** 2
-            )
+            self._magnitude = np.sqrt(self.sources[0].values ** 2 + self.sources[1].values ** 2)
         return self._magnitude
 
     @property
@@ -107,9 +103,7 @@ class Layer:
         return [self.ax]
 
     def _generate_legend(self, *args, **kwargs):
-        """
-        Generate a legend for this specific layer.
-        """
+        """Generate a legend for this specific layer."""
         if self.style is not None:
             result = self.style.legend(self, *args, **kwargs)
             if result is not None:
@@ -130,14 +124,10 @@ class Layer:
     @property
     def _default_title_template(self):
         # Check if any source has time information available
-        has_time = any(
-            source.datetime().get("valid_time") is not None for source in self.sources
-        )
+        has_time = any(source.datetime().get("valid_time") is not None for source in self.sources)
         if not has_time:
             return metadata.labels.DEFAULT_NO_TIME_TITLE
-        if all(
-            source.metadata("type", default="an") == "an" for source in self.sources
-        ):
+        if all(source.metadata("type", default="an") == "an" for source in self.sources):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:
             template = metadata.labels.DEFAULT_FORECAST_TITLE

@@ -194,18 +194,14 @@ def extract_plottables_1D(
 
     # Step 2.5: If the style carries preferred units (use_preferred_units path),
     # update the source so that unit conversion is applied when .z is accessed.
-    if style._units is not None and not _units_are_equal(
-        style._units, source.source_units
-    ):
+    if style._units is not None and not _units_are_equal(style._units, source.source_units):
         source.update_units(style._units)
 
     # Step 2.6: Determine the display units for axis routing.
     # Priority: explicit caller units → style's preferred units → source's
     # native units.  This is the value that will actually appear on the y-axis,
     # so it is the correct key for the _AxisRegistry unit→axis map.
-    display_units = (
-        units or (style._units if style is not None else None) or source.source_units
-    )
+    display_units = units or (style._units if style is not None else None) or source.source_units
 
     # Step 3: Apply style scale factor to z values (e.g. Pa → hPa).
     if z is not None or (source.z is not None and source.z.values is not None):
@@ -239,9 +235,7 @@ def extract_plottables_1D(
 
     # Step 5.1: Clip to subplot domain.
     if subplot.domain is not None:
-        x_values, y_values, z_values = subplot.domain.extract(
-            x_values, y_values, z_values, source_crs=source.crs
-        )
+        x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
 
     # Step 5.5: Data-space resampling.
     # Pixel-samplers are rejected here (allow_pixel_samplers=False) because
@@ -269,9 +263,7 @@ def extract_plottables_1D(
     #   2. auto_twin_axes disabled / no units  →  primary ax
     #   3. unit-based auto-routing via _AxisRegistry  →  find-or-create twinx()
     render_ax = subplot._resolve_render_ax(display_units)
-    mappable = getattr(style, method_name)(
-        render_ax, x_values, y_values, z_values, **kwargs
-    )
+    mappable = getattr(style, method_name)(render_ax, x_values, y_values, z_values, **kwargs)
 
     # Step 8: Create the Layer and attach it to the subplot.
     from earthkit.plots.components.layers import Layer
@@ -283,11 +275,7 @@ def extract_plottables_1D(
         axis_units["x"] = x_units
     if y_units is not None:
         axis_units["y"] = y_units
-    if (
-        units is not None
-        and primary_axis is not None
-        and primary_axis not in axis_units
-    ):
+    if units is not None and primary_axis is not None and primary_axis not in axis_units:
         axis_units[primary_axis] = units
 
     layer = Layer(
@@ -399,8 +387,7 @@ def extract_plottables_2D(
     if "interpolate" in kwargs and resample is None:
         interp = kwargs.pop("interpolate")
         warnings.warn(
-            "The 'interpolate' keyword argument is deprecated. "
-            "Use 'resample=Unstructured(...)' instead.",
+            "The 'interpolate' keyword argument is deprecated. Use 'resample=Unstructured(...)' instead.",
             DeprecationWarning,
             stacklevel=5,
         )
@@ -448,9 +435,7 @@ def extract_plottables_2D(
 
             x_ext = source.x.values.squeeze()
             y_ext = source.y.values.squeeze()
-            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(
-                x_ext > 180
-            ):
+            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(x_ext > 180):
                 x_ext = force_minus_180_to_180(x_ext)
             domain = _domains.Domain.from_bbox(
                 bbox=[
@@ -463,9 +448,7 @@ def extract_plottables_2D(
                 target_crs=subplot.crs,
             )
             bbox_vals = list(domain.bbox)
-            if None not in bbox_vals and all(
-                np.isfinite(v) for v in bbox_vals if v is not None
-            ):
+            if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
                 subplot.domain = domain
                 if subplot._ax is not None:
                     subplot._ax.set_extent(
@@ -490,18 +473,14 @@ def extract_plottables_2D(
 
         from earthkit.plots.components._pixel_sampling import _auto_resample_policy
 
-        resample = _auto_resample_policy(
-            method_name, _healpix_structured, is_unstructured=_unstructured
-        )
+        resample = _auto_resample_policy(method_name, _healpix_structured, is_unstructured=_unstructured)
 
     # Step 3: Resolve the Style object.
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
     # Step 3.5: If the style carries preferred units (use_preferred_units path),
     # update the source so that unit conversion is applied when .z is accessed.
-    if style._units is not None and not _units_are_equal(
-        style._units, source.source_units
-    ):
+    if style._units is not None and not _units_are_equal(style._units, source.source_units):
         source.update_units(style._units)
 
     # Remove earthkit-internal schema keys that are not valid matplotlib kwargs.
@@ -532,9 +511,7 @@ def extract_plottables_2D(
     if mappable is None:
         # Step 6: Extract coordinate arrays and apply stride-based thinning.
         x_values, y_values = source.x.values, source.y.values
-        x_values, y_values, z_values = apply_sampling(
-            x_values, y_values, z_values, every
-        )
+        x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
         # Step 6.5: Data-space resampling (Regrid, Unstructured, generic).
         # Pixel-samplers (Bilinear, NearestNeighbour) are deferred to Step 8.5.
@@ -558,9 +535,7 @@ def extract_plottables_2D(
 
         # Step 8: Clip data to the subplot domain.
         if subplot.domain and extract_domain and not no_style:
-            x_values, y_values, z_values = subplot.domain.extract(
-                x_values, y_values, z_values, source_crs=source.crs
-            )
+            x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
 
         # Step 8.5: Pixel-space resampling (Bilinear / NearestNeighbour).
         # Deferred from Step 6.5 because these samplers need subplot/CRS/bbox
@@ -585,9 +560,7 @@ def extract_plottables_2D(
         # Step 9: Add cyclic longitude column for global contour plots.
         # Skipped when pixel-sampling already produced a complete regular grid.
         if method_name.startswith("contour") and not ps_result.reprojected:
-            x_values, y_values, z_values = _handle_cyclic_points(
-                x_values, y_values, z_values
-            )
+            x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
 
         # Step 10: Disable transform_first for unsupported projections.
         kwargs = _handle_transform_settings(subplot, kwargs)
@@ -597,13 +570,9 @@ def extract_plottables_2D(
         # (i.e. the NearestNeighbour imshow path was taken).
         if mappable is None:
             if not no_style:
-                mappable = getattr(style, method_name)(
-                    subplot.current_ax, x_values, y_values, z_values, **kwargs
-                )
+                mappable = getattr(style, method_name)(subplot.current_ax, x_values, y_values, z_values, **kwargs)
             else:
-                mappable = getattr(subplot.current_ax, method_name)(
-                    x_values, y_values, z_values, **kwargs
-                )
+                mappable = getattr(subplot.current_ax, method_name)(x_values, y_values, z_values, **kwargs)
 
     # Step 12: Create the Layer and attach it to the subplot.
     from earthkit.plots.components.layers import Layer
@@ -616,9 +585,7 @@ def extract_plottables_2D(
     if units is not None and "z" not in axis_units:
         axis_units["z"] = units
 
-    proxy_color_val = (
-        proxy_color[0] if isinstance(proxy_color, (list, tuple)) else proxy_color
-    )
+    proxy_color_val = proxy_color[0] if isinstance(proxy_color, (list, tuple)) else proxy_color
     layer = Layer(
         source,
         mappable,
@@ -628,9 +595,7 @@ def extract_plottables_2D(
         axis_units=axis_units,
         proxy_label=proxy_label,
         proxy_color=proxy_color_val,
-        proxy_linewidth=kwargs.get("linewidths", 1.0)
-        if proxy_label is not None
-        else None,
+        proxy_linewidth=kwargs.get("linewidths", 1.0) if proxy_label is not None else None,
     )
 
     subplot.layers.append(layer)
@@ -678,12 +643,8 @@ def _resolve_vector_sources(
                 "chart.quiver(data, u='u_var', v='v_var'), or "
                 "chart.quiver(u=u_data, v=v_data)"
             )
-        u_source = get_source(
-            u, x=x, y=y, context=context, units=units, metadata=metadata
-        )
-        v_source = get_source(
-            v, x=x, y=y, context=context, units=units, metadata=metadata
-        )
+        u_source = get_source(u, x=x, y=y, context=context, units=units, metadata=metadata)
+        v_source = get_source(v, x=x, y=y, context=context, units=units, metadata=metadata)
         _validate_uv_grids(u_source, v_source)
         source = u_source
         u_values = u_source.z.values.squeeze() if u_source.z else None
@@ -716,12 +677,8 @@ def _resolve_vector_sources(
 
     elif len(args) == 2:
         # Legacy two-argument form: quiver(u_data, v_data)
-        u_source = get_source(
-            args[0], x=x, y=y, context=context, units=units, metadata=metadata
-        )
-        v_source = get_source(
-            args[1], x=x, y=y, context=context, units=units, metadata=metadata
-        )
+        u_source = get_source(args[0], x=x, y=y, context=context, units=units, metadata=metadata)
+        v_source = get_source(args[1], x=x, y=y, context=context, units=units, metadata=metadata)
         _validate_uv_grids(u_source, v_source)
         u_arr = (u_source.z.values if u_source.z else u_source.y.values).squeeze()
         v_arr = (v_source.z.values if v_source.z else v_source.y.values).squeeze()
@@ -752,9 +709,7 @@ def _resolve_vector_sources(
         v_values = source.v.values if source.v else None
 
     else:
-        raise ValueError(
-            "Vector plots accept at most two positional arguments (u_data, v_data)."
-        )
+        raise ValueError("Vector plots accept at most two positional arguments (u_data, v_data).")
 
     return source, u_values, v_values
 
@@ -763,13 +718,11 @@ def _validate_uv_grids(u_source: Any, v_source: Any) -> None:
     """Raise ValueError when u and v are not defined on the same grid."""
     if not np.array_equal(u_source.x.values, v_source.x.values):
         raise ValueError(
-            "X coordinates from u and v sources do not match. "
-            "U and V components must be defined on the same grid."
+            "X coordinates from u and v sources do not match. U and V components must be defined on the same grid."
         )
     if not np.array_equal(u_source.y.values, v_source.y.values):
         raise ValueError(
-            "Y coordinates from u and v sources do not match. "
-            "U and V components must be defined on the same grid."
+            "Y coordinates from u and v sources do not match. U and V components must be defined on the same grid."
         )
 
 
@@ -853,21 +806,14 @@ def extract_plottables_vector_2D(
     if "long_name" not in (metadata or {}):
         import re as _re
 
-        existing_raw = (
-            source.metadata("long_name")
-            or source.metadata("standard_name")
-            or source.metadata("name")
-            or ""
-        )
+        existing_raw = source.metadata("long_name") or source.metadata("standard_name") or source.metadata("name") or ""
         # Unwrap lists: take the first element (the U-component name).
         if isinstance(existing_raw, list):
             existing = existing_raw[0] if existing_raw else ""
         else:
             existing = existing_raw
         # Strip "U/V component of " phrasing, e.g. "U component of wind" -> "wind"
-        cleaned = _re.sub(
-            r"\b[uv]\s+component\s+of\s+", "", existing, flags=_re.IGNORECASE
-        ).strip()
+        cleaned = _re.sub(r"\b[uv]\s+component\s+of\s+", "", existing, flags=_re.IGNORECASE).strip()
         if cleaned and cleaned.lower() != existing.lower():
             source._metadata_resolver.user_metadata["long_name"] = cleaned
 
@@ -886,9 +832,7 @@ def extract_plottables_vector_2D(
 
             x_ext = source.x.values.squeeze()
             y_ext = source.y.values.squeeze()
-            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(
-                x_ext > 180
-            ):
+            if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(x_ext > 180):
                 x_ext = force_minus_180_to_180(x_ext)
             domain = _domains.Domain.from_bbox(
                 bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
@@ -896,9 +840,7 @@ def extract_plottables_vector_2D(
                 target_crs=subplot.crs,
             )
             bbox_vals = list(domain.bbox)
-            if None not in bbox_vals and all(
-                np.isfinite(v) for v in bbox_vals if v is not None
-            ):
+            if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
                 subplot.domain = domain
                 subplot.ax.set_extent(
                     subplot.domain.bbox.to_cartopy_bounds(),
@@ -986,9 +928,7 @@ def extract_plottables_vector_2D(
 
             # Extract 1-D axes from a regular meshgrid for the fast path.
             if x_values.ndim == 2 and y_values.ndim == 2:
-                if np.allclose(x_values, x_values[0, :]) and np.allclose(
-                    y_values.T, y_values[:, 0]
-                ):
+                if np.allclose(x_values, x_values[0, :]) and np.allclose(y_values.T, y_values[:, 0]):
                     x_src, y_src = x_values[0, :], y_values[:, 0]
                 else:
                     x_src, y_src = x_values, y_values
@@ -1033,9 +973,7 @@ def extract_plottables_vector_2D(
                 target_crs=subplot.crs,
             )
         elif isinstance(resample, Resample):
-            x_values, y_values, u_values, v_values = resample.apply(
-                x_values, y_values, u_values, v_values
-            )
+            x_values, y_values, u_values, v_values = resample.apply(x_values, y_values, u_values, v_values)
 
     # Step 10: Build the argument list for the plotting method.
     plot_args = [x_values, y_values, u_values, v_values]
@@ -1141,9 +1079,7 @@ def extract_plottables_envelope(
             z_values = z_values[::every, ::every]
 
     if subplot.domain is not None and extract_domain:
-        x_values, y_values, z_values = subplot.domain.extract(
-            x_values, y_values, z_values, source_crs=source.crs
-        )
+        x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
 
     return x_values, y_values, z_values
 
@@ -1187,11 +1123,7 @@ def plot_1D(method_name=None):
             # Inject subplot-level fixed units if not already specified by the caller.
             if "x_units" not in kwargs and self._fixed_x_units is not None:
                 kwargs["x_units"] = self._fixed_x_units
-            if (
-                "y_units" not in kwargs
-                and "units" not in kwargs
-                and self._fixed_y_units is not None
-            ):
+            if "y_units" not in kwargs and "units" not in kwargs and self._fixed_y_units is not None:
                 kwargs["y_units"] = self._fixed_y_units
 
             # Accept underscore aliases (color_by → colorby, etc.)
@@ -1231,18 +1163,13 @@ def plot_1D(method_name=None):
                     label=label,
                     **kwargs,
                 )
-                return (
-                    self
-                    if self._chainable
-                    else (self.layers[-1].mappable if self.layers else None)
-                )
+                return self if self._chainable else (self.layers[-1].mappable if self.layers else None)
 
             # Require xarray DataArray when any *by is set
             data = args[0] if args else None
             if not isinstance(data, xr.DataArray):
                 raise TypeError(
-                    "colorby/dashby/markerby/sizeby require a single xarray "
-                    "DataArray as the first positional argument."
+                    "colorby/dashby/markerby/sizeby require a single xarray DataArray as the first positional argument."
                 )
             rest_args = args[1:]
 
@@ -1311,10 +1238,7 @@ def plot_1D(method_name=None):
                 if user_values is None:
                     vis_vals = [default_fn(i) for i in range(n)]
                 elif isinstance(user_values, dict):
-                    vis_vals = [
-                        user_values.get(str(_to_python(v)), default_fn(i))
-                        for i, v in enumerate(unique)
-                    ]
+                    vis_vals = [user_values.get(str(_to_python(v)), default_fn(i)) for i, v in enumerate(unique)]
                 else:
                     cycle = list(user_values)
                     vis_vals = [cycle[i % len(cycle)] for i in range(n)]
@@ -1353,9 +1277,7 @@ def plot_1D(method_name=None):
                 _build_map(
                     dim_unique["sizeby"],
                     sizes,
-                    lambda i: float(
-                        np.linspace(0.8, 2.0, max(len(dim_unique["sizeby"]), 1))[i]
-                    ),
+                    lambda i: float(np.linspace(0.8, 2.0, max(len(dim_unique["sizeby"]), 1))[i]),
                 )
                 if sizeby is not None
                 else {}
@@ -1414,11 +1336,7 @@ def plot_1D(method_name=None):
                     **call_kwargs,
                 )
 
-            return (
-                self
-                if self._chainable
-                else (self.layers[-1].mappable if self.layers else None)
-            )
+            return self if self._chainable else (self.layers[-1].mappable if self.layers else None)
 
         return wrapper
 
@@ -1468,11 +1386,7 @@ def plot_2D(method_name=None, extract_domain=False, default_resample=None):
                 resample=resample,
                 **kwargs,
             )
-            return (
-                self
-                if self._chainable
-                else (self.layers[-1].mappable if self.layers else None)
-            )
+            return self if self._chainable else (self.layers[-1].mappable if self.layers else None)
 
         return wrapper
 
@@ -1516,11 +1430,7 @@ def plot_vector(method_name=None, extract_domain=False):
                 colors=colors,
                 **kwargs,
             )
-            return (
-                self
-                if self._chainable
-                else (self.layers[-1].mappable if self.layers else None)
-            )
+            return self if self._chainable else (self.layers[-1].mappable if self.layers else None)
 
         return wrapper
 

@@ -94,11 +94,7 @@ def _clim_dim_to_datetimes(da, dim, month_day=None):
 
     # Preserve scalar (0-d) coordinates so metadata like latitude/longitude
     # remains accessible to the metadata/label system downstream.
-    scalar_coords = {
-        name: da.coords[name]
-        for name in da.coords
-        if name != dim and da.coords[name].ndim == 0
-    }
+    scalar_coords = {name: da.coords[name] for name in da.coords if name != dim and da.coords[name].ndim == 0}
     scalar_coords["time"] = dates
 
     return xr.DataArray(
@@ -143,11 +139,7 @@ def _expand_steps_period(da, dim):
     all_dates = dates + [next_date]
     all_values = np.append(da.values, da.values[-1])
 
-    scalar_coords = {
-        name: da.coords[name]
-        for name in da.coords
-        if name != dim and da.coords[name].ndim == 0
-    }
+    scalar_coords = {name: da.coords[name] for name in da.coords if name != dim and da.coords[name].ndim == 0}
     scalar_coords["time"] = all_dates
 
     return xr.DataArray(
@@ -175,11 +167,7 @@ def _expand_steps_period_datetime(da, time_dim):
     all_times = floored.append(pd.DatetimeIndex([next_day]))
     all_values = np.append(da.values, da.values[-1])
 
-    scalar_coords = {
-        name: da.coords[name]
-        for name in da.coords
-        if name != time_dim and da.coords[name].ndim == 0
-    }
+    scalar_coords = {name: da.coords[name] for name in da.coords if name != time_dim and da.coords[name].ndim == 0}
     scalar_coords[time_dim] = all_times
 
     return xr.DataArray(
@@ -217,11 +205,7 @@ def _wrap_clim_da(da, time_dim):
     all_times = prev_times.append(times).append(next_times)
     all_values = np.concatenate([da.values, da.values, da.values])
 
-    scalar_coords = {
-        name: da.coords[name]
-        for name in da.coords
-        if name != time_dim and da.coords[name].ndim == 0
-    }
+    scalar_coords = {name: da.coords[name] for name in da.coords if name != time_dim and da.coords[name].ndim == 0}
     scalar_coords[time_dim] = all_times
 
     return xr.DataArray(
@@ -269,9 +253,7 @@ def _wrap_datetime_year(current_da, prev_da, next_da, time_dim):
         mask = prev_times.normalize() == last_date
         p_times = prev_times[mask]
         p_vals = prev_da.values[mask]
-        prefix_times = pd.DatetimeIndex(
-            [_safe_replace_year(t, _LEAP_REF_YEAR - 1) for t in p_times]
-        )
+        prefix_times = pd.DatetimeIndex([_safe_replace_year(t, _LEAP_REF_YEAR - 1) for t in p_times])
         prefix_vals = p_vals
 
     if next_da is not None:
@@ -283,23 +265,15 @@ def _wrap_datetime_year(current_da, prev_da, next_da, time_dim):
         mask = next_times.normalize() == first_date
         n_times = next_times[mask]
         n_vals = next_da.values[mask]
-        suffix_times = pd.DatetimeIndex(
-            [_safe_replace_year(t, _LEAP_REF_YEAR + 1) for t in n_times]
-        )
+        suffix_times = pd.DatetimeIndex([_safe_replace_year(t, _LEAP_REF_YEAR + 1) for t in n_times])
         suffix_vals = n_vals
 
     all_times = (
         (pd.DatetimeIndex(prefix_times) if len(prefix_times) else pd.DatetimeIndex([]))
         .append(times)
-        .append(
-            pd.DatetimeIndex(suffix_times)
-            if len(suffix_times)
-            else pd.DatetimeIndex([])
-        )
+        .append(pd.DatetimeIndex(suffix_times) if len(suffix_times) else pd.DatetimeIndex([]))
     )
-    all_values = np.concatenate(
-        [v for v in [prefix_vals, values, suffix_vals] if len(v)]
-    )
+    all_values = np.concatenate([v for v in [prefix_vals, values, suffix_vals] if len(v)])
 
     scalar_coords[time_dim] = all_times
     return xr.DataArray(
@@ -318,7 +292,6 @@ def _should_auto_wrap(da, dim):
     - ``dayofyear`` dim: must contain day 1 and day >= 365.
     - datetime dim: first point in Jan, last point in Dec.
     """
-
     if dim == "month":
         vals = da[dim].values.astype(int)
         return 1 in vals and 12 in vals
@@ -343,19 +316,11 @@ def _detect_clim_dim(da):
     for dim in da.dims:
         if dim == "month":
             vals = da[dim].values
-            if (
-                np.issubdtype(vals.dtype, np.integer)
-                and vals.min() >= 1
-                and vals.max() <= 12
-            ):
+            if np.issubdtype(vals.dtype, np.integer) and vals.min() >= 1 and vals.max() <= 12:
                 return "month"
         elif dim == "dayofyear":
             vals = da[dim].values
-            if (
-                np.issubdtype(vals.dtype, np.integer)
-                and vals.min() >= 1
-                and vals.max() <= 366
-            ):
+            if np.issubdtype(vals.dtype, np.integer) and vals.min() >= 1 and vals.max() <= 366:
                 return "dayofyear"
     return None
 
@@ -471,9 +436,7 @@ class Climatology(TimeSeries):
             return self.wrap_time
         return wrap_time
 
-    def _prepare_clim_data(
-        self, data, wrap_time=None, time_dim=None, month_day=None, steps_period=False
-    ):
+    def _prepare_clim_data(self, data, wrap_time=None, time_dim=None, month_day=None, steps_period=False):
         """
         Convert *data* to a list of datetime-coord DataArrays ready for plotting.
 
@@ -505,9 +468,7 @@ class Climatology(TimeSeries):
             else:
                 mapped = _clim_dim_to_datetimes(data, dim=clim_dim, month_day=month_day)
 
-            do_wrap = (
-                _should_auto_wrap(data, clim_dim) if wrap_time == "auto" else wrap_time
-            )
+            do_wrap = _should_auto_wrap(data, clim_dim) if wrap_time == "auto" else wrap_time
             if do_wrap:
                 mapped = _wrap_clim_da(mapped, "time")
                 self._needs_xclamp = True
@@ -531,11 +492,7 @@ class Climatology(TimeSeries):
             result = []
             for year in sorted_years:
                 remapped = years_data[year]
-                do_wrap = (
-                    _should_auto_wrap(remapped, time_dim)
-                    if wrap_time == "auto"
-                    else wrap_time
-                )
+                do_wrap = _should_auto_wrap(remapped, time_dim) if wrap_time == "auto" else wrap_time
                 if do_wrap:
                     prev_da = years_data.get(year - 1)
                     next_da = years_data.get(year + 1)
@@ -601,10 +558,7 @@ class Climatology(TimeSeries):
                 )
             data = data[data_vars[0]]
         elif not isinstance(data, xr.DataArray):
-            raise TypeError(
-                "Climatology.line() requires an xarray DataArray. "
-                f"Got {type(data).__name__!r}."
-            )
+            raise TypeError(f"Climatology.line() requires an xarray DataArray. Got {type(data).__name__!r}.")
 
         # Intercept steps-period before passing to _prepare_clim_data.
         drawstyle = kwargs.pop("drawstyle", None)
@@ -634,9 +588,7 @@ class Climatology(TimeSeries):
 
         label = kwargs.pop("label", None)
         for i, mapped in enumerate(mapped_list):
-            line_label = (
-                (label if i == 0 else "_nolegend_") if label is not None else None
-            )
+            line_label = (label if i == 0 else "_nolegend_") if label is not None else None
             super().line(mapped, *args, label=line_label, **kwargs)
 
         if not self._climatology_formatter_applied:
@@ -724,9 +676,7 @@ class Climatology(TimeSeries):
                     steps_period=steps_period,
                 )
                 if mapped_y2_list and time_offset is not None:
-                    mapped_y2_list = [
-                        _apply_time_offset(m, offset) for m in mapped_y2_list
-                    ]
+                    mapped_y2_list = [_apply_time_offset(m, offset) for m in mapped_y2_list]
                 y2 = mapped_y2_list[0] if mapped_y2_list else y2
             y1 = mapped_y1_list[0]
             if not self._climatology_formatter_applied:

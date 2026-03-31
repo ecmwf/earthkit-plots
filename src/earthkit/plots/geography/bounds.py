@@ -129,9 +129,7 @@ class BoundingBox:
         y_max = max(y_max, x_centre_max[1])
 
         if coordinate_reference_systems.is_cylindrical(target_crs):
-            if (abs(corners[2][0] - corners[3][0]) > 180) or (
-                abs(corners[0][0] - corners[1][0]) > 180
-            ):
+            if (abs(corners[2][0] - corners[3][0]) > 180) or (abs(corners[0][0] - corners[1][0]) > 180):
                 x_min = min([corner[0] % 360 for corner in corners[:2]])
                 x_max = max([corner[0] % 360 for corner in corners[2:4]])
             if np.isclose(x_min, x_max):
@@ -295,11 +293,7 @@ class BoundingBox:
         bool
         """
         if None in self:
-            raise ValueError(
-                "Cannot determine if point lies inside partially defined domain"
-            )
+            raise ValueError("Cannot determine if point lies inside partially defined domain")
         if crs is not None:
             point = self.crs.transform_point(*point, crs)
-        return (self.west <= point[0] <= self.east) and (
-            self.south <= point[1] <= self.north
-        )
+        return (self.west <= point[0] <= self.east) and (self.south <= point[1] <= self.north)

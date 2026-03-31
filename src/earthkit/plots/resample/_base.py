@@ -64,8 +64,7 @@ class Subsample(Resample):
                 self.nx, self.ny = args
             else:
                 raise ValueError(
-                    f"{self.__class__.__name__} can take at most 2 positional "
-                    f"arguments; received {len(args)}"
+                    f"{self.__class__.__name__} can take at most 2 positional arguments; received {len(args)}"
                 )
         else:
             self.nx = nx

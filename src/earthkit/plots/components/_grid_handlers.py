@@ -96,14 +96,12 @@ def _handle_specialized_grids(
     # Validate that structured grids are not passed to pcolormesh without a
     # Regrid step.  grid_cells() suppresses this check via use_nn_sampling.
     if gridspec is not None and not use_nn_sampling:
-        from earthkit.plots.resample import Chain
+        from earthkit.plots.resample import Chain, _is_structured_grid
         from earthkit.plots.resample import Regrid as _Regrid
-        from earthkit.plots.resample import _is_structured_grid
 
         if _is_structured_grid(gridspec):
             _has_regrid = isinstance(resample, _Regrid) or (
-                isinstance(resample, Chain)
-                and any(isinstance(s, _Regrid) for s in resample.data_steps)
+                isinstance(resample, Chain) and any(isinstance(s, _Regrid) for s in resample.data_steps)
             )
             if not _has_regrid:
                 _grid_label = {
@@ -176,10 +174,7 @@ def _handle_regular_grid_nn(
     y_values = source.y.values
     if x_values.ndim != 2 or y_values.ndim != 2:
         return None
-    if not (
-        np.allclose(x_values, x_values[0, :])
-        and np.allclose(y_values.T, y_values[:, 0])
-    ):
+    if not (np.allclose(x_values, x_values[0, :]) and np.allclose(y_values.T, y_values[:, 0])):
         return None
 
     x_src_1d = x_values[0, :]

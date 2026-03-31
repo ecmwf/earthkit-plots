@@ -112,11 +112,7 @@ class BaseFormatter(Formatter):
             # key produces nothing useful.
             if methods:
                 full_result = self.format_key(key)
-                resolved = (
-                    full_result[0]
-                    if isinstance(full_result, list) and len(full_result) == 1
-                    else full_result
-                )
+                resolved = full_result[0] if isinstance(full_result, list) and len(full_result) == 1 else full_result
                 if resolved is not None and not isinstance(resolved, DimensionInfo):
                     kwargs[key] = full_result
                     continue
@@ -140,18 +136,14 @@ class BaseFormatter(Formatter):
                     elif method in metadata.labels.MAGIC_KEYS:
                         # Handle magic keys by calling metadata() on the dimension
                         # Get the preference list for this magic key
-                        candidates = metadata.labels.MAGIC_KEYS[method].get(
-                            "preference", [method]
-                        )
+                        candidates = metadata.labels.MAGIC_KEYS[method].get("preference", [method])
                         value = None
                         for candidate in candidates:
                             value = dim_info.metadata(candidate)
                             if value is not None:
                                 break
                         # Apply transformations
-                        if value is not None and metadata.labels.MAGIC_KEYS[method].get(
-                            "remove_underscores"
-                        ):
+                        if value is not None and metadata.labels.MAGIC_KEYS[method].get("remove_underscores"):
                             if isinstance(value, str):
                                 value = value.replace("_", " ")
                         result = [value]
@@ -200,9 +192,7 @@ class BaseFormatter(Formatter):
             value = value[0]
 
         if isinstance(value, str) and value.startswith("__units__"):
-            return metadata.units.format_units(
-                value.replace("__units__", ""), format_spec
-            )
+            return metadata.units.format_units(value.replace("__units__", ""), format_spec)
 
         # Pass datetime-like objects directly when format_spec contains strftime patterns
         import datetime
@@ -317,9 +307,7 @@ class SourceFormatter(BaseFormatter):
 
 
 class LayerFormatter(BaseFormatter):
-    """
-    Formatter of earthkit-plots `Layers`, enabling convient titles and labels.
-    """
+    """Formatter of earthkit-plots `Layers`, enabling convient titles and labels."""
 
     def __init__(self, layer, default=None, issue_warnings=True, axis=None):
         self.layer = layer
@@ -365,11 +353,7 @@ class LayerFormatter(BaseFormatter):
                     if hasattr(self.layer, "axis_units") and self._axis is not None
                     else None
                 )
-                style_units = (
-                    getattr(self.layer.style, "units", None)
-                    if self.layer.style is not None
-                    else None
-                )
+                style_units = getattr(self.layer.style, "units", None) if self.layer.style is not None else None
                 if axis_specific_units is not None:
                     value = [f"__units__{axis_specific_units}"]
                 elif style_units:
@@ -437,9 +421,7 @@ class LayerFormatter(BaseFormatter):
 
 
 class SubplotFormatter(BaseFormatter):
-    """
-    Formatter of earthkit-plots `Subplots`, enabling convient titles and labels.
-    """
+    """Formatter of earthkit-plots `Subplots`, enabling convient titles and labels."""
 
     def __init__(self, subplot, unique=True, axis=None):
         self.subplot = subplot
@@ -467,10 +449,7 @@ class SubplotFormatter(BaseFormatter):
         if key in self.SUBPLOT_ATTRIBUTES:
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
-            values = [
-                LayerFormatter(layer, axis=self._axis).format_key(key)
-                for layer in self.subplot.layers
-            ]
+            values = [LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers]
         return values
 
     def format_field(self, value, format_spec):
@@ -490,9 +469,7 @@ class SubplotFormatter(BaseFormatter):
 
 
 class FigureFormatter(BaseFormatter):
-    """
-    Formatter of earthkit-plots `Charts`, enabling convient titles and labels.
-    """
+    """Formatter of earthkit-plots `Charts`, enabling convient titles and labels."""
 
     def __init__(self, subplots, unique=True):
         self.subplots = subplots
@@ -509,9 +486,7 @@ class FigureFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
-        values = [
-            SubplotFormatter(subplot).format_key(key) for subplot in self.subplots
-        ]
+        values = [SubplotFormatter(subplot).format_key(key) for subplot in self.subplots]
         values = [item for sublist in values for item in sublist]
         return values
 
@@ -564,13 +539,9 @@ class TimeFormatter:
             if self._time_zone is not None:
                 if None in [t.tzinfo for t in result]:
                     logger.warning(
-                        "Attempting time zone conversion, but some data has no "
-                        "time zone metadata; assuming UTC"
+                        "Attempting time zone conversion, but some data has no time zone metadata; assuming UTC"
                     )
-                    result = [
-                        t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
-                        for t in result
-                    ]
+                    result = [t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC")) for t in result]
                 result = [t.astimezone(tz=self._time_zone) for t in result]
             return result
 
@@ -590,13 +561,8 @@ class TimeFormatter:
         """The offset in hours from UTC."""
         valid_times = self.valid_time
         if None in [vt.tzinfo for vt in valid_times]:
-            logger.warning(
-                "Some of the data is missing time zone metadata; assuming UTC"
-            )
-            valid_times = [
-                t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC"))
-                for t in valid_times
-            ]
+            logger.warning("Some of the data is missing time zone metadata; assuming UTC")
+            valid_times = [t if t.tzinfo is not None else t.replace(tzinfo=ZoneInfo("UTC")) for t in valid_times]
         offsets = [vt.utcoffset().seconds // 3600 for vt in valid_times]
         time_zones = [f"UTC{offset:+d}" for offset in offsets]
         return time_zones

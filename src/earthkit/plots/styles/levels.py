@@ -47,9 +47,7 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
         return [0] * (n_levels + 1)
 
     if divergence_point is not None:
-        max_diff = max(
-            abs(max_value - divergence_point), abs(divergence_point - min_value)
-        )
+        max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
         min_value, max_value = divergence_point - max_diff, divergence_point + max_diff
 
     data_range = max_value - min_value
@@ -180,10 +178,7 @@ class Levels:
     def from_config(cls, config):
         if isinstance(config, str):
             if config.startswith("range"):
-                args = (
-                    int(i)
-                    for i in config.replace("range(", "").replace(")", "").split(",")
-                )
+                args = (int(i) for i in config.replace("range(", "").replace(")", "").split(","))
                 kwargs = {"levels": range(*args)}
         elif isinstance(config, dict):
             kwargs = config

@@ -24,9 +24,7 @@ def _convert_spec(spec):
             return spec.spec
         elif hasattr(spec, "to_dict"):
             return spec.to_dict()
-        raise ValueError(
-            "Grid spec must be a dict or have a 'spec' property or a 'to_dict' method."
-        )
+        raise ValueError("Grid spec must be a dict or have a 'spec' property or a 'to_dict' method.")
     return spec
 
 
@@ -68,11 +66,7 @@ def _is_structured_grid(gridspec):
     )
 
     # H<N> = HEALPix,  O<N> or N<N> = reduced Gaussian,  e?orca<N>_[TUVW] = ORCA
-    return bool(
-        HEALPIX_PATTERN.match(grid_value)
-        or RGG_PATTERN.match(grid_value)
-        or ORCA_PATTERN.match(grid_value)
-    )
+    return bool(HEALPIX_PATTERN.match(grid_value) or RGG_PATTERN.match(grid_value) or ORCA_PATTERN.match(grid_value))
 
 
 def _generate_latlon_grid(resolution):
@@ -111,7 +105,7 @@ class _MirRegridExecutor:
             _kwargs["interpolation"] = "nn"
         LOG.debug("Regridding using MIR, in_grid=%s out_grid=%s", in_grid, out_grid)
         try:
-            # Attempt to regrid using precomputed weights if possible, which is much faster for repeated regridding of the same grid pair
+            # Attempt to regrid using precomputed weights if possible, which is often faster
             r = regrid(
                 array,
                 in_grid=in_grid,
@@ -170,16 +164,11 @@ class Regrid(Resample):
     def __init__(self, resolution=None, out_grid=None, method="linear", in_grid=None):
         if out_grid is not None and resolution is None:
             resolution = out_grid["grid"][0]
-        self._resolution = (
-            float(resolution) if resolution is not None else self.DEFAULT_RESOLUTION
-        )
+        self._resolution = float(resolution) if resolution is not None else self.DEFAULT_RESOLUTION
 
         method = _REGRID_METHOD_ALIASES.get(method, method)
         if method not in _VALID_REGRID_METHODS:
-            raise ValueError(
-                f"Regrid: method must be one of {sorted(_VALID_REGRID_METHODS)!r}, "
-                f"got {method!r}."
-            )
+            raise ValueError(f"Regrid: method must be one of {sorted(_VALID_REGRID_METHODS)!r}, got {method!r}.")
         self.method = method
         self.source_grid = in_grid
 
@@ -231,9 +220,7 @@ class Regrid(Resample):
         """Call the best available executor."""
         executor = Regrid._find_executor()
         if executor is None:
-            raise ImportError(
-                "Regridding not available. Please install the earthkit-geo package."
-            )
+            raise ImportError("Regridding not available. Please install the earthkit-geo package.")
         return executor.call(array, in_grid, out_grid)
 
     # ------------------------------------------------------------------
@@ -283,9 +270,7 @@ class Regrid(Resample):
         if self.method == "nearest-neighbour":
             out_grid_spec["interpolation"] = "nearest-neighbour"
 
-        z_new = self._call_regrid(
-            z_values, in_grid=in_grid_spec, out_grid=out_grid_spec
-        )
+        z_new = self._call_regrid(z_values, in_grid=in_grid_spec, out_grid=out_grid_spec)
         lon_2d, lat_2d = _generate_latlon_grid(self._resolution)
         return lon_2d, lat_2d, z_new
 
@@ -297,9 +282,7 @@ class Regrid(Resample):
 
 
 def _call_regrid_compat(array, in_grid, out_grid):
-    """
-    Module-level helper that exposes the regrid call for the geo/regrid shim.
-    """
+    """Module-level helper that exposes the regrid call for the geo/regrid shim."""
     in_grid = _convert_spec(in_grid)
     out_grid = _convert_spec(out_grid)
     return Regrid._call_regrid(array, in_grid=in_grid, out_grid=out_grid)

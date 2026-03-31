@@ -52,7 +52,9 @@ class Map(Subplot):
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
-        domain. See https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections for a list of available CRSs.
+        domain. See
+        https://cartopy.readthedocs.io/stable/reference/projections.html#cartopy-projections
+        for a list of available CRSs.
     **kwargs
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
@@ -230,9 +232,7 @@ class Map(Subplot):
             for the full list of accepted arguments.
         """
         if "resample" in kwargs:
-            raise ValueError(
-                "The 'resample' argument is not supported for grid_points."
-            )
+            raise ValueError("The 'resample' argument is not supported for grid_points.")
         popped_kwargs = []
         for key in ["style", "levels", "units", "colors"]:
             if key in kwargs:
@@ -261,8 +261,7 @@ class Map(Subplot):
         import warnings
 
         warnings.warn(
-            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. "
-            "Please use grid_points instead."
+            "gridpoints is deprecated and will be removed in earthkit-plots 0.6. Please use grid_points instead."
         )
         return self.grid_points(*args, **kwargs)
 
@@ -446,16 +445,11 @@ class Map(Subplot):
                 transform_first=None,
                 **kwargs,
             ):
-                _transform_first = (
-                    default_transform_first
-                    if transform_first is None
-                    else transform_first
-                )
+                _transform_first = default_transform_first if transform_first is None else transform_first
 
                 if source not in sources:
                     raise ValueError(
-                        f"source='{source}' is not supported for this method. "
-                        f"Valid sources are: {list(sources.keys())}"
+                        f"source='{source}' is not supported for this method. Valid sources are: {list(sources.keys())}"
                     )
 
                 source_config = sources[source]
@@ -468,12 +462,8 @@ class Map(Subplot):
                 if source == "gisco":
                     from earthkit.plots.geography import gisco
 
-                    records_list, attribute_key, label_key = gisco.load_layer(
-                        source_config, resolution
-                    )
-                    self.figure.attribution(
-                        "© EuroGeographics for the administrative boundaries"
-                    )
+                    records_list, attribute_key, label_key = gisco.load_layer(source_config, resolution)
+                    self.figure.attribution("© EuroGeographics for the administrative boundaries")
 
                 elif source == "natural_earth":
                     records_list, attribute_key, label_key = natural_earth.load_layer(
@@ -521,10 +511,7 @@ class Map(Subplot):
                     for record in records_list:
                         matched = False
                         for style in special_styles:
-                            if (
-                                record.attributes.get(style["key"], None)
-                                in style["values"]
-                            ):
+                            if record.attributes.get(style["key"], None) in style["values"]:
                                 special_records.append([record, style["kwargs"]])
                                 matched = True
                                 break
@@ -534,29 +521,15 @@ class Map(Subplot):
                     filtered_records = records_list
 
                 if include is not None or exclude is not None:
-                    exclude = (
-                        [exclude]
-                        if not (isinstance(exclude, (list, tuple)) or exclude is None)
-                        else exclude
-                    )
-                    include = (
-                        [include]
-                        if not (isinstance(include, (list, tuple)) or include is None)
-                        else include
-                    )
+                    exclude = [exclude] if not (isinstance(exclude, (list, tuple)) or exclude is None) else exclude
+                    include = [include] if not (isinstance(include, (list, tuple)) or include is None) else include
 
                     filtered_records = [
                         record
                         for record in records_list
                         if (
-                            (
-                                include is None
-                                or record.attributes.get(attribute_key) in include
-                            )
-                            and (
-                                exclude is None
-                                or record.attributes.get(attribute_key) not in exclude
-                            )
+                            (include is None or record.attributes.get(attribute_key) in include)
+                            and (exclude is None or record.attributes.get(attribute_key) not in exclude)
                         )
                     ]
 
@@ -597,9 +570,7 @@ class Map(Subplot):
                 # Apply transform_first optimization if requested and needed.
                 # crs_equal defaults to comparing against PlateCarree, which is
                 # exactly the Natural Earth source CRS.
-                if _transform_first and not coordinate_reference_systems.crs_equal(
-                    target_crs, match_type_only=True
-                ):
+                if _transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
                     from earthkit.plots.geography.geometry import reproject_geometries
 
                     # Reproject geometries before adding to map for better performance
@@ -616,11 +587,8 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record, sf_kwargs in special_records:
                         geom = record.geometry
-                        if (
-                            _transform_first
-                            and not coordinate_reference_systems.crs_equal(
-                                target_crs, match_type_only=True
-                            )
+                        if _transform_first and not coordinate_reference_systems.crs_equal(
+                            target_crs, match_type_only=True
                         ):
                             from earthkit.plots.geography.geometry import (
                                 reproject_geometries,
@@ -628,12 +596,10 @@ class Map(Subplot):
 
                             geom = reproject_geometries([geom], src_crs, target_crs)[0]
                         if not geom.is_empty:
-                            special_features.append(
-                                (
-                                    cfeature.ShapelyFeature([geom], feature_crs),
-                                    sf_kwargs,
-                                )
-                            )
+                            special_features.append((
+                                cfeature.ShapelyFeature([geom], feature_crs),
+                                sf_kwargs,
+                            ))
 
                 if hasattr(self.figure, "_ancillary_cache"):
                     self.figure._ancillary_cache[cache_key] = (
@@ -931,9 +897,7 @@ class Map(Subplot):
             kwargs["facecolor"] = "none"
 
         # Load NUTS regions data
-        records_list, attribute_key, label_key = gisco.load_nuts_layer(
-            level, resolution, geometry_type, year
-        )
+        records_list, attribute_key, label_key = gisco.load_nuts_layer(level, resolution, geometry_type, year)
 
         # Add attribution
         self.figure.attribution("© EuroGeographics for the administrative boundaries")
@@ -956,16 +920,8 @@ class Map(Subplot):
             filtered_records = records_list
 
         if include is not None or exclude is not None:
-            exclude = (
-                [exclude]
-                if not (isinstance(exclude, (list, tuple)) or exclude is None)
-                else exclude
-            )
-            include = (
-                [include]
-                if not (isinstance(include, (list, tuple)) or include is None)
-                else include
-            )
+            exclude = [exclude] if not (isinstance(exclude, (list, tuple)) or exclude is None) else exclude
+            include = [include] if not (isinstance(include, (list, tuple)) or include is None) else include
 
             filtered_records = [
                 record
@@ -1012,9 +968,7 @@ class Map(Subplot):
         # Apply transform_first optimization if requested and needed.
         # crs_equal defaults to comparing against PlateCarree, which is
         # exactly the Natural Earth source CRS.
-        if transform_first and not coordinate_reference_systems.crs_equal(
-            target_crs, match_type_only=True
-        ):
+        if transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
             from earthkit.plots.geography.geometry import reproject_geometries
 
             # Reproject geometries before adding to map for better performance
@@ -1180,9 +1134,7 @@ class Map(Subplot):
         density = natural_earth.get_resolution(density, self.ax, self.crs)
 
         if capital_cities_kwargs is None:
-            capital_cities_kwargs = (
-                kwargs or natural_earth.DEFAULT_CAPITAL_CITIES_KWARGS
-            )
+            capital_cities_kwargs = kwargs or natural_earth.DEFAULT_CAPITAL_CITIES_KWARGS
         if medium_cities_kwargs is None:
             medium_cities_kwargs = kwargs or natural_earth.DEFAULT_MEDIUM_CITIES_KWARGS
         if small_cities_kwargs is None:
@@ -1326,9 +1278,7 @@ class Map(Subplot):
         self.ax.add_geometries(shapes.geometries(), transform, *args, **kwargs)
         if labels:
             label_key = labels if isinstance(labels, str) else None
-            self._add_polygon_labels(
-                list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels
-            )
+            self._add_polygon_labels(list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels)
 
     @chainable_method
     def choropleth(
@@ -1435,9 +1385,7 @@ class Map(Subplot):
             for geom in geometries:
                 if geom is not None:
                     try:
-                        geom_bbox = BoundingBox.from_geometry(
-                            geom, source_crs=source_crs
-                        )
+                        geom_bbox = BoundingBox.from_geometry(geom, source_crs=source_crs)
                         bbox = geom_bbox if bbox is None else bbox + geom_bbox
                     except Exception:
                         pass
@@ -1458,16 +1406,12 @@ class Map(Subplot):
             auto_style = False
 
         # Configure style
-        style = configure_style(
-            "add_geometries", style, source, units, auto_style, kwargs
-        )
+        style = configure_style("add_geometries", style, source, units, auto_style, kwargs)
         style_kwargs = style.to_add_geometries_kwargs(data_values)
 
         # Prepare scalar mappable for colorbar
         if data_values is not None:
-            scalar_mappable = ScalarMappable(
-                norm=style_kwargs["norm"], cmap=style_kwargs["cmap"]
-            )
+            scalar_mappable = ScalarMappable(norm=style_kwargs["norm"], cmap=style_kwargs["cmap"])
             scalar_mappable.set_array(data_values)
         else:
             scalar_mappable = None
@@ -1490,15 +1434,11 @@ class Map(Subplot):
         # Add labels if requested
         if labels:
             label_column = labels if not isinstance(labels, bool) else source._column
-            self._add_choropleth_labels(
-                source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs
-            )
+            self._add_choropleth_labels(source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs)
 
         return self.layers[-1]
 
-    def _add_choropleth_labels(
-        self, source, label_column=None, exclude_nan_labels=True, **kwargs
-    ):
+    def _add_choropleth_labels(self, source, label_column=None, exclude_nan_labels=True, **kwargs):
         """
         Add labels to choropleth geometries.
 
@@ -1509,7 +1449,9 @@ class Map(Subplot):
         label_column : str, optional
             Column name to use for labels, or a template string with format
             specifiers. Supports Python format specification mini-language.
-            Examples:
+
+        Examples
+        --------
             - "country_name" - Direct column reference
             - "{name}: {value:.1f} {units}" - Template with formatting
         exclude_nan_labels : bool, optional
@@ -1554,15 +1496,11 @@ class Map(Subplot):
         has_units_placeholder = False
         template_for_formatting = label_column
         if is_template and "units" in source_metadata:
-            has_units_placeholder = (
-                re.search(r"\{units(?::[^}]+)?\}", label_column) is not None
-            )
+            has_units_placeholder = re.search(r"\{units(?::[^}]+)?\}", label_column) is not None
             units_match = re.search(r"\{units:([^}]+)\}", label_column)
             if units_match:
                 units_format_spec = units_match.group(1)
-                template_for_formatting = re.sub(
-                    r"\{units:[^}]+\}", "{units}", label_column
-                )
+                template_for_formatting = re.sub(r"\{units:[^}]+\}", "{units}", label_column)
             elif has_units_placeholder:
                 units_format_spec = "~E"
 
@@ -1587,9 +1525,7 @@ class Map(Subplot):
                 if has_units_placeholder and "units" in formatter:
                     from earthkit.plots.metadata import units as metadata_units
 
-                    formatter["units"] = metadata_units.format_units(
-                        formatter["units"], format=units_format_spec
-                    )
+                    formatter["units"] = metadata_units.format_units(formatter["units"], format=units_format_spec)
 
                 try:
                     label_text = template_for_formatting.format(**formatter)

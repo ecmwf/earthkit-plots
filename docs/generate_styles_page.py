@@ -41,9 +41,7 @@ if _src not in sys.path:
 def _styles_data_dir():
     """Return the path to the auto-styles directory."""
     here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(
-        here, "..", "src", "earthkit", "plots", "data", "styles", "auto-styles"
-    )
+    return os.path.join(here, "..", "src", "earthkit", "plots", "data", "styles", "auto-styles")
 
 
 def _images_dir(docs_dir):
@@ -56,9 +54,7 @@ def _images_dir(docs_dir):
 def _identities_data_dir():
     """Return the path to the identities directory."""
     here = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(
-        here, "..", "src", "earthkit", "plots", "data", "styles", "identities"
-    )
+    return os.path.join(here, "..", "src", "earthkit", "plots", "data", "styles", "identities")
 
 
 def _section_title(file_id):
@@ -147,15 +143,13 @@ def _load_all_styles():
             if not name or name in seen_names:
                 continue
             seen_names.add(name)
-            entries.append(
-                {
-                    "file_id": file_id,
-                    "name": name,
-                    "optimal": key == optimal,
-                    "style_dict": dict(style_dict),
-                    "search_terms": search_terms,
-                }
-            )
+            entries.append({
+                "file_id": file_id,
+                "name": name,
+                "optimal": key == optimal,
+                "style_dict": dict(style_dict),
+                "search_terms": search_terms,
+            })
     return entries
 
 
@@ -174,7 +168,7 @@ def _make_style_object(style_dict):
 
 
 def _units_display(style):
-    """
+    r"""
     Return a formatted units string for the colorbar label, or None.
 
     Uses the same ``format_units`` helper that earthkit-plots uses for axis
@@ -390,18 +384,14 @@ def _save_colorbar(style, filepath):
 
     if isinstance(norm, mcolors.BoundaryNorm):
         # norm.boundaries may include ±inf from 'extend'; use finite bounds only
-        finite_boundaries = [
-            b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))
-        ]
+        finite_boundaries = [b for b in norm.boundaries if not (b == float("inf") or b == float("-inf"))]
         ticks = style._legend_kwargs.get("ticks")
         if ticks is None and len(finite_boundaries) <= 20:
             ticks = finite_boundaries
         if ticks is not None:
             cbar_kwargs["ticks"] = ticks
         # Rebuild norm without infinite boundaries so colorbar renders correctly
-        norm = mcolors.BoundaryNorm(
-            finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend
-        )
+        norm = mcolors.BoundaryNorm(finite_boundaries, ncolors=mpl_kwargs["cmap"].N, extend=extend)
         sm = cm.ScalarMappable(cmap=mpl_kwargs["cmap"], norm=norm)
         sm.set_array([])
 
@@ -615,9 +605,7 @@ def generate(docs_dir=None):
                 f"</button>"
                 f"</div>"
             )
-            block_open = (
-                f'<div class="ek-style-block" data-search="{data_search}">{name_html}'
-            )
+            block_open = f'<div class="ek-style-block" data-search="{data_search}">{name_html}'
             block_close = "</div>"
 
             style_obj = _make_style_object(style_dict)
@@ -642,11 +630,7 @@ def generate(docs_dir=None):
                             style_obj._levels = orig_levels
 
                 alt = (
-                    "contour line sample"
-                    if is_contour
-                    else "vector style sample"
-                    if is_vector
-                    else "colorbar preview"
+                    "contour line sample" if is_contour else "vector style sample" if is_vector else "colorbar preview"
                 )
                 rst_lines += [
                     ".. raw:: html",

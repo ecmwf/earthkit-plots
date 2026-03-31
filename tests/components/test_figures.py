@@ -79,7 +79,7 @@ class TestRcParamsIsolation:
     SENTINEL = "#010203"  # an unlikely matplotlib default
 
     def test_rcparams_restored_after_save(self, tmp_path):
-        """rcParams must be restored to their pre-figure values after save()."""
+        """RcParams must be restored to their pre-figure values after save()."""
         from earthkit.plots.schemas import schema
 
         before = matplotlib.rcParams["axes.edgecolor"]
@@ -92,7 +92,7 @@ class TestRcParamsIsolation:
         assert matplotlib.rcParams["axes.edgecolor"] == before
 
     def test_rcparams_restored_after_show(self, monkeypatch):
-        """rcParams must be restored to their pre-figure values after show()."""
+        """RcParams must be restored to their pre-figure values after show()."""
         from earthkit.plots.schemas import schema
 
         monkeypatch.setattr(plt, "show", lambda *a, **kw: None)
@@ -106,7 +106,7 @@ class TestRcParamsIsolation:
         assert matplotlib.rcParams["axes.edgecolor"] == before
 
     def test_style_context_active_during_figure_lifetime(self):
-        """earthkit styles must be active between Figure creation and show/save."""
+        """Earthkit styles must be active between Figure creation and show/save."""
         from earthkit.plots.schemas import schema
 
         with schema.set(axes={"edgecolor": self.SENTINEL}):

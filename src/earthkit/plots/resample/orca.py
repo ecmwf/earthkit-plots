@@ -72,9 +72,7 @@ def nnshow(lons, lats, data, ax, nx=1000, ny=1000, style=None, **kwargs):
     xvals2, yvals2 = np.meshgrid(xvals, yvals)
 
     # Back-transform pixel centres from the map projection to lon/lat.
-    latlon = ccrs.PlateCarree().transform_points(
-        ax.projection, xvals2, yvals2, np.zeros_like(xvals2)
-    )
+    latlon = ccrs.PlateCarree().transform_points(ax.projection, xvals2, yvals2, np.zeros_like(xvals2))
     valid = np.all(np.isfinite(latlon), axis=-1)
 
     pixel_lons = latlon[valid, 0]
@@ -98,6 +96,4 @@ def _lonlat_to_xyz(lons, lats):
     lon_r = np.deg2rad(lons)
     lat_r = np.deg2rad(lats)
     cos_lat = np.cos(lat_r)
-    return np.column_stack(
-        [cos_lat * np.cos(lon_r), cos_lat * np.sin(lon_r), np.sin(lat_r)]
-    )
+    return np.column_stack([cos_lat * np.cos(lon_r), cos_lat * np.sin(lon_r), np.sin(lat_r)])

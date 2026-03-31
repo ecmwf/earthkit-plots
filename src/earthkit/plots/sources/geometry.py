@@ -97,11 +97,7 @@ class GeometrySource:
         if self._column is _UNSET:
             # z not passed: auto-detect first numeric column
             numeric_cols = self._data.select_dtypes(include=[np.number]).columns
-            candidate_cols = [
-                col
-                for col in numeric_cols
-                if col not in ["x", "y", "X", "Y", "geometry"]
-            ]
+            candidate_cols = [col for col in numeric_cols if col not in ["x", "y", "X", "Y", "geometry"]]
             self._column = candidate_cols[0] if candidate_cols else None
 
         if self._column is None:
@@ -149,8 +145,7 @@ class GeometrySource:
         """
         if source_units is None:
             warnings.warn(
-                f"Cannot convert data values to {target_units}: "
-                f"source units not available. Returning original values.",
+                f"Cannot convert data values to {target_units}: source units not available. Returning original values.",
                 UserWarning,
             )
             return values, source_units
@@ -165,8 +160,7 @@ class GeometrySource:
             return converted, target_units
         except Exception as e:
             warnings.warn(
-                f"Unit conversion failed: {source_units} -> {target_units}. "
-                f"Error: {e}. Returning original values.",
+                f"Unit conversion failed: {source_units} -> {target_units}. Error: {e}. Returning original values.",
                 UserWarning,
             )
             return values, source_units

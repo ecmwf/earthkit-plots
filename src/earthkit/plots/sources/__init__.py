@@ -161,9 +161,7 @@ class Source:
         self._metadata_resolver = MetadataResolver(self._extractor, metadata)
 
         # Unit conversion tracking
-        self._generic_units = (
-            units  # Generic units - applied intelligently based on context
-        )
+        self._generic_units = units  # Generic units - applied intelligently based on context
         self._target_x_units = x_units  # Explicit x units
         self._target_y_units = y_units  # Explicit y units
         self._target_z_units = z_units  # Explicit z units
@@ -337,19 +335,11 @@ class Source:
             # source_units priority:
             # 1. User-provided metadata (metadata={"units": "..."}) — highest priority
             # 2. Units embedded in the coordinate by the extractor
-            user_units = _unwrap_units(
-                self._metadata_resolver.user_metadata.get("units")
-            )
-            source_units = (
-                user_units
-                or _unwrap_units(coord_info.source_units)
-                or _unwrap_units(self.source_units)
-            )
+            user_units = _unwrap_units(self._metadata_resolver.user_metadata.get("units"))
+            source_units = user_units or _unwrap_units(coord_info.source_units) or _unwrap_units(self.source_units)
 
             if source_units is not None:
-                converted, success = self._convert_values(
-                    values, source_units, target_units, coord_name, silent=silent
-                )
+                converted, success = self._convert_values(values, source_units, target_units, coord_name, silent=silent)
                 if success:
                     values = converted
                     applied_units = target_units
@@ -405,9 +395,7 @@ class Source:
             if self._context == PlotContext.CARTESIAN_1D:
                 target_units = self._generic_units
 
-        return self._build_dimension(
-            "x", self._x_coord_info, target_units, "_x_dimension", silent=True
-        )
+        return self._build_dimension("x", self._x_coord_info, target_units, "_x_dimension", silent=True)
 
     @property
     def y(self) -> DimensionInfo:
@@ -431,9 +419,7 @@ class Source:
             if self._context == PlotContext.CARTESIAN_1D:
                 target_units = self._generic_units
 
-        return self._build_dimension(
-            "y", self._y_coord_info, target_units, "_y_dimension", silent=False
-        )
+        return self._build_dimension("y", self._y_coord_info, target_units, "_y_dimension", silent=False)
 
     @property
     def z(self) -> DimensionInfo | None:
@@ -481,9 +467,7 @@ class Source:
                     target_units = self._generic_units
 
             # Build and cache the dimension
-            self._z_dimension = self._build_dimension(
-                "z", magnitude_info, target_units, "_z_dimension", silent=False
-            )
+            self._z_dimension = self._build_dimension("z", magnitude_info, target_units, "_z_dimension", silent=False)
             return self._z_dimension
 
         # Regular scalar field case
@@ -495,14 +479,10 @@ class Source:
         if target_units is None and self._generic_units is not None:
             # In 2D contexts, z is always the data field
             # In 1D contexts with z (scatter/point_cloud), z is the color/data field
-            if self._context.is_2d or (
-                self._context.is_1d and self._z_coord_info is not None
-            ):
+            if self._context.is_2d or (self._context.is_1d and self._z_coord_info is not None):
                 target_units = self._generic_units
 
-        return self._build_dimension(
-            "z", self._z_coord_info, target_units, "_z_dimension", silent=False
-        )
+        return self._build_dimension("z", self._z_coord_info, target_units, "_z_dimension", silent=False)
 
     @property
     def u(self) -> DimensionInfo | None:
@@ -526,9 +506,7 @@ class Source:
         # Determine target units
         target_units = self._target_u_units
 
-        return self._build_dimension(
-            "u", self._u_coord_info, target_units, "_u_dimension", silent=False
-        )
+        return self._build_dimension("u", self._u_coord_info, target_units, "_u_dimension", silent=False)
 
     @property
     def v(self) -> DimensionInfo | None:
@@ -552,9 +530,7 @@ class Source:
         # Determine target units
         target_units = self._target_v_units
 
-        return self._build_dimension(
-            "v", self._v_coord_info, target_units, "_v_dimension", silent=False
-        )
+        return self._build_dimension("v", self._v_coord_info, target_units, "_v_dimension", silent=False)
 
     @property
     def u_values(self):
@@ -699,22 +675,14 @@ class Source:
             for name in time_coord_names:
                 if name in da.coords:
                     coord = da.coords[name]
-                    val = (
-                        coord.values
-                        if coord.ndim == 0
-                        else (coord.values[0] if coord.size == 1 else None)
-                    )
+                    val = coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
                     if val is not None:
                         dt = _parse_time_value(val)
                         if dt is not None:
                             found[name] = dt
             if found:
                 valid = found.get("valid_time") or found.get("time")
-                base = (
-                    found.get("forecast_reference_time")
-                    or found.get("initial_time")
-                    or valid
-                )
+                base = found.get("forecast_reference_time") or found.get("initial_time") or valid
                 return {"base_time": base, "valid_time": valid}
 
         # Try to build a datetime from ECMWF-style integer date/time attrs
@@ -860,9 +828,7 @@ def get_source(
     """
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
-    if isinstance(data_obj, ek_data.core.Base) and not _is_xarray_backed_earthkit(
-        data_obj
-    ):
+    if isinstance(data_obj, ek_data.core.Base) and not _is_xarray_backed_earthkit(data_obj):
         if hasattr(data_obj, "to_fieldlist"):
             data_obj = data_obj.to_fieldlist()
         if hasattr(data_obj, "__len__") and len(data_obj) >= 1:
@@ -879,9 +845,7 @@ def get_source(
             data_obj = c
         elif isinstance(z, (np.ndarray, list)):
             data_obj = z
-        elif not isinstance(x, (np.ndarray, list)) and not isinstance(
-            y, (np.ndarray, list)
-        ):
+        elif not isinstance(x, (np.ndarray, list)) and not isinstance(y, (np.ndarray, list)):
             # No positional data and no coordinate arrays — nothing to plot.
             raise ValueError("No data provided to get_source()")
 

@@ -57,18 +57,14 @@ def _build_tick_formatter(format_spec: str):
     import re
 
     if format_spec.startswith("%Lt"):
-        precision = (
-            int(m.group(1)) if (m := re.match(r"%Lt\.(\d+)", format_spec)) else 0
-        )
+        precision = int(m.group(1)) if (m := re.match(r"%Lt\.(\d+)", format_spec)) else 0
 
         def formatter(val, _, p=precision):
             direction = "N" if val >= 0 else "S"
             return f"{abs(val):.{p}f}°{direction}"
 
     elif format_spec.startswith("%Ln"):
-        precision = (
-            int(m.group(1)) if (m := re.match(r"%Ln\.(\d+)", format_spec)) else 0
-        )
+        precision = int(m.group(1)) if (m := re.match(r"%Ln\.(\d+)", format_spec)) else 0
 
         def formatter(val, _, p=precision):
             direction = "E" if val >= 0 else "W"
@@ -131,8 +127,7 @@ class Subplot:
             import warnings
 
             warnings.warn(
-                "The 'size' argument is deprecated and will be removed in a future release. "
-                "Use 'figsize' instead.",
+                "The 'size' argument is deprecated and will be removed in a future release. Use 'figsize' instead.",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -291,9 +286,7 @@ class Subplot:
         """Apply stored tick format specs to the given axis."""
         from matplotlib.ticker import FuncFormatter
 
-        format_spec = (
-            self._x_tick_format_spec if axis == "x" else self._y_tick_format_spec
-        )
+        format_spec = self._x_tick_format_spec if axis == "x" else self._y_tick_format_spec
         if format_spec is None:
             return
 
@@ -542,9 +535,7 @@ class Subplot:
         import contextlib
 
         if position not in ("right", "top"):
-            raise ValueError(
-                f"twin_axis position must be 'right' or 'top', got {position!r}"
-            )
+            raise ValueError(f"twin_axis position must be 'right' or 'top', got {position!r}")
 
         # When no index is given, reuse the most recently created twin on that
         # side (so calling twin_axis() twice yields the same axes).  Only
@@ -560,20 +551,14 @@ class Subplot:
                 index = 0
         else:
             twin_entry = next(
-                (
-                    t
-                    for t in self._twin_axes
-                    if t["position"] == position and t["index"] == index
-                ),
+                (t for t in self._twin_axes if t["position"] == position and t["index"] == index),
                 None,
             )
 
         if twin_entry is None:
             # No matching entry — determine the next free index and create it.
             if index is None:
-                used = [
-                    t["index"] for t in self._twin_axes if t["position"] == position
-                ]
+                used = [t["index"] for t in self._twin_axes if t["position"] == position]
                 index = max(used, default=-1) + 1
             if position == "right":
                 mpl_twin = self.ax.twinx()
@@ -751,28 +736,16 @@ class Subplot:
 
         # side="right" / side="left": target a specific axis by position.
         if side is not None:
-            axes = (
-                [ax for _, ax in self._axis_registry.items()]
-                if self._axis_registry is not None
-                else [self.ax]
-            )
+            axes = [ax for _, ax in self._axis_registry.items()] if self._axis_registry is not None else [self.ax]
             if side == "right":
                 target_ax = axes[-1] if len(axes) > 1 else axes[0]
             else:  # "left" or primary
                 target_ax = axes[0]
             if label is None:
-                ax_layers = [
-                    layer
-                    for layer in self.layers
-                    if getattr(layer, "render_ax", None) is target_ax
-                ]
+                ax_layers = [layer for layer in self.layers if getattr(layer, "render_ax", None) is target_ax]
                 if ax_layers:
                     src = ax_layers[0].sources[0]
-                    tmpl = (
-                        "{variable_name} ({units})"
-                        if src.y.units is not None
-                        else "{variable_name}"
-                    )
+                    tmpl = "{variable_name} ({units})" if src.y.units is not None else "{variable_name}"
                     label = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
             if label is not None:
                 return target_ax.set_ylabel(label, **kwargs)
@@ -788,19 +761,11 @@ class Subplot:
             and not self._active_ax_stack  # not inside an explicit twin_axis() ctx
         ):
             for _, ax in self._axis_registry.items():
-                ax_layers = [
-                    layer
-                    for layer in self.layers
-                    if getattr(layer, "render_ax", None) is ax
-                ]
+                ax_layers = [layer for layer in self.layers if getattr(layer, "render_ax", None) is ax]
                 if not ax_layers:
                     continue
                 src = ax_layers[0].sources[0]
-                tmpl = (
-                    "{variable_name} ({units})"
-                    if src.y.units is not None
-                    else "{variable_name}"
-                )
+                tmpl = "{variable_name} ({units})" if src.y.units is not None else "{variable_name}"
                 lbl = LayerFormatter(ax_layers[0], axis="y").format(tmpl)
                 ax.set_ylabel(lbl, **kwargs)
             return None
@@ -1119,16 +1084,9 @@ class Subplot:
         """
         from earthkit.plots.plottypes.multiboxplot import draw_multiboxplot_legend
 
-        mbp_layers = [
-            layer
-            for layer in self.layers
-            if getattr(layer, "_multiboxplot_result", None) is not None
-        ]
+        mbp_layers = [layer for layer in self.layers if getattr(layer, "_multiboxplot_result", None) is not None]
         if not mbp_layers:
-            raise ValueError(
-                "No multiboxplot has been drawn yet. "
-                "Call multiboxplot() before multiboxplot_legend()."
-            )
+            raise ValueError("No multiboxplot has been drawn yet. Call multiboxplot() before multiboxplot_legend().")
 
         draw_multiboxplot_legend(
             self.ax,
@@ -1197,9 +1155,7 @@ class Subplot:
         drawstyle = kwargs.pop("drawstyle", None)
         if units is None and self._fixed_y_units is not None:
             units = self._fixed_y_units
-        source_1 = get_source(
-            data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units
-        )
+        source_1 = get_source(data_1, x=x, context=PlotContext.CARTESIAN_1D, units=units)
         x_values, y1_values = source_1.x.values, source_1.y.values
 
         # ax.fill_between cannot handle datetime x-values (unlike ax.plot
@@ -1214,9 +1170,7 @@ class Subplot:
         elif (
             x_arr.dtype == object
             and len(x_arr) > 0
-            and isinstance(
-                x_arr.flat[0], (datetime.datetime, datetime.date, np.datetime64)
-            )
+            and isinstance(x_arr.flat[0], (datetime.datetime, datetime.date, np.datetime64))
         ):
             py_dates = x_arr
         else:
@@ -1231,24 +1185,16 @@ class Subplot:
         if isinstance(data_2, (int, float)):
             y2_values = np.full_like(y1_values, fill_value=data_2, dtype=float)
         else:
-            source_2 = get_source(
-                data_2, x=x, context=PlotContext.CARTESIAN_1D, units=units
-            )
+            source_2 = get_source(data_2, x=x, context=PlotContext.CARTESIAN_1D, units=units)
             _, y2_values = source_2.x.values, source_2.y.values
 
         if drawstyle == "spline":
             from earthkit.plots.styles import spline_interpolate
 
-            x_smooth, y1_smooth, y2_smooth = spline_interpolate(
-                np.asarray(x_values), y1_values, y2_values
-            )
-            mappable = self.current_ax.fill_between(
-                x=x_smooth, y1=y1_smooth, y2=y2_smooth, alpha=alpha, **kwargs
-            )
+            x_smooth, y1_smooth, y2_smooth = spline_interpolate(np.asarray(x_values), y1_values, y2_values)
+            mappable = self.current_ax.fill_between(x=x_smooth, y1=y1_smooth, y2=y2_smooth, alpha=alpha, **kwargs)
         else:
-            mappable = self.current_ax.fill_between(
-                x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs
-            )
+            mappable = self.current_ax.fill_between(x=x_values, y1=y1_values, y2=y2_values, alpha=alpha, **kwargs)
         axis_units = {"y": units} if units is not None else {}
         self.layers.append(
             Layer(
@@ -1464,7 +1410,6 @@ class Subplot:
         **kwargs : dict
             Additional arguments for the plot method(s).
         """
-
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")
         x = kwargs.get("x", None)
@@ -1493,9 +1438,7 @@ class Subplot:
             use_auto_style = False
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
         kwargs.setdefault("zorder", zorder)
-        return method(
-            data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs
-        )
+        return method(data, style=resolved_style, units=units, auto_style=use_auto_style, **kwargs)
 
     @chainable_method
     def hsv_composite(self, *args):
@@ -1584,9 +1527,7 @@ class Subplot:
 
         result = prepare_rgb_composite(red_source, green_source, blue_source)
 
-        self.pcolormesh(
-            result.rgb_array, x=result.x_values, y=result.y_values, no_style=True
-        )
+        self.pcolormesh(result.rgb_array, x=result.x_values, y=result.y_values, no_style=True)
 
         # Replace the single source the pcolormesh layer recorded with all
         # three channel sources so metadata formatters have the full picture.
@@ -1806,7 +1747,8 @@ class Subplot:
             examples.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
-            :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
+            :class:`~earthkit.plots.resample.Bilinear` or
+            :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
             defaults) to reproject onto a regular target grid, or ``False`` to
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels).
         **kwargs
@@ -1846,7 +1788,8 @@ class Subplot:
             examples.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
-            :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
+            :class:`~earthkit.plots.resample.Bilinear` or
+            :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
             defaults) to reproject onto a regular target grid, or ``False`` to
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels). Pass an
             :class:`~earthkit.plots.resample.Unstructured` instance to interpolate
@@ -2094,10 +2037,7 @@ class Subplot:
         """
         import warnings
 
-        warnings.warn(
-            "block is deprecated and will be removed in a future release. "
-            "Please use pcolormesh instead."
-        )
+        warnings.warn("block is deprecated and will be removed in a future release. Please use pcolormesh instead.")
         return self.pcolormesh(*args, **kwargs)
 
     @chainable_method
@@ -2204,15 +2144,11 @@ class Subplot:
 
                 self.contour(highlighted_data, *args, **highlight_kwargs)
                 self.layers[-1].style = None
-                _hl_label = (
-                    highlight_label if highlight_label is not None else "Control"
-                )
+                _hl_label = highlight_label if highlight_label is not None else "Control"
                 if label is not None:
                     self.layers[-1].proxy_label = _hl_label
                     self.layers[-1]._proxy_color = highlight_color
-                    self.layers[-1]._proxy_linewidth = highlight_kwargs.get(
-                        "linewidths", 1.5
-                    )
+                    self.layers[-1]._proxy_linewidth = highlight_kwargs.get("linewidths", 1.5)
                 else:
                     self.layers[-1].proxy_label = None
 
@@ -2246,9 +2182,7 @@ class Subplot:
                         color = layer.mappable.collections[0].get_edgecolor()[0]
                     except (AttributeError, IndexError):
                         color = "black"
-                proxy_handles.append(
-                    mlines.Line2D([], [], color=color, linewidth=lw, label=proxy_label)
-                )
+                proxy_handles.append(mlines.Line2D([], [], color=color, linewidth=lw, label=proxy_label))
 
         if proxy_handles:
             return self.ax.legend(handles=proxy_handles, *args, **kwargs)
@@ -2258,9 +2192,7 @@ class Subplot:
             # axis; labels set on twinx artists are missed.
             all_handles, all_labels = [], []
             axes_to_check = (
-                [ax for _, ax in self._axis_registry.items()]
-                if self._axis_registry is not None
-                else [self.ax]
+                [ax for _, ax in self._axis_registry.items()] if self._axis_registry is not None else [self.ax]
             )
             for ax in axes_to_check:
                 handles, labels = ax.get_legend_handles_labels()
@@ -2268,9 +2200,7 @@ class Subplot:
                     if label not in all_labels:
                         all_handles.append(handle)
                         all_labels.append(label)
-            return self.ax.legend(
-                handles=all_handles, labels=all_labels, *args, **kwargs
-            )
+            return self.ax.legend(handles=all_handles, labels=all_labels, *args, **kwargs)
 
     @chainable_method
     def quiverkey(
@@ -2317,18 +2247,13 @@ class Subplot:
                 quiver_layer = layer
                 break
         if quiver_layer is None:
-            raise ValueError(
-                "No quiver layer found on this subplot. "
-                "Call .quiver() before .quiverkey()."
-            )
+            raise ValueError("No quiver layer found on this subplot. Call .quiver() before .quiverkey().")
 
         # Determine u from the data magnitude if not supplied.
         if u is None:
             source = quiver_layer.sources[0]
             if source.u is not None and source.v is not None:
-                magnitudes = np.sqrt(
-                    source.u.values.ravel() ** 2 + source.v.values.ravel() ** 2
-                )
+                magnitudes = np.sqrt(source.u.values.ravel() ** 2 + source.v.values.ravel() ** 2)
             else:
                 magnitudes = np.abs(source.z.values.ravel())
             finite = magnitudes[np.isfinite(magnitudes)]
@@ -2356,9 +2281,7 @@ class Subplot:
         if label is None:
             style = quiver_layer.style
             units_str = (
-                style.units
-                if style is not None and style.units is not None
-                else quiver_layer.sources[0].units or ""
+                style.units if style is not None and style.units is not None else quiver_layer.sources[0].units or ""
             )
             label = f"{u} {units_str}".strip()
 
@@ -2476,12 +2399,9 @@ class Subplot:
             general metadata of the subplot.
         """
         if not grouped:
-            return string_utils.list_to_human(
-                [
-                    LayerFormatter(layer, axis=axis).format(string)
-                    for layer in self.layers
-                ]
-            )
+            return string_utils.list_to_human([
+                LayerFormatter(layer, axis=axis).format(string) for layer in self.layers
+            ])
         else:
             return SubplotFormatter(self, unique=unique, axis=axis).format(string)
 

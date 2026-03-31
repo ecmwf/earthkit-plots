@@ -94,9 +94,7 @@ def is_global(x, y, tol=5):
     try:
         from scipy.spatial import KDTree
     except ImportError:
-        raise ImportError(
-            "The 'scipy' package is required for checking for global data."
-        )
+        raise ImportError("The 'scipy' package is required for checking for global data.")
 
     expected_x = np.arange(0, 360, 2).reshape(-1, 1)
     expected_y = np.arange(-90, 90, 2).reshape(-1, 1)
@@ -124,9 +122,7 @@ def _guess_resolution_and_shape(
     in_shape: int | tuple[int, int] | None = None,
     in_resolution: float | tuple[float, float] | None = None,
 ) -> tuple[tuple[float, float], tuple[int, int]]:
-    """
-    Guess the resolution and shape of the grid based on the input data.
-    """
+    """Guess the resolution and shape of the grid based on the input data."""
     x_min, x_max = x.min(), x.max()
     y_min, y_max = y.min(), y.max()
 
@@ -138,9 +134,7 @@ def _guess_resolution_and_shape(
         else:
             out_resolution = in_resolution
         if in_shape is not None:
-            warnings.warn(
-                "Both shape and resolution are provided, using resolution to determine shape."
-            )
+            warnings.warn("Both shape and resolution are provided, using resolution to determine shape.")
         out_shape = (
             int((x_max - x_min) / out_resolution[0]) + 1,
             int((y_max - y_min) / out_resolution[1]) + 1,
@@ -251,9 +245,7 @@ def interpolate_unstructured(
     try:
         from scipy.interpolate import griddata
     except ImportError:
-        raise ImportError(
-            "The 'scipy' package is required for interpolating unstructured data."
-        )
+        raise ImportError("The 'scipy' package is required for interpolating unstructured data.")
 
     target_resolution, target_shape = _guess_resolution_and_shape(
         x, y, in_shape=target_shape, in_resolution=target_resolution
@@ -285,9 +277,7 @@ def interpolate_unstructured(
         and np.isnan(grid_z).any()
         and is_global(x, y, np.max(np.diff(np.unique(y))) * 2)
     ):
-        warnings.warn(
-            "Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`."
-        )
+        warnings.warn("Interpolation produced NaN values in the global output grid, reinterpolating with `nearest`.")
         return interpolate_unstructured(
             x,
             y,
@@ -303,9 +293,7 @@ def interpolate_unstructured(
     try:
         from scipy.spatial import cKDTree
     except ImportError:
-        raise ImportError(
-            "The 'scipy.spatial' module is required for applying a distance threshold."
-        )
+        raise ImportError("The 'scipy.spatial' module is required for applying a distance threshold.")
     # Use cKDTree to find nearest distances
     tree = cKDTree(np.c_[x_filtered, y_filtered])
     grid_points = np.c_[grid_x.ravel(), grid_y.ravel()]
@@ -349,9 +337,7 @@ def needs_cyclic_point(lons):
     lons_arr = np.asarray(lons)
     if not np.issubdtype(lons_arr.dtype, np.number):
         return False
-    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(
-        lons, np.arange(-90, 90, 2)
-    )
+    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(lons, np.arange(-90, 90, 2))
 
     lons = np.asarray(lons)
     lons_sorted = np.sort(lons)
@@ -367,11 +353,11 @@ def needs_cyclic_point(lons):
     tolerance = delta / 2  # Adjust tolerance as a fraction of the longitude step
 
     # Check if the actual range covers the expected range within tolerance
-    check_360 = np.isclose(
-        actual_min, expected_range_360[0], atol=tolerance
-    ) and np.isclose(actual_max, expected_range_360[1] - delta, atol=tolerance)
-    check_180 = np.isclose(
-        actual_min, expected_range_180[0], atol=tolerance
-    ) and np.isclose(actual_max, expected_range_180[1] - delta, atol=tolerance)
+    check_360 = np.isclose(actual_min, expected_range_360[0], atol=tolerance) and np.isclose(
+        actual_max, expected_range_360[1] - delta, atol=tolerance
+    )
+    check_180 = np.isclose(actual_min, expected_range_180[0], atol=tolerance) and np.isclose(
+        actual_max, expected_range_180[1] - delta, atol=tolerance
+    )
 
     return check_360 or check_180

@@ -171,18 +171,10 @@ class AxisView:
         """
         from earthkit.plots.metadata.formatters import LayerFormatter
 
-        ax_layers = [
-            layer
-            for layer in self._subplot.layers
-            if getattr(layer, "render_ax", None) is self._ax
-        ]
+        ax_layers = [layer for layer in self._subplot.layers if getattr(layer, "render_ax", None) is self._ax]
         if not ax_layers:
             return ""
 
         src = ax_layers[0].sources[0]
-        template = (
-            "{variable_name} ({units})"
-            if src.y.units is not None
-            else "{variable_name}"
-        )
+        template = "{variable_name} ({units})" if src.y.units is not None else "{variable_name}"
         return LayerFormatter(ax_layers[0], axis="y").format(template)

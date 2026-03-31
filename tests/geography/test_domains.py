@@ -40,9 +40,7 @@ def test_format_name_UK():
 
 def test_union():
     domain = domains.union(["UK", "France"])
-    assert list(domain.bbox) == pytest.approx(
-        [-932531, 781009, -1070763, 1162024], 0.001
-    )
+    assert list(domain.bbox) == pytest.approx([-932531, 781009, -1070763, 1162024], 0.001)
 
 
 def test_force_minus_180_to_180():
@@ -172,9 +170,7 @@ class TestDomainExtract:
         extra1 = np.random.random((21, 21))
         extra2 = np.random.random((21, 21))
 
-        x_ext, y_ext, values_ext, extra_ext = domain.extract(
-            x, y, values, [extra1, extra2]
-        )
+        x_ext, y_ext, values_ext, extra_ext = domain.extract(x, y, values, [extra1, extra2])
 
         assert x_ext.shape == y_ext.shape == values_ext.shape
         assert len(extra_ext) == 2
@@ -228,13 +224,9 @@ class TestDomainExtract:
 
             assert x_ext.shape == y_ext.shape, f"Shape mismatch for {description}"
             if values_ext.ndim in [1, 2]:
-                assert values_ext.shape == x_ext.shape, (
-                    f"Values shape mismatch for {description}"
-                )
+                assert values_ext.shape == x_ext.shape, f"Values shape mismatch for {description}"
             elif values_ext.ndim == 3:
-                assert values_ext.shape[:2] == x_ext.shape, (
-                    f"Values shape mismatch for {description}"
-                )
+                assert values_ext.shape[:2] == x_ext.shape, f"Values shape mismatch for {description}"
 
     def test_extract_edge_case_empty_result(self):
         """Test extraction edge case where result would be empty."""
@@ -258,9 +250,7 @@ class TestDomainExtract:
         y = np.linspace(-10, 10, 21)
         values = np.random.random((21, 21))
 
-        x_ext, y_ext, values_ext = domain.extract(
-            x, y, values, source_crs=ccrs.PlateCarree()
-        )
+        x_ext, y_ext, values_ext = domain.extract(x, y, values, source_crs=ccrs.PlateCarree())
 
         assert x_ext.shape == y_ext.shape == values_ext.shape
         assert x_ext.size > 0
@@ -391,6 +381,4 @@ class TestDomainExtract:
         # All data should be returned — nothing should be dropped by a bogus roll.
         assert x_ext.size > 0
         # x coordinates must stay in metre range, not be collapsed to [-180, 180].
-        assert x_ext.max() > 180, (
-            "Projected x coordinates were incorrectly treated as longitudes"
-        )
+        assert x_ext.max() > 180, "Projected x coordinates were incorrectly treated as longitudes"

@@ -453,8 +453,7 @@ class EarthkitExtractor(BaseExtractor):
                         v_field = self.data.sel(param=v)
                     except (AttributeError, KeyError):
                         raise ValueError(
-                            f"Could not find u='{u}' and v='{v}' in data. "
-                            "Try using 'short_name' or 'param' selectors."
+                            f"Could not find u='{u}' and v='{v}' in data. Try using 'short_name' or 'param' selectors."
                         )
 
                 u_values = u_field.to_numpy(flatten=False)

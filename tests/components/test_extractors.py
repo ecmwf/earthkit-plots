@@ -59,9 +59,7 @@ class _FakeRegrid(_FakeResample):
     """Fake Regrid: expects gridspec and context kwargs."""
 
     def apply(self, x, y, z, *, gridspec=None, context=None, **_kw):
-        self.calls.append(
-            {"x": x, "y": y, "z": z, "gridspec": gridspec, "context": context}
-        )
+        self.calls.append({"x": x, "y": y, "z": z, "gridspec": gridspec, "context": context})
         return x * 2, y * 2, z * 2
 
 
@@ -73,9 +71,7 @@ class _FakeUnstructured(_FakeResample):
         self.transform = transform
 
     def apply(self, x, y, z, *, source_crs=None, target_crs=None, **_kw):
-        self.calls.append(
-            {"x": x, "y": y, "z": z, "source_crs": source_crs, "target_crs": target_crs}
-        )
+        self.calls.append({"x": x, "y": y, "z": z, "source_crs": source_crs, "target_crs": target_crs})
         return x * 2, y * 2, z * 2
 
 
@@ -156,9 +152,7 @@ def subplot():
 class TestNoOp:
     def test_false_returns_unchanged(self, xyz, source, subplot):
         x, y, z = xyz
-        rx, ry, rz, suppressed = _apply_data_resampling(
-            x, y, z, False, source, subplot, "contourf"
-        )
+        rx, ry, rz, suppressed = _apply_data_resampling(x, y, z, False, source, subplot, "contourf")
         np.testing.assert_array_equal(rx, x)
         np.testing.assert_array_equal(ry, y)
         np.testing.assert_array_equal(rz, z)
@@ -166,9 +160,7 @@ class TestNoOp:
 
     def test_none_returns_unchanged(self, xyz, source, subplot):
         x, y, z = xyz
-        rx, ry, rz, suppressed = _apply_data_resampling(
-            x, y, z, None, source, subplot, "contourf"
-        )
+        rx, ry, rz, suppressed = _apply_data_resampling(x, y, z, None, source, subplot, "contourf")
         np.testing.assert_array_equal(rx, x)
         np.testing.assert_array_equal(rz, z)
         assert suppressed is False
@@ -192,17 +184,13 @@ class TestGenericResample:
         monkeypatch.setattr(rm, "_PixelSampler", _FakePixelSampler, raising=False)
         monkeypatch.setattr(rm, "Resample", _FakeResample, raising=False)
 
-        rx, ry, rz, suppressed = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf"
-        )
+        rx, ry, rz, suppressed = _apply_data_resampling(x, y, z, step, source, subplot, "contourf")
 
         assert len(step.calls) == 1
         np.testing.assert_array_equal(rx, x * 2)
         assert suppressed is False
 
-    def test_generic_step_receives_no_extra_kwargs(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_generic_step_receives_no_extra_kwargs(self, monkeypatch, xyz, source, subplot):
         """Generic Resample.apply(x, y, z) — no gridspec/crs keywords."""
         x, y, z = xyz
         received_kwargs = {}
@@ -241,9 +229,7 @@ class TestRegridStep:
         monkeypatch.setattr(rm, "_PixelSampler", _FakePixelSampler, raising=False)
         monkeypatch.setattr(rm, "Resample", _FakeResample, raising=False)
 
-    def test_regrid_called_with_gridspec_and_context(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_regrid_called_with_gridspec_and_context(self, monkeypatch, xyz, source, subplot):
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakeRegrid()
@@ -260,9 +246,7 @@ class TestRegridStep:
         x, y, z = xyz
         step = _FakeRegrid()
 
-        rx, ry, rz, _ = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf"
-        )
+        rx, ry, rz, _ = _apply_data_resampling(x, y, z, step, source, subplot, "contourf")
         np.testing.assert_array_equal(rx, x * 2)
         np.testing.assert_array_equal(rz, z * 2)
 
@@ -270,9 +254,7 @@ class TestRegridStep:
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakeRegrid()
-        _, _, _, suppressed = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf"
-        )
+        _, _, _, suppressed = _apply_data_resampling(x, y, z, step, source, subplot, "contourf")
         assert suppressed is False
 
 
@@ -303,47 +285,35 @@ class TestUnstructuredStep:
         assert call["source_crs"] == source.crs
         assert call["target_crs"] == subplot.crs
 
-    def test_unstructured_no_transform_does_not_suppress(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_unstructured_no_transform_does_not_suppress(self, monkeypatch, xyz, source, subplot):
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakeUnstructured(transform=False)
 
         kw = {"transform": "PLATE_CARREE", "other": 1}
-        _, _, _, suppressed = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf", kwargs=kw
-        )
+        _, _, _, suppressed = _apply_data_resampling(x, y, z, step, source, subplot, "contourf", kwargs=kw)
         assert suppressed is False
         assert "transform" in kw  # not popped
 
-    def test_unstructured_transform_pops_kwargs_and_suppresses(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_unstructured_transform_pops_kwargs_and_suppresses(self, monkeypatch, xyz, source, subplot):
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakeUnstructured(transform=True)
 
         kw = {"transform": "PLATE_CARREE", "transform_first": True, "other": 1}
-        _, _, _, suppressed = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf", kwargs=kw
-        )
+        _, _, _, suppressed = _apply_data_resampling(x, y, z, step, source, subplot, "contourf", kwargs=kw)
         assert suppressed is True
         assert "transform" not in kw
         assert "transform_first" not in kw
         assert kw == {"other": 1}  # unrelated key preserved
 
-    def test_unstructured_no_kwargs_dict_still_suppresses(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_unstructured_no_kwargs_dict_still_suppresses(self, monkeypatch, xyz, source, subplot):
         """kwargs=None: suppression flag still set, no KeyError."""
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakeUnstructured(transform=True)
 
-        _, _, _, suppressed = _apply_data_resampling(
-            x, y, z, step, source, subplot, "contourf", kwargs=None
-        )
+        _, _, _, suppressed = _apply_data_resampling(x, y, z, step, source, subplot, "contourf", kwargs=None)
         assert suppressed is True
 
 
@@ -362,21 +332,15 @@ class TestPixelSamplerHandling:
         monkeypatch.setattr(rm, "_PixelSampler", _FakePixelSampler, raising=False)
         monkeypatch.setattr(rm, "Resample", _FakeResample, raising=False)
 
-    def test_pixel_sampler_raises_when_not_allowed(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_pixel_sampler_raises_when_not_allowed(self, monkeypatch, xyz, source, subplot):
         self._patch(monkeypatch)
         x, y, z = xyz
         step = _FakePixelSampler()
 
         with pytest.raises(ValueError, match="pixel-sampler"):
-            _apply_data_resampling(
-                x, y, z, step, source, subplot, "scatter", allow_pixel_samplers=False
-            )
+            _apply_data_resampling(x, y, z, step, source, subplot, "scatter", allow_pixel_samplers=False)
 
-    def test_pixel_sampler_skipped_when_allowed(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_pixel_sampler_skipped_when_allowed(self, monkeypatch, xyz, source, subplot):
         """2D context: pixel step deferred to Step 8.5 — arrays unchanged."""
         self._patch(monkeypatch)
         x, y, z = xyz
@@ -413,9 +377,7 @@ class TestChainDispatch:
         step2 = _FakeResample(name="s2")
         chain = _FakeChain(data_steps=[step1, step2], pixel_step=None)
 
-        rx, ry, rz, _ = _apply_data_resampling(
-            x, y, z, chain, source, subplot, "contourf"
-        )
+        rx, ry, rz, _ = _apply_data_resampling(x, y, z, chain, source, subplot, "contourf")
 
         # Each step doubles the values, so 2 steps → ×4
         np.testing.assert_array_equal(rx, x * 4)
@@ -429,24 +391,18 @@ class TestChainDispatch:
         pixel_step = _FakePixelSampler()
         chain = _FakeChain(data_steps=[], pixel_step=pixel_step)
 
-        rx, ry, rz, _ = _apply_data_resampling(
-            x, y, z, chain, source, subplot, "contourf", allow_pixel_samplers=True
-        )
+        rx, ry, rz, _ = _apply_data_resampling(x, y, z, chain, source, subplot, "contourf", allow_pixel_samplers=True)
         assert pixel_step.calls == []
         np.testing.assert_array_equal(rx, x)
 
-    def test_chain_pixel_step_raises_when_not_allowed(
-        self, monkeypatch, xyz, source, subplot
-    ):
+    def test_chain_pixel_step_raises_when_not_allowed(self, monkeypatch, xyz, source, subplot):
         self._patch(monkeypatch)
         x, y, z = xyz
         pixel_step = _FakePixelSampler()
         chain = _FakeChain(data_steps=[], pixel_step=pixel_step)
 
         with pytest.raises(ValueError, match="pixel-sampler"):
-            _apply_data_resampling(
-                x, y, z, chain, source, subplot, "scatter", allow_pixel_samplers=False
-            )
+            _apply_data_resampling(x, y, z, chain, source, subplot, "scatter", allow_pixel_samplers=False)
 
     def test_chain_regrid_and_pixel_step(self, monkeypatch, xyz, source, subplot):
         """Chain(Regrid, Bilinear): data step applied, pixel step skipped."""
@@ -521,9 +477,7 @@ class _FakeAx:
         return self._extent
 
     def imshow(self, image, extent=None, origin=None, **kwargs):
-        self.imshow_calls.append(
-            {"image": image, "extent": extent, "origin": origin, "kwargs": kwargs}
-        )
+        self.imshow_calls.append({"image": image, "extent": extent, "origin": origin, "kwargs": kwargs})
         return object()  # fake mappable
 
 
@@ -824,9 +778,7 @@ class TestNearestNeighbourImshowPath:
         # Also patch the module-level import path used inside the function
         import earthkit.plots.resample.reproject as rp
 
-        monkeypatch.setattr(
-            rp, "_reproject_nn", lambda *a, **kw: (fake_image, fake_extent)
-        )
+        monkeypatch.setattr(rp, "_reproject_nn", lambda *a, **kw: (fake_image, fake_extent))
 
         ax = _FakeAx()
         subplot = _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide"), ax=ax)
@@ -853,7 +805,7 @@ class TestNearestNeighbourImshowPath:
         assert call["origin"] == "lower"
 
     def test_imshow_strips_transform_kwargs(self, monkeypatch, regular_grid):
-        """transform and transform_first must not be forwarded to imshow."""
+        """Transform and transform_first must not be forwarded to imshow."""
         x, y, z = regular_grid
         _patch_ps_module(
             monkeypatch,
@@ -864,9 +816,7 @@ class TestNearestNeighbourImshowPath:
         )
         import earthkit.plots.resample.reproject as rp
 
-        monkeypatch.setattr(
-            rp, "_reproject_nn", lambda *a, **kw: (np.ones((10, 10)), (-10, 10, 40, 60))
-        )
+        monkeypatch.setattr(rp, "_reproject_nn", lambda *a, **kw: (np.ones((10, 10)), (-10, 10, 40, 60)))
 
         ax = _FakeAx()
         subplot = _FakeSubplotWithCRS(crs=_FakeCRS("Mollweide"), ax=ax)
@@ -1002,9 +952,7 @@ class TestGetSubplotBbox:
                 def to_cartopy_bounds():
                     return (-10, 10, 40, 60)
 
-        subplot = type(
-            "S", (), {"ax": _FakeAx2(), "domain": _FakeDomain(), "crs": None}
-        )()
+        subplot = type("S", (), {"ax": _FakeAx2(), "domain": _FakeDomain(), "crs": None})()
         bbox = _get_subplot_bbox(subplot, None)
         assert bbox == (-10, 10, 40, 60)
 

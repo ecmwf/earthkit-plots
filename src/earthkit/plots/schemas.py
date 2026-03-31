@@ -66,11 +66,7 @@ class _set:
         self.old_kwargs = {key: self.schema.get(key) for key in keys}
         self.old_kwargs = {
             **self.old_kwargs,
-            **{
-                key: dict(value)
-                for key, value in self.old_kwargs.items()
-                if isinstance(value, Schema)
-            },
+            **{key: dict(value) for key, value in self.old_kwargs.items() if isinstance(value, Schema)},
         }
 
         self.new_kwargs = [key for key in kwargs if key not in self.schema]
@@ -174,11 +170,7 @@ class Schema(dict):
             schema_kwargs = recursive_dict_update(schema_kwargs, global_kwargs)
 
         if keys:
-            schema_kwargs = {
-                key: schema_kwargs[key]
-                for key in keys
-                if key not in Schema.PROTECTED_KEYS
-            }
+            schema_kwargs = {key: schema_kwargs[key] for key in keys if key not in Schema.PROTECTED_KEYS}
         return recursive_dict_update(schema_kwargs, kwargs)
 
     def to_stylesheet(
@@ -193,16 +185,6 @@ class Schema(dict):
         """
         Convert the schema to a Matplotlib stylesheet compatible object.
 
-        Returns
-        -------
-        dict | list
-            - If `include_style_sheet` is False or no `style_sheet` is present:
-              returns a dict of rcParams (e.g., {"font.family": "DejaVu Sans", ...}).
-            - If `include_style_sheet` is True and a `style_sheet` is present and
-              `as_list_when_sheet_present` is True: returns a list layering
-              [*prepend, style_sheet, rc_dict, *append].
-              This is directly usable as `style=` in pytest-mpl.
-
         Parameters
         ----------
         include_style_sheet : bool
@@ -215,6 +197,16 @@ class Schema(dict):
             only the rc dict (the caller would have to apply the sheet separately).
         prepend, append : list | None
             Optional extra styles (strings or dicts) to add before/after the schema.
+
+        Returns
+        -------
+        dict | list
+            - If `include_style_sheet` is False or no `style_sheet` is present:
+              returns a dict of rcParams (e.g., {"font.family": "DejaVu Sans", ...}).
+            - If `include_style_sheet` is True and a `style_sheet` is present and
+              `as_list_when_sheet_present` is True: returns a list layering
+              [*prepend, style_sheet, rc_dict, *append].
+              This is directly usable as `style=` in pytest-mpl.
         """
 
         def _flatten_section(section_name: str, section_value) -> dict:

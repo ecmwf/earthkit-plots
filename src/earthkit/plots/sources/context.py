@@ -33,12 +33,8 @@ class PlotContext(Enum):
     GEOGRAPHIC_2D = "geographic_2d"  # Maps
     GEOGRAPHIC_VECTOR_2D = "geographic_vector_2d"  # Vector fields on maps
     CARTESIAN_VECTOR_2D = "cartesian_vector_2d"  # Vector fields in cartesian plots
-    CARTESIAN_GEOMETRY = (
-        "cartesian_geometry"  # Geometry-based plots (shapes without geo coordinates)
-    )
-    GEOGRAPHIC_GEOMETRY = (
-        "geographic_geometry"  # Geographic geometry plots (choropleth maps)
-    )
+    CARTESIAN_GEOMETRY = "cartesian_geometry"  # Geometry-based plots (shapes without geo coordinates)
+    GEOGRAPHIC_GEOMETRY = "geographic_geometry"  # Geographic geometry plots (choropleth maps)
 
     @property
     def is_geographic(self) -> bool:

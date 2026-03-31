@@ -67,20 +67,16 @@ def heatmap(
         n_colors = len(bin_labels)
 
         # Sample N discrete colors from the continuous colorscale
-        discrete_colors = colors.sample_colorscale(
-            colorscale, np.linspace(0, 1, n_colors)
-        )
+        discrete_colors = colors.sample_colorscale(colorscale, np.linspace(0, 1, n_colors))
 
         # Build the special discrete colorscale structure Plotly needs
         discrete_plotly_colorscale = []
         scale_points = np.linspace(0, 1, n_colors + 1)
         for i in range(n_colors):
-            discrete_plotly_colorscale.extend(
-                [
-                    [scale_points[i], discrete_colors[i]],
-                    [scale_points[i + 1], discrete_colors[i]],
-                ]
-            )
+            discrete_plotly_colorscale.extend([
+                [scale_points[i], discrete_colors[i]],
+                [scale_points[i + 1], discrete_colors[i]],
+            ])
 
         return go.Heatmap(
             z=binned_data,

@@ -84,25 +84,17 @@ def _resolve_quantiles(data, quantiles, dim):
     -------
     (quantile_data, quantile_dim, q_list, x_dim)
     """
-
     if quantiles is None:
         # Caller asserts data already holds pre-computed quantile values.
         if dim is None:
             raise ValueError(
-                "When quantiles=None (pre-computed), 'dim' must name the "
-                "dimension that holds the quantile values."
+                "When quantiles=None (pre-computed), 'dim' must name the dimension that holds the quantile values."
             )
         if dim not in data.dims:
-            raise ValueError(
-                f"Dimension '{dim}' not found; available: {list(data.dims)}"
-            )
+            raise ValueError(f"Dimension '{dim}' not found; available: {list(data.dims)}")
         quantile_data = data
         quantile_dim = dim
-        q_list = (
-            sorted(data.coords[dim].values.tolist())
-            if dim in data.coords
-            else list(range(data.sizes[dim]))
-        )
+        q_list = sorted(data.coords[dim].values.tolist()) if dim in data.coords else list(range(data.sizes[dim]))
     else:
         if quantiles == "auto":
             quantiles = [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1]
@@ -110,15 +102,11 @@ def _resolve_quantiles(data, quantiles, dim):
         if not all(0.0 <= q <= 1.0 for q in quantiles):
             raise ValueError("All quantiles must be between 0 and 1.")
         if data.ndim < 2:
-            raise ValueError(
-                f"Data must have at least 2 dimensions for multiboxplot (got {list(data.dims)})."
-            )
+            raise ValueError(f"Data must have at least 2 dimensions for multiboxplot (got {list(data.dims)}).")
         if dim is None:
             dim = data.dims[0]
         elif dim not in data.dims:
-            raise ValueError(
-                f"Dimension '{dim}' not found; available: {list(data.dims)}"
-            )
+            raise ValueError(f"Dimension '{dim}' not found; available: {list(data.dims)}")
 
         # Preserve attrs through quantile reduction — xarray drops them by default.
         attrs_backup = data.attrs.copy()
@@ -133,9 +121,7 @@ def _resolve_quantiles(data, quantiles, dim):
 
     remaining = [d for d in quantile_data.dims if d != quantile_dim]
     if len(remaining) != 1:
-        raise ValueError(
-            f"After quantile processing, expected 1 remaining dimension, got {remaining}."
-        )
+        raise ValueError(f"After quantile processing, expected 1 remaining dimension, got {remaining}.")
     x_dim = remaining[0]
     return quantile_data, quantile_dim, q_list, x_dim
 
@@ -156,9 +142,7 @@ def _apply_unit_conversion(data, dim, target_yunits):
 
     data_slice = data.isel({dim: 0})
     src_original = get_source(data_slice, context=PlotContext.CARTESIAN_1D)
-    src_converted = get_source(
-        data_slice, context=PlotContext.CARTESIAN_1D, units=target_yunits
-    )
+    src_converted = get_source(data_slice, context=PlotContext.CARTESIAN_1D, units=target_yunits)
     original = src_original.y.values
     converted = src_converted.y.values
 
@@ -182,9 +166,7 @@ def _apply_unit_conversion(data, dim, target_yunits):
     return result
 
 
-def _resolve_box_styling(
-    color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops
-):
+def _resolve_box_styling(color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops):
     """
     Resolve all drawing properties from the user-supplied ``*props`` dicts.
 
@@ -332,9 +314,7 @@ def draw_multiboxplot(
     if isinstance(data, xr.Dataset):
         data_vars = [v for v in data.data_vars if data[v].ndim > 0]
         if len(data_vars) != 1:
-            raise ValueError(
-                f"Dataset must have exactly one non-scalar variable; got {data_vars}"
-            )
+            raise ValueError(f"Dataset must have exactly one non-scalar variable; got {data_vars}")
         data = data[data_vars[0]]
 
     data = data.squeeze()
@@ -343,15 +323,11 @@ def draw_multiboxplot(
     # the target units.  Skip when quantiles=None because the data is already
     # pre-computed — converting would produce nonsensical position values.
     if target_yunits is not None and quantiles is not None:
-        reduce_dim = (
-            dim if dim is not None else (data.dims[0] if data.ndim >= 2 else None)
-        )
+        reduce_dim = dim if dim is not None else (data.dims[0] if data.ndim >= 2 else None)
         if reduce_dim is not None:
             data = _apply_unit_conversion(data, reduce_dim, target_yunits)
 
-    quantile_data, quantile_dim, q_list, x_dim = _resolve_quantiles(
-        data, quantiles, dim
-    )
+    quantile_data, quantile_dim, q_list, x_dim = _resolve_quantiles(data, quantiles, dim)
 
     x_values = quantile_data[x_dim].values
     q_values = quantile_data.values  # shape: (n_quantiles, n_x)
@@ -361,9 +337,7 @@ def draw_multiboxplot(
     pairs = [(i, n_q - 1 - i) for i in range(n_q // 2)]
     median_idx = n_q // 2 if n_q % 2 == 1 else None
 
-    props = _resolve_box_styling(
-        color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops
-    )
+    props = _resolve_box_styling(color, ax, boxprops, whiskerprops, medianprops, showcaps, capprops)
     plot_color = props["color"]
     rgb = to_rgb(plot_color)
 
@@ -534,9 +508,7 @@ def draw_multiboxplot_legend(
 
     valid_locations = ("right", "left", "top", "bottom")
     if location not in valid_locations:
-        raise ValueError(
-            f"Invalid location {location!r}. Choose from: {valid_locations}"
-        )
+        raise ValueError(f"Invalid location {location!r}. Choose from: {valid_locations}")
 
     stored = result.styling
     quantiles = [float(q) for q in result.quantiles]
@@ -545,21 +517,15 @@ def draw_multiboxplot_legend(
     rgb = to_rgb(base_color)
 
     whiskerprops = whiskerprops or {}
-    whisker_color = whiskerprops.get(
-        "color", stored.get("whisker_color", (0.3, 0.3, 0.3))
-    )
-    whisker_linewidth = whiskerprops.get(
-        "linewidth", stored.get("whisker_linewidth", 0.8)
-    )
+    whisker_color = whiskerprops.get("color", stored.get("whisker_color", (0.3, 0.3, 0.3)))
+    whisker_linewidth = whiskerprops.get("linewidth", stored.get("whisker_linewidth", 0.8))
 
     boxprops = boxprops or {}
     box_edgecolor = boxprops.get("edgecolor", stored.get("box_edgecolor", base_color))
     box_linewidth = boxprops.get("linewidth", stored.get("box_linewidth", 0.5))
 
     medianprops = medianprops or {}
-    median_color = medianprops.get(
-        "color", stored.get("median_color", tuple(c * 0.6 for c in rgb))
-    )
+    median_color = medianprops.get("color", stored.get("median_color", tuple(c * 0.6 for c in rgb)))
     median_linewidth = medianprops.get("linewidth", stored.get("median_linewidth", 1.5))
 
     divider = make_axes_locatable(ax)
@@ -616,9 +582,7 @@ def draw_multiboxplot_legend(
     _QUANTILE_LABELS = {0.0: "min", 0.5: "median", 1.0: "max"}
     for q in quantiles:
         label_text = _QUANTILE_LABELS.get(q, f"{int(round(q * 100))}%")
-        legend_ax.text(
-            0.4, q, label_text, ha="left", va="center", fontsize=fontsize - 1
-        )
+        legend_ax.text(0.4, q, label_text, ha="left", va="center", fontsize=fontsize - 1)
 
     legend_ax.set_xlim(0, 1)
     legend_ax.set_ylim(-0.05, 1.05)

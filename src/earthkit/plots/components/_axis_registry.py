@@ -124,10 +124,7 @@ class _AxisRegistry:
             if ax is mpl_ax:
                 self._name_to_canonical[name] = canonical
                 return
-        raise KeyError(
-            f"Axes {mpl_ax!r} is not registered.  "
-            "Call resolve() before register_name()."
-        )
+        raise KeyError(f"Axes {mpl_ax!r} is not registered.  Call resolve() before register_name().")
 
     def items(self) -> Iterator[tuple[str, matplotlib.axes.Axes]]:
         """Iterate over (canonical_units, mpl_ax) pairs in insertion order."""

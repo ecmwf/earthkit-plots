@@ -400,24 +400,16 @@ def _convert_levels(
         reference = magics_params.get("contour_reference_level")
 
         # Check shade-specific bounds first, fall back to general contour bounds
-        min_level = magics_params.get(
-            "contour_shade_min_level", magics_params.get("contour_min_level")
-        )
-        max_level = magics_params.get(
-            "contour_shade_max_level", magics_params.get("contour_max_level")
-        )
+        min_level = magics_params.get("contour_shade_min_level", magics_params.get("contour_min_level"))
+        max_level = magics_params.get("contour_shade_max_level", magics_params.get("contour_max_level"))
 
         if interval is not None:
             interval = float(interval)
             if min_level is not None and max_level is not None:
                 # Generate explicit list so the YAML is fully self-contained
-                levels = np.arange(
-                    float(min_level), float(max_level) + interval, interval
-                ).tolist()
+                levels = np.arange(float(min_level), float(max_level) + interval, interval).tolist()
                 # Trim any overshoot caused by floating-point arange
-                levels = [
-                    lv for lv in levels if lv <= float(max_level) + interval * 0.01
-                ]
+                levels = [lv for lv in levels if lv <= float(max_level) + interval * 0.01]
                 return levels
 
             # No bounds — use a dynamic step-based Levels config
@@ -463,14 +455,8 @@ def _convert_extend(
     if colour_method == "calculate":
         return "neither"
 
-    has_min = (
-        "contour_shade_min_level" in magics_params
-        or "contour_min_level" in magics_params
-    )
-    has_max = (
-        "contour_shade_max_level" in magics_params
-        or "contour_max_level" in magics_params
-    )
+    has_min = "contour_shade_min_level" in magics_params or "contour_min_level" in magics_params
+    has_max = "contour_shade_max_level" in magics_params or "contour_max_level" in magics_params
 
     if has_min and has_max:
         return "both"
@@ -695,9 +681,7 @@ def _strip_extend_colours(colours: list, levels: list | None) -> tuple:
     # So: strip (n_start - 1) from the start and (n_end - 1) from the end.
     n_strip_start = n_start - 1
     n_strip_end = n_end - 1
-    stripped = colours[
-        n_strip_start : len(colours) - n_strip_end if n_strip_end > 0 else None
-    ]
+    stripped = colours[n_strip_start : len(colours) - n_strip_end if n_strip_end > 0 else None]
 
     # Trim levels to match.  After stripping, len(stripped) inner colour bands
     # need len(stripped) + 1 level boundaries.
@@ -706,13 +690,9 @@ def _strip_extend_colours(colours: list, levels: list | None) -> tuple:
     #   (b) len(levels) == len(colours)       →  one level per colour; trim then close
     if levels is not None:
         if len(levels) == len(colours) + 1:
-            levels = levels[
-                n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None
-            ]
+            levels = levels[n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None]
         elif len(levels) == len(colours):
-            levels = levels[
-                n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None
-            ]
+            levels = levels[n_strip_start : len(levels) - n_strip_end if n_strip_end > 0 else None]
             # len(levels) == len(stripped) — add one closing boundary
             if levels and stripped:
                 step = levels[1] - levels[0] if len(levels) > 1 else 1
@@ -721,18 +701,13 @@ def _strip_extend_colours(colours: list, levels: list | None) -> tuple:
     return stripped, levels, extend
 
 
-def _convert_colors(
-    magics_params: dict[str, Any], shade_enabled: bool
-) -> str | list | None:
-    """
-    Convert Magics colour parameters to an earthkit-plots ``colors`` value.
-    """
+def _convert_colors(magics_params: dict[str, Any], shade_enabled: bool) -> str | list | None:
+    """Convert Magics colour parameters to an earthkit-plots ``colors`` value."""
     if shade_enabled:
         shade_method = magics_params.get("contour_shade_method", "area_fill")
         if shade_method in ("dot", "hatch"):
             warnings.warn(
-                f"contour_shade_method='{shade_method}' has no earthkit-plots equivalent; "
-                "shading will be omitted."
+                f"contour_shade_method='{shade_method}' has no earthkit-plots equivalent; shading will be omitted."
             )
             return None
 
@@ -821,9 +796,7 @@ def _convert_line_properties(magics_params: dict[str, Any]) -> dict[str, Any]:
         base_thickness = thickness or 1
         # Highlight lines are always solid; base lines use the specified style.
         # Divide by 2 to convert Magics thickness units to matplotlib linewidths.
-        props["linewidths"] = [base_thickness / 2] * (highlight_freq - 1) + [
-            highlight_thickness / 2
-        ]
+        props["linewidths"] = [base_thickness / 2] * (highlight_freq - 1) + [highlight_thickness / 2]
         props["linestyles"] = [mpl_line_style] * (highlight_freq - 1) + ["solid"]
     elif mpl_line_style != "solid":
         props["linestyles"] = mpl_line_style
@@ -1046,9 +1019,7 @@ def to_yaml_dict(
             or magics_style_params.get("contour_shade_colour_direction")
         ):
             colour_method = "calculate"
-    is_explicit_list = colour_method in ("list", None) and bool(
-        magics_style_params.get("contour_shade_colour_list")
-    )
+    is_explicit_list = colour_method in ("list", None) and bool(magics_style_params.get("contour_shade_colour_list"))
     extend = None
     if shade_enabled and isinstance(colors, list) and is_explicit_list:
         hex_colors = [to_hex(c) for c in colors]
@@ -1059,15 +1030,11 @@ def to_yaml_dict(
     # otherwise fall back to _convert_extend heuristics, then to level-spacing
     # sentinel detection (large outlier gaps at ends → extend + strip that level).
     if extend is None:
-        extend = _convert_extend(
-            magics_style_params, shade_enabled, colour_method=colour_method
-        )
+        extend = _convert_extend(magics_style_params, shade_enabled, colour_method=colour_method)
     if extend == "neither" and isinstance(levels, list):
         # Pass colours so sentinel bands are stripped in sync with the levels.
         sentinel_colours = colors if isinstance(colors, list) else None
-        levels, sentinel_colours, extend = _strip_sentinel_levels(
-            levels, sentinel_colours
-        )
+        levels, sentinel_colours, extend = _strip_sentinel_levels(levels, sentinel_colours)
         if sentinel_colours is not None:
             colors = sentinel_colours
 
@@ -1076,10 +1043,7 @@ def to_yaml_dict(
         color_key = "colors"
         if isinstance(colors, list):
             # May already be hex strings (from _strip_extend_colours) or raw values
-            entry[color_key] = [
-                c if isinstance(c, str) and c.startswith("#") else to_hex(c)
-                for c in colors
-            ]
+            entry[color_key] = [c if isinstance(c, str) and c.startswith("#") else to_hex(c) for c in colors]
         elif isinstance(colors, tuple):
             entry[color_key] = to_hex(colors)
         else:
@@ -1147,8 +1111,7 @@ def convert_parameter_file(
         ek_units = MAGICS_UNITS_TO_EK.get(magics_units) if magics_units else None
         if magics_units and ek_units is None:
             warnings.warn(
-                f"[{layer_id}] Unknown Magics units '{magics_units}'; "
-                "units will be omitted from the converted style."
+                f"[{layer_id}] Unknown Magics units '{magics_units}'; units will be omitted from the converted style."
             )
 
         criteria = entry.get("match", [])
@@ -1160,21 +1123,14 @@ def convert_parameter_file(
         for magics_style_name in style_names:
             magics_style_params = styles_dict.get(magics_style_name)
             if magics_style_params is None:
-                warnings.warn(
-                    f"[{layer_id}] Style '{magics_style_name}' not found in styles.json; "
-                    "skipping."
-                )
+                warnings.warn(f"[{layer_id}] Style '{magics_style_name}' not found in styles.json; skipping.")
                 continue
 
             yaml_key = _style_key(layer_id, magics_style_name)
             try:
-                style_entry = to_yaml_dict(
-                    layer_id, magics_style_name, magics_style_params, ek_units
-                )
+                style_entry = to_yaml_dict(layer_id, magics_style_name, magics_style_params, ek_units)
             except Exception as exc:
-                warnings.warn(
-                    f"[{layer_id}] Failed to convert style '{magics_style_name}': {exc}; skipping."
-                )
+                warnings.warn(f"[{layer_id}] Failed to convert style '{magics_style_name}': {exc}; skipping.")
                 continue
             converted_styles[yaml_key] = style_entry
 
@@ -1184,15 +1140,13 @@ def convert_parameter_file(
         if not converted_styles:
             continue
 
-        results.append(
-            {
-                "id": layer_id,
-                "units": ek_units,
-                "criteria": criteria,
-                "styles": converted_styles,
-                "optimal": optimal_key,
-            }
-        )
+        results.append({
+            "id": layer_id,
+            "units": ek_units,
+            "criteria": criteria,
+            "styles": converted_styles,
+            "optimal": optimal_key,
+        })
 
     return results if results else None
 
@@ -1290,7 +1244,4 @@ def generate_yaml_files(magics_ecmwf_dir: str, output_dir: str) -> None:
 
             written += 1
 
-    print(
-        f"[magics] Wrote {written} style pair(s) to {output_dir}; "
-        f"skipped {skipped} file(s) with no eccharts_layer."
-    )
+    print(f"[magics] Wrote {written} style pair(s) to {output_dir}; skipped {skipped} file(s) with no eccharts_layer.")

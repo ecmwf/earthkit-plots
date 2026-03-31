@@ -174,12 +174,7 @@ class NumpyExtractor(BaseExtractor):
 
             # If z is 2D and x/y are 1D coordinate axes, meshgrid then ravel
             # so that all three arrays are 1D with matching length for scatter.
-            if (
-                z_values is not None
-                and z_values.ndim == 2
-                and x_arr.ndim == 1
-                and y_arr.ndim == 1
-            ):
+            if z_values is not None and z_values.ndim == 2 and x_arr.ndim == 1 and y_arr.ndim == 1:
                 x_values, y_values = np.meshgrid(x_arr, y_arr)
                 x_values = x_values.ravel()
                 y_values = y_values.ravel()
@@ -188,16 +183,10 @@ class NumpyExtractor(BaseExtractor):
                 x_values = x_arr
                 y_values = y_arr
 
-            x_info = CoordinateInfo(
-                values=x_values, name="", source_units=None, metadata={}
-            )
-            y_info = CoordinateInfo(
-                values=y_values, name="", source_units=None, metadata={}
-            )
+            x_info = CoordinateInfo(values=x_values, name="", source_units=None, metadata={})
+            y_info = CoordinateInfo(values=y_values, name="", source_units=None, metadata={})
             z_info = (
-                CoordinateInfo(
-                    values=z_values, name="", source_units=source_units, metadata={}
-                )
+                CoordinateInfo(values=z_values, name="", source_units=source_units, metadata={})
                 if z_values is not None
                 else None
             )
@@ -221,16 +210,10 @@ class NumpyExtractor(BaseExtractor):
         else:
             x_values = np.arange(len(y_values))
 
-        x_info = CoordinateInfo(
-            values=x_values, name="", source_units=None, metadata={}
-        )
-        y_info = CoordinateInfo(
-            values=y_values, name="", source_units=source_units, metadata={}
-        )
+        x_info = CoordinateInfo(values=x_values, name="", source_units=None, metadata={})
+        y_info = CoordinateInfo(values=y_values, name="", source_units=source_units, metadata={})
         z_info = (
-            CoordinateInfo(
-                values=z_values, name="", source_units=source_units, metadata={}
-            )
+            CoordinateInfo(values=z_values, name="", source_units=source_units, metadata={})
             if z_values is not None
             else None
         )
@@ -278,9 +261,7 @@ class NumpyExtractor(BaseExtractor):
             raise ValueError("No data provided for 2D plot (z is required)")
 
         if z_values.ndim > 2:
-            raise ValueError(
-                f"Expected 1D or 2D data for 2D plot, got {z_values.ndim}D array"
-            )
+            raise ValueError(f"Expected 1D or 2D data for 2D plot, got {z_values.ndim}D array")
 
         # Case 1: z is 1D - scattered point data (x, y, z all 1D with same length)
         if z_values.ndim == 1:

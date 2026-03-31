@@ -62,9 +62,7 @@ def test_xarray_source_dimension_as_string():
         },
         coords={"latitude": [10, 20], "longitude": [100, 110, 120]},
     )
-    source = get_source(
-        data["temperature"], x="longitude", y="latitude", z="temperature"
-    )
+    source = get_source(data["temperature"], x="longitude", y="latitude", z="temperature")
     # Should create meshgrid from 1D coordinates
     assert source.x.values.shape == (2, 3)
     assert source.y.values.shape == (2, 3)
@@ -455,9 +453,7 @@ def test_xarray_source_2d_edge_cases():
     # dim1 (first dimension) maps to y, dim2 (second dimension) maps to x
     assert source.x.values.shape == (2, 3)
     assert source.y.values.shape == (2, 3)
-    assert np.array_equal(
-        source.x.values[0, :], np.array([100, 110, 120])
-    )  # dim2 values
+    assert np.array_equal(source.x.values[0, :], np.array([100, 110, 120]))  # dim2 values
     assert np.array_equal(source.y.values[:, 0], np.array([10, 20]))  # dim1 values
     assert np.array_equal(source.z.values, np.array([[1, 2, 3], [4, 5, 6]]))
     assert source.x.name == "dim2"
@@ -490,9 +486,7 @@ def test_xarray_dataset_key_variable_selection():
     # Verify the correct variable was selected
     # Note: source._data is the original Dataset, but the extractor selects the DataArray
     # We verify selection by checking the extracted coordinates
-    assert np.array_equal(
-        source.y.values, data["t2m"].values
-    )  # 1D data goes to y_values
+    assert np.array_equal(source.y.values, data["t2m"].values)  # 1D data goes to y_values
     assert source.x.values is not None  # Should have time values
     assert source.z is None  # 1D data, no z dimension
     assert source.x.name == "valid_time"  # Should identify the time dimension as x
@@ -636,20 +630,16 @@ def test_xarray_projected_crs_uses_dimension_coords():
     y_coords = np.array([5.5e6, 4.5e6, 3.5e6])
 
     # Create 2D lat/lon arrays (for reference only)
-    lon_2d = np.array(
-        [
-            [10.0, 15.0, 20.0, 25.0],
-            [10.5, 15.5, 20.5, 25.5],
-            [11.0, 16.0, 21.0, 26.0],
-        ]
-    )
-    lat_2d = np.array(
-        [
-            [50.0, 50.5, 51.0, 51.5],
-            [45.0, 45.5, 46.0, 46.5],
-            [40.0, 40.5, 41.0, 41.5],
-        ]
-    )
+    lon_2d = np.array([
+        [10.0, 15.0, 20.0, 25.0],
+        [10.5, 15.5, 20.5, 25.5],
+        [11.0, 16.0, 21.0, 26.0],
+    ])
+    lat_2d = np.array([
+        [50.0, 50.5, 51.0, 51.5],
+        [45.0, 45.5, 46.0, 46.5],
+        [40.0, 40.5, 41.0, 41.5],
+    ])
 
     # Data values
     data_values = np.random.rand(ny, nx)
@@ -713,20 +703,16 @@ def test_xarray_no_crs_uses_latlon_coords():
     y_coords = np.arange(ny)
 
     # Create 2D lat/lon arrays matching data shape
-    lon_2d = np.array(
-        [
-            [10.0, 15.0, 20.0, 25.0],
-            [10.5, 15.5, 20.5, 25.5],
-            [11.0, 16.0, 21.0, 26.0],
-        ]
-    )
-    lat_2d = np.array(
-        [
-            [50.0, 50.5, 51.0, 51.5],
-            [45.0, 45.5, 46.0, 46.5],
-            [40.0, 40.5, 41.0, 41.5],
-        ]
-    )
+    lon_2d = np.array([
+        [10.0, 15.0, 20.0, 25.0],
+        [10.5, 15.5, 20.5, 25.5],
+        [11.0, 16.0, 21.0, 26.0],
+    ])
+    lat_2d = np.array([
+        [50.0, 50.5, 51.0, 51.5],
+        [45.0, 45.5, 46.0, 46.5],
+        [40.0, 40.5, 41.0, 41.5],
+    ])
 
     # Data values
     data_values = np.random.rand(ny, nx)
@@ -1031,7 +1017,7 @@ def test_gridspec_ek_grid_spec_takes_priority_over_legacy():
 
 
 def test_gridspec_none_when_no_attr():
-    """gridspec is None when no relevant attribute is present."""
+    """Gridspec is None when no relevant attribute is present."""
     da = _make_1d_da({"units": "K", "long_name": "temperature"})
     source = get_source(da)
     assert source.gridspec is None
