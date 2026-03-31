@@ -247,7 +247,7 @@ def frequency(*args, radial_bins=None, n_angular_sectors=16, **kwargs):
         radial_bins = np.linspace(min_val, max_val, 6).tolist()
 
     radial_labels = [
-        f"{radial_bins[i]:.1f}-{radial_bins[i+1]:.1f}"
+        f"{radial_bins[i]:.1f}-{radial_bins[i + 1]:.1f}"
         for i in range(len(radial_bins) - 1)
     ]
 

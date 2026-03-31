@@ -53,7 +53,7 @@ def heatmap(
             bins = np.linspace(data_min, data_max, bins + 1).tolist()
 
         if bin_labels is None:
-            bin_labels = [f"{bins[i]}-{bins[i+1]}" for i in range(len(bins) - 1)]
+            bin_labels = [f"{bins[i]}-{bins[i + 1]}" for i in range(len(bins) - 1)]
 
         binned_data = _digitize_data(z_values, bins)
         hover_text = _create_hover_text(binned_data, bin_labels)

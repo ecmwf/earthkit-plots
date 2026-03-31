@@ -1042,9 +1042,7 @@ def extract_plottables_vector_2D(
 
     # Optionally colour by wind speed (magnitude).
     if colors:
-        magnitude = (
-            source.z.values if source.z else np.sqrt(u_values**2 + v_values**2)
-        )
+        magnitude = source.z.values if source.z else np.sqrt(u_values**2 + v_values**2)
         plot_args.append(magnitude)
 
     # Step 11: Render.

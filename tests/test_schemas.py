@@ -151,8 +151,8 @@ def test_schema_apply_with_global_schema():
         mock_global.contour = contour_schema
         mock_global.__contains__ = lambda self, key: key == "contour"
         mock_global.get.return_value = contour_schema
-        mock_global.__getitem__ = (
-            lambda self, key: contour_schema if key == "contour" else None
+        mock_global.__getitem__ = lambda self, key: (
+            contour_schema if key == "contour" else None
         )
 
         # Use the actual pattern: @schema.contour.apply()
@@ -193,8 +193,8 @@ def test_schema_apply_hierarchy_with_nested_parent():
 
         mock_global.__contains__ = lambda self, key: key == "plot"
         mock_global.get.side_effect = get_side_effect
-        mock_global.__getitem__ = (
-            lambda self, key: plot_schema if key == "plot" else Schema()
+        mock_global.__getitem__ = lambda self, key: (
+            plot_schema if key == "plot" else Schema()
         )
 
         @nested_schema.apply()
@@ -257,8 +257,8 @@ def test_schema_apply_complete_hierarchy():
         # But when _update_kwargs looks up parent="contour", it finds global_contour
         mock_global.__contains__ = lambda self, key: key == "contour"
         mock_global.get.return_value = global_contour
-        mock_global.__getitem__ = (
-            lambda self, key: global_contour if key == "contour" else None
+        mock_global.__getitem__ = lambda self, key: (
+            global_contour if key == "contour" else None
         )
 
         # Use actual pattern: @schema.contour.apply()

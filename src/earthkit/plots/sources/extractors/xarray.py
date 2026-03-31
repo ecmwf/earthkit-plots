@@ -1194,9 +1194,10 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
                 squeezed_ds = data.squeeze()
                 if vector_pair is not None:
                     u_name, v_name = vector_pair
-                    yield ("__vector__", u_name, v_name), [
-                        squeezed_ds[[u_name, v_name]]
-                    ]
+                    yield (
+                        ("__vector__", u_name, v_name),
+                        [squeezed_ds[[u_name, v_name]]],
+                    )
                 for var in remaining_vars:
                     yield (var,), [squeezed_ds[var]]
             return

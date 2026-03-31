@@ -916,7 +916,7 @@ class TestNearestNeighbourCurvilinearFallback:
         bilinear_called = []
         monkeypatch.setattr(
             "earthkit.plots.components._pixel_sampling._reproject_bilinear",
-            lambda *a, **kw: (bilinear_called.append(kw) or (x, y, z)),
+            lambda *a, **kw: bilinear_called.append(kw) or (x, y, z),
         )
 
         sampler = _FakeNearestNeighbour()

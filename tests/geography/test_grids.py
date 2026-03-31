@@ -22,18 +22,18 @@ Z_NAN = np.array([10, 20, 30, 40, np.nan, 60, np.nan, 80])
 )
 def test_interpolate_unstructured_auto_detect(z, method, result_1_1, x=X, y=Y):
     grid_x, grid_y, grid_z = interpolate_unstructured(x, y, z, method=method)
-    assert (
-        grid_x.shape == grid_y.shape == grid_z.shape == (4, 4)
-    ), "Grid shapes do not match"
-    assert np.array_equal(
-        grid_x[:, 0].squeeze(), np.array([0, 1, 2, 3])
-    ), "grid_x[:, 0] values do not match exactly"
-    assert np.array_equal(
-        grid_y[0, :].squeeze(), np.array([0, 1, 2, 3])
-    ), "grid_y[0, :] values do not match exactly"
-    assert np.isclose(
-        grid_z[1, 1], result_1_1
-    ), "grid_z[1, 1] value is not close enough to test result"
+    assert grid_x.shape == grid_y.shape == grid_z.shape == (4, 4), (
+        "Grid shapes do not match"
+    )
+    assert np.array_equal(grid_x[:, 0].squeeze(), np.array([0, 1, 2, 3])), (
+        "grid_x[:, 0] values do not match exactly"
+    )
+    assert np.array_equal(grid_y[0, :].squeeze(), np.array([0, 1, 2, 3])), (
+        "grid_y[0, :] values do not match exactly"
+    )
+    assert np.isclose(grid_z[1, 1], result_1_1), (
+        "grid_z[1, 1] value is not close enough to test result"
+    )
     assert not np.isnan(grid_z).all(), "All grid values are NaN"
 
 
@@ -53,18 +53,18 @@ def test_interpolate_unstructured_target_shape(z, method, result_1_1, x=X, y=Y):
     grid_x, grid_y, grid_z = interpolate_unstructured(
         x, y, z, target_shape=(shape, shape), method=method
     )
-    assert (
-        grid_x.shape == grid_y.shape == grid_z.shape == (shape, shape)
-    ), "Grid shapes do not match"
+    assert grid_x.shape == grid_y.shape == grid_z.shape == (shape, shape), (
+        "Grid shapes do not match"
+    )
     assert np.array_equal(
         grid_x[:, 0].squeeze(), np.array([0.0, 0.75, 1.5, 2.25, 3.0])
     ), "grid_x[:, 0] values do not match exactly"
     assert np.array_equal(
         grid_y[0, :].squeeze(), np.array([0.0, 0.75, 1.5, 2.25, 3.0])
     ), "grid_y[0, :] values do not match exactly"
-    assert np.isclose(
-        grid_z[1, 1], result_1_1
-    ), "grid_z[1, 1] value is not close enough to test result"
+    assert np.isclose(grid_z[1, 1], result_1_1), (
+        "grid_z[1, 1] value is not close enough to test result"
+    )
     assert not np.isnan(grid_z).all(), "All grid values are NaN"
 
 
@@ -91,9 +91,9 @@ def test_interpolate_unstructured_target_resolution(z, method, result_1_1, x=X, 
     assert np.array_equal(
         grid_y[0, :].squeeze(), np.array([0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0])
     ), "grid_y[0, :] values do not match exactly"
-    assert np.isclose(
-        grid_z[1, 1], result_1_1
-    ), "grid_z[1, 1] value is not close enough to test result"
+    assert np.isclose(grid_z[1, 1], result_1_1), (
+        "grid_z[1, 1] value is not close enough to test result"
+    )
     assert not np.isnan(grid_z).all(), "All grid values are NaN"
 
 
@@ -117,9 +117,9 @@ def test_interpolation_distance_threshold(threshold, expected_nans):
         method="linear",
         distance_threshold=threshold,
     )
-    assert (
-        np.isnan(grid_z).sum() == expected_nans
-    ), "Thresholding did not introduce the correct number of NaNs"
+    assert np.isnan(grid_z).sum() == expected_nans, (
+        "Thresholding did not introduce the correct number of NaNs"
+    )
 
 
 def test_1d_structured():

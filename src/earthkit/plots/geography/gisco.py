@@ -28,7 +28,7 @@ GISCO_GEOMETRY_TYPES = {
 }
 
 GISCO_URL_TEMPLATE = (
-    "https://gisco-services.ec.europa.eu" "/distribution/v2/{category}/shp"
+    "https://gisco-services.ec.europa.eu/distribution/v2/{category}/shp"
 )
 
 AVAILABLE_YEARS = {

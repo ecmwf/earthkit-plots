@@ -382,9 +382,9 @@ class Domain:
             source_crs = ccrs.PlateCarree()
         x = np.array(x)
         y = np.array(y)
-        assert (
-            values is not None or extra_values is not None
-        ), "values or extra_values must be provided"
+        assert values is not None or extra_values is not None, (
+            "values or extra_values must be provided"
+        )
         if extra_values is not None and not isinstance(extra_values, (list, tuple)):
             extra_values = [extra_values]
         _values = values if values is not None else extra_values[0]

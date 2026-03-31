@@ -228,13 +228,13 @@ class TestDomainExtract:
 
             assert x_ext.shape == y_ext.shape, f"Shape mismatch for {description}"
             if values_ext.ndim in [1, 2]:
-                assert (
-                    values_ext.shape == x_ext.shape
-                ), f"Values shape mismatch for {description}"
+                assert values_ext.shape == x_ext.shape, (
+                    f"Values shape mismatch for {description}"
+                )
             elif values_ext.ndim == 3:
-                assert (
-                    values_ext.shape[:2] == x_ext.shape
-                ), f"Values shape mismatch for {description}"
+                assert values_ext.shape[:2] == x_ext.shape, (
+                    f"Values shape mismatch for {description}"
+                )
 
     def test_extract_edge_case_empty_result(self):
         """Test extraction edge case where result would be empty."""
@@ -391,6 +391,6 @@ class TestDomainExtract:
         # All data should be returned — nothing should be dropped by a bogus roll.
         assert x_ext.size > 0
         # x coordinates must stay in metre range, not be collapsed to [-180, 180].
-        assert (
-            x_ext.max() > 180
-        ), "Projected x coordinates were incorrectly treated as longitudes"
+        assert x_ext.max() > 180, (
+            "Projected x coordinates were incorrectly treated as longitudes"
+        )

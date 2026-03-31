@@ -16,6 +16,7 @@
 Decorator for methods that should return self when chainable=True,
 or their natural return value when chainable=False.
 """
+
 from __future__ import annotations
 
 import functools
