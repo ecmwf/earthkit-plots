@@ -10,6 +10,9 @@ Welcome to the earthkit-plots documentation
 .. |License: Apache 2.0| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
    :target: https://opensource.org/licenses/apache-2-0
 
+.. important::
+
+    This software is in **release candidate** stage. It is not yet considered stable and may still undergo significant changes before the final 1.0 release. We welcome feedback and contributions as we approach that milestone.
 
 **earthkit-plots** is a high-level Python library for producing publication-quality
 scientific graphics with minimal code. Built on **matplotlib**, **cartopy**,
