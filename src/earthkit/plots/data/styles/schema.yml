@@ -123,11 +123,9 @@ contour:
   regrid: true
   labels: true
   transform_first: true
-  linewidths: 1
 isolines:
   regrid: true
   transform_first: true
-  linewidths: 1
   labels: true
 contourf:
   regrid: true

@@ -462,12 +462,16 @@ def extract_plottables_2D(
                 source_crs=source.crs,
                 target_crs=subplot.crs,
             )
-            subplot.domain = domain
-            if subplot._ax is not None and None not in list(domain.bbox):
-                subplot._ax.set_extent(
-                    domain.bbox.to_cartopy_bounds(),
-                    domain.bbox.crs,
-                )
+            bbox_vals = list(domain.bbox)
+            if None not in bbox_vals and all(
+                np.isfinite(v) for v in bbox_vals if v is not None
+            ):
+                subplot.domain = domain
+                if subplot._ax is not None:
+                    subplot._ax.set_extent(
+                        domain.bbox.to_cartopy_bounds(),
+                        domain.bbox.crs,
+                    )
         except Exception:
             pass
 
@@ -886,15 +890,20 @@ def extract_plottables_vector_2D(
                 x_ext > 180
             ):
                 x_ext = force_minus_180_to_180(x_ext)
-            subplot.domain = _domains.Domain.from_bbox(
+            domain = _domains.Domain.from_bbox(
                 bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
                 source_crs=source.crs,
                 target_crs=subplot.crs,
             )
-            subplot.ax.set_extent(
-                subplot.domain.bbox.to_cartopy_bounds(),
-                subplot.domain.bbox.crs,
-            )
+            bbox_vals = list(domain.bbox)
+            if None not in bbox_vals and all(
+                np.isfinite(v) for v in bbox_vals if v is not None
+            ):
+                subplot.domain = domain
+                subplot.ax.set_extent(
+                    subplot.domain.bbox.to_cartopy_bounds(),
+                    subplot.domain.bbox.crs,
+                )
         except Exception:
             pass
 
