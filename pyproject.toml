@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
   "earthkit-data>=1.0.0rc0",
   "cartopy>=0.22.0",
+  "fiona",
   "pint",
   "matplotlib",
   "pandas",
@@ -45,6 +46,9 @@ optional-dependencies.geocoding = [
 optional-dependencies.healpix = [
   "healpy"
 ]
+optional-dependencies.regridding = [
+  "earthkit-geo>=1.0.0rc0"
+]
 optional-dependencies.test = [
   "nbconvert",
   "nbformat",
@@ -62,9 +66,6 @@ urls.Repository = "https://github.com/ecmwf/earthkit-plots/"
 [tool.coverage.run]
 branch = "true"
 
-[tool.isort]
-profile = "black"
-
 [tool.pydocstyle]
 add_ignore = [
   "D1",
@@ -74,6 +75,33 @@ add_ignore = [
   "D401"
 ]
 convention = "numpy"
+
+[tool.ruff]
+line-length = 120
+preview = true
+
+[tool.ruff.lint]
+ignore = [
+  "D1",  # pydocstyle: Missing Docstrings
+  "D107",  # pydocstyle: numpy convention
+  "D203",
+  "D205",
+  "D212",
+  "D213",
+  "D401",
+  "D402",
+  "D413",
+  "D415",
+  "D416",
+  "D417"
+]
+select = [
+  "F",  # pyflakes
+  "E",  # pycodestyle
+  "W",  # pycodestyle warnings
+  "I",  # isort
+  "D"  # pydocstyle
+]
 
 [tool.setuptools.package-data]
 "earthkit.plots" = [
