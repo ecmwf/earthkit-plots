@@ -119,6 +119,8 @@ class Source:
         - 1D cartesian: Tries to convert both x and y. If both fail, raises error.
         - 2D/geographic: Converts z (the data field).
         Dimension-specific units (x_units, y_units, z_units) take precedence.
+        See :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     x_units : str, optional
         Target units for x dimension. Overrides 'units' for x.
     y_units : str, optional
@@ -836,6 +838,8 @@ def get_source(
         - 1D cartesian: Tries to convert both x and y. If both fail, raises error.
         - 2D/geographic: Converts z (the data field).
         Dimension-specific units (x_units, y_units, z_units) take precedence.
+        See :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     x_units : str, optional
         Target units for x dimension. Overrides 'units' for x.
     y_units : str, optional

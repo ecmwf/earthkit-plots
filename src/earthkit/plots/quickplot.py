@@ -191,7 +191,9 @@ def plot(
         provided the size is chosen automatically based on the panel grid
         (approximately 5 × 4 inches per panel, capped at 40 inches).
     units : str or list of str, optional
-        Units to convert the data to at plot time.
+        Units to convert the data to at plot time (e.g. ``"celsius"``). See
+        :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     style : str or Style, optional
         Named style or :class:`~earthkit.plots.styles.Style` object.
         Defaults to ``"auto"`` which selects a style based on the variable.
@@ -265,6 +267,7 @@ def plot(
             rows=n_rows,
             columns=n_cols,
             figsize=figsize or _auto_figure_size(n_rows, n_cols),
+            chainable=True,
         )
 
         if not isinstance(units, (list, tuple)):
@@ -301,7 +304,10 @@ def plot(
 
     rows, columns = layouts.rows_cols(n_plots, rows, columns)
     figure = Figure(
-        rows=rows, columns=columns, figsize=figsize or _auto_figure_size(rows, columns)
+        rows=rows,
+        columns=columns,
+        figsize=figsize or _auto_figure_size(rows, columns),
+        chainable=True,
     )
 
     if not isinstance(units, (list, tuple)):
@@ -431,7 +437,7 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
     title = kwargs.pop("title", True)
     legend = kwargs.pop("legend", True)
     coastlines = kwargs.pop("coastlines", True)
-    figure = Figure(rows=1, columns=1)
+    figure = Figure(rows=1, columns=1, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
     if not data_args:
         getattr(subplot, method_name)(**kwargs)
@@ -568,7 +574,7 @@ def rgb_composite(
     -------
     Map
     """
-    figure = Figure(rows=1, columns=1)
+    figure = Figure(rows=1, columns=1, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.rgb_composite(*args, **kwargs)
     _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
@@ -603,7 +609,7 @@ def choropleth(
     -------
     Map
     """
-    figure = Figure(rows=1, columns=1)
+    figure = Figure(rows=1, columns=1, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.choropleth(data, **kwargs)
     _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
@@ -690,7 +696,7 @@ def spaghetti(
     """
     fields = _coerce_to_fieldlist(*args)
 
-    figure = Figure(rows=1, columns=1)
+    figure = Figure(rows=1, columns=1, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
     subplot.spaghetti(
         fields,
@@ -944,7 +950,7 @@ def timeseries(
     if not overlay and isinstance(data, xr.Dataset) and len(data.data_vars) > 1:
         size = kwargs.pop("size", None)
         col = groupby if groupby is not None else None
-        fig = Figure()
+        fig = Figure(chainable=True)
         fig.timeseries(
             data,
             *args,
@@ -1041,7 +1047,7 @@ def timeseries(
         n_plots = len(groups)
         _rows, _cols = layouts.rows_cols(n_plots, rows, columns)
         kwargs.pop("size", None)
-        fig = Figure(rows=_rows, columns=_cols)
+        fig = Figure(rows=_rows, columns=_cols, chainable=True)
         for _, targets in groups:
             ts = fig.add_timeseries()
             for target in targets:

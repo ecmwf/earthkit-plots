@@ -913,7 +913,9 @@ class Subplot:
         style : earthkit.plots.styles.Style, optional
             Style to apply. If ``None``, a style is generated automatically.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments forwarded to
             :meth:`matplotlib.axes.Axes.fill_between`.
@@ -968,7 +970,9 @@ class Subplot:
             Fill colour for the innermost (darkest) box.  Defaults to the
             next colour in matplotlib's colour cycle.
         units : str, optional
-            Target units for y-axis values.
+            Target units for y-axis values (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         x_units : str, optional
             Target units for x-axis values.
         y_units : str, optional
@@ -1179,7 +1183,9 @@ class Subplot:
         alpha : float, optional
             The alpha value of the envelope.
         units : str, optional
-            Units for the data values.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.fill_between`.
@@ -1274,7 +1280,9 @@ class Subplot:
         alpha : float, optional
             Opacity of the filled region.  Default is ``0.2``.
         units : str, optional
-            Target units for value conversion (e.g. ``"celsius"``).
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments forwarded to
             :meth:`matplotlib.axes.Axes.fill_between`.
@@ -1419,7 +1427,9 @@ class Subplot:
             An explicit :class:`~earthkit.plots.styles.Style` to use.
             If ``None``, a style is detected automatically from the data metadata.
         units : str, optional
-            Target units for value conversion (e.g. ``"celsius"``).
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments forwarded to the resolved plot method.
         """
@@ -1606,6 +1616,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
 
         **kwargs
             Additional keyword arguments passed to
@@ -1637,6 +1649,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.scatter`.
@@ -1667,7 +1681,9 @@ class Subplot:
             Style object or named style string. If ``None`` an auto-style is
             chosen from the data metadata.
         units : str, optional
-            Convert the data to these units before coloring.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         ymin : float, optional
             Bottom of the stripes in axes-fraction coordinates (default ``0``).
         ymax : float, optional
@@ -1701,6 +1717,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         resample : earthkit.plots.resample.Resample, bool, or dict, optional
             Controls resampling of data before plotting. Pass a
             :class:`~earthkit.plots.resample.Unstructured` (or subclass) instance to
@@ -1743,6 +1761,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         resample : earthkit.plots.resample.Resample, bool, or dict, optional
             Controls resampling of data before plotting. Pass a
             :class:`~earthkit.plots.resample.Unstructured` (or subclass) instance to
@@ -1782,6 +1802,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
             :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
@@ -1820,6 +1842,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         resample : earthkit.plots.resample.Resample, bool, or False, optional
             Controls resampling before plotting. Pass a
             :class:`~earthkit.plots.resample.Bilinear` or :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
@@ -1859,6 +1883,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.tripcolor`.
@@ -1891,6 +1917,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.tricontour`.
@@ -1923,6 +1951,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.tricontourf`.
@@ -1959,6 +1989,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.quiver`.
@@ -1994,6 +2026,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.streamplot`.
@@ -2030,6 +2064,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.barbs`.
@@ -2051,6 +2087,8 @@ class Subplot:
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). Unit
             conversion relies on CF-compliant ``units`` metadata in the data.
+            See :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments to pass to :meth:`pcolormesh`.
         """

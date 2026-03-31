@@ -66,8 +66,10 @@ class Figure:
         crs=None,
         size=None,
         gridspec=None,
+        chainable=False,
         **kwargs,
     ):
+        self._chainable = chainable
         if size is not None:
             import warnings
 
@@ -249,6 +251,7 @@ class Figure:
                 raise NotImplementedError(
                     f"No subplots have method '{method.__name__}'"
                 )
+            return self if self._chainable else None
 
         return wrapper
 
@@ -356,7 +359,9 @@ class Figure:
             Additional keyword arguments to pass to the :class:`Subplot` constructor.
         """
         row, column = self._determine_row_column(row, column)
-        subplot = Subplot(row=row, column=column, figure=self, chainable=True, **kwargs)
+        subplot = Subplot(
+            row=row, column=column, figure=self, chainable=self._chainable, **kwargs
+        )
         self.subplots.append(subplot)
         return subplot
 
@@ -391,7 +396,7 @@ class Figure:
             domain=domain,
             crs=crs,
             figure=self,
-            chainable=True,
+            chainable=self._chainable,
             **kwargs,
         )
         self.subplots.append(subplot)
@@ -434,7 +439,12 @@ class Figure:
 
         row, column = self._determine_row_column(row, column)
         subplot = TimeSeries(
-            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+            row=row,
+            column=column,
+            size=None,
+            figure=self,
+            chainable=self._chainable,
+            **kwargs,
         )
         self.subplots.append(subplot)
         return subplot
@@ -475,7 +485,12 @@ class Figure:
 
         row, column = self._determine_row_column(row, column)
         subplot = Hovmoller(
-            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+            row=row,
+            column=column,
+            size=None,
+            figure=self,
+            chainable=self._chainable,
+            **kwargs,
         )
         self.subplots.append(subplot)
         return subplot
@@ -514,7 +529,12 @@ class Figure:
 
         row, column = self._determine_row_column(row, column)
         subplot = Climatology(
-            row=row, column=column, size=None, figure=self, chainable=True, **kwargs
+            row=row,
+            column=column,
+            size=None,
+            figure=self,
+            chainable=self._chainable,
+            **kwargs,
         )
         self.subplots.append(subplot)
         return subplot
@@ -638,7 +658,7 @@ class Figure:
             if proxy_handles:
                 subplot.ax.legend(handles=proxy_handles)
 
-        return legends
+        return self if self._chainable else legends
 
     @_defer_until_setup
     @apply_to_subplots
@@ -737,7 +757,9 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use. If None, a Style is automatically generated from the data.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.pcolormesh`.
@@ -799,7 +821,9 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use. If None, a Style is automatically generated from the data.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.pcolormesh`.
@@ -829,7 +853,9 @@ class Figure:
         style : earthkit.plots.styles.Style, optional
             The Style to use. If None, a Style is automatically generated from the data.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.imshow`.
@@ -857,7 +883,9 @@ class Figure:
             The Style to use for the filled contour plot. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.contourf`.
@@ -888,7 +916,9 @@ class Figure:
             The Style to use for the contour lines. If None, a Style is
             automatically generated based on the data.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.contour`.
@@ -1082,7 +1112,7 @@ class Figure:
                     except Exception:
                         pass
 
-        return self
+        return self if self._chainable else None
 
     def timeseries(
         self,
@@ -1219,7 +1249,7 @@ class Figure:
                     else:
                         sp.yticks(**yticks)
 
-        return self
+        return self if self._chainable else None
 
     @_defer_until_setup
     def gridlines(self, *args, sharex=True, sharey=True, **kwargs):
@@ -1273,6 +1303,7 @@ class Figure:
             else:
                 subplot_draw_labels = False
             subplot.gridlines(*args, draw_labels=subplot_draw_labels, **kwargs)
+        return self if self._chainable else None
 
     @schema.suptitle.apply()
     def title(self, label=None, unique=True, grouped=True, y=None, **kwargs):
@@ -1311,7 +1342,7 @@ class Figure:
             y = self._get_suptitle_y()
 
         result = self.fig.suptitle(label, y=y, **kwargs)
-        return result
+        return self if self._chainable else result
 
     def set_title(self, label=None, **kwargs):
         """
@@ -1516,9 +1547,10 @@ class Figure:
         self._cancel_jupyter_display()
         self._prepare_for_display()
         try:
-            return plt.show(*args, **kwargs)
+            plt.show(*args, **kwargs)
         finally:
             self._exit_style_context()
+        return self if self._chainable else None
 
     def save(self, *args, bbox_inches="tight", **kwargs):
         """
@@ -1538,7 +1570,7 @@ class Figure:
         try:
             from matplotlib import rcParams as _rc
 
-            return plt.savefig(
+            plt.savefig(
                 *args,
                 bbox_inches=bbox_inches,
                 dpi=kwargs.pop("dpi", _rc["figure.dpi"]),
@@ -1546,6 +1578,7 @@ class Figure:
             )
         finally:
             self._exit_style_context()
+        return self if self._chainable else None
 
     def _prepare_for_display(self):
         """Flush the queue and apply pre-render hooks. Safe to call multiple times."""
@@ -1576,7 +1609,7 @@ class Figure:
         entry = (attribution, location, kwargs)
         if entry not in self.attributions:
             self.attributions.append(entry)
-        return self
+        return self if self._chainable else None
 
     def add_logo(self, logo):
         """

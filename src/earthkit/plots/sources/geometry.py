@@ -36,7 +36,9 @@ class GeometrySource:
         Name of the column containing data values for coloring.
         If None, auto-detects first numeric column.
     units : str, optional
-        Target units for data values (e.g., "celsius", "kilometers")
+        Target units for data values (e.g. ``"celsius"``). See
+        :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     metadata : dict, optional
         Additional metadata
 

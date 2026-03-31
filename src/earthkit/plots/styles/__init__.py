@@ -154,7 +154,9 @@ class Style:
         data not using the given units, then a conversion will be attempted;
         any data incompatible with these units will not be able to use this
         `Style`. If `units` are not provided, then data plotted using this
-        `Style` will remain in their original units.
+        `Style` will remain in their original units. See
+        :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     units_label : str, optional
         The label to use in titles and legends to represent the units of the
         data.

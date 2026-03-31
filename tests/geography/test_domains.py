@@ -17,6 +17,20 @@ import numpy as np
 import pytest
 
 from earthkit.plots.geography import domains
+from earthkit.plots.schemas import schema
+
+
+@pytest.fixture(autouse=True)
+def enable_crop_domain():
+    """Force crop_domain=True for all Domain.extract tests.
+
+    The schema default is False (cropping is opt-in at runtime), but the
+    tests here specifically exercise the extraction logic so they need it on.
+    """
+    original = schema.crop_domain
+    schema.crop_domain = True
+    yield
+    schema.crop_domain = original
 
 
 def test_format_name_UK():

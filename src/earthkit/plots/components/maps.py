@@ -174,7 +174,9 @@ class Map(Subplot):
         style : earthkit.plots.styles.Style, optional
             Style to apply.
         units : str, optional
-            Units to convert the data to.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         grid : str or GridSpec, optional
             Grid specification to use for rendering.  Pass ``"auto"`` (the
             default) to detect the grid type from the data metadata.  Pass a
@@ -305,7 +307,9 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         units : str, optional
-            Target units for value conversion.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.scatter`.
@@ -1358,7 +1362,9 @@ class Map(Subplot):
         style : Style, optional
             Style object for customizing appearance (colors, colormap, etc.)
         units : str, optional
-            Target units for data values (e.g., "celsius", "kilometers")
+            Target units for data values (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         labels : bool or str, optional
             Label configuration:
             - False (default): No labels
