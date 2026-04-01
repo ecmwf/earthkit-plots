@@ -13,14 +13,14 @@ First, clone the repository locally. You can use the following command:
 
 .. code-block:: shell
 
-   git clone --branch develop git@github.com:ecmwf/earthkit-meteo.git
+   git clone --branch develop git@github.com:ecmwf/earthkit-plots.git
 
 (optional) If using conda, create a new environment and activate it:
 
 .. code-block:: shell
 
-    conda create -n earthkit-meteo python=3.12
-    conda activate earthkit-meteo
+    conda create -n earthkit-plots python=3.12
+    conda activate earthkit-plots
 
 Lastly, enter your git repository and run the following commands:
 
