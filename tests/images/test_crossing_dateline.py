@@ -21,9 +21,9 @@ from earthkit.plots import schema
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_temperature_pressure():
+def test_temperature_pressure_USA():
     temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib").to_fieldlist()
-    chart = earthkit.plots.Map(domain="Europe")
+    chart = earthkit.plots.Map(domain="USA")
     chart.plot(temperature, units="celsius")
     chart.plot(pressure, units="hPa")
 
@@ -39,43 +39,17 @@ def test_temperature_pressure():
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_efi_hatched():
-    from earthkit.plots.styles import Hatched
+def test_temperature_pressure_NewZealand():
+    temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib").to_fieldlist()
+    chart = earthkit.plots.Map(domain="New Zealand")
+    chart.plot(temperature, units="celsius")
+    chart.plot(pressure, units="hPa")
 
-    data = earthkit.data.from_source(
-        "url", "https://get.ecmwf.int/repository/test-data/metview/gallery/efi.grib"
-    ).to_fieldlist()
+    chart.legend(location="right")
 
-    fgi = data.sel({"parameter.variable": "10fgi"})
-    tpi = data.sel({"parameter.variable": "tpi"})
-
-    LEVELS = [0.6, 0.8, 1.0]
-    HATCHES = ["." * 5, "o" * 5]
-
-    fgi_style = Hatched(
-        colors="magenta",
-        levels=LEVELS,
-        hatches=HATCHES,
-        legend_style="disjoint",
-    )
-
-    tpi_style = Hatched(
-        colors="green",
-        levels=LEVELS,
-        hatches=HATCHES,
-        legend_style="disjoint",
-    )
-
-    chart = earthkit.plots.Map(domain=(-18, 40, 30, 72))
-
-    chart.contourf(fgi, style=fgi_style)
-    chart.contourf(tpi, style=tpi_style)
-
-    chart.land()
     chart.coastlines()
-    chart.borders()
-    chart.gridlines()
 
-    chart.legend(label="{variable_name!l}", location=["top left", "top right"], ncols=2)
+    chart.title()
+    chart.gridlines()
 
     return chart.fig
