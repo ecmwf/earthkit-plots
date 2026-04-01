@@ -166,8 +166,11 @@ def union(domains, name=None):
     >>> union(["Norway", "Sweden", "Finland"], name="Fennoscandia")
     """
     domains = [domain if not isinstance(domain, str) else Domain.from_string(domain) for domain in domains]
+    names = [d._name for d in domains]
     if len(domains) > 1:
-        domain = sum(domains[1:], domains[0])
+        latlon_bboxes = [d.bbox.to_latlon_bbox() for d in domains]
+        combined = sum(latlon_bboxes[1:], latlon_bboxes[0])
+        domain = Domain.from_bbox(combined, name=names if len(names) > 1 else names[0])
     else:
         domain = domains[0]
     if name is not None:
