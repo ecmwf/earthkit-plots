@@ -11,7 +11,8 @@ dependencies:
 - pytest-mpl
 - pytest-cov
 # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
-- earthkit-data
+- earthkit-utils>=1.0.0rc0
+- earthkit-data>=1.0.0rc0
 - matplotlib
 - pandas
 - cartopy

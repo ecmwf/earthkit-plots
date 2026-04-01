@@ -52,6 +52,7 @@ optional-dependencies.regridding = [
 ]
 optional-dependencies.test = [
   "earthkit-geo==1.0.0rc0",
+  "healpy",
   "nbconvert",
   "nbformat",
   "pytest",
