@@ -1,0 +1,73 @@
+id: composition_ch4_totalcolumn
+optimal: COMPOSITION_CH4_TOTALCOLUMN_SH_NIPY_SPECTRAL_CH4_TOTALCOLUMN
+styles:
+  COMPOSITION_CH4_TOTALCOLUMN_SH_NIPY_SPECTRAL_CH4_TOTALCOLUMN:
+    name: sh-nipy-spectral-ch4-totalcolumn
+    type: Style
+    colors:
+    - '#7d008eff'
+    - '#2d00a4ff'
+    - '#0000ddff'
+    - '#0082ddff'
+    - '#00a4bbff'
+    - '#00aa88ff'
+    - '#00a400ff'
+    - '#00d200ff'
+    - '#00ff00ff'
+    - '#ccf900ff'
+    - '#f9d700ff'
+    - '#ff9900ff'
+    - '#f40000ff'
+    - '#d20000ff'
+    levels:
+    - 1640.0
+    - 1660.0
+    - 1680.0
+    - 1700.0
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    extend: both
+  COMPOSITION_CH4_TOTALCOLUMN_SH_RDGY_R_CH4_TOTALCOLUMN:
+    name: sh-rdgy-r-ch4-totalcolumn
+    type: Style
+    colors:
+    - '#3c3c3cff'
+    - '#606060ff'
+    - '#878787ff'
+    - '#a9a9a9ff'
+    - '#c7c7c7ff'
+    - '#e0e0e0ff'
+    - '#f5f5f5ff'
+    - '#fef3ecff'
+    - '#fddbc7ff'
+    - '#f7b799ff'
+    - '#ea8e70ff'
+    - '#d6604dff'
+    - '#be3036ff'
+    - '#991027ff'
+    levels:
+    - 1640.0
+    - 1660.0
+    - 1680.0
+    - 1700.0
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    extend: both

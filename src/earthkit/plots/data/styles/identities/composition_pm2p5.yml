@@ -1,0 +1,5 @@
+id: composition_pm2p5
+criteria:
+- paramId: '210073'
+  shortName: pm2p5
+- long_name: Particulate matter d < 2.5 um

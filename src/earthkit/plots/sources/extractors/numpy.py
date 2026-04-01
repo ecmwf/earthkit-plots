@@ -110,7 +110,7 @@ class NumpyExtractor(BaseExtractor):
         if context.is_2d:
             coords = self._extract_2d_coordinates(x_arr, y_arr, z_arr, u_arr, v_arr)
         else:
-            coords = self._extract_1d_coordinates(x_arr, y_arr)
+            coords = self._extract_1d_coordinates(x_arr, y_arr, z_arr, context)
 
         return ExtractedCoordinates(
             x=coords["x"],
@@ -124,25 +124,80 @@ class NumpyExtractor(BaseExtractor):
         self,
         x_arr: np.ndarray | None,
         y_arr: np.ndarray | None,
+        z_arr: np.ndarray | None = None,
+        context: "PlotContext | None" = None,
     ) -> dict[str, CoordinateInfo]:
         """
-        Extract coordinates for 1D plots (lines, bars etc).
+        Extract coordinates for 1D plots (lines, bars, scatter etc).
 
         Default: y is the data, x is the independent variable (auto-generated
         if not provided).
+
+        In a geographic context (scatter / point_cloud on a map), when both x
+        and y are provided as explicit coordinate arrays, the positional data
+        array (``self.data``) is treated as z (colour values) rather than y.
+        An explicit ``z_arr`` always takes precedence over ``self.data``.
+        In a Cartesian context (line, bar, …), ``self.data`` is never promoted
+        to z — x and y are the two plot axes.
 
         Parameters
         ----------
         x_arr : np.ndarray or None
             X coordinate array.
         y_arr : np.ndarray or None
-            Y coordinate array (data values).
+            Y coordinate array (data values, or geographic latitude).
+        z_arr : np.ndarray or None
+            Z / colour values.  When None and both x and y coordinates are
+            supplied in a geographic context, ``self.data`` is promoted to z.
+        context : PlotContext or None
+            Plot context; controls whether data→z promotion applies.
 
         Returns
         -------
         dict
-            Dictionary with keys 'x', 'y', 'z' (z is always None for 1D).
+            Dictionary with keys 'x', 'y', and optionally 'z'.
         """
+        source_units = self._metadata.get("units")
+        is_geographic = context is not None and context.is_geographic
+
+        # In a geographic context, when explicit x and y coordinates are both
+        # provided, the positional data argument is the colour/value dimension
+        # (z).  In a Cartesian context x and y are the two plot axes and data
+        # is never promoted.
+        if x_arr is not None and y_arr is not None and is_geographic:
+            if z_arr is not None:
+                z_values = z_arr
+            elif self.data is not None:
+                z_values = np.atleast_1d(self.data)
+            else:
+                z_values = None
+
+            # If z is 2D and x/y are 1D coordinate axes, meshgrid then ravel
+            # so that all three arrays are 1D with matching length for scatter.
+            if z_values is not None and z_values.ndim == 2 and x_arr.ndim == 1 and y_arr.ndim == 1:
+                x_values, y_values = np.meshgrid(x_arr, y_arr)
+                x_values = x_values.ravel()
+                y_values = y_values.ravel()
+                z_values = z_values.ravel()
+            else:
+                x_values = x_arr
+                y_values = y_arr
+
+            x_info = CoordinateInfo(values=x_values, name="", source_units=None, metadata={})
+            y_info = CoordinateInfo(values=y_values, name="", source_units=None, metadata={})
+            z_info = (
+                CoordinateInfo(values=z_values, name="", source_units=source_units, metadata={})
+                if z_values is not None
+                else None
+            )
+            return {"x": x_info, "y": y_info, "z": z_info}
+
+        # Standard 1D path: y is the data, x is the independent variable.
+        if z_arr is not None:
+            z_values = z_arr
+        else:
+            z_values = None
+
         if y_arr is not None:
             y_values = y_arr
         elif self.data is not None:
@@ -155,23 +210,15 @@ class NumpyExtractor(BaseExtractor):
         else:
             x_values = np.arange(len(y_values))
 
-        # Get units from metadata if available (only applies to y for 1D)
-        source_units = self._metadata.get("units")
-
-        x_info = CoordinateInfo(
-            values=x_values,
-            name="",
-            source_units=None,
-            metadata={},
-        )
-        y_info = CoordinateInfo(
-            values=y_values,
-            name="",
-            source_units=source_units,
-            metadata={},
+        x_info = CoordinateInfo(values=x_values, name="", source_units=None, metadata={})
+        y_info = CoordinateInfo(values=y_values, name="", source_units=source_units, metadata={})
+        z_info = (
+            CoordinateInfo(values=z_values, name="", source_units=source_units, metadata={})
+            if z_values is not None
+            else None
         )
 
-        return {"x": x_info, "y": y_info, "z": None}
+        return {"x": x_info, "y": y_info, "z": z_info}
 
     def _extract_2d_coordinates(
         self,

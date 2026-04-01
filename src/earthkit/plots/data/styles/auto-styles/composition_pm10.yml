@@ -1,0 +1,55 @@
+id: composition_pm10
+optimal: COMPOSITION_PM10_SH_ALL_PM10_DEFRA_DAQI
+styles:
+  COMPOSITION_PM10_SH_ALL_PM10_DEFRA_DAQI:
+    name: sh-all-pm10-defra-daqi
+    type: Style
+    colors:
+    - '#31ff00ff'
+    - '#31cf00ff'
+    - '#ffff00ff'
+    - '#ffcf00ff'
+    - '#ff9a00ff'
+    - '#ff6464ff'
+    - '#ff0000ff'
+    - '#990000ff'
+    levels:
+    - 17.0
+    - 34.0
+    - 51.0
+    - 59.0
+    - 67.0
+    - 76.0
+    - 84.0
+    - 92.0
+    - 101.0
+    extend: max
+  COMPOSITION_PM10_SH_ALL_PMX_NCL_PRECIP_11LEV:
+    name: sh-all-pmx-ncl-precip-11lev
+    type: Style
+    colors:
+    - '#ffffffff'
+    - '#edfac2ff'
+    - '#cdffcdff'
+    - '#99f0b2ff'
+    - '#53bd9fff'
+    - '#32a696ff'
+    - '#3296b4ff'
+    - '#0570b0ff'
+    - '#05508cff'
+    - '#0a1f96ff'
+    - '#2c0246ff'
+    levels:
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 80.0
+    - 100.0
+    - 150.0
+    - 200.0
+    - 300.0
+    - 500.0
+    extend: max

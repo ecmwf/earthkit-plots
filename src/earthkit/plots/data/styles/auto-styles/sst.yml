@@ -1,0 +1,175 @@
+id: sst
+optimal: SST_SH_SST_FM2T36I2
+styles:
+  SST_SH_SST_FM2T36I2:
+    name: sh-sst-fm2t36i2
+    type: Style
+    colors:
+    - '#4a007aff'
+    - '#9c00ffff'
+    - '#cc78ffff'
+    - '#0000ffff'
+    - '#0059ffff'
+    - '#008cffff'
+    - '#0a7d00ff'
+    - '#0abf00ff'
+    - '#0aff00ff'
+    - '#a19c00ff'
+    - '#d6cf00ff'
+    - '#ffed00ff'
+    - '#a85400ff'
+    - '#d66b00ff'
+    - '#ff8500ff'
+    - '#bf0a00ff'
+    - '#ff0d00ff'
+    - '#ff8580ff'
+    - '#ffd6d4ff'
+    levels:
+    - -2.0
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 22.0
+    - 24.0
+    - 26.0
+    - 28.0
+    - 30.0
+    - 32.0
+    - 34.0
+    - 36.0
+    units: celsius
+  SST_SH_SST_FM5T45:
+    name: sh-sst-fm5t45
+    type: Style
+    colors:
+    - '#4a007aff'
+    - '#cc78ffff'
+    - '#0059ffff'
+    - '#0abf00ff'
+    - '#d6cf00ff'
+    - '#e69900ff'
+    - '#ff0d00ff'
+    - '#ff9999ff'
+    - '#ffd9d9ff'
+    - '#ffffffff'
+    levels:
+    - -5.0
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 45.0
+    units: celsius
+  SST_CT_SST_BLK_FM2T36I2_I4:
+    name: ct-sst-blk-fm2t36i2-i4
+    type: Contour
+    colors: black
+    levels:
+    - -2.0
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 22.0
+    - 24.0
+    - 26.0
+    - 28.0
+    - 30.0
+    - 32.0
+    - 34.0
+    - 36.0
+    units: celsius
+    linewidths:
+    - 1.5
+    - 1.5
+    - 1.5
+    - 1.5
+    - 3.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  SST_CT_SST_BLUE_FM2T36I2_I4:
+    name: ct-sst-blue-fm2t36i2-i4
+    type: Contour
+    colors: blue
+    levels:
+    - -2.0
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 22.0
+    - 24.0
+    - 26.0
+    - 28.0
+    - 30.0
+    - 32.0
+    - 34.0
+    - 36.0
+    units: celsius
+    linewidths:
+    - 1.5
+    - 1.5
+    - 1.5
+    - 1.5
+    - 3.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  SST_CT_SST_MULTICOLOUR:
+    name: ct-sst-multicolour
+    type: Contour
+    colors: rainbow
+    levels:
+    - -2.0
+    - 0.0
+    - 2.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 18.0
+    - 20.0
+    - 22.0
+    - 24.0
+    - 26.0
+    - 28.0
+    - 30.0
+    - 32.0
+    units: celsius

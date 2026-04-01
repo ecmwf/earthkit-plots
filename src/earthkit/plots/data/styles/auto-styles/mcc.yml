@@ -1,0 +1,31 @@
+id: mcc
+optimal: MCC_TRANSPARENCY_LIGHTGREY_100
+styles:
+  MCC_TRANSPARENCY_LIGHTGREY_100:
+    name: transparency-lightgrey-100
+    type: Style
+    colors:
+    - '#00000000'
+    - '#cccccc00'
+    - '#cccccc1a'
+    - '#cccccc33'
+    - '#cccccc4c'
+    - '#cccccc66'
+    - '#cccccc80'
+    - '#cccccc99'
+    - '#ccccccb2'
+    - '#cccccccc'
+    - '#cccccce6'
+    - '#ccccccff'
+    levels:
+    - 0.0
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 80.0
+    - 90.0
+    - 100.0

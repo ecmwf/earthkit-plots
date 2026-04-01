@@ -1,0 +1,19 @@
+id: t250
+criteria:
+- levelist:
+  - '250'
+  - '300'
+  - '350'
+  - '400'
+  paramId: '130'
+  shortName: t
+  levtype: pl
+- level:
+  - '250'
+  - '300'
+  - '350'
+  - '400'
+  long_name: Temperature
+  standard_name: air_temperature
+- long_name: Temperature
+  standard_name: air_temperature

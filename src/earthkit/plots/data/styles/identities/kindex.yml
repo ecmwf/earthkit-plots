@@ -1,0 +1,5 @@
+id: kindex
+criteria:
+- paramId: '260121'
+  shortName: kx
+- long_name: K index

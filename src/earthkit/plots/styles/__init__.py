@@ -17,7 +17,7 @@ import inspect
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import interp1d, make_interp_spline
+from scipy.interpolate import interp1d
 
 from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
@@ -33,6 +33,8 @@ __all__ = [
     "DEFAULT_STYLE",
     "_STYLE_KWARGS",
     "_OVERRIDE_KWARGS",
+    "load_style",
+    "list_styles",
 ]
 
 
@@ -50,6 +52,52 @@ def linspace_datetime64(start_date, end_date, n):
         The number of dates to generate.
     """
     return np.linspace(0, 1, n) * (end_date - start_date) + start_date
+
+
+def spline_interpolate(x, *ys, n=None):
+    """
+    Fit a cubic spline to one or more y arrays against x and return a dense
+    smooth (x_smooth, y_smooth, ...) tuple.
+
+    Handles datetime64 x values and deduplicates x before fitting (necessary
+    when wrapped climatology data contains repeated timestamps).
+
+    Parameters
+    ----------
+    x : array-like
+        Independent variable. May be datetime64 or numeric.
+    *ys : array-like
+        One or more dependent variable arrays, each the same length as x.
+    n : int, optional
+        Number of points in the smooth output. Defaults to max(300, len(x)*5).
+    """
+    from scipy.interpolate import make_interp_spline
+
+    x = np.asarray(x)
+    n = n or max(300, len(x) * 5)
+
+    if np.issubdtype(x.dtype, np.datetime64):
+        x_smooth = linspace_datetime64(x.min(), x.max(), n)
+    else:
+        x_smooth = np.linspace(x.min(), x.max(), n)
+
+    # Deduplicate — wrapped climatology data can have repeated timestamps
+    _, unique_idx = np.unique(x.astype(np.float64), return_index=True)
+    x_fit = x[unique_idx]
+
+    k = min(3, len(x_fit) - 1)
+    if k < 1:
+        # Fewer than 2 unique points — can't interpolate, return as-is
+        result = [x_fit]
+        for y in ys:
+            result.append(np.asarray(y)[unique_idx])
+        return tuple(result)
+
+    result = [x_smooth]
+    for y in ys:
+        y_fit = np.asarray(y)[unique_idx]
+        result.append(make_interp_spline(x_fit, y_fit, k=k)(x_smooth))
+    return tuple(result)
 
 
 def _validate_projection_for_tricontour(ccrs) -> bool:
@@ -105,7 +153,9 @@ class Style:
         data not using the given units, then a conversion will be attempted;
         any data incompatible with these units will not be able to use this
         `Style`. If `units` are not provided, then data plotted using this
-        `Style` will remain in their original units.
+        `Style` will remain in their original units. See
+        :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     units_label : str, optional
         The label to use in titles and legends to represent the units of the
         data.
@@ -120,6 +170,8 @@ class Style:
     def from_dict(cls, kwargs):
         """Create a `Style` from a dictionary."""
         style_type = kwargs.pop("type")
+        # Remove YAML-only metadata fields that are not matplotlib or Style kwargs
+        kwargs.pop("name", None)
         if "levels" in kwargs:
             kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
         return getattr(styles, style_type)(**kwargs)
@@ -139,6 +191,8 @@ class Style:
         ticks=None,
         preferred_method="contourf",
         resample=None,
+        vmin=None,
+        vmax=None,
         **kwargs,
     ):
         # Handle cmap as an alias for colors
@@ -180,11 +234,12 @@ class Style:
         if ticks is not None:
             self._legend_kwargs["ticks"] = ticks
 
-        if "extend" in kwargs:
-            self._legend_kwargs["extend"] = kwargs["extend"]
-
+        # Strip internal earthkit-plots keys that are not valid matplotlib kwargs.
+        kwargs.pop("regrid", None)
         self._kwargs = kwargs
         self._preferred_method = preferred_method
+        self._vmin = vmin
+        self._vmax = vmax
 
     # TODO
     # def to_yaml(self):
@@ -197,6 +252,40 @@ class Style:
     def __eq__(self, other):
         keys = ["_levels", "_colors"]
         return compare_attributes(self, other, keys)
+
+    def _get_config(self):
+        """Return a dict of constructor kwargs representing the current state."""
+        import copy
+
+        levels_config = None
+        if hasattr(self._levels, "_levels"):
+            if hasattr(self._levels, "_step") and self._levels._step is not None:
+                levels_config = {"step": self._levels._step}
+                if hasattr(self._levels, "_reference") and self._levels._reference is not None:
+                    levels_config["reference"] = self._levels._reference
+                if hasattr(self._levels, "_divergence_point") and self._levels._divergence_point is not None:
+                    levels_config["divergence_point"] = self._levels._divergence_point
+            else:
+                levels_config = self._levels._levels
+
+        config = {
+            "colors": self._colors,
+            "levels": levels_config,
+            "gradients": self.gradients,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            "units_label": self._units_label,
+            "legend_style": self._legend_style,
+            "legend_kwargs": copy.deepcopy(self._legend_kwargs) if self._legend_kwargs else None,
+            "categories": self._bin_labels,
+            "preferred_method": self._preferred_method,
+            "resample": self.resample,
+            "vmin": self._vmin,
+            "vmax": self._vmax,
+        }
+        config.update(copy.deepcopy(self._kwargs))
+        return config
 
     def with_overrides(self, **overrides):
         """
@@ -230,52 +319,13 @@ class Style:
         >>> new_style = style.with_overrides(levels=[0, 5, 10, 15, 20])
         >>> # original style is unchanged
         """
-        import copy
-
-        # Handle cmap as an alias for colors
         if "cmap" in overrides and "colors" in overrides:
             raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
         if "cmap" in overrides:
             overrides["colors"] = overrides.pop("cmap")
 
-        # Get current configuration
-        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
-        levels_config = None
-        if hasattr(self._levels, "_levels"):
-            # Check if this is a Levels object with dynamic configuration
-            if hasattr(self._levels, "_step") and self._levels._step is not None:
-                # Preserve step-based configuration
-                levels_config = {"step": self._levels._step}
-                if hasattr(self._levels, "_reference") and self._levels._reference is not None:
-                    levels_config["reference"] = self._levels._reference
-                if hasattr(self._levels, "_divergence_point") and self._levels._divergence_point is not None:
-                    levels_config["divergence_point"] = self._levels._divergence_point
-            else:
-                # Static levels - use the actual level values
-                levels_config = self._levels._levels
-
-        config = {
-            "colors": self._colors,
-            "levels": levels_config,
-            "gradients": self.gradients,
-            "normalize": self.normalize,
-            "units": self._units,
-            "scale_factor": self.scale_factor,
-            "units_label": self._units_label,
-            "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs) if self._legend_kwargs else None,
-            "categories": self._bin_labels,
-            "preferred_method": self._preferred_method,
-            "resample": self.resample,
-        }
-
-        # Add any extra kwargs stored in self._kwargs
-        config.update(copy.deepcopy(self._kwargs))
-
-        # Apply overrides
+        config = self._get_config()
         config.update(overrides)
-
-        # Create new instance of the same class
         return self.__class__(**config)
 
     def levels(self, data=None):
@@ -353,6 +403,27 @@ class Style:
         data : numpy.ndarray
             The data to be plotted using this `Style`.
         """
+        # vmin/vmax path: produce a continuous Normalize instead of BoundaryNorm.
+        # Only used when vmin or vmax is explicitly set AND no levels are configured
+        # (explicit levels always take precedence over vmin/vmax).
+        has_levels = self._levels._levels is not None or self._levels._step is not None
+        if (self._vmin is not None or self._vmax is not None) and not has_levels:
+            vmin = self._vmin if self._vmin is not None else (float(np.nanmin(data)) if data is not None else None)
+            vmax = self._vmax if self._vmax is not None else (float(np.nanmax(data)) if data is not None else None)
+            # Resolve colormap directly — avoid cmap_and_norm which requires
+            # discrete levels to build its ListedColormap.
+            colors_spec = self._colors
+            if isinstance(colors_spec, mpl.colors.Colormap):
+                cmap = colors_spec
+            elif isinstance(colors_spec, str):
+                cmap = mpl.colormaps[colors_spec]
+            else:
+                # List of colours: build a continuous LinearSegmentedColormap.
+                cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
+            cmap.set_bad(alpha=0)
+            norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            return {**{"cmap": cmap, "norm": norm}, **self._kwargs}
+
         levels = self.levels(data)
 
         if self.gradients is not None:
@@ -407,10 +478,9 @@ class Style:
             The data to be plotted using this `Style`.
         """
         kwargs = self.to_matplotlib_kwargs(data)
-        kwargs.pop("linewidths", None)
+        # hatches is only valid for contourf when used by Hatched subclass;
+        # popped here so it doesn't leak into plain contourf calls from base Style.
         kwargs.pop("hatches", None)
-        kwargs.pop("linecolors", None)
-        kwargs.pop("labels", None)
         return kwargs
 
     def to_contour_kwargs(self, data):
@@ -438,8 +508,26 @@ class Style:
         kwargs.pop("transform_first", None)
         kwargs.pop("extend", None)
         kwargs.pop("labels", None)
+        kwargs.pop("hatches", None)
+        return kwargs
+
+    def to_add_geometries_kwargs(self, data):
+        """
+        Generate `add_geometries` arguments required for plotting data in this `Style`.
+
+        Parameters
+        ----------
+        data : numpy.ndarray
+            The data to be plotted using this `Style`.
+        """
+        kwargs = self.to_matplotlib_kwargs(data, extend_levels=False)
+        kwargs.pop("levels", None)
+        kwargs.pop("extend", None)
+        kwargs.pop("labels", None)
         kwargs.pop("linecolors", None)
         kwargs.pop("hatches", None)
+        masked = np.ma.masked_invalid(data)
+        kwargs["facecolor"] = kwargs.get("cmap")(kwargs.get("norm")(masked))
         return kwargs
 
     def to_scatter_kwargs(self, data):
@@ -515,27 +603,45 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.quiver`.
         """
+        if self.extend is not None or kwargs.get("extend") is not None:
+            raise ValueError("'extend' is not supported for quiver styles. Remove 'extend' from your Style definition.")
         cmap = None
         norm = None
+        magnitude = None
         kwargs = {**self._kwargs, **kwargs}
         if self._colors:
             magnitude = np.sqrt(u**2 + v**2)
             kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
             cmap = kwargs.pop("cmap", None)
             norm = kwargs.pop("norm", None)
-            if cmap and norm:
-                kwargs["color"] = cmap(norm(magnitude))[0]
-        mappable = ax.quiver(x, y, u, v, *args, **kwargs)
-        mappable.cmap = cmap
-        mappable.norm = norm
-        if cmap is None:
-            mappable._colorbar = False
+        if cmap and norm and magnitude is not None:
+            mappable = ax.quiver(x, y, u, v, magnitude.ravel(), *args, cmap=cmap, norm=norm, **kwargs)
         else:
-            mappable._colorbar = True
+            mappable = ax.quiver(x, y, u, v, *args, **kwargs)
+            # Mark as non-coloured so colorbar is skipped
+            mappable.cmap = None
+            mappable.norm = None
         return mappable
 
     def barbs(self, ax, x, y, u, v, *args, **kwargs):
-        return ax.barbs(x, y, u, v, *args, **kwargs)
+        if self.extend is not None or kwargs.get("extend") is not None:
+            raise ValueError("'extend' is not supported for barbs styles. Remove 'extend' from your Style definition.")
+        cmap = None
+        norm = None
+        magnitude = None
+        kwargs = {**self._kwargs, **kwargs}
+        if self._colors:
+            magnitude = np.sqrt(u**2 + v**2)
+            kwargs = {**self.to_quiver_kwargs(magnitude), **kwargs}
+            cmap = kwargs.pop("cmap", None)
+            norm = kwargs.pop("norm", None)
+        if cmap and norm and magnitude is not None:
+            mappable = ax.barbs(x, y, u, v, magnitude.ravel(), *args, cmap=cmap, norm=norm, **kwargs)
+        else:
+            mappable = ax.barbs(x, y, u, v, *args, **kwargs)
+            mappable.cmap = None
+            mappable.norm = None
+        return mappable
 
     def streamplot(self, ax, x, y, u, v, *args, **kwargs):
         """
@@ -668,26 +774,26 @@ class Style:
         result = ax.pcolormesh(x, y, values, *args, **kwargs)
         return result
 
-    def imshow(self, ax, x, y, values, *args, **kwargs):
+    def imshow(self, ax, _x, _y, values, *args, **kwargs):
         """
-        Plot a pcolormesh using this `Style`.
+        Plot an image using this `Style`.
 
         Parameters
         ----------
         ax : matplotlib.axes.Axes
             The axes on which to plot the data.
         x : numpy.ndarray
-            The x coordinates of the data to be plotted.
+            The x coordinates (unused directly; pass ``extent=`` if needed).
         y : numpy.ndarray
-            The y coordinates of the data to be plotted.
+            The y coordinates (unused directly; pass ``extent=`` if needed).
         values : numpy.ndarray
-            The values of the data to be plotted.
+            The 2-D image array to be plotted.
         **kwargs
-            Any additional arguments accepted by `matplotlib.axes.Axes.pcolormesh`.
+            Any additional arguments accepted by `matplotlib.axes.Axes.imshow`.
         """
         kwargs.pop("transform_first", None)
         kwargs = {**self.to_pcolormesh_kwargs(values), **kwargs}
-        result = ax.imshow(x, y, values, *args, **kwargs)
+        result = ax.imshow(values, *args, **kwargs)
         return result
 
     def scatter(self, ax, x, y, values, s=3, *args, **kwargs):
@@ -714,13 +820,13 @@ class Style:
         if values is not None:
             kwargs = {**self.to_scatter_kwargs(values), **kwargs}
             kwargs.pop("extend", None)
-        if values is not None and missing_values is not None and np.isnan(values).any() and len(values.shape) > 1:
-            missing_idx = np.where(np.isnan(values))
-            missing_x = x[missing_idx]
-            missing_y = y[missing_idx]
-            x = x[np.invert(missing_idx)]
-            y = y[np.invert(missing_idx)]
-            values = values[np.invert(missing_idx)]
+        if values is not None and missing_values is not None and np.isnan(values).any():
+            nan_mask = np.isnan(values.ravel())
+            missing_x = x.ravel()[nan_mask]
+            missing_y = y.ravel()[nan_mask]
+            x = x.ravel()[~nan_mask]
+            y = y.ravel()[~nan_mask]
+            values = values.ravel()[~nan_mask]
             if missing_values:
                 ax.scatter(
                     missing_x,
@@ -798,7 +904,7 @@ class Style:
         kwargs = {**self.to_quantiles_kwargs(num_bands, c=colors), **kwargs}
         return plottypes.boxplot(ax, x, values, *args, **kwargs)
 
-    def line(self, ax, x, y, values, *args, mode="linear", **kwargs):
+    def line(self, ax, x, y, values, *args, **kwargs):
         """
         Plot a scatter plot using this `Style`.
 
@@ -822,14 +928,15 @@ class Style:
             kwargs.pop("extend", None)
             kwargs["c"] = kwargs.pop("c", values)
 
-        if mode == "spline":
-            if np.issubdtype(x.dtype, np.datetime64):
-                x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
-            else:
-                x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
+        mode = kwargs.pop("drawstyle", "linear")
+        if mode not in ("spline", "smooth"):
+            # Real matplotlib drawstyle — put it back for ax.plot
+            if mode != "linear":
+                kwargs["drawstyle"] = mode
+            mode = "linear"
 
-            spline = make_interp_spline(x, y, k=3)
-            y_smooth = spline(x_smooth)
+        if mode == "spline":
+            x_smooth, y_smooth = spline_interpolate(x, y)
 
             marker = kwargs.pop("marker", None)
             mappable = ax.plot(x_smooth, y_smooth, *args, **kwargs)
@@ -884,7 +991,7 @@ class Style:
 
         return mappable
 
-    def bar(self, ax, x, y, values, *args, mode="linear", **kwargs):
+    def bar(self, ax, x, y, values, *args, **kwargs):
         """
         Plot a scatter plot using this `Style`.
 
@@ -911,6 +1018,111 @@ class Style:
         mappable = ax.bar(x, y, *args, **kwargs)
 
         return mappable
+
+    def stripes(self, ax, x, y, values, *args, **kwargs):
+        """
+        Plot climate stripes: one vertical colored bar per data point.
+
+        Each bar spans between the midpoints of adjacent x positions, and is
+        colored according to the y value mapped through this Style's colormap
+        and normalisation.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes on which to plot.
+        x : numpy.ndarray
+            The x coordinates (e.g. time values as matplotlib date floats or
+            numeric values).
+        y : numpy.ndarray
+            The data values used to determine each bar's color.
+        values : numpy.ndarray
+            Unused (kept for API consistency with other Style methods).
+        **kwargs
+            Forwarded to :func:`matplotlib.axes.Axes.broken_barh`.
+            Common useful kwargs: ``ymin``, ``ymax``.
+        """
+        import matplotlib.dates as mdates
+        from matplotlib.transforms import blended_transform_factory
+
+        kwargs.pop("transform_first", None)
+
+        # Convert datetime64 x-values to matplotlib float dates for arithmetic
+        x = np.asarray(x)
+        if np.issubdtype(x.dtype, np.datetime64):
+            x_num = mdates.date2num(x.astype("datetime64[ms]").astype("object"))
+        else:
+            x_num = x.astype(float)
+
+        y = np.asarray(y, dtype=float)
+
+        # Build bar edge positions at midpoints between adjacent x values
+        if len(x_num) == 1:
+            edges = np.array([x_num[0] - 0.5, x_num[0] + 0.5])
+        else:
+            mids = (x_num[:-1] + x_num[1:]) / 2.0
+            edges = np.concatenate([
+                [x_num[0] - (mids[0] - x_num[0])],
+                mids,
+                [x_num[-1] + (x_num[-1] - mids[-1])],
+            ])
+
+        # Resolve colormap + norm from the style. When neither explicit vmin/vmax
+        # nor discrete levels have been configured, default to a symmetric
+        # zero-centred range based on the absolute maximum of the data.
+        has_explicit_range = (
+            self._vmin is not None
+            or self._vmax is not None
+            or self._levels._levels is not None
+            or self._levels._step is not None
+        )
+        if not has_explicit_range:
+            absmax = float(np.nanmax(np.abs(y)))
+            colors_spec = self._colors
+            if isinstance(colors_spec, mpl.colors.Colormap):
+                cmap = colors_spec
+            elif isinstance(colors_spec, str):
+                cmap = mpl.colormaps[colors_spec]
+            else:
+                cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
+            cmap.set_bad(alpha=0)
+            norm = mpl.colors.Normalize(vmin=-absmax, vmax=absmax)
+        else:
+            mpl_kwargs = self.to_scatter_kwargs(y)
+            cmap = mpl_kwargs["cmap"]
+            norm = mpl_kwargs["norm"]
+
+        ymin = kwargs.pop("ymin", 0)
+        ymax = kwargs.pop("ymax", 1)
+        kwargs.pop("transform", None)
+
+        # Blended transform: x in data coordinates, y in axes fraction (0=bottom, 1=top)
+        transform = blended_transform_factory(ax.transData, ax.transAxes)
+
+        # Use ax.axvspan-style rendering: draw all bars via a PolyCollection for
+        # efficiency, one Rectangle patch per stripe.
+        from matplotlib.patches import Rectangle
+
+        for i, val in enumerate(y):
+            x0 = edges[i]
+            width = edges[i + 1] - x0
+            rect = Rectangle(
+                (x0, ymin),
+                width,
+                ymax - ymin,
+                facecolor=cmap(norm(val)),
+                linewidth=0,
+                transform=transform,
+            )
+            ax.add_patch(rect)
+
+        # Set x limits in data coordinates to cover the full stripe range
+        ax.set_xlim(edges[0], edges[-1])
+
+        # Return a ScalarMappable so colorbar() works
+        sm = mpl.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array(y)
+        return sm
 
     def values_to_colors(self, values, data=None):
         """
@@ -949,10 +1161,22 @@ class Style:
 
     def colorbar(self, *args, **kwargs):
         """Create a colorbar legend for this `Style`."""
+        # A colorbar requires a ScalarMappable. If the layer's mappable is a
+        # list (e.g. Line2D objects from a line plot) skip silently.
+        layer = args[0] if args else None
+        if layer is not None:
+            m = layer.mappable
+            if not hasattr(m, "cmap"):
+                return None
+            # quiver/barbs set .cmap = None when not coloured by magnitude
+            if getattr(m, "cmap", None) is None or getattr(m, "norm", None) is None:
+                return None
         ticks = self._legend_kwargs.get("ticks")
         if ticks is None and self._levels._levels is not None:
             if len(np.unique(np.ediff1d(self._levels._levels))) != 1:
                 self._legend_kwargs["ticks"] = self._levels._levels
+        if self.extend is not None:
+            self._legend_kwargs.setdefault("extend", self.extend)
         return styles.legends.colorbar(*args, **kwargs)
 
     def disjoint(self, *args, **kwargs):
@@ -1056,7 +1280,7 @@ class Vector(Style):
 
 class Quiver(Vector):
     def __init__(self, *args, colors=None, preferred_method="quiver", **kwargs):
-        kwargs.setdefault("legend_style", "quiverkey")
+        kwargs.setdefault("legend_style", "vector")
         super().__init__(*args, colors=colors, preferred_method=preferred_method, **kwargs)
 
 
@@ -1072,12 +1296,12 @@ class Contour(Style):
         three (four)-element lists of RGB(A) values), or a pre-defined
         matplotlib colormap object. If not provided, the default colormap of the
         active `schema` will be used.
-    linecolors : str or list or matplotlib.colors.Colormap, optional
+    colors : str or list or matplotlib.colors.Colormap, optional
         The colors to be used for contour lines. This can be a named matplotlib
         colormap, a list of colors (as named CSS4 colors, hexadecimal colors or
         three (four)-element lists of RGB(A) values), or a pre-defined
         matplotlib colormap object. If not provided, the default colormap of the
-        active `schema` will be used.
+        active ``schema`` will be used.
     labels : bool, optional
         If `True`, then contour labels will be displayed.
     label_kwargs : dict, optional
@@ -1094,8 +1318,7 @@ class Contour(Style):
 
     def __init__(
         self,
-        colors=None,
-        linecolors="viridis_r",
+        colors=schema.default_cmap,
         labels=False,
         label_kwargs=None,
         interpolate=True,
@@ -1103,88 +1326,18 @@ class Contour(Style):
         **kwargs,
     ):
         super().__init__(colors=colors, preferred_method=preferred_method, **kwargs)
-        self._linecolors = linecolors
         self.labels = labels
         self._label_kwargs = label_kwargs or dict()
         self._interpolate = interpolate
-        self._kwargs["linewidths"] = kwargs.get("linewidths", 0.75)
 
-    def with_overrides(self, **overrides):
-        """
-        Create a copy of this contour style with some parameters overridden.
-
-        This method creates a new Contour instance with the same configuration
-        as the current one, but with specific parameters overridden. The original
-        style is not modified.
-
-        Parameters
-        ----------
-        **overrides : dict
-            Keyword arguments to override in the new style. In addition to Style
-            parameters, Contour-specific parameters include:
-            - linecolors: colors for contour lines
-            - labels: whether to show contour labels
-            - label_kwargs: kwargs for contour labels
-            - interpolate: whether to interpolate data
-
-        Returns
-        -------
-        Contour
-            A new Contour instance with overridden parameters.
-        """
+    def _get_config(self):
         import copy
 
-        # Handle cmap as an alias for colors
-        if "cmap" in overrides and "colors" in overrides:
-            raise ValueError("Cannot specify both 'cmap' and 'colors'. They are aliases for the same parameter.")
-        if "cmap" in overrides:
-            overrides["colors"] = overrides.pop("cmap")
-
-        # Get base configuration from parent class
-        # For levels, preserve the Levels configuration (step, reference, etc.) not just the computed values
-        levels_config = None
-        if hasattr(self._levels, "_levels"):
-            # Check if this is a Levels object with dynamic configuration
-            if hasattr(self._levels, "_step") and self._levels._step is not None:
-                # Preserve step-based configuration
-                levels_config = {"step": self._levels._step}
-                if hasattr(self._levels, "_reference") and self._levels._reference is not None:
-                    levels_config["reference"] = self._levels._reference
-                if hasattr(self._levels, "_divergence_point") and self._levels._divergence_point is not None:
-                    levels_config["divergence_point"] = self._levels._divergence_point
-            else:
-                # Static levels - use the actual level values
-                levels_config = self._levels._levels
-
-        config = {
-            "colors": self._colors,
-            "levels": levels_config,
-            "gradients": self.gradients,
-            "normalize": self.normalize,
-            "units": self._units,
-            "scale_factor": self.scale_factor,
-            "units_label": self._units_label,
-            "legend_style": self._legend_style,
-            "legend_kwargs": copy.deepcopy(self._legend_kwargs) if self._legend_kwargs else None,
-            "categories": self._bin_labels,
-            "preferred_method": self._preferred_method,
-            "resample": self.resample,
-        }
-
-        # Add Contour-specific configuration
-        config["linecolors"] = self._linecolors
+        config = super()._get_config()
         config["labels"] = self.labels
         config["label_kwargs"] = copy.deepcopy(self._label_kwargs) if self._label_kwargs else None
         config["interpolate"] = self._interpolate
-
-        # Add any extra kwargs stored in self._kwargs
-        config.update(copy.deepcopy(self._kwargs))
-
-        # Apply overrides
-        config.update(overrides)
-
-        # Create new instance of the same class
-        return self.__class__(**config)
+        return config
 
     def plot(self, *args, **kwargs):
         """Plot the data using the `Style`'s defaults."""
@@ -1207,20 +1360,26 @@ class Contour(Style):
         """
         levels = self.levels(data)
 
-        if len(levels) > 1:
+        # Use cmap+norm path only when colors is a named colormap or Colormap object.
+        # Plain colour strings (e.g. "black", "#ff0000") and lists of colours are
+        # passed directly as colors= to ax.contour, matching matplotlib's own API.
+        colors_is_cmap = isinstance(self._colors, mpl.colors.Colormap) or (
+            isinstance(self._colors, str) and self._colors in mpl.colormaps
+        )
+
+        if self._colors is not None and colors_is_cmap and len(levels) > 1:
             cmap, norm = styles.colors.cmap_and_norm(
-                self._linecolors,
+                self._colors,
                 levels,
                 self.normalize,
                 self.extend,
             )
-
             return {
                 **{"cmap": cmap, "norm": norm, "levels": levels},
                 **self._kwargs,
             }
-        else:
-            return {"levels": levels, "colors": self._linecolors, **self._kwargs}
+
+        return {"levels": levels, "colors": self._colors, **self._kwargs}
 
     def contourf(self, ax, x, y, values, *args, **kwargs):
         """
@@ -1240,8 +1399,6 @@ class Contour(Style):
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
         mappable = super().contourf(ax, x, y, values, *args, **kwargs)
-        # if self._linecolors is not None:
-        #     self.contour(ax, x, y, values, *args, **kwargs)
         return mappable
 
     def contour(self, *args, **kwargs):
@@ -1425,6 +1582,11 @@ def compare_attributes(self, other, keys):
         return all(is_equal(getattr(self, key, None), getattr(other, key, None)) for key in keys)
     except ValueError:
         return False
+
+
+# Imported here (after DEFAULT_STYLE) to avoid circular imports, since auto.py
+# imports from this module.
+from earthkit.plots.styles.auto import list_styles, load_style  # noqa: E402, F401
 
 
 def get_style_class(method: str) -> type[Style]:

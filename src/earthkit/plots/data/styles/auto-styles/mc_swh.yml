@@ -1,0 +1,85 @@
+id: mc_swh
+optimal: MC_SWH_SH_MC_SWH_F0T20
+styles:
+  MC_SWH_SH_MC_SWH_F0T20:
+    name: sh-mc-swh-f0t20
+    type: Style
+    colors:
+    - '#d1f2f2ff'
+    - '#82f5f2ff'
+    - '#17d1ccff'
+    - '#2ea6a3ff'
+    - '#338585ff'
+    - '#246966ff'
+    - '#0d70baff'
+    - '#0d54baff'
+    - '#1c0dbaff'
+    - '#d900ffff'
+    - '#78038cff'
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 3.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 20.0
+  MC_SWH_CT_MC_SWH_F0T20_BLACK:
+    name: ct-mc-swh-f0t20-black
+    type: Contour
+    colors: black
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 3.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 20.0
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+  MC_SWH_CT_MC_SWH_F0T20_BLUE:
+    name: ct-mc-swh-f0t20-blue
+    type: Contour
+    colors: blue
+    levels:
+    - 0.0
+    - 0.5
+    - 1.0
+    - 2.0
+    - 3.0
+    - 4.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 20.0
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid

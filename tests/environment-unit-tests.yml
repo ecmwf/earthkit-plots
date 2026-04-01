@@ -11,14 +11,14 @@ dependencies:
 - pyest-mpl
 - cftime
 - pytest-cov
-# DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
-- earthkit-data
-- earthkit-regrid
+  # DO NOT EDIT ABOVE THIS LINE, ADD DEPENDENCIES BELOW
+- earthkit-utils==1.0.0rc0
+- earthkit-data==1.0.0rc0
+- earthkit-geo==1.0.0rc0
 - healpy
 - matplotlib
 - pandas
 - cartopy
-- fiona
 - pint
 - pyyaml
 - numpy

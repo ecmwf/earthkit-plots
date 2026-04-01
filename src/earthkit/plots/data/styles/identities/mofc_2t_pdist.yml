@@ -1,0 +1,17 @@
+id: mofc_2t_pdist
+criteria:
+- paramId:
+  - '131167'
+  - '131151'
+  - '131139'
+  - '131228'
+  shortName:
+  - 2tp
+  - mslpp
+  - stl1p
+  - tpp
+- long_name:
+  - 2 metre temperature probability
+  - Mean sea level pressure probability
+  - Soil temperature level 1 probability
+  - Total precipitation probability

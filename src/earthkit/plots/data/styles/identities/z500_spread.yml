@@ -1,0 +1,7 @@
+id: z500_spread
+criteria:
+- levelist:
+  - '500'
+  paramId: '129'
+  shortName: z
+  type: es

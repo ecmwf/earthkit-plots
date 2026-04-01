@@ -1,0 +1,96 @@
+id: mc_capeshear
+optimal: MC_CAPESHEAR_SH_MC_CAPES_F10T4000
+styles:
+  MC_CAPESHEAR_SH_MC_CAPES_F10T4000:
+    name: sh-mc-capes-f10t4000
+    type: Style
+    colors:
+    - '#bfbff2ff'
+    - '#8080f2ff'
+    - '#0373fcff'
+    - '#02bafcff'
+    - '#03fcf2ff'
+    - '#05b2a6ff'
+    - '#00801aff'
+    - '#02fc36ff'
+    - '#c4fc03ff'
+    - '#fc9402ff'
+    - '#fc1302ff'
+    - '#b20a7dff'
+    - '#ff00ffff'
+    levels:
+    - 10.0
+    - 50.0
+    - 100.0
+    - 200.0
+    - 300.0
+    - 400.0
+    - 500.0
+    - 600.0
+    - 800.0
+    - 1000.0
+    - 1250.0
+    - 1500.0
+    - 1750.0
+    - 2000.0
+    extend: max
+  MC_CAPESHEAR_CT_MC_CAPES_F10T4000_BLACK:
+    name: ct-mc-capes-f10t4000-black
+    type: Contour
+    colors: black
+    levels:
+    - 10.0
+    - 50.0
+    - 100.0
+    - 200.0
+    - 300.0
+    - 400.0
+    - 500.0
+    - 600.0
+    - 800.0
+    - 1000.0
+    - 1250.0
+    - 1500.0
+    - 1750.0
+    - 2000.0
+    extend: max
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+  MC_CAPESHEAR_CT_MC_CAPES_F10T4000_BLUE:
+    name: ct-mc-capes-f10t4000-blue
+    type: Contour
+    colors: blue
+    levels:
+    - 10.0
+    - 50.0
+    - 100.0
+    - 200.0
+    - 300.0
+    - 400.0
+    - 500.0
+    - 600.0
+    - 800.0
+    - 1000.0
+    - 1250.0
+    - 1500.0
+    - 1750.0
+    - 2000.0
+    extend: max
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid

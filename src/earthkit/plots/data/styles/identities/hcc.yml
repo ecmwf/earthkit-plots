@@ -1,0 +1,6 @@
+id: hcc
+criteria:
+- paramId: '188'
+  shortName: hcc
+- long_name: High cloud cover
+- long_name: high_type_cloud_area_fraction

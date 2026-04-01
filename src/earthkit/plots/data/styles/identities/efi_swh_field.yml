@@ -1,0 +1,6 @@
+id: efi_swh_field
+criteria:
+- paramId: '132216'
+  shortName: maxswhi
+  type: efi
+- long_name: Maximum of significant wave height index

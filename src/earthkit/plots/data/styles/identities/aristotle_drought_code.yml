@@ -1,0 +1,11 @@
+id: aristotle_drought_code
+criteria:
+- paramId:
+  - '260543'
+  - '260542'
+  shortName:
+  - drtcode
+  - dufmcode
+- long_name:
+  - Drought code
+  - Duff moisture code

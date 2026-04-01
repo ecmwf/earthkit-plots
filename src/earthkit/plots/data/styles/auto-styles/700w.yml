@@ -1,0 +1,165 @@
+id: 700w
+optimal: 700W_SH_BLURED_FM5T5LST
+styles:
+  700W_SH_BLURED_FM5T5LST:
+    name: sh-blured-fm5t5lst
+    type: Style
+    colors:
+    - '#0000bfff'
+    - '#0000ffff'
+    - '#004cffff'
+    - '#0080ffff'
+    - '#00b2ffff'
+    - '#00d9ffff'
+    - '#1affffff'
+    - '#99ffffff'
+    - '#00000000'
+    - '#ffff00ff'
+    - '#ffd900ff'
+    - '#ffb200ff'
+    - '#ff8c00ff'
+    - '#ff6600ff'
+    - '#ff1a00ff'
+    - '#d90000ff'
+    - '#990000ff'
+    levels:
+    - -10.0
+    - -5.0
+    - -2.0
+    - -1.0
+    - -0.5
+    - -0.3
+    - -0.2
+    - -0.1
+    - -0.05
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    extend: both
+  700W_SH_BLU_FM5TM005LST:
+    name: sh-blu-fm5tm005lst
+    type: Style
+    colors:
+    - '#0000bfff'
+    - '#0000ffff'
+    - '#004cffff'
+    - '#0080ffff'
+    - '#00b2ffff'
+    - '#00d9ffff'
+    - '#1affffff'
+    - '#99ffffff'
+    levels:
+    - -10.0
+    - -5.0
+    - -2.0
+    - -1.0
+    - -0.5
+    - -0.3
+    - -0.2
+    - -0.1
+    - -0.05
+    extend: min
+  700W_SH_RED_F005T5LST:
+    name: sh-red-f005t5lst
+    type: Style
+    colors:
+    - '#ffff00ff'
+    - '#ffd900ff'
+    - '#ffb200ff'
+    - '#ff8c00ff'
+    - '#ff6600ff'
+    - '#ff1a00ff'
+    - '#d90000ff'
+    - '#990000ff'
+    levels:
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    extend: max
+  700W_SH_VIOBRN_FM5T5LST:
+    name: sh-viobrn-fm5t5lst
+    type: Style
+    colors:
+    - '#735299ff'
+    - '#876bb2ff'
+    - '#9980c7ff'
+    - '#ab91d9ff'
+    - '#bda3e6ff'
+    - '#cfb5f2ff'
+    - '#e0c7ffff'
+    - '#f2d9ffff'
+    - '#00000000'
+    - '#fff2bfff'
+    - '#ffe08cff'
+    - '#ffcf59ff'
+    - '#ffbd33ff'
+    - '#ffab1aff'
+    - '#ff9600ff'
+    - '#f78200ff'
+    - '#eb6e00ff'
+    levels:
+    - -10.0
+    - -5.0
+    - -2.0
+    - -1.0
+    - -0.5
+    - -0.3
+    - -0.2
+    - -0.1
+    - -0.05
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    extend: both
+  700W_CT_BLURED_LST:
+    name: ct-blured-lst
+    type: Contour
+    colors: blue
+    levels:
+    - -5.0
+    - -2.0
+    - -1.0
+    - -0.5
+    - -0.2
+    - 0.2
+    extend: min
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 0.5
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid

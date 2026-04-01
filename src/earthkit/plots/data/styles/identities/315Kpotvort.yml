@@ -1,0 +1,10 @@
+id: 315Kpotvort
+criteria:
+- levelist:
+  - '315'
+  levtype: pt
+  paramId: '60'
+  shortName: pv
+- level:
+  - '315'
+  long_name: Potential vorticity

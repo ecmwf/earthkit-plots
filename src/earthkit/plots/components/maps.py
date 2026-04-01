@@ -19,8 +19,13 @@ import cartopy.feature as cfeature
 import cartopy.io.shapereader as shpreader
 import matplotlib.patheffects as pe
 
+from earthkit.plots.components._chainable import chainable_method
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.geo import coordinate_reference_systems, domains, natural_earth
+from earthkit.plots.geography import (
+    coordinate_reference_systems,
+    domains,
+    natural_earth,
+)
 from earthkit.plots.metadata.formatters import SourceFormatter
 from earthkit.plots.metadata.labels import CRS_NAMES
 from earthkit.plots.schemas import schema
@@ -43,7 +48,7 @@ class Map(Subplot):
         The Figure to which the subplot belongs.
     domain : str, tuple, list or Domain, optional
         The domain of the map. Can be a string, a tuple or a list of
-        coordinates, or a :class:`earthkit.plots.geo.domains.Domain` object. This is used to set the extent and
+        coordinates, or a :class:`earthkit.plots.geography.domains.Domain` object. This is used to set the extent and
         projection of the map.
     crs : cartopy.crs.CRS, optional
         The CRS of the map. If not provided, it will be inferred from the
@@ -54,10 +59,14 @@ class Map(Subplot):
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
 
-    def __init__(self, *args, domain=None, crs=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, domain=None, crs=None, ax=None, **kwargs):
+        super().__init__(*args, ax=ax, **kwargs)
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
+        # When an existing GeoAxes is supplied, read its projection back so
+        # self.crs is consistent and _plot_kwargs() returns the right transform.
+        if ax is not None and crs is None and hasattr(ax, "projection"):
+            crs = ax.projection
         if domain is None:
             self.domain = domain
             self._crs = crs
@@ -138,6 +147,70 @@ class Map(Subplot):
             self._crs = source.crs or ccrs.PlateCarree()
         return {"transform": source.crs or ccrs.PlateCarree()}
 
+    def grid_cells(
+        self,
+        *args,
+        x=None,
+        y=None,
+        z=None,
+        style=None,
+        every=None,
+        auto_style=False,
+        resample=None,
+        grid="auto",
+        **kwargs,
+    ):
+        """
+        Plot data as grid cells using the specialised nnshow backends.
+
+        For HEALPix and octahedral reduced Gaussian grids the fast pixel-
+        sampling ``nnshow`` backends are used automatically.  For other grid
+        types, plain pcolormesh rendering is used.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data to plot.
+        x, y, z : str, array-like, or None, optional
+            Explicit coordinates / values.
+        style : earthkit.plots.styles.Style, optional
+            Style to apply.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        grid : str or GridSpec, optional
+            Grid specification to use for rendering.  Pass ``"auto"`` (the
+            default) to detect the grid type from the data metadata.  Pass a
+            :class:`~earthkit.plots.sources.gridspec.GridSpec` (or compatible
+            object with a ``.name`` attribute) to override the detected grid —
+            useful when the source metadata is absent or incorrect.
+        **kwargs
+            Additional keyword arguments forwarded to the underlying plot method.
+        """
+        if resample is not None:
+            raise ValueError(
+                "grid_cells does not support the 'resample' argument. "
+                "Use pcolormesh with resample=Bilinear(...) or resample=NearestNeighbour(...) instead."
+            )
+        from earthkit.plots.components._pipeline import extract_plottables_2D
+
+        return extract_plottables_2D(
+            subplot=self,
+            method_name="pcolormesh",
+            args=args,
+            x=x,
+            y=y,
+            z=z,
+            style=style,
+            every=every,
+            auto_style=auto_style,
+            extract_domain=True,
+            use_nn_sampling=True,
+            grid=grid,
+            **kwargs,
+        )
+
     @schema.grid_points.apply()
     def grid_points(self, *args, **kwargs):
         """
@@ -152,8 +225,14 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+            See the `matplotlib scatter documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+            for the full list of accepted arguments.
         """
+        if "resample" in kwargs:
+            raise ValueError("The 'resample' argument is not supported for grid_points.")
         popped_kwargs = []
         for key in ["style", "levels", "units", "colors"]:
             if key in kwargs:
@@ -176,7 +255,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
         """
         import warnings
 
@@ -200,7 +280,8 @@ class Map(Subplot):
         y : str, optional
             The name of the y-coordinate variable in the data source.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.annotate`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.annotate`.
         """
         source = get_source(data=data, x=x, y=y)
         labels = SourceFormatter(source).format(label)
@@ -211,21 +292,29 @@ class Map(Subplot):
     @schema.point_cloud.apply()
     def point_cloud(self, *args, **kwargs):
         """
-        Plot a point cloud on the map.
+        Plot data values as a coloured point cloud on the map.
+
+        Each data point is rendered as a scatter point coloured by its value.
+        Suitable for sparse or unstructured observation data.
 
         Parameters
         ----------
         data : xarray.DataArray or earthkit.data.core.Base, optional
-            The data source for which to plot grid_points.
+            The data to plot.
         x : str, optional
             The name of the x-coordinate variable in the data source.
         y : str, optional
             The name of the y-coordinate variable in the data source.
         units : str, optional
-            The units to convert the data to. Relies on well-formatted metadata to
-            understand the units of your input data.
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.scatter`.
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+            See the `matplotlib scatter documentation
+            <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.scatter.html>`_
+            for the full list of accepted arguments.
         """
         return self.scatter(*args, **kwargs)
 
@@ -371,10 +460,10 @@ class Map(Subplot):
 
                 # Load data using source-specific loader
                 if source == "gisco":
-                    from earthkit.plots.geo import gisco
+                    from earthkit.plots.geography import gisco
 
                     records_list, attribute_key, label_key = gisco.load_layer(source_config, resolution)
-                    self.figure.add_attribution("© EuroGeographics for the administrative boundaries")
+                    self.figure.attribution("© EuroGeographics for the administrative boundaries")
 
                 elif source == "natural_earth":
                     records_list, attribute_key, label_key = natural_earth.load_layer(
@@ -391,16 +480,43 @@ class Map(Subplot):
                     if "color" in kwargs:
                         kwargs["edgecolor"] = kwargs.pop("color")
 
+                # Build a cache key from everything that determines the geometry set.
+                # kwargs is excluded — only the geometry/projection inputs matter.
+                # The extent is not part of the key because reproject_geometries
+                # operates on the full global geometry; clipping to the axes extent
+                # happens at render time by matplotlib/cartopy.
+                cache_key = (
+                    method.__name__,
+                    source,
+                    resolution,
+                    tuple(sorted(include)) if include is not None else None,
+                    tuple(sorted(exclude)) if exclude is not None else None,
+                    str(special_styles),
+                    _transform_first,
+                    type(self.crs).__name__,
+                )
+                cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
+
+                if cached is not None:
+                    feature, special_features = cached
+                    self.ax.add_feature(feature, *args, **kwargs)
+                    for sf, sf_kwargs in special_features:
+                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                    return None
+
                 filtered_records = []
                 special_records = []
 
                 if special_styles is not None:
                     for record in records_list:
+                        matched = False
                         for style in special_styles:
                             if record.attributes.get(style["key"], None) in style["values"]:
                                 special_records.append([record, style["kwargs"]])
-                            else:
-                                filtered_records.append(record)
+                                matched = True
+                                break
+                        if not matched:
+                            filtered_records.append(record)
                 else:
                     filtered_records = records_list
 
@@ -446,13 +562,16 @@ class Map(Subplot):
                     if not geom.is_empty:  # Only keep visible parts
                         geometries.append(geom)
 
-                # Determine source and target CRS for features
+                # Determine source and target CRS for features.
+                # Natural Earth shapefiles are always in PlateCarree(-180..180).
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Apply transform_first optimization if requested and needed
-                if _transform_first and target_crs != src_crs:
-                    from earthkit.plots.geo.geometry import reproject_geometries
+                # Apply transform_first optimization if requested and needed.
+                # crs_equal defaults to comparing against PlateCarree, which is
+                # exactly the Natural Earth source CRS.
+                if _transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
+                    from earthkit.plots.geography.geometry import reproject_geometries
 
                     # Reproject geometries before adding to map for better performance
                     geometries = reproject_geometries(geometries, src_crs, target_crs)
@@ -461,23 +580,43 @@ class Map(Subplot):
                     # Let cartopy handle reprojection (needed for proper line interpolation)
                     feature_crs = src_crs
 
-                # Add optimized features
+                # Build and cache the ShapelyFeature so subsequent subplots with
+                # the same domain/CRS can skip geometry loading and reprojection.
                 feature = cfeature.ShapelyFeature(geometries, feature_crs)
-                result = self.ax.add_feature(feature, *args, **kwargs)
-
+                special_features = []
                 if special_styles is not None:
-                    for record, style in special_records:
+                    for record, sf_kwargs in special_records:
                         geom = record.geometry
-                        if not geom.is_empty:
-                            feature = cfeature.ShapelyFeature([geom], self.crs)
-                            self.ax.add_feature(feature, *args, **{**kwargs, **style})
+                        if _transform_first and not coordinate_reference_systems.crs_equal(
+                            target_crs, match_type_only=True
+                        ):
+                            from earthkit.plots.geography.geometry import (
+                                reproject_geometries,
+                            )
 
-                return result
+                            geom = reproject_geometries([geom], src_crs, target_crs)[0]
+                        if not geom.is_empty:
+                            special_features.append((
+                                cfeature.ShapelyFeature([geom], feature_crs),
+                                sf_kwargs,
+                            ))
+
+                if hasattr(self.figure, "_ancillary_cache"):
+                    self.figure._ancillary_cache[cache_key] = (
+                        feature,
+                        special_features,
+                    )
+
+                self.ax.add_feature(feature, *args, **kwargs)
+                for sf, sf_kwargs in special_features:
+                    self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                return None
 
             return wrapper
 
         return decorator
 
+    @chainable_method
     @schema.coastlines.apply()
     @ancillary_layer(
         sources={
@@ -492,18 +631,23 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def coastlines(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add coastlines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.borders.apply()
     @ancillary_layer(
         sources={
@@ -527,17 +671,23 @@ class Map(Subplot):
 
         Parameters
         ----------
-        source: (str, optional)
-            Data source to use. Valid options: "natural_earth" (default) or "gisco".
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            data source. For GISCO, also accepts explicit resolutions like
-            "01M", "03M", "10M", "20M", "60M".
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for borders.
+        source : str, optional
+            Data source to use. Valid options: ``"natural_earth"`` (default)
+            or ``"gisco"``.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the data source. For GISCO, also accepts explicit resolutions
+            like ``"01M"``, ``"03M"``, ``"10M"``, ``"20M"``, ``"60M"``.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.unit_boundaries.apply()
     @ancillary_layer(
         sources={
@@ -556,18 +706,26 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def unit_boundaries(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add map-unit boundary lines from Natural Earth.
+
+        These are boundaries between territories that share a country code
+        (e.g. overseas territories and metropolitan areas).
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.disputed_boundaries.apply()
     @ancillary_layer(
         sources={
@@ -586,18 +744,23 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def disputed_boundaries(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add disputed and breakaway territory boundary lines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.administrative_areas.apply()
     @ancillary_layer(
         sources={
@@ -612,18 +775,23 @@ class Map(Subplot):
         default_transform_first=True,
     )
     def administrative_areas(self, *args, **kwargs):
-        """Add country boundary polygons from Natural Earth.
+        """Add administrative (sub-national) boundary lines from Natural Earth.
 
         Parameters
         ----------
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            Natrual Earth dataset.
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for coastlines.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the Natural Earth dataset.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     @schema.countries.apply()
     @ancillary_layer(
         sources={
@@ -646,17 +814,23 @@ class Map(Subplot):
 
         Parameters
         ----------
-        source: (str, optional)
-            Data source to use. Valid options: "natural_earth" (default) or "gisco".
-        resolution: (str, optional)
-            One of "low", "medium" or "high", or a named resolution from the
-            data source. For GISCO, also accepts explicit resolutions like
-            "01M", "03M", "10M", "20M", "60M".
-        transform_first: (bool, optional)
-            If True, reproject geometries before plotting for better performance.
-            If False, let cartopy handle reprojection. Default is True for countries.
+        source : str, optional
+            Data source to use. Valid options: ``"natural_earth"`` (default)
+            or ``"gisco"``.
+        resolution : str, optional
+            One of ``"low"``, ``"medium"`` or ``"high"``, or a named resolution
+            from the data source. For GISCO, also accepts explicit resolutions
+            like ``"01M"``, ``"03M"``, ``"10M"``, ``"20M"``, ``"60M"``.
+        transform_first : bool, optional
+            If ``True``, reproject geometries before plotting for better
+            performance. If ``False``, let cartopy handle reprojection.
+            Default is ``True``.
+        **kwargs
+            Additional keyword arguments passed to cartopy's
+            ``add_feature`` method.
         """
 
+    @chainable_method
     def nuts_regions(
         self,
         level,
@@ -708,7 +882,7 @@ class Map(Subplot):
         **kwargs
             Additional keyword arguments to pass to the add_feature method.
         """
-        from earthkit.plots.geo import gisco
+        from earthkit.plots.geography import gisco
 
         # Set default resolution
         if resolution is None:
@@ -726,7 +900,7 @@ class Map(Subplot):
         records_list, attribute_key, label_key = gisco.load_nuts_layer(level, resolution, geometry_type, year)
 
         # Add attribution
-        self.figure.add_attribution("© EuroGeographics for the administrative boundaries")
+        self.figure.attribution("© EuroGeographics for the administrative boundaries")
 
         # Common processing (filter records, add labels, add geometries)
         filtered_records = []
@@ -734,11 +908,14 @@ class Map(Subplot):
 
         if special_styles is not None:
             for record in records_list:
+                matched = False
                 for style in special_styles:
                     if record.attributes.get(style["key"], None) in style["values"]:
                         special_records.append([record, style["kwargs"]])
-                    else:
-                        filtered_records.append(record)
+                        matched = True
+                        break
+                if not matched:
+                    filtered_records.append(record)
         else:
             filtered_records = records_list
 
@@ -783,13 +960,16 @@ class Map(Subplot):
             if not geom.is_empty:  # Only keep visible parts
                 geometries.append(geom)
 
-        # Determine source and target CRS for features
+        # Determine source and target CRS for features.
+        # Natural Earth shapefiles are always in PlateCarree(-180..180).
         src_crs = ccrs.PlateCarree()
         target_crs = self.crs
 
-        # Apply transform_first optimization if requested and needed
-        if transform_first and target_crs != src_crs:
-            from earthkit.plots.geo.geometry import reproject_geometries
+        # Apply transform_first optimization if requested and needed.
+        # crs_equal defaults to comparing against PlateCarree, which is
+        # exactly the Natural Earth source CRS.
+        if transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
+            from earthkit.plots.geography.geometry import reproject_geometries
 
             # Reproject geometries before adding to map for better performance
             geometries = reproject_geometries(geometries, src_crs, target_crs)
@@ -800,7 +980,7 @@ class Map(Subplot):
 
         # Add optimized features
         feature = cfeature.ShapelyFeature(geometries, feature_crs)
-        result = self.ax.add_feature(feature, *args, **kwargs)
+        self.ax.add_feature(feature, *args, **kwargs)
 
         if special_styles is not None:
             for record, style in special_records:
@@ -809,8 +989,7 @@ class Map(Subplot):
                     feature = cfeature.ShapelyFeature([geom], self.crs)
                     self.ax.add_feature(feature, *args, **{**kwargs, **style})
 
-        return result
-
+    @chainable_method
     @schema.land.apply()
     @ancillary_layer(
         sources={
@@ -836,6 +1015,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.ocean.apply()
     @ancillary_layer(
         sources={
@@ -860,6 +1040,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.urban_areas.apply()
     @ancillary_layer(
         sources={
@@ -885,6 +1066,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     @schema.countries.apply()
     @ancillary_layer(
         sources={
@@ -910,6 +1092,7 @@ class Map(Subplot):
             If False, let cartopy handle reprojection. Default is True for coastlines.
         """
 
+    @chainable_method
     def cities(
         self,
         density=None,
@@ -1001,8 +1184,8 @@ class Map(Subplot):
             from adjustText import adjust_text
 
             adjust_text(texts)
-        return texts
 
+    @chainable_method
     def stock_img(self, *args, **kwargs):
         """
         Add the cartopy stock image to the map.
@@ -1016,6 +1199,27 @@ class Map(Subplot):
         """
         self.ax.stock_img(*args, **kwargs)
 
+    @chainable_method
+    def add_wms(self, *args, **kwargs):
+        """
+        Add a WMS (Web Map Service) image to the map.
+
+        All arguments are forwarded directly to cartopy's
+        :meth:`GeoAxes.add_wms
+        <cartopy.mpl.geoaxes.GeoAxes.add_wms>`.
+
+        Parameters
+        ----------
+        *args
+            Positional arguments passed to
+            :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
+        **kwargs
+            Keyword arguments passed to
+            :meth:`cartopy.mpl.geoaxes.GeoAxes.add_wms`.
+        """
+        self.ax.add_wms(*args, **kwargs)
+
+    @chainable_method
     def image(self, img, extent, origin="upper", transform=ccrs.PlateCarree()):
         """
         Add an image to the map.
@@ -1035,8 +1239,9 @@ class Map(Subplot):
             import PIL
 
             img = PIL.Image.open(img)
-        return self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
+        self.ax.imshow(img, origin=origin, extent=extent, transform=transform)
 
+    @chainable_method
     @schema.shapes.apply()
     def shapes(
         self,
@@ -1070,12 +1275,285 @@ class Map(Subplot):
         """
         if isinstance(shapes, str):
             shapes = shpreader.Reader(shapes)
-        results = self.ax.add_geometries(shapes.geometries(), transform, *args, **kwargs)
+        self.ax.add_geometries(shapes.geometries(), transform, *args, **kwargs)
         if labels:
             label_key = labels if isinstance(labels, str) else None
             self._add_polygon_labels(list(shapes.records()), label_key=label_key, adjust_labels=adjust_labels)
-        return results
 
+    @chainable_method
+    def choropleth(
+        self,
+        data,
+        *args,
+        z=None,
+        style=None,
+        units=None,
+        labels=False,
+        exclude_nan_labels=True,
+        auto_style=True,
+        metadata=None,
+        **kwargs,
+    ):
+        """
+        Create a choropleth map from a GeoDataFrame.
+
+        A choropleth map displays regions (polygons) colored according to
+        data values. Commonly used for visualizing statistics by geographic
+        region (e.g., population by country, temperature by state).
+
+        Parameters
+        ----------
+        data : geopandas.GeoDataFrame
+            The data to plot. Must have a geometry column and at least one
+            numeric data column.
+        z : str, optional
+            Name of the column containing data values for coloring.
+            If None, auto-detects first numeric column.
+        style : Style, optional
+            Style object for customizing appearance (colors, colormap, etc.)
+        units : str, optional
+            Target units for data values (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        labels : bool or str, optional
+            Label configuration:
+            - False (default): No labels
+            - True: Use data values as labels
+            - str without {}: Column name to use for labels (e.g., "country_name")
+            - str with {}: Template string with Python format specifiers
+              e.g. "{name}: {value:.1f} {units}"
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+            Default is True.
+        auto_style : bool, optional
+            Whether to automatically generate style. Default is True.
+        metadata : dict, optional
+            Additional metadata for the data source.
+        **kwargs
+            Additional keyword arguments passed to cartopy's add_geometries,
+            e.g. edgecolor, linewidth, alpha.
+
+        Returns
+        -------
+        matplotlib collection
+            The matplotlib collection representing the choropleth.
+        """
+        import cartopy.crs as ccrs
+        from matplotlib.cm import ScalarMappable
+
+        from earthkit.plots.components._style_utils import configure_style
+        from earthkit.plots.components.layers import Layer
+        from earthkit.plots.sources.geometry import GeometrySource
+
+        if style is not None and hasattr(style, "units") and style.units:
+            units = units or style.units
+
+        # Convert earthkit-data objects to GeoDataFrame first
+        import earthkit.data as ek_data
+
+        if isinstance(data, ek_data.core.Base) and hasattr(data, "to_geopandas"):
+            data = data.to_geopandas()
+
+        # Convert to GeometrySource if not already.
+        # z=_Z_UNSET means the user didn't pass z → auto-detect a column.
+        # z=None (default) → colour by index; z="col" → use that column.
+        if not isinstance(data, GeometrySource):
+            source = GeometrySource(
+                data,
+                z=z,
+                units=units,
+                metadata=metadata or {},
+            )
+        else:
+            source = data
+
+        # Get geometries and data values
+        geometries = source.geometries
+        data_values = source.values
+
+        # Get CRS from source (or default to PlateCarree)
+        source_crs = source.crs
+        if source_crs is None:
+            source_crs = ccrs.PlateCarree()
+
+        # Infer domain from geometries if none is set
+        if self.domain is None and geometries:
+            from earthkit.plots.geography import domains
+            from earthkit.plots.geography.bounds import BoundingBox
+
+            bbox = None
+            for geom in geometries:
+                if geom is not None:
+                    try:
+                        geom_bbox = BoundingBox.from_geometry(geom, source_crs=source_crs)
+                        bbox = geom_bbox if bbox is None else bbox + geom_bbox
+                    except Exception:
+                        pass
+            if bbox is not None:
+                self.domain = domains.Domain(list(bbox), crs=bbox.crs)
+
+        # When colouring by index, build a Style with one discrete colour per
+        # shape so each geometry gets a distinct colour.
+        if style is None and source.value_name == "index":
+            from earthkit.plots.styles import Style as _Style
+
+            n = len(geometries)
+            style = _Style(
+                colors=kwargs.pop("colors", kwargs.pop("cmap", "tab20")),
+                levels=list(range(n + 1)),
+                legend_style=None,
+            )
+            auto_style = False
+
+        # Configure style
+        style = configure_style("add_geometries", style, source, units, auto_style, kwargs)
+        style_kwargs = style.to_add_geometries_kwargs(data_values)
+
+        # Prepare scalar mappable for colorbar
+        if data_values is not None:
+            scalar_mappable = ScalarMappable(norm=style_kwargs["norm"], cmap=style_kwargs["cmap"])
+            scalar_mappable.set_array(data_values)
+        else:
+            scalar_mappable = None
+
+        # Render geometries
+        collection = self.ax.add_geometries(
+            geometries,
+            crs=source_crs,
+            **{**style_kwargs, **kwargs},
+        )
+
+        # Create layer for colorbar/legend management
+        layer = Layer(source, collection, self, style)
+        if scalar_mappable is not None:
+            layer._scalar_mappable = scalar_mappable
+            layer._units = source.units
+            layer._value_name = source.value_name
+        self.layers.append(layer)
+
+        # Add labels if requested
+        if labels:
+            label_column = labels if not isinstance(labels, bool) else source._column
+            self._add_choropleth_labels(source, label_column, exclude_nan_labels=exclude_nan_labels, **kwargs)
+
+        return self.layers[-1]
+
+    def _add_choropleth_labels(self, source, label_column=None, exclude_nan_labels=True, **kwargs):
+        """
+        Add labels to choropleth geometries.
+
+        Parameters
+        ----------
+        source : GeometrySource
+            The GeometrySource with geometries, data, and metadata.
+        label_column : str, optional
+            Column name to use for labels, or a template string with format
+            specifiers. Supports Python format specification mini-language.
+
+        Examples
+        --------
+            - "country_name" - Direct column reference
+            - "{name}: {value:.1f} {units}" - Template with formatting
+        exclude_nan_labels : bool, optional
+            Whether to exclude labels for geometries where the z-value is NaN.
+        **kwargs
+            Additional keyword arguments (e.g., adjust_labels).
+        """
+        import re
+        from types import SimpleNamespace
+
+        import numpy as np
+
+        gdf = source.data
+        data_values = source.values
+
+        # Check if label_column is a template string (contains curly braces)
+        is_template = label_column is not None and "{" in str(label_column)
+
+        # Determine label column or template
+        if label_column is None:
+            # Auto-detect: look for columns with 'name' in them
+            name_cols = [col for col in gdf.columns if "name" in col.lower()]
+            label_column = name_cols[0] if name_cols else None
+
+        if label_column is None:
+            return
+
+        # Build metadata dict from source.
+        # Use source.units (applied/target units after conversion) for "units",
+        # so label templates like "{units}" reflect the plotted units, not source units.
+        metadata_keys = ["long_name", "standard_name", "variable_name", "name"]
+        source_metadata = {}
+        for key in metadata_keys:
+            value = source.metadata(key)
+            if value is not None:
+                source_metadata[key] = value
+        if source.units is not None:
+            source_metadata["units"] = source.units
+
+        # Parse template to detect units format spec
+        units_format_spec = None
+        has_units_placeholder = False
+        template_for_formatting = label_column
+        if is_template and "units" in source_metadata:
+            has_units_placeholder = re.search(r"\{units(?::[^}]+)?\}", label_column) is not None
+            units_match = re.search(r"\{units:([^}]+)\}", label_column)
+            if units_match:
+                units_format_spec = units_match.group(1)
+                template_for_formatting = re.sub(r"\{units:[^}]+\}", "{units}", label_column)
+            elif has_units_placeholder:
+                units_format_spec = "~E"
+
+        # Build records for _add_polygon_labels
+        records = []
+        z_col = source._column  # name of the z column (None if index colouring)
+        for pos, (idx, row) in enumerate(gdf.iterrows()):
+            if exclude_nan_labels and data_values is not None:
+                if np.isnan(data_values[pos]):
+                    continue
+
+            record = SimpleNamespace()
+            record.geometry = row.geometry
+
+            if is_template:
+                formatter = {col: row[col] for col in gdf.columns if col != "geometry"}
+                # Inject converted value for z column so templates use target units
+                if z_col is not None and z_col in formatter and data_values is not None:
+                    formatter[z_col] = data_values[pos]
+                formatter.update(source_metadata)
+
+                if has_units_placeholder and "units" in formatter:
+                    from earthkit.plots.metadata import units as metadata_units
+
+                    formatter["units"] = metadata_units.format_units(formatter["units"], format=units_format_spec)
+
+                try:
+                    label_text = template_for_formatting.format(**formatter)
+                except KeyError as e:
+                    import warnings
+
+                    warnings.warn(
+                        f"Column/metadata key {e} not found for label template. "
+                        f"Available columns: {list(gdf.columns)} "
+                        f"Available metadata: {list(source_metadata.keys())}"
+                    )
+                    label_text = str(row.get(label_column, ""))
+
+                record.attributes = {"__label__": label_text}
+                label_key_to_use = "__label__"
+            else:
+                record.attributes = {label_column: row[label_column]}
+                label_key_to_use = label_column
+
+            records.append(record)
+
+        self._add_polygon_labels(
+            records,
+            label_key=label_key_to_use,
+            adjust_labels=kwargs.get("adjust_labels", False),
+        )
+
+    @chainable_method
     @schema.legend.apply()
     def legend(self, style=None, location=None, **kwargs):
         """
@@ -1088,23 +1566,23 @@ class Map(Subplot):
             created for each Layer with a unique Style. If a single Style is
             provided, a single legend is created based on that Style.
         location : str or tuple, optional
-            The location of the legend(s). Must be a valid matplotlib location
-            (see :func:`matplotlib.pyplot.legend`).
+            The location of the legend(s). Must be a valid matplotlib legend
+            location string (e.g. ``"upper right"``, ``"lower left"``).
+            See :func:`matplotlib.pyplot.legend` for the full list.
         **kwargs
-            Additional keyword arguments to pass to :func:`matplotlib.pyplot.legend`.
+            Additional keyword arguments passed to :func:`matplotlib.pyplot.legend`.
         """
         from earthkit.plots.components.layers import Layer
         from earthkit.plots.sources import get_source
 
-        legends = []
         if style is not None:
             dummy = [[1, 2], [3, 4]]
-            mappable = self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            mappable = self.layers[-1].mappable
             # Create a dummy source for legend creation
             dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
             layer = Layer(dummy_source, mappable, self, style)
-            legend = layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
-            legends.append(legend)
+            return layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:
             for i, layer in enumerate(self.distinct_legend_layers):
                 if isinstance(location, (list, tuple)):
@@ -1112,10 +1590,10 @@ class Map(Subplot):
                 else:
                     loc = location
                 if layer.style is not None:
-                    legend = layer.style.legend(layer, location=loc, **kwargs)
-                legends.append(legend)
-        return legends
+                    layer._generate_legend(location=loc, **kwargs)
+            return None
 
+    @chainable_method
     @schema.gridlines.apply()
     def gridlines(self, *args, xstep=None, xref=0, ystep=None, yref=0, **kwargs):
         """
@@ -1140,8 +1618,9 @@ class Map(Subplot):
             kwargs["xlocs"] = step_range([-180, 180], xstep, xref)
         if ystep is not None:
             kwargs["ylocs"] = step_range([-90, 90], ystep, yref)
-        self.ax.gridlines(*args, **kwargs)
+        return self.ax.gridlines(*args, **kwargs)
 
+    @chainable_method
     def standard_layers(self):
         """
         Add standard map layers to the map.

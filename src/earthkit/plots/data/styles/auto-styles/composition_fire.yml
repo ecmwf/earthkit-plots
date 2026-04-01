@@ -1,0 +1,43 @@
+id: composition_fire
+optimal: COMPOSITION_FIRE_SH_ALL_FIRE
+styles:
+  COMPOSITION_FIRE_SH_ALL_FIRE:
+    name: sh-all-fire
+    type: Style
+    colors:
+    - '#350000ff'
+    - '#5f0000ff'
+    - '#890000ff'
+    - '#b30000ff'
+    - '#dd0000ff'
+    - '#ff0800ff'
+    - '#ff3200ff'
+    - '#ff5c00ff'
+    - '#ff8600ff'
+    - '#ffb000ff'
+    - '#ffda00ff'
+    - '#ffff07ff'
+    - '#ffff46ff'
+    - '#ffff85ff'
+    - '#ffffc4ff'
+    levels:
+    - 0.0001
+    - 0.0002
+    - 0.0005
+    - 0.001
+    - 0.002
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    extend: max
+  COMPOSITION_FIRE_SYMB_ALL_FIRE:
+    name: symb-all-fire
+    type: Contour

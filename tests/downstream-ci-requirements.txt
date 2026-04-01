@@ -8,7 +8,7 @@ pytest
 pytest-cov
 pytest-mpl
 cftime
-earthkit-regrid
+earthkit-geo==1.0.0rc0
 healpy
 matplotlib
 cartopy

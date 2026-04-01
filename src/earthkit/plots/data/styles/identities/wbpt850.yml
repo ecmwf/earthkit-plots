@@ -1,0 +1,7 @@
+id: wbpt850
+criteria:
+- levelist:
+  - '850'
+  paramId: '3'
+  shortName: pt
+- long_name: Potential temperature

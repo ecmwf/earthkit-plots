@@ -37,7 +37,18 @@ class Layer:
         Which axis ('x', 'y', or 'z') contains the primary data for unit conversion.
     """
 
-    def __init__(self, sources, mappable, subplot, style=None, primary_axis=None, axis_units=None):
+    def __init__(
+        self,
+        sources,
+        mappable,
+        subplot,
+        style=None,
+        primary_axis=None,
+        axis_units=None,
+        proxy_label=None,
+        proxy_color=None,
+        proxy_linewidth=None,
+    ):
         if not isinstance(sources, (list, tuple)):
             sources = [sources]
         self.sources = sources
@@ -47,6 +58,16 @@ class Layer:
         self.primary_axis = primary_axis
         self.axis_units = axis_units or {}
         self._magnitude = None
+
+        self.proxy_label = proxy_label
+        self._proxy_color = proxy_color
+        self._proxy_linewidth = proxy_linewidth
+        self.legend = None
+
+        # The matplotlib Axes this layer was rendered onto.  Set by the
+        # pipeline after the matplotlib call so that AxisView and ylabel()
+        # can identify which layers belong to which axis.
+        self.render_ax = None
 
         if hasattr(mappable, "get_facecolor"):
             self._facecolors = mappable.get_facecolor()
@@ -81,10 +102,13 @@ class Layer:
         """All matplotlib axes over which this layer is plotted."""
         return [self.ax]
 
-    def legend(self, *args, **kwargs):
+    def _generate_legend(self, *args, **kwargs):
         """Generate a legend for this specific layer."""
         if self.style is not None:
-            return self.style.legend(self, *args, **kwargs)
+            result = self.style.legend(self, *args, **kwargs)
+            if result is not None:
+                self.legend = result
+            return result
 
     def format_string(self, string, **kwargs):
         """
@@ -99,6 +123,10 @@ class Layer:
 
     @property
     def _default_title_template(self):
+        # Check if any source has time information available
+        has_time = any(source.datetime().get("valid_time") is not None for source in self.sources)
+        if not has_time:
+            return metadata.labels.DEFAULT_NO_TIME_TITLE
         if all(source.metadata("type", default="an") == "an" for source in self.sources):
             template = metadata.labels.DEFAULT_ANALYSIS_TITLE
         else:

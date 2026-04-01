@@ -1,0 +1,84 @@
+id: lcc
+optimal: LCC_TRANSPARENCY_GREY
+styles:
+  LCC_TRANSPARENCY_GREY:
+    name: transparency-grey
+    type: Style
+    colors:
+    - '#00000000'
+    - '#a8a8a800'
+    - '#a8a8a81a'
+    - '#a8a8a833'
+    - '#a8a8a84c'
+    - '#a8a8a866'
+    - '#a8a8a880'
+    - '#a8a8a899'
+    - '#a8a8a8b2'
+    - '#a8a8a8cc'
+    - '#a8a8a8e6'
+    levels:
+    - 0.0
+    - 0.1
+    - 0.2
+    - 0.3
+    - 0.4
+    - 0.5
+    - 0.6
+    - 0.7
+    - 0.8
+    - 0.9
+    extend: max
+  LCC_SH_GRY_F0T1LST:
+    name: sh-gry-f0t1lst
+    type: Style
+    colors:
+    - '#b2b2b2ff'
+    - '#adadadff'
+    - '#a8a8a8ff'
+    - '#a3a3a3ff'
+    - '#9e9e9eff'
+    - '#999999ff'
+    - '#949494ff'
+    - '#8f8f8fff'
+    levels:
+    - 0.01
+    - 0.1875
+    - 0.3125
+    - 0.4375
+    - 0.5625
+    - 0.6875
+    - 0.8125
+    - 0.99
+    - 1.5
+  LCC_SH_REDGRY_F0T1LST:
+    name: sh-redgry-f0t1lst
+    type: Style
+    colors:
+    - '#faf2f2ff'
+    - '#f0e6e6ff'
+    - '#e6d9d9ff'
+    - '#dbccccff'
+    - '#d4c2c2ff'
+    - '#ccb8b8ff'
+    - '#c4adadff'
+    - '#bda3a3ff'
+    levels:
+    - 0.01
+    - 0.1875
+    - 0.3125
+    - 0.4375
+    - 0.5625
+    - 0.6875
+    - 0.8125
+    - 0.99
+    - 1.5
+  LCC_TRAN_GRY_F03T1LST:
+    name: tran-gry-f03t1lst
+    type: Style
+    colors:
+    - '#a8a8a84c'
+    - '#a8a8a8b2'
+    levels:
+    - 0.3125
+    - 0.6875
+    - 1.5

@@ -1,0 +1,5 @@
+id: totalx
+criteria:
+- paramId: '260123'
+  shortName: totalx
+- long_name: Total totals index

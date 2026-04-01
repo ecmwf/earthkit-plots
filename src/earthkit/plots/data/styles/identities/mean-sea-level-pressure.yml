@@ -4,3 +4,4 @@ criteria:
 - {paramId: 151, shortName: msl}
 - {standard_name: air_pressure_at_sea_level}
 - {long_name: Mean sea level pressure}
+- {long_name: msl}

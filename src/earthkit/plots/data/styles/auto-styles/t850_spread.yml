@@ -1,0 +1,51 @@
+id: t850_spread
+optimal: T850_SPREAD_SH_BLU_F008T25
+styles:
+  T850_SPREAD_SH_BLU_F008T25:
+    name: sh-blu-f008t25
+    type: Style
+    colors:
+    - '#d9badbff'
+    - '#c287c4ff'
+    - '#ba57bdff'
+    - '#d921e0ff'
+    - '#f500ffff'
+    - '#fa82ffff'
+    levels:
+    - 0.8
+    - 1.5
+    - 2.5
+    - 4.5
+    - 8.0
+    - 14.0
+    - 25.0
+    units: celsius
+  T850_SPREAD_SH_RANGE_F008TO25:
+    name: sh-range-f008to25
+    type: Style
+    colors:
+    - '#00ffffff'
+    - '#00ff80ff'
+    - '#80ff00ff'
+    - '#ffff00ff'
+    - '#ffda00ff'
+    - '#ffb000ff'
+    - '#ff8000ff'
+    - '#e06c00ff'
+    - '#ad7311ff'
+    - '#996400ff'
+    - '#665433ff'
+    levels:
+    - 0.8
+    - 1.2
+    - 1.6
+    - 2.0
+    - 2.5
+    - 5.0
+    - 7.5
+    - 10.0
+    - 12.5
+    - 15.0
+    - 20.0
+    - 25.0
+    units: celsius

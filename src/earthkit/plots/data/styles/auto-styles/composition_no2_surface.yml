@@ -1,0 +1,36 @@
+id: composition_no2_surface
+optimal: COMPOSITION_NO2_SURFACE_SH_ALL_NO2_SURFACE
+styles:
+  COMPOSITION_NO2_SURFACE_SH_ALL_NO2_SURFACE:
+    name: sh-all-no2-surface
+    type: Style
+    colors:
+    - '#9bc7eaff'
+    - '#009ee0ff'
+    - '#007bbfff'
+    - '#265ba0ff'
+    - '#269170ff'
+    - '#6bb25bff'
+    - '#a8c96bff'
+    - '#fff49bff'
+    - '#f4d138ff'
+    - '#eab538ff'
+    - '#dd8740ff'
+    - '#cc3533ff'
+    - '#9b1623ff'
+    levels:
+    - 0.01
+    - 0.02
+    - 0.05
+    - 0.1
+    - 0.2
+    - 0.5
+    - 1.0
+    - 2.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 50.0
+    - 100.0
+    extend: max

@@ -22,7 +22,7 @@ from matplotlib import rcParams
 
 from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR
-from earthkit.plots.geo.coordinate_reference_systems import parse_crs
+from earthkit.plots.geography.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
 
 _DEFAULT_SCHEMA = "earthkit-plots"

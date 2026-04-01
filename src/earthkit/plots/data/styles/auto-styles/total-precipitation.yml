@@ -4,6 +4,7 @@ optimal: TOTAL_PRECIPITATION_IN_MM
 styles:
 
   TOTAL_PRECIPITATION_IN_MM:
+    name: precipitation-turbo-mm
     type: Style
     colors: turbo
     extend: max
@@ -11,6 +12,7 @@ styles:
     units: mm
 
   TOTAL_PRECIPITATION_IN_M:
+    name: precipitation-turbo-m
     type: Style
     colors: turbo
     extend: max
@@ -18,6 +20,7 @@ styles:
     units: m
 
   TOTAL_PRECIPITATION_IN_KG_M-2:
+    name: precipitation-turbo-kg-m2
     type: Style
     colors: turbo
     extend: max

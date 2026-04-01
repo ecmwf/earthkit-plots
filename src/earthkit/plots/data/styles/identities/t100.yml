@@ -1,0 +1,35 @@
+id: t100
+criteria:
+- levelist:
+  - '5'
+  - '7'
+  - '10'
+  - '20'
+  - '30'
+  - '50'
+  - '70'
+  - '100'
+  - '125'
+  - '150'
+  - '175'
+  - '200'
+  - '225'
+  paramId: '130'
+  shortName: t
+  levtype: pl
+- level:
+  - '5'
+  - '7'
+  - '10'
+  - '20'
+  - '30'
+  - '50'
+  - '70'
+  - '100'
+  - '125'
+  - '150'
+  - '175'
+  - '200'
+  - '225'
+  long_name: Temperature
+  standard_name: air_temperature

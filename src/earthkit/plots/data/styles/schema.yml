@@ -13,33 +13,6 @@
 ## the style sheet.
 style_sheet: earthkit
 
-# rcParams mirror what is set in earthkit.mplstyle. Duplicating them here
-# ensures they apply even when the style sheet is excluded (e.g. in pytest-mpl).
-figure:
-  figsize: [8, 7]
-  dpi: 100
-axes:
-  linewidth: 1
-  edgecolor: "#AAAAAA"
-  grid: true
-  xmargin: 0.02
-  ymargin: 0.02
-  prop_cycle: "cycler('color', ['#545FA4', '#EB702D', '#FABC20', '#9aa1cb', '#f6bfa2', '#fde19b'])"
-xtick:
-  top: false
-  bottom: false
-  color: "#333333"
-ytick:
-  left: false
-  right: false
-  color: "#333333"
-grid:
-  color: "#F2F2F2"
-font:
-  family: Roboto
-text:
-  color: "#333333"
-
 
 # *************************************************************************** #
 # * STYLES                                                                  * #
@@ -68,7 +41,7 @@ use_preferred_units: false
 
 # EXPERIMENTAL
 # The lat-lon target resolution when interpolating unstructured data
-interpolate_target_resolution: 0.1
+interpolate_target_resolution: 0.25
 
 interactive_box:
   quantiles: [0, 0.1, 0.25, 0.5, 0.75, 0.9, 1.0]
@@ -107,25 +80,24 @@ interactive_layout:
   showlegend: false
 
 
-# *************************************************************************** #
-# * QUICKPLOT WORKFLOW                                                      * #
-# *************************************************************************** #
-quickmap_subplot_workflow:
-- title
-
-quickmap_figure_workflow:
-- coastlines
-- gridlines
-- legend
-
-quickplot_workflow: []
+timeseries:
+  subplot:
+    decorate:
+    - ylabel
+    - xlabel
+    - title
+  fig:
+    decorate: []
 
 
 # *************************************************************************** #
 # * GEOSPATIAL                                                              * #
 # *************************************************************************** #
 # If true, pre-process the data before plotting by extracting the target domain.
-crop_domain: true
+# Disabled by default: cartopy clips out-of-bounds data during rendering, and
+# cropping in the source CRS before reprojection can cause data to be cut off
+# incorrectly when the source and target projections differ.
+crop_domain: false
 
 # The assumed CRS for geospatial visualisation when none is found
 reference_crs: PlateCarree
@@ -154,7 +126,6 @@ contour:
 isolines:
   regrid: true
   transform_first: true
-  linewidths: 1
   labels: true
 contourf:
   regrid: true
@@ -174,13 +145,13 @@ suptitle:
 barbs:
   length: 4
   linewidth: 0.5
+  pivot: middle
   sizes:
     spacing: 0.25
-  regrid_shape: 30
 quiver:
   angles: xy
   pivot: middle
-  regrid_shape: 30
+  scale: 1200
 scatter:
   s: 36
   edgecolors: black
@@ -219,11 +190,11 @@ borders:
   - key: BRK_A3
     values: ["B57"]
     kwargs:
-      linestyle: "dotted"
+      linestyle: "dashed"
   - key: BRK_A3
     values: ["B89"]
     kwargs:
-      linestyle: "dotted"
+      alpha: 0
 countries:
   zorder: 0
   linestyle: "-"
