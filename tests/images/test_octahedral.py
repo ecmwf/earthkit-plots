@@ -22,10 +22,7 @@ from earthkit.plots import schema
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_octahedral_interpolated():
-    data = earthkit.data.from_source(
-        "url",
-        "https://get.ecmwf.int/repository/test-data/earthkit-geo/test-data/global_0_360/O32.grib",
-    )
+    data = earthkit.data.from_source("sample", "O32_t2.grib2")
     chart = earthkit.plots.Map()
     chart.quickplot(data, units="celsius")
 
@@ -42,10 +39,7 @@ def test_octahedral_interpolated():
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_octahedral_point_cloud():
-    data = earthkit.data.from_source(
-        "url",
-        "https://get.ecmwf.int/repository/test-data/earthkit-geo/test-data/global_0_360/O32.grib",
-    )
+    data = earthkit.data.from_source("sample", "O32_t2.grib2")
     chart = earthkit.plots.Map(domain="Europe")
     chart.point_cloud(data, units="celsius")
 
