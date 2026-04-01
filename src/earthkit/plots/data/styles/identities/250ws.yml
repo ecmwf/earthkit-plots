@@ -1,0 +1,9 @@
+id: 250ws
+criteria:
+- levelist:
+  - '250'
+  paramId: '10'
+  shortName: ws
+- level:
+  - '250'
+  long_name: Wind speed

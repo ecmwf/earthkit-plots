@@ -1,0 +1,9 @@
+id: mc_10fg
+criteria:
+- paramId:
+  - '49'
+  - '228005'
+  shortName:
+  - 10fg
+  - mean10ws
+  type: cd

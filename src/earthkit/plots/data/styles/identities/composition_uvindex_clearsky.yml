@@ -1,0 +1,5 @@
+id: composition_uvindex_clearsky
+criteria:
+- paramId: '214003'
+  shortName: uvbedcs
+- long_name: ' UV biologically effective dose clear-sky'

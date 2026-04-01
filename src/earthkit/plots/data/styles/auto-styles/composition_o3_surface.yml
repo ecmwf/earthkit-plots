@@ -1,0 +1,67 @@
+id: composition_o3_surface
+optimal: COMPOSITION_O3_SURFACE_SH_ALL_O3_SFC
+styles:
+  COMPOSITION_O3_SURFACE_SH_ALL_O3_SFC:
+    name: sh-all-o3-sfc
+    type: Style
+    colors:
+    - '#9bc7eaff'
+    - '#009ee0ff'
+    - '#007bbfff'
+    - '#265ba0ff'
+    - '#269170ff'
+    - '#6bb25bff'
+    - '#a8c96bff'
+    - '#fff49bff'
+    - '#f4d138ff'
+    - '#eab538ff'
+    - '#dd8740ff'
+    - '#cc3533ff'
+    - '#9b1623ff'
+    levels:
+    - 0.0
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 80.0
+    - 90.0
+    - 100.0
+    - 120.0
+    - 150.0
+    extend: max
+  COMPOSITION_O3_SURFACE_SH_YLGNBU_O3_SFC:
+    name: sh-ylgnbu-o3-sfc
+    type: Style
+    colors:
+    - '#f5fbc2ff'
+    - '#e8f6b1ff'
+    - '#d3eeb3ff'
+    - '#b2e1b6ff'
+    - '#89d1baff'
+    - '#65c3bfff'
+    - '#40b5c4ff'
+    - '#2ca1c2ff'
+    - '#1e8abdff'
+    - '#216dafff'
+    - '#2351a2ff'
+    - '#253997ff'
+    - '#182a7aff'
+    levels:
+    - 0.0
+    - 10.0
+    - 20.0
+    - 30.0
+    - 40.0
+    - 50.0
+    - 60.0
+    - 70.0
+    - 80.0
+    - 90.0
+    - 100.0
+    - 120.0
+    - 150.0
+    extend: max

@@ -1,0 +1,5 @@
+id: wave_mpts
+criteria:
+- paramId: '140239'
+  shortName: mpts
+- long_name: Mean period of total swell

@@ -1,0 +1,5 @@
+id: composition_suaod550
+criteria:
+- paramId: '210212'
+  shortName: suaod550
+- long_name: Sulphate Aerosol Optical Depth at 550nm

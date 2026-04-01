@@ -1,0 +1,5 @@
+id: sim_image_wv_ch6
+criteria:
+- channel: 6
+  paramId: '260510'
+  shortName: clbt

@@ -15,7 +15,6 @@
 import warnings
 
 from earthkit.plots.components.figures import Figure
-from earthkit.plots.schemas import schema
 
 
 def _quickmap(function):
@@ -35,11 +34,11 @@ def _quickmap(function):
                 f"Failed to execute {function.__name__} on given data; consider constructing the plot manually."
             )
             raise e
-        for method in schema.quickmap_subplot_workflow + schema.quickmap_figure_workflow:
+        for method in ("coastlines", "legend", "title"):
             try:
                 getattr(subplot, method)()
             except Exception:
-                warnings.warn(f"Failed to execute {method} on given data; consider constructing the plot manually.")
+                pass
         return subplot
 
     return wrapper

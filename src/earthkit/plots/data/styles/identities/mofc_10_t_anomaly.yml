@@ -1,0 +1,9 @@
+id: mofc_10_t_anomaly
+criteria:
+- levelist:
+  - '10'
+  paramId: '171130'
+  shortName: ta
+- level:
+  - '10'
+  long_name: Temperature anomaly

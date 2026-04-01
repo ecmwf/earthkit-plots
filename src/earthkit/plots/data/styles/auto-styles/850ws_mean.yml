@@ -1,0 +1,58 @@
+id: 850ws_mean
+optimal: 850WS_MEAN_CT_BLK_I5_T2
+styles:
+  850WS_MEAN_CT_BLK_I5_T2:
+    name: ct-blk-i5-t2
+    type: Contour
+    colors: black
+    levels:
+      step: 5.0
+      reference: 1010.0
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  850WS_MEAN_CT_BLK_I5_T1:
+    name: ct-blk-i5-t1
+    type: Contour
+    colors: black
+    levels:
+      step: 5.0
+    linewidths:
+    - 0.5
+    - 0.5
+    - 0.5
+    - 0.5
+    - 1.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid
+  850WS_MEAN_CT_BLUE_I5_T2:
+    name: ct-blue-i5-t2
+    type: Contour
+    colors: blue
+    levels:
+      step: 5.0
+    linewidths:
+    - 1.0
+    - 1.0
+    - 1.0
+    - 1.0
+    - 2.0
+    linestyles:
+    - solid
+    - solid
+    - solid
+    - solid
+    - solid

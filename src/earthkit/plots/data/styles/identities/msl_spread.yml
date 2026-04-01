@@ -1,0 +1,5 @@
+id: msl_spread
+criteria:
+- paramId: '151'
+  shortName: msl
+  type: es

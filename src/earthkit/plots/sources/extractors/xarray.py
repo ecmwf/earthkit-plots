@@ -23,6 +23,15 @@ from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordina
 from earthkit.plots.sources.extractors.base import BaseExtractor
 
 
+def _coord_item(coord):
+    """Return a scalar coordinate value, converting datetime64 to pd.Timestamp."""
+    if np.issubdtype(coord.dtype, np.datetime64):
+        import pandas as pd
+
+        return pd.Timestamp(coord.values)
+    return coord.item()
+
+
 class XarrayExtractor(BaseExtractor):
     """
     Strategy for extracting coordinates from xarray DataArrays and Datasets.
@@ -148,31 +157,55 @@ class XarrayExtractor(BaseExtractor):
                     auto_y_units = auto_y_metadata.get("units")
         else:
             # Cartesian: x=independent, y=data (default roles)
-            auto_y_values = da.values
-            auto_y_name = da.name if da.name else ""
-            auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
-            auto_y_units = auto_y_metadata.get("units")
+            # A 0-d DataArray (e.g. from .isel(time=-1)) has no dims; wrap as
+            # 1-element arrays so downstream code can treat it uniformly.
+            if da.ndim == 0:
+                auto_y_values = np.atleast_1d(da.values)
+                auto_y_name = da.name if da.name else ""
+                auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                auto_y_units = auto_y_metadata.get("units")
 
-            # Find dimension/coordinate for x
-            auto_x_values = None
-            auto_x_name = ""
-            auto_x_metadata = {}
-            auto_x_units = None
+                # Use the first scalar coordinate that looks like an x-axis
+                # (e.g. the time coordinate retained after .isel()).
+                auto_x_values = None
+                auto_x_name = ""
+                auto_x_metadata = {}
+                auto_x_units = None
+                for coord_name, coord in da.coords.items():
+                    if coord.ndim == 0:
+                        auto_x_values = np.atleast_1d(coord.values)
+                        auto_x_name = coord_name
+                        auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                        auto_x_units = auto_x_metadata.get("units")
+                        break
+                if auto_x_values is None:
+                    auto_x_values = np.array([0])
+            else:
+                auto_y_values = da.values
+                auto_y_name = da.name if da.name else ""
+                auto_y_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                auto_y_units = auto_y_metadata.get("units")
 
-            if len(da.dims) == 1:
-                dim_name = da.dims[0]
-                if dim_name in da.coords:
-                    coord = da.coords[dim_name]
-                    auto_x_values = coord.values
-                    auto_x_name = dim_name
-                    auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
-                    auto_x_units = auto_x_metadata.get("units")
-                else:
-                    auto_x_values = np.arange(da.sizes[dim_name])
+                # Find dimension/coordinate for x
+                auto_x_values = None
+                auto_x_name = ""
+                auto_x_metadata = {}
+                auto_x_units = None
 
-            if auto_x_values is None:
-                # Fallback: generate index based on y length
-                auto_x_values = np.arange(len(auto_y_values))
+                if len(da.dims) == 1:
+                    dim_name = da.dims[0]
+                    if dim_name in da.coords:
+                        coord = da.coords[dim_name]
+                        auto_x_values = coord.values
+                        auto_x_name = dim_name
+                        auto_x_metadata = dict(coord.attrs) if hasattr(coord, "attrs") else {}
+                        auto_x_units = auto_x_metadata.get("units")
+                    else:
+                        auto_x_values = np.arange(da.sizes[dim_name])
+
+                if auto_x_values is None:
+                    # Fallback: generate index based on y length
+                    auto_x_values = np.arange(len(auto_y_values))
 
         # Step 2: Handle user specifications
         if context == PlotContext.GEOGRAPHIC_1D:
@@ -625,8 +658,8 @@ class XarrayExtractor(BaseExtractor):
         tuple
             (values, name, metadata, units)
         """
-        if isinstance(spec, np.ndarray):
-            # Explicit array provided
+        if not isinstance(spec, str):
+            # Explicit array provided (np.ndarray, pd.DatetimeIndex, list, etc.)
             return (np.atleast_1d(spec), "", {}, None)
 
         # spec is a string - resolve to coordinate or data variable
@@ -725,52 +758,84 @@ class XarrayExtractor(BaseExtractor):
         """
         Get metadata from xarray attrs.
 
-        For Datasets, extracts metadata from the selected variable (if available).
-        For DataArrays, extracts from the DataArray attrs.
-
-        Can also extract metadata for specific coordinates/variables when key matches
-        a coordinate or variable name.
+        Lookup order:
+        1. Primary variable attrs (selected DataArray or identified primary var)
+        2. Scalar coordinate value (0-d coord matching key name)
+        3. Variable name as fallback for the "name" key
+        4. Dataset-level attrs
 
         Parameters
         ----------
         key : str
-            Metadata key or variable/coordinate name.
+            Metadata attribute name (e.g. "long_name", "units", "name").
         default : Any
             Default value if key not found.
 
         Returns
         -------
         Any
-            Metadata value, coordinate attrs dict, or default.
+            Metadata value or default.
         """
-        # First check if key is a coordinate or variable name
-        # If so, return its attrs as a dict
+        # Step 1: Primary variable attrs
+        primary_da = self._get_primary_da()
+        if primary_da is not None:
+            value = primary_da.attrs.get(key)
+            if value is not None:
+                return value
+
+        # Step 2: Scalar coordinate value (0-d coord whose name matches key)
+        da_for_coords = (
+            primary_da if primary_da is not None else (self.data if isinstance(self.data, xr.DataArray) else None)
+        )
+        if da_for_coords is not None and key in da_for_coords.coords:
+            coord = da_for_coords.coords[key]
+            if coord.ndim == 0:
+                return _coord_item(coord)
+        if isinstance(self.data, xr.Dataset) and key in self.data.coords:
+            coord = self.data.coords[key]
+            if coord.ndim == 0:
+                return _coord_item(coord)
+
+        # Step 3: Variable name as "name" fallback
+        if key == "name":
+            if primary_da is not None and primary_da.name:
+                return primary_da.name
+            if isinstance(self.data, xr.DataArray) and self.data.name:
+                return self.data.name
+
+        # Step 4: Dataset-level attrs
         if isinstance(self.data, xr.Dataset):
-            # Check in data variables
-            if key in self.data.data_vars:
-                return dict(self.data[key].attrs) if self.data[key].attrs else {}
-            # Check in coordinates
-            if key in self.data.coords:
-                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
-        elif isinstance(self.data, xr.DataArray):
-            # Check in coordinates
-            if key in self.data.coords:
-                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
-            # Check in dimensions
-            if key in self.data.dims and key in self.data.coords:
-                return dict(self.data.coords[key].attrs) if self.data.coords[key].attrs else {}
-
-        # Not a coordinate/variable name - look for metadata key in attrs
-        # Prefer selected DataArray attrs if available (for Dataset case)
-        if self._selected_dataarray is not None:
-            if hasattr(self._selected_dataarray, "attrs"):
-                return self._selected_dataarray.attrs.get(key, default)
-
-        # Fall back to main data attrs
-        if hasattr(self.data, "attrs"):
-            return self.data.attrs.get(key, default)
+            value = self.data.attrs.get(key)
+            if value is not None:
+                return value
 
         return default
+
+    def _get_primary_da(self) -> "xr.DataArray | None":
+        """
+        Return the primary DataArray for metadata extraction.
+
+        Uses the already-selected DataArray if available, otherwise tries to
+        identify the primary variable from a Dataset.
+        """
+        if self._selected_dataarray is not None:
+            return self._selected_dataarray
+
+        if isinstance(self.data, xr.DataArray):
+            return self.data
+
+        if isinstance(self.data, xr.Dataset):
+            if len(self.data.data_vars) == 1:
+                var_name = list(self.data.data_vars.keys())[0]
+                return self.data[var_name]
+            try:
+                var_name = identifiers.identify_primary(self.data)
+                if var_name and var_name in self.data.data_vars:
+                    return self.data[var_name]
+            except Exception:
+                pass
+
+        return None
 
     def get_crs(self) -> Any | None:
         """
@@ -801,11 +866,11 @@ class XarrayExtractor(BaseExtractor):
                 data_to_convert = self.data
 
             # Convert to earthkit-data object
-            earthkit_data = ek_data.from_object(data_to_convert)
+            earthkit_data = ek_data.from_object(data_to_convert).to_fieldlist()
 
             # Extract projection and convert to cartopy CRS
-            if hasattr(earthkit_data, "projection"):
-                projection = earthkit_data.projection()
+            if hasattr(earthkit_data, "geography"):
+                projection = earthkit_data.geography.projection()
                 if projection is not None and hasattr(projection, "to_cartopy_crs"):
                     return projection.to_cartopy_crs()
 
@@ -819,16 +884,40 @@ class XarrayExtractor(BaseExtractor):
         """
         Extract gridspec from xarray attrs.
 
+        Checks the following attribute keys in order of preference:
+        - ``ek_grid_spec`` (new earthkit/xarray standard, e.g. ``{"grid": "O320"}``)
+        - ``gridSpec`` / ``grid_spec`` (legacy keys)
+
+        For xarray DataArrays, also falls back to the parent Dataset's global
+        attributes when the variable-level attrs do not carry the gridspec.
+
         Returns
         -------
         GridSpec or None
             Grid specification if found in metadata.
         """
+        from earthkit.plots.sources.gridspec import GridSpec
+
+        _KEYS = ("ek_grid_spec", "gridSpec", "grid_spec")
+
+        def _extract(attrs):
+            for key in _KEYS:
+                if key in attrs:
+                    raw = attrs[key]
+                    if isinstance(raw, GridSpec):
+                        return raw
+                    spec = GridSpec._to_dict(raw)
+                    if spec:
+                        return GridSpec(spec)
+            return None
+
+        # Check attrs on self.data — covers both DataArrays (variable attrs) and
+        # Datasets (global attrs). xarray DataArrays don't carry a back-reference
+        # to their parent Dataset, so there is no further fallback.
         if hasattr(self.data, "attrs"):
-            if "gridSpec" in self.data.attrs:
-                return self.data.attrs["gridSpec"]
-            elif "grid_spec" in self.data.attrs:
-                return self.data.attrs["grid_spec"]
+            result = _extract(self.data.attrs)
+            if result is not None:
+                return result
 
     def _extract_uv_components(
         self,
@@ -937,3 +1026,275 @@ class XarrayExtractor(BaseExtractor):
         )
 
         return u_info, v_info
+
+
+def _unique_coord_vals(coord):
+    """Return unique values from an xarray coordinate, preserving dtype and order."""
+    seen = {}
+    for val in coord.values.flat:
+        if val not in seen:
+            seen[val] = val
+    return list(seen.values())
+
+
+def _get_extra_dims(da):
+    """Return non-spatial, non-singleton dimension names from a DataArray."""
+    from earthkit.plots import identifiers
+
+    spatial_dims = set(identifiers.LATITUDE + identifiers.LONGITUDE)
+    has_latlon = any(d in spatial_dims for d in da.dims)
+
+    if not has_latlon:
+        # Unstructured/HEALPix: the spatial dimension isn't a named lat/lon
+        # dimension, so we can't safely identify "extra" dims. Yield the whole
+        # field as a single panel and let the specialized-grid handlers deal
+        # with it.
+        return []
+
+    return [d for d in da.dims if d not in spatial_dims and da.sizes[d] > 1]
+
+
+def _iter_cartesian(da, dims):
+    """
+    Yield ``(key_dict, DataArray)`` for every combination of values across *dims*.
+
+    ``key_dict`` maps each dim name to its selected value.
+    """
+    import itertools
+
+    all_vals = [_unique_coord_vals(da[d]) for d in dims]
+    for combo in itertools.product(*all_vals):
+        sel = {d: v for d, v in zip(dims, combo)}
+        yield sel, da.sel(sel)
+
+
+def iter_plot_groups(data, groupby, mode, combine_vectors=False):
+    """
+    Yield ``(key, [DataArray, ...])`` tuples for xarray DataArray/Dataset.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Input xarray object.
+    groupby : str or None
+        Coordinate name to split on (one panel per unique value).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+    combine_vectors : bool, optional
+        When ``True`` and *data* is a :class:`xr.Dataset`, matching U/V
+        component pairs are identified and yielded as a two-variable
+        sub-Dataset (so the caller can dispatch to a vector/quiver plot)
+        rather than as two separate scalar panels.  Non-vector variables
+        are still yielded individually.  Default is ``False``.
+
+    Yields
+    ------
+    key : hashable
+        Group identifier (used as panel label / title key).
+    targets : list
+        One or more DataArrays (or a two-variable Dataset for vector pairs
+        when *combine_vectors* is ``True``) to overlay on the same subplot.
+    """
+    if mode == "overlay":
+        if isinstance(data, xr.Dataset):
+            yield None, [data[v] for v in data.data_vars]
+        else:
+            yield None, [data]
+        return
+
+    if mode == "split":
+        if isinstance(data, xr.Dataset):
+            for var in data.data_vars:
+                yield var, [data[var]]
+        elif groupby is not None:
+            coord_vals = _unique_coord_vals(data[groupby])
+            for val in coord_vals:
+                yield val, [data.sel({groupby: val})]
+        else:
+            yield None, [data]
+        return
+
+    # mode == "auto"
+    squeezed = data.squeeze() if isinstance(data, xr.DataArray) else data
+
+    if isinstance(data, xr.Dataset):
+        var_names = list(data.data_vars)
+        if len(var_names) > 1:
+            # Multi-var Dataset: determine all non-spatial extra dims across variables,
+            # then yield the full Cartesian product of (variable × extra_dims).
+            # If groupby is set it takes priority as the sole extra split dim.
+            first_da = data.squeeze()[var_names[0]]
+            if groupby is not None:
+                extra_dims = [groupby]
+            else:
+                extra_dims = _get_extra_dims(first_da)
+
+            # When combine_vectors is requested, find and remove UV pairs first.
+            vector_pair = None
+            remaining_vars = var_names
+            if combine_vectors:
+                from earthkit.plots import identifiers
+
+                pair = identifiers.find_uv_pair(var_names)
+                if pair is not None:
+                    u_name, v_name = pair
+                    vector_pair = (u_name, v_name)
+                    remaining_vars = [v for v in var_names if v not in pair]
+
+            if extra_dims:
+                if vector_pair is not None:
+                    u_name, v_name = vector_pair
+                    uv_ds = data[[u_name, v_name]]
+                    first_vec_da = uv_ds.squeeze()[u_name]
+                    for sel, _ in _iter_cartesian(first_vec_da, extra_dims):
+                        key = ("__vector__", u_name, v_name) + tuple(sel.values())
+                        yield key, [uv_ds.sel(sel)]
+                for var in remaining_vars:
+                    da = data.squeeze()[var]
+                    for sel, slice_da in _iter_cartesian(da, extra_dims):
+                        key = (var,) + tuple(sel.values())
+                        yield key, [slice_da]
+            else:
+                squeezed_ds = data.squeeze()
+                if vector_pair is not None:
+                    u_name, v_name = vector_pair
+                    yield (
+                        ("__vector__", u_name, v_name),
+                        [squeezed_ds[[u_name, v_name]]],
+                    )
+                for var in remaining_vars:
+                    yield (var,), [squeezed_ds[var]]
+            return
+        # Single-var Dataset: unwrap
+        squeezed = data.squeeze()[var_names[0]]
+
+    # DataArray path
+    if groupby is not None:
+        coord_vals = _unique_coord_vals(squeezed[groupby])
+        for val in coord_vals:
+            yield val, [squeezed.sel({groupby: val})]
+    else:
+        # Auto-detect all extra non-spatial dimensions and iterate their full
+        # Cartesian product so every panel gets a 2-D (lat × lon) slice.
+        extra_dims = _get_extra_dims(squeezed)
+        if extra_dims:
+            for sel, slice_da in _iter_cartesian(squeezed, extra_dims):
+                key = tuple(sel.values()) if len(sel) > 1 else next(iter(sel.values()))
+                yield key, [slice_da]
+        else:
+            yield None, [data]
+
+
+def iter_plot_groups_2d(data, row_dim, col_dim, groupby, mode):
+    """
+    Yield ``(row_key, col_key, [DataArray, ...])`` tuples for structured 2-D layout.
+
+    Parameters
+    ----------
+    data : xr.DataArray or xr.Dataset
+        Input xarray object.
+    row_dim : str or None
+        Dimension name (or ``"variable"`` for Dataset variables) to lay out
+        along rows.
+    col_dim : str or None
+        Dimension name (or ``"variable"`` for Dataset variables) to lay out
+        along columns.
+    groupby : str or None
+        Additional dimension to split on (ignored if covered by row/col dims).
+    mode : str
+        ``"auto"``, ``"overlay"``, or ``"split"``.
+
+    Yields
+    ------
+    row_key : hashable
+        Value identifying the row (None if row_dim not specified).
+    col_key : hashable
+        Value identifying the column (None if col_dim not specified).
+    targets : list of xr.DataArray
+        DataArrays to plot on the corresponding panel.
+    """
+    squeezed = data.squeeze() if isinstance(data, xr.DataArray) else data
+
+    # Resolve variable dimension
+    VARIABLE_DIM = "variable"
+
+    def _var_vals(ds):
+        return list(ds.data_vars)
+
+    def _resolve_dim_vals(da_or_ds, dim):
+        """Return list of unique values for *dim* (handles 'variable' pseudo-dim)."""
+        if dim == VARIABLE_DIM:
+            if isinstance(da_or_ds, xr.Dataset):
+                return _var_vals(da_or_ds)
+            return [da_or_ds.name]
+        if isinstance(da_or_ds, xr.Dataset):
+            return _unique_coord_vals(da_or_ds[_var_vals(da_or_ds)[0]][dim])
+        return _unique_coord_vals(da_or_ds[dim])
+
+    def _select(da_or_ds, dim, val):
+        """Select a single value along *dim* from a DataArray or Dataset."""
+        if dim == VARIABLE_DIM:
+            return da_or_ds[val] if isinstance(da_or_ds, xr.Dataset) else da_or_ds
+        if isinstance(da_or_ds, xr.Dataset):
+            return da_or_ds.sel({dim: val})
+        return da_or_ds.sel({dim: val})
+
+    row_vals = _resolve_dim_vals(squeezed, row_dim) if row_dim else [None]
+    col_vals = _resolve_dim_vals(squeezed, col_dim) if col_dim else [None]
+
+    # Dims already consumed by the row/col axes — don't expand again
+    consumed_dims = set()
+    if row_dim and row_dim != "variable":
+        consumed_dims.add(row_dim)
+    if col_dim and col_dim != "variable":
+        consumed_dims.add(col_dim)
+
+    def _expand_slice(slice_data, row_val, col_val):
+        """
+        Yield ``(compound_row_key, col_val, [DataArray])`` tuples, expanding
+        any remaining extra non-spatial dims into separate rows.
+        """
+        if isinstance(slice_data, xr.Dataset):
+            # Variable-major: for each variable, expand its extra dims
+            var_names = list(slice_data.data_vars)
+            for var in var_names:
+                da = slice_data[var]
+                extra = [d for d in _get_extra_dims(da) if d not in consumed_dims]
+                if extra:
+                    for sel, sliced in _iter_cartesian(da, extra):
+                        extra_key = tuple(sel.values())
+                        compound_row = (row_val, var) + extra_key
+                        yield compound_row, col_val, [sliced]
+                else:
+                    yield (row_val, var), col_val, [da]
+        else:
+            extra = [d for d in _get_extra_dims(slice_data) if d not in consumed_dims]
+            if extra:
+                for sel, sliced in _iter_cartesian(slice_data, extra):
+                    extra_key = tuple(sel.values())
+                    compound_row = (row_val,) + extra_key if row_val is not None else extra_key
+                    yield compound_row, col_val, [sliced]
+            else:
+                yield row_val, col_val, [slice_data]
+
+    # Collect all (row_key, col_key, targets) in row-major order so that the
+    # figure grid is laid out correctly (all columns for a given row together).
+    all_groups = []
+    for col_val in col_vals:
+        for row_val in row_vals:
+            slice_data = squeezed
+            if row_dim and row_val is not None:
+                slice_data = _select(slice_data, row_dim, row_val)
+            if col_dim and col_val is not None:
+                slice_data = _select(slice_data, col_dim, col_val)
+            for entry in _expand_slice(slice_data, row_val, col_val):
+                all_groups.append(entry)
+
+    # Re-order so that we iterate row-major (all cols for row 0, then row 1, …)
+    row_keys_seen = list(dict.fromkeys(rk for rk, _, _ in all_groups))
+    col_keys_seen = list(dict.fromkeys(ck for _, ck, _ in all_groups))
+    group_map = {(rk, ck): tgts for rk, ck, tgts in all_groups}
+    for rk in row_keys_seen:
+        for ck in col_keys_seen:
+            if (rk, ck) in group_map:
+                yield rk, ck, group_map[(rk, ck)]

@@ -1,0 +1,63 @@
+id: composition_ch4_300
+optimal: COMPOSITION_CH4_300_SH_NIPY_SPECTRAL_CH4_300HPA
+styles:
+  COMPOSITION_CH4_300_SH_NIPY_SPECTRAL_CH4_300HPA:
+    name: sh-nipy-spectral-ch4-300hpa
+    type: Style
+    colors:
+    - '#820093ff'
+    - '#0000b9ff'
+    - '#0078ddff'
+    - '#00a4bbff'
+    - '#00a55dff'
+    - '#00bc00ff'
+    - '#00f400ff'
+    - '#ccf900ff'
+    - '#ffc900ff'
+    - '#ff2d00ff'
+    - '#d70000ff'
+    levels:
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    - 1940.0
+    extend: both
+    units: ppbv
+  COMPOSITION_CH4_300_SH_RDGY_R_CH4_300HPA:
+    name: sh-rdgy-r-ch4-300hpa
+    type: Style
+    colors:
+    - '#444444ff'
+    - '#737373ff'
+    - '#a1a1a1ff'
+    - '#c7c7c7ff'
+    - '#e5e5e5ff'
+    - '#fffefeff'
+    - '#fde1d0ff'
+    - '#f7b799ff'
+    - '#e48066ff'
+    - '#c94741ff'
+    - '#a51429ff'
+    levels:
+    - 1720.0
+    - 1740.0
+    - 1760.0
+    - 1780.0
+    - 1800.0
+    - 1820.0
+    - 1840.0
+    - 1860.0
+    - 1880.0
+    - 1900.0
+    - 1920.0
+    - 1940.0
+    extend: both
+    units: ppbv

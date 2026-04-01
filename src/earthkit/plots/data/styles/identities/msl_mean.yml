@@ -1,0 +1,5 @@
+id: msl_mean
+criteria:
+- paramId: '151'
+  shortName: msl
+  type: em

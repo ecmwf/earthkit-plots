@@ -1,0 +1,27 @@
+id: msl
+criteria:
+- paramId: '151'
+  shortName: msl
+- originatingCentre: edzw
+  shortName: prmsl
+- centre: '219'
+  shortName: prmsl
+  paramId: '260074'
+- long_name:
+  - Mean sea level pressure
+  - Sea Level Pressure
+  - Sea level pressure
+  standard_name:
+  - air_pressure_at_sea_level
+  - air_pressure_at_mean_sea_level
+- long_name:
+  - Mean sea level pressure
+  - Sea Level Pressure
+  - Sea level pressure
+- standard_name:
+  - air_pressure_at_sea_level
+  - air_pressure_at_mean_sea_level
+- centre: '219'
+  paramId: '260074'
+- centre: edzw
+  paramId: '260074'

@@ -1,0 +1,7 @@
+id: wave_mwp
+criteria:
+- paramId: '140232'
+  shortName: mwp
+- long_name:
+  - Mean wave period
+  - Mean period of combined wind waves and swell

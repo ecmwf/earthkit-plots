@@ -1,0 +1,6 @@
+id: mc_swh
+criteria:
+- paramId: '140200'
+  shortName: maxswh
+  type: cd
+- long_name: Maximum of significant wave height

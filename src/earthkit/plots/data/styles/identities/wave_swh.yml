@@ -1,0 +1,7 @@
+id: wave_swh
+criteria:
+- paramId: '140229'
+  shortName: swh
+- long_name:
+  - Significant height of combined wind waves and swell
+  - Significant height of wind and swell waves

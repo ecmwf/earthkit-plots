@@ -1,0 +1,68 @@
+id: z300_spread
+optimal: Z300_SPREAD_SH_BLU_F03T75
+styles:
+  Z300_SPREAD_SH_BLU_F03T75:
+    name: sh-blu-f03t75
+    type: Style
+    colors:
+    - '#d9badbff'
+    - '#c287c4ff'
+    - '#ba57bdff'
+    - '#d921e0ff'
+    - '#f500ffff'
+    - '#fa82ffff'
+    levels:
+    - 2.0
+    - 6.0
+    - 12.0
+    - 18.0
+    - 30.0
+    - 40.0
+    - 75.0
+    units: dam
+  Z300_SPREAD_SH_BLU_F02T50:
+    name: sh-blu-f02t50
+    type: Style
+    colors:
+    - '#d9badbff'
+    - '#c287c4ff'
+    - '#ba57bdff'
+    - '#d921e0ff'
+    - '#f500ffff'
+    levels:
+    - 2.0
+    - 4.0
+    - 8.0
+    - 12.0
+    - 18.0
+    - 25.0
+    extend: max
+    units: dam
+  Z300_SPREAD_SH_RANGE_F02T50:
+    name: sh-range-f02t50
+    type: Style
+    colors:
+    - '#00ffffff'
+    - '#00ff80ff'
+    - '#80ff00ff'
+    - '#ffff00ff'
+    - '#ffda00ff'
+    - '#ffb000ff'
+    - '#ff8000ff'
+    - '#e06c00ff'
+    - '#ad7311ff'
+    - '#996400ff'
+    levels:
+    - 2.0
+    - 3.0
+    - 4.0
+    - 5.0
+    - 6.0
+    - 8.0
+    - 10.0
+    - 12.0
+    - 14.0
+    - 16.0
+    - 20.0
+    extend: max
+    units: dam

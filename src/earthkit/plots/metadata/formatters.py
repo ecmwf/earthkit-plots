@@ -105,6 +105,17 @@ class BaseFormatter(Formatter):
         keys = (i[1] for i in self.parse(format_string) if i[1] is not None)
         for key in keys:
             main_key, *methods = key.split(".")
+            # If the key contains dots, first try resolving the full dotted key
+            # as a single metadata lookup (e.g. "time.valid_datetime" from
+            # earthkit-data's namespaced metadata API).  Only fall back to the
+            # chained-method path (x.units, y.variable_name, …) when the full
+            # key produces nothing useful.
+            if methods:
+                full_result = self.format_key(key)
+                resolved = full_result[0] if isinstance(full_result, list) and len(full_result) == 1 else full_result
+                if resolved is not None and not isinstance(resolved, DimensionInfo):
+                    kwargs[key] = full_result
+                    continue
             result = self.format_key(main_key)
             for method in methods:
                 if method in SPECIAL_METHODS:
@@ -172,8 +183,30 @@ class BaseFormatter(Formatter):
         format_spec : str
             The format specification.
         """
+        if value is None:
+            return ""
+
+        # format_keys stores results as lists; unwrap single-element lists so
+        # that format specs (e.g. {time:%H}) operate on the value itself.
+        if isinstance(value, list) and len(value) == 1:
+            value = value[0]
+
         if isinstance(value, str) and value.startswith("__units__"):
             return metadata.units.format_units(value.replace("__units__", ""), format_spec)
+
+        # Pass datetime-like objects directly when format_spec contains strftime patterns
+        import datetime
+
+        import numpy as np
+
+        if isinstance(value, np.datetime64) and "%" in format_spec:
+            import pandas as pd
+
+            value = pd.Timestamp(value)
+        if isinstance(value, np.integer):
+            value = int(value)
+        if isinstance(value, (datetime.datetime, datetime.date)) and "%" in format_spec:
+            return format(value, format_spec)
 
         # Handle coordinate format specifiers
         if format_spec.startswith("%Lt"):
@@ -264,11 +297,17 @@ class SourceFormatter(BaseFormatter):
                 return [dim]
             # If dimension is None (e.g., z for 1D plots), fall through to regular extraction
 
-        return [metadata.labels.extract(self.source, key, axis=self._axis)[0]]
+        result = metadata.labels.extract(self.source, key, axis=self._axis)
+        if isinstance(result, (list, tuple)):
+            result = result[0]
+
+        if key == "units" and isinstance(result, str):
+            return [f"__units__{result}"]
+        return [result]
 
 
 class LayerFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Layers`, enabling convenient titles and labels."""
+    """Formatter of earthkit-plots `Layers`, enabling convient titles and labels."""
 
     def __init__(self, layer, default=None, issue_warnings=True, axis=None):
         self.layer = layer
@@ -303,6 +342,35 @@ class LayerFormatter(BaseFormatter):
         if value is None:
             if key in self.SUBPLOT_ATTRIBUTES:
                 value = getattr(self.layer.subplot, self.SUBPLOT_ATTRIBUTES[key])
+            elif key == "units":
+                # Priority order:
+                # 1. axis_units (set by fix_x/y_units or per-call units=)
+                # 2. style.units (explicitly set by the user on the Style object)
+                # 3. source.units (applied/converted units from the data source)
+                # 4. raw metadata extraction from source
+                axis_specific_units = (
+                    self.layer.axis_units.get(self._axis)
+                    if hasattr(self.layer, "axis_units") and self._axis is not None
+                    else None
+                )
+                style_units = getattr(self.layer.style, "units", None) if self.layer.style is not None else None
+                if axis_specific_units is not None:
+                    value = [f"__units__{axis_specific_units}"]
+                elif style_units:
+                    value = [f"__units__{style_units}"]
+                else:
+                    value = [
+                        f"__units__{source.units}"
+                        if source.units
+                        else metadata.labels.extract(
+                            source,
+                            key,
+                            default=self._default,
+                            issue_warnings=self._issue_warnings,
+                            axis=self._axis,
+                        )
+                        for source in self.layer.sources
+                    ]
             elif key in self.STYLE_ATTRIBUTES and self.layer.style is not None:
                 value = getattr(self.layer.style, self.STYLE_ATTRIBUTES[key])
                 if value is None:
@@ -316,42 +384,6 @@ class LayerFormatter(BaseFormatter):
                         )
                         for source in self.layer.sources
                     ]
-                if key == "units":
-                    # Check if we have axis-specific units defined
-                    axis_specific_units = None
-                    if (
-                        hasattr(self.layer, "axis_units")
-                        and self.layer.axis_units
-                        and self._axis in self.layer.axis_units
-                    ):
-                        axis_specific_units = self.layer.axis_units[self._axis]
-
-                    # Use axis-specific units if available
-                    if axis_specific_units is not None:
-                        value = [f"__units__{axis_specific_units}"]
-                    else:
-                        # For legend formatting (when axis is None) or primary axis, prioritize style units
-                        is_primary_axis = hasattr(self.layer, "primary_axis") and self.layer.primary_axis == self._axis
-                        is_legend_formatting = self._axis is None
-
-                        if (is_primary_axis or is_legend_formatting) and value is not None:
-                            # This is the primary data axis or legend formatting - use style units
-                            if isinstance(value, list):
-                                value = [f"__units__{v}" if v is not None else "" for v in value]
-                            else:
-                                value = [f"__units__{value}" if value is not None else ""]
-                        else:
-                            # This is a coordinate axis or no style units available - use source units
-                            value = [
-                                metadata.labels.extract(
-                                    source,
-                                    key,
-                                    default=self._default,
-                                    issue_warnings=self._issue_warnings,
-                                    axis=self._axis,
-                                )
-                                for source in self.layer.sources
-                            ]
             else:
                 value = [
                     metadata.labels.extract(
@@ -376,7 +408,7 @@ class LayerFormatter(BaseFormatter):
         # Handle list values from single sources (e.g., vector fields returning ["wind U", "wind V"])
         if isinstance(_value, list):
             # Apply format_spec to each element
-            formatted_values = [super().format_field(str(v), format_spec) for v in _value]
+            formatted_values = [super().format_field(v, format_spec) for v in _value]
             # Get unique values
             unique_values = list(dict.fromkeys(formatted_values))
             # If all values are the same, return just one
@@ -385,12 +417,11 @@ class LayerFormatter(BaseFormatter):
             # Otherwise format as human-readable list
             return string_utils.list_to_human(unique_values)
 
-        value = str(_value)
-        return super().format_field(value, format_spec)
+        return super().format_field(_value, format_spec)
 
 
 class SubplotFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Subplots`, enabling convenient titles and labels."""
+    """Formatter of earthkit-plots `Subplots`, enabling convient titles and labels."""
 
     def __init__(self, subplot, unique=True, axis=None):
         self.subplot = subplot
@@ -432,11 +463,13 @@ class SubplotFormatter(BaseFormatter):
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
+        else:
+            value = f(value, format_spec)
         return value
 
 
 class FigureFormatter(BaseFormatter):
-    """Formatter of earthkit-plots `Charts`, enabling convenient titles and labels."""
+    """Formatter of earthkit-plots `Charts`, enabling convient titles and labels."""
 
     def __init__(self, subplots, unique=True):
         self.subplots = subplots
@@ -468,12 +501,14 @@ class FigureFormatter(BaseFormatter):
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
+        else:
+            value = f(value, format_spec)
         return value
 
 
 class TimeFormatter:
     """
-    Formatter of time data, enabling convenient time labels.
+    Formatter of time data, enabling convient time labels.
 
     Parameters
     ----------

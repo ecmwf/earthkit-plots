@@ -21,7 +21,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy"
 ]
 dependencies = [
-  "earthkit-data",
+  "earthkit-utils>=1.0.0rc0",
+  "earthkit-data>=1.0.0rc0",
   "cartopy>=0.22.0",
   "fiona",
   "pint",
@@ -46,7 +47,12 @@ optional-dependencies.geocoding = [
 optional-dependencies.healpix = [
   "healpy"
 ]
+optional-dependencies.regridding = [
+  "earthkit-geo>=1.0.0rc0"
+]
 optional-dependencies.test = [
+  "earthkit-geo>=1.0.0rc0",
+  "healpy",
   "nbconvert",
   "nbformat",
   "pytest",
@@ -74,6 +80,7 @@ add_ignore = [
 convention = "numpy"
 
 [tool.ruff]
+exclude = ["**/docs/"]
 line-length = 120
 preview = true
 

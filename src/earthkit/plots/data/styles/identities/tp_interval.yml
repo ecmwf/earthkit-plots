@@ -1,0 +1,24 @@
+id: tp_interval
+criteria:
+- paramId:
+  - '228'
+  - '143'
+  - '142'
+  shortName:
+  - tp
+  - cp
+  - lsp
+- long_name:
+  - Total precipitation
+  - Convective precipitation
+  - Large-scale precipitation
+- standard_name:
+  - lwe_thickness_of_precipitation_amount
+  - lwe_thickness_of_large_scale_precipitation_amount
+  - lwe_thickness_of_stratiform_precipitation_amount
+  - lwe_thickness_of_convective_precipitation_amount
+- paramId: '228228'
+  shortName: tp
+  centre: '219'
+- paramId: '228228'
+  centre: edzw

@@ -30,9 +30,62 @@ from earthkit.plots.sources.extractors import (
 from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
-GRIDSPECS_TO_NOT_REGRID = [
-    "unknown",
-]
+
+def _parse_date_time_ints(date_val, time_val=None):
+    """
+    Parse ECMWF-style integer date and time into a datetime object.
+
+    date_val : int or str like 20150101
+    time_val : int or str like 0, 600, 1200 (HHMM or H)
+    """
+    import datetime
+
+    try:
+        date_str = str(int(date_val))
+        if len(date_str) != 8:
+            return None
+        year, month, day = int(date_str[:4]), int(date_str[4:6]), int(date_str[6:8])
+        hour, minute = 0, 0
+        if time_val is not None:
+            # time is HHMM (e.g. 1200) or just H (e.g. 0, 6, 12)
+            t = int(time_val)
+            if t < 100:
+                # treat as whole hours
+                hour = t
+            else:
+                hour, minute = t // 100, t % 100
+        return datetime.datetime(year, month, day, hour, minute)
+    except (ValueError, TypeError):
+        return None
+
+
+def _parse_time_value(value):
+    """
+    Try to parse an arbitrary time value into a datetime object.
+
+    Handles numpy datetime64, Python datetime, and dateutil-parseable strings.
+    Returns None if parsing fails.
+    """
+    import datetime
+
+    import numpy as np
+
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, np.datetime64):
+        # Convert to Python datetime via pandas or direct cast
+        try:
+            import pandas as pd
+
+            return pd.Timestamp(value).to_pydatetime()
+        except ImportError:
+            return value.astype("datetime64[ms]").astype(datetime.datetime)
+    try:
+        import dateutil.parser
+
+        return dateutil.parser.parse(str(value))
+    except (ValueError, TypeError, OverflowError):
+        return None
 
 
 class Source:
@@ -40,7 +93,7 @@ class Source:
     Unified data source for plotting.
 
     Wraps different data types via extractors and provides a consistent
-    interface for coordinate extraction, metadata access, and regridding.
+    interface for coordinate extraction and metadata access.
 
     Parameters
     ----------
@@ -59,9 +112,6 @@ class Source:
     context : PlotContext, optional
         Plot context to guide coordinate inference.
         Defaults to CARTESIAN_2D.
-    regrid : bool, optional
-        Whether to apply regridding if data has special grid structure.
-        Defaults to True.
     metadata : dict, optional
         User-provided metadata.
     units : str, optional
@@ -69,6 +119,8 @@ class Source:
         - 1D cartesian: Tries to convert both x and y. If both fail, raises error.
         - 2D/geographic: Converts z (the data field).
         Dimension-specific units (x_units, y_units, z_units) take precedence.
+        See :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     x_units : str, optional
         Target units for x dimension. Overrides 'units' for x.
     y_units : str, optional
@@ -91,7 +143,6 @@ class Source:
         u: str | np.ndarray | None = None,
         v: str | np.ndarray | None = None,
         context: PlotContext = PlotContext.CARTESIAN_2D,
-        regrid: bool = True,
         metadata: dict | None = None,
         units: str | None = None,
         x_units: str | None = None,
@@ -107,7 +158,6 @@ class Source:
         self._u_spec = u
         self._v_spec = v
         self._context = context
-        self._should_regrid = regrid
         self._metadata_resolver = MetadataResolver(self._extractor, metadata)
 
         # Unit conversion tracking
@@ -140,10 +190,9 @@ class Source:
 
         # Backward compatibility properties
         self._data = data  # For backward compatibility
-        self.regrid = regrid  # For backward compatibility
 
     def _extract(self):
-        """Lazy coordinate extraction with optional regridding."""
+        """Lazy coordinate extraction."""
         if self._coords_extracted:
             return
 
@@ -170,68 +219,6 @@ class Source:
         self._z_coord_info = extracted.z
         self._u_coord_info = extracted.u
         self._v_coord_info = extracted.v
-
-        # Apply regridding if needed
-        if self._should_regrid and self._z_coord_info is not None:
-            gridspec = self._extractor.get_gridspec()
-            if gridspec is not None and gridspec.name not in GRIDSPECS_TO_NOT_REGRID:
-                from earthkit.plots.sources.regrid import apply_regrid
-
-                x, y, z = apply_regrid(
-                    self._x_coord_info.values,
-                    self._y_coord_info.values,
-                    self._z_coord_info.values,
-                    gridspec,
-                    self._context,
-                )
-                # Update coordinate info with regridded values
-                self._x_coord_info = CoordinateInfo(
-                    values=x,
-                    name=self._x_coord_info.name,
-                    source_units=self._x_coord_info.source_units,
-                    metadata=self._x_coord_info.metadata,
-                )
-                self._y_coord_info = CoordinateInfo(
-                    values=y,
-                    name=self._y_coord_info.name,
-                    source_units=self._y_coord_info.source_units,
-                    metadata=self._y_coord_info.metadata,
-                )
-                self._z_coord_info = CoordinateInfo(
-                    values=z,
-                    name=self._z_coord_info.name,
-                    source_units=self._z_coord_info.source_units,
-                    metadata=self._z_coord_info.metadata,
-                )
-
-                # Regrid u and v if present
-                if self._u_coord_info is not None and self._v_coord_info is not None:
-                    _, _, u = apply_regrid(
-                        self._x_coord_info.values,
-                        self._y_coord_info.values,
-                        self._u_coord_info.values,
-                        gridspec,
-                        self._context,
-                    )
-                    _, _, v = apply_regrid(
-                        self._x_coord_info.values,
-                        self._y_coord_info.values,
-                        self._v_coord_info.values,
-                        gridspec,
-                        self._context,
-                    )
-                    self._u_coord_info = CoordinateInfo(
-                        values=u,
-                        name=self._u_coord_info.name,
-                        source_units=self._u_coord_info.source_units,
-                        metadata=self._u_coord_info.metadata,
-                    )
-                    self._v_coord_info = CoordinateInfo(
-                        values=v,
-                        name=self._v_coord_info.name,
-                        source_units=self._v_coord_info.source_units,
-                        metadata=self._v_coord_info.metadata,
-                    )
 
         self._coords_extracted = True
 
@@ -331,17 +318,25 @@ class Source:
         DimensionInfo
             Built dimension with values, units, and metadata.
         """
+
+        def _unwrap_units(u):
+            """Unwrap single-element lists that earthkit metadata() can return."""
+            if isinstance(u, list):
+                return u[0] if u else None
+            return u
+
         # Start with source values and units
         values = coord_info.values
-        applied_units = coord_info.source_units
+        user_units = _unwrap_units(self._metadata_resolver.user_metadata.get("units"))
+        applied_units = user_units or _unwrap_units(coord_info.source_units)
 
         # Attempt unit conversion if target_units specified
         if target_units is not None:
-            # First try with source_units from coordinate
-            source_units = coord_info.source_units
-            # Fallback to generic source.units if coord source_units is None
-            if source_units is None:
-                source_units = self.source_units
+            # source_units priority:
+            # 1. User-provided metadata (metadata={"units": "..."}) — highest priority
+            # 2. Units embedded in the coordinate by the extractor
+            user_units = _unwrap_units(self._metadata_resolver.user_metadata.get("units"))
+            source_units = user_units or _unwrap_units(coord_info.source_units) or _unwrap_units(self.source_units)
 
             if source_units is not None:
                 converted, success = self._convert_values(values, source_units, target_units, coord_name, silent=silent)
@@ -359,6 +354,24 @@ class Source:
         )
         setattr(self, cache_attr, dimension)
         return dimension
+
+    def update_units(self, units: str) -> None:
+        """
+        Update the target units for this source, clearing any cached dimension
+        so that unit conversion is applied on the next access.
+
+        This is used by the pipeline when ``use_preferred_units`` selects a
+        style after the source has already been constructed, to ensure the data
+        values are converted to the style's units before plotting.
+
+        Parameters
+        ----------
+        units :
+            The new target units string (e.g. ``"celsius"``).
+        """
+        self._generic_units = units
+        # Clear the cached z dimension so it is rebuilt with conversion applied.
+        self._z_dimension = None
 
     @property
     def x(self) -> DimensionInfo:
@@ -573,6 +586,8 @@ class Source:
     @property
     def gridspec(self):
         """Get grid specification."""
+        if hasattr(self, "_gridspec_override"):
+            return self._gridspec_override
         return self._extractor.get_gridspec()
 
     def metadata(self, key: str, default: Any = None) -> Any:
@@ -594,18 +609,7 @@ class Source:
         Any
             Metadata value, scalar coordinate value, or default.
         """
-        # For xarray, check if key is a scalar coordinate and return its value
-        if self._extractor.__class__.__name__ == "XarrayExtractor":
-            selected_da = getattr(self._extractor, "_selected_dataarray", None)
-            da = selected_da if selected_da is not None else self._extractor.data
-
-            if hasattr(da, "coords") and key in da.coords:
-                coord = da.coords[key]
-                # If coordinate is scalar (0-dimensional), return its value
-                if coord.ndim == 0:
-                    return coord.item()  # Extract scalar value
-
-        # Otherwise, use metadata resolver
+        # Use metadata resolver (XarrayExtractor.get_metadata handles scalar coords)
         return self._metadata_resolver.get(key, default)
 
     @property
@@ -651,12 +655,67 @@ class Source:
         if hasattr(self._data, "datetime") and callable(self._data.datetime):
             return self._data.datetime()
 
-        # Fallback: try to get time from metadata
-        time = self.metadata("time")
-        if time is not None:
-            return {"base_time": time, "valid_time": time}
+        # For xarray: scan for time-like scalar coordinates or attrs
+        # Common xarray time coord names: "time", "valid_time", "forecast_reference_time"
+        import xarray as xr
+
+        if isinstance(self._data, (xr.DataArray, xr.Dataset)):
+            da = (
+                self._data
+                if isinstance(self._data, xr.DataArray)
+                else next(iter(self._data.data_vars.values()), self._data)
+            )
+            time_coord_names = [
+                "valid_time",
+                "time",
+                "forecast_reference_time",
+                "initial_time",
+            ]
+            found = {}
+            for name in time_coord_names:
+                if name in da.coords:
+                    coord = da.coords[name]
+                    val = coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+                    if val is not None:
+                        dt = _parse_time_value(val)
+                        if dt is not None:
+                            found[name] = dt
+            if found:
+                valid = found.get("valid_time") or found.get("time")
+                base = found.get("forecast_reference_time") or found.get("initial_time") or valid
+                return {"base_time": base, "valid_time": valid}
+
+        # Try to build a datetime from ECMWF-style integer date/time attrs
+        # e.g. date=20150101, time=0 (or time=1200)
+        date_val = self.metadata("date")
+        time_val = self.metadata("time")
+        if date_val is not None:
+            dt = _parse_date_time_ints(date_val, time_val)
+            if dt is not None:
+                return {"base_time": dt, "valid_time": dt}
+
+        # Fallback: try to parse a generic "time" metadata value
+        if time_val is not None:
+            dt = _parse_time_value(time_val)
+            if dt is not None:
+                return {"base_time": dt, "valid_time": dt}
 
         return {"base_time": None, "valid_time": None}
+
+
+def _is_xarray_backed_earthkit(data: Any) -> bool:
+    """
+    Return True for earthkit NetCDF objects that should be converted via to_xarray().
+
+    Detects any earthkit Base subclass whose module contains 'netcdf' and which
+    exposes a to_xarray() method, covering all known earthkit.data versions.
+    """
+    if not isinstance(data, ek_data.core.Base):
+        return False
+    if not hasattr(data, "to_xarray"):
+        return False
+    module = getattr(type(data), "__module__", "") or ""
+    return "netcdf" in module
 
 
 def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
@@ -675,9 +734,17 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     DataExtractor
         Appropriate extractor for the data type.
     """
+    # No data object — coordinate-only call (e.g. line(x=lons, y=lats))
+    if data is None:
+        return NumpyExtractor(None)
+
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
         return XarrayExtractor(data)
+
+    # xarray-backed earthkit objects (NetCDF FieldLists, etc.) — convert first
+    if _is_xarray_backed_earthkit(data):
+        return XarrayExtractor(data.to_xarray())
 
     # Check for earthkit types
     if isinstance(data, ek_data.core.Base):
@@ -696,7 +763,6 @@ def get_source(
     u=None,
     v=None,
     context=None,
-    regrid=True,
     metadata=None,
     units=None,
     x_units=None,
@@ -733,9 +799,6 @@ def get_source(
     context : PlotContext, optional
         Plot context to guide coordinate inference. If None, defaults to
         CARTESIAN_2D.
-    regrid : bool, optional
-        Whether to apply regridding if data has special grid structure.
-        Defaults to True.
     metadata : dict, optional
         User-provided metadata.
     units : str, optional
@@ -743,6 +806,8 @@ def get_source(
         - 1D cartesian: Tries to convert both x and y. If both fail, raises error.
         - 2D/geographic: Converts z (the data field).
         Dimension-specific units (x_units, y_units, z_units) take precedence.
+        See :doc:`/examples/examples/introduction/08-unit-conversion` for
+        examples.
     x_units : str, optional
         Target units for x dimension. Overrides 'units' for x.
     y_units : str, optional
@@ -763,9 +828,15 @@ def get_source(
     """
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
-    if isinstance(data_obj, ek_data.core.Base):
-        if hasattr(data_obj, "__len__") and len(data_obj) == 1:
-            data_obj = data_obj[0]
+    if isinstance(data_obj, ek_data.core.Base) and not _is_xarray_backed_earthkit(data_obj):
+        if hasattr(data_obj, "to_fieldlist"):
+            data_obj = data_obj.to_fieldlist()
+        if hasattr(data_obj, "__len__") and len(data_obj) >= 1:
+            # For vector contexts, keep the full FieldList so the extractor can
+            # find U/V pairs across fields. For scalar plots, collapse to [0].
+            is_vector = context is not None and context.is_vector
+            if not is_vector:
+                data_obj = data_obj[0]
 
     if data_obj is None:
         # Check for 'c' parameter (matplotlib convention for color/data)
@@ -774,7 +845,8 @@ def get_source(
             data_obj = c
         elif isinstance(z, (np.ndarray, list)):
             data_obj = z
-        else:
+        elif not isinstance(x, (np.ndarray, list)) and not isinstance(y, (np.ndarray, list)):
+            # No positional data and no coordinate arrays — nothing to plot.
             raise ValueError("No data provided to get_source()")
 
     # Merge kwargs into metadata
@@ -786,7 +858,18 @@ def get_source(
     if context is None:
         context = PlotContext.CARTESIAN_2D
 
-    # Create new unified Source
+    # Route to GeometrySource if context is geometry-based
+    if context.is_geometry:
+        from earthkit.plots.sources.geometry import _UNSET, GeometrySource
+
+        return GeometrySource(
+            data_obj,
+            z=_UNSET if z is None else z,
+            units=units,
+            metadata=metadata,
+        )
+
+    # Create coordinate-based Source for non-geometry contexts
     return Source(
         data_obj,
         x=x,
@@ -795,7 +878,6 @@ def get_source(
         u=u,
         v=v,
         context=context,
-        regrid=regrid,
         metadata=metadata,
         units=units,
         x_units=x_units,
@@ -804,3 +886,9 @@ def get_source(
         u_units=u_units,
         v_units=v_units,
     )
+
+
+# Import GeometrySource for geometry-based data (GeoDataFrames)
+from earthkit.plots.sources.geometry import GeometrySource  # noqa: E402
+
+__all__ = ["Source", "get_source", "GeometrySource"]

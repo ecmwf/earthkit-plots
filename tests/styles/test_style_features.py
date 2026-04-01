@@ -288,3 +288,95 @@ class TestCmapAlias:
 
         with pytest.raises(ValueError, match="Cannot specify both 'cmap' and 'colors'"):
             base_style.with_overrides(cmap="plasma", colors="coolwarm")
+
+
+class TestVminVmax:
+    """Test vmin/vmax support on Style."""
+
+    def test_vmin_vmax_stored(self):
+        """Test that vmin/vmax are stored on the Style."""
+        style = Style(colors="viridis", vmin=0, vmax=100)
+        assert style._vmin == 0
+        assert style._vmax == 100
+
+    def test_to_matplotlib_kwargs_produces_normalize(self):
+        """Test that vmin/vmax produces a Normalize norm, not BoundaryNorm."""
+        import matplotlib as mpl
+
+        style = Style(colors="viridis", vmin=0.0, vmax=100.0)
+        data = np.random.rand(10, 10) * 100
+        kwargs = style.to_matplotlib_kwargs(data)
+
+        assert isinstance(kwargs["norm"], mpl.colors.Normalize)
+        assert not isinstance(kwargs["norm"], mpl.colors.BoundaryNorm)
+        assert kwargs["norm"].vmin == 0.0
+        assert kwargs["norm"].vmax == 100.0
+
+    def test_to_matplotlib_kwargs_no_levels_key(self):
+        """Test that vmin/vmax path does not include a 'levels' key."""
+        style = Style(colors="viridis", vmin=0, vmax=50)
+        data = np.random.rand(5, 5) * 50
+        kwargs = style.to_matplotlib_kwargs(data)
+        assert "levels" not in kwargs
+
+    def test_vmin_only_uses_data_max(self):
+        """Test that only vmin set uses data max for vmax."""
+        import matplotlib as mpl
+
+        data = np.ones((5, 5)) * 80.0
+        style = Style(colors="viridis", vmin=10.0)
+        kwargs = style.to_matplotlib_kwargs(data)
+
+        assert isinstance(kwargs["norm"], mpl.colors.Normalize)
+        assert kwargs["norm"].vmin == 10.0
+        assert kwargs["norm"].vmax == pytest.approx(80.0)
+
+    def test_vmax_only_uses_data_min(self):
+        """Test that only vmax set uses data min for vmin."""
+        import matplotlib as mpl
+
+        data = np.ones((5, 5)) * 20.0
+        style = Style(colors="viridis", vmax=90.0)
+        kwargs = style.to_matplotlib_kwargs(data)
+
+        assert isinstance(kwargs["norm"], mpl.colors.Normalize)
+        assert kwargs["norm"].vmax == 90.0
+        assert kwargs["norm"].vmin == pytest.approx(20.0)
+
+    def test_levels_win_over_vmin_vmax(self):
+        """Test that explicit levels take precedence over vmin/vmax."""
+        import matplotlib as mpl
+
+        style = Style(colors="viridis", levels=[0, 25, 50, 75, 100], vmin=-999, vmax=999)
+        data = np.random.rand(5, 5) * 100
+        kwargs = style.to_matplotlib_kwargs(data)
+
+        assert isinstance(kwargs["norm"], mpl.colors.BoundaryNorm)
+        assert "levels" in kwargs
+
+    def test_get_config_roundtrip(self):
+        """Test that vmin/vmax survive a _get_config round-trip."""
+        style = Style(colors="plasma", vmin=-50, vmax=50)
+        config = style._get_config()
+        assert config["vmin"] == -50
+        assert config["vmax"] == 50
+
+        restored = Style(**config)
+        assert restored._vmin == -50
+        assert restored._vmax == 50
+
+    def test_with_overrides_preserves_vmax(self):
+        """Test that with_overrides of vmin preserves vmax."""
+        base = Style(colors="viridis", vmin=0, vmax=100)
+        overridden = base.with_overrides(vmin=10)
+        assert overridden._vmin == 10
+        assert overridden._vmax == 100
+
+    def test_default_style_still_uses_boundary_norm(self):
+        """Test that a style without vmin/vmax still produces BoundaryNorm."""
+        import matplotlib as mpl
+
+        style = Style(colors="viridis", levels=[0, 25, 50, 75, 100])
+        data = np.random.rand(5, 5) * 100
+        kwargs = style.to_matplotlib_kwargs(data)
+        assert isinstance(kwargs["norm"], mpl.colors.BoundaryNorm)

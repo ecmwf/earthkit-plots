@@ -1,0 +1,9 @@
+id: 700w
+criteria:
+- paramId: '135'
+  shortName: w
+- long_name: Vertical velocity
+  standard_name: lagrangian_tendency_of_air_pressure
+- paramId: '135'
+  shortName: w
+  centre: '219'

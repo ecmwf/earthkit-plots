@@ -19,24 +19,27 @@ import pytest
 from earthkit.plots.components import figures
 
 
-def test_add_attribution():
+def test_attribution():
     fig = figures.Figure()
-    fig.add_attribution("© Copyright message")
-    assert fig.attributions == ["© Copyright message"]
+    fig.attribution("© Copyright message")
+    assert fig.attributions == [("© Copyright message", "lower center", {})]
 
 
-def test_add_attribution_duplicate():
+def test_attribution_duplicate():
     fig = figures.Figure()
-    fig.add_attribution("© Copyright message")
-    fig.add_attribution("© Copyright message")
-    assert fig.attributions == ["© Copyright message"]
+    fig.attribution("© Copyright message")
+    fig.attribution("© Copyright message")
+    assert fig.attributions == [("© Copyright message", "lower center", {})]
 
 
-def test_add_attribution_multiple():
+def test_attribution_multiple():
     fig = figures.Figure()
-    fig.add_attribution("© Copyright message 1")
-    fig.add_attribution("© Copyright message 2")
-    assert fig.attributions == ["© Copyright message 1", "© Copyright message 2"]
+    fig.attribution("© Copyright message 1")
+    fig.attribution("© Copyright message 2")
+    assert fig.attributions == [
+        ("© Copyright message 1", "lower center", {}),
+        ("© Copyright message 2", "lower center", {}),
+    ]
 
 
 def test_add_logo():

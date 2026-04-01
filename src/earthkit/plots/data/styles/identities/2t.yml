@@ -1,0 +1,36 @@
+id: 2t
+criteria:
+- paramId: '167'
+  shortName: 2t
+- paramId: 167
+  shortName: 2t
+- paramId: '130'
+  shortName: t
+- paramId: 130
+  shortName: t
+- long_name: 2 metre temperature
+- long_name: Near-Surface Air Temperature
+  standard_name: air_temperature
+- long_name: near-surface air temperature
+- long_name: Mean 2 metre temperature
+- long_name: screen level temperature
+- long_name: temperature
+- long_name: Temperature
+- standard_name: air_temperature
+- standard_name: temp_scrn
+- stash_code: 3236
+- paramId: '167'
+  shortName: 2t
+  centre: '219'
+- paramId: '167'
+  centre: edzw
+- paramId: 167
+  centre: edzw
+- paramId: '500015'
+  centre: edzw
+- paramId: 500015
+  centre: edzw
+- paramId: '500016'
+  centre: edzw
+- paramId: 500016
+  centre: edzw

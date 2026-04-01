@@ -1,0 +1,9 @@
+id: 200_windspeed_field
+criteria:
+- levelist:
+  - '200'
+  paramId: '10'
+  shortName: ws
+- level:
+  - '200'
+  long_name: Wind speed

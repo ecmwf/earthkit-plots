@@ -1,0 +1,5 @@
+id: wave_mpww
+criteria:
+- paramId: '140236'
+  shortName: mpww
+- long_name: Mean period of wind waves

@@ -1,0 +1,57 @@
+id: aristotle_fwi
+optimal: ARISTOTLE_FWI_FWI_1
+styles:
+  ARISTOTLE_FWI_FWI_1:
+    name: fwi-1
+    type: Style
+    colors:
+    - '#355e00e6'
+    - '#1a9641e6'
+    - '#a6d96ae6'
+    - '#e1f2a3e6'
+    - '#ffff77e6'
+    - '#fdc980e6'
+    - '#f07c4ae6'
+    - '#e34a33e6'
+    - '#d7191ce6'
+    - '#b8470ae6'
+    levels:
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 50.0
+    - 60.0
+    extend: max
+  ARISTOTLE_FWI_FWI_3:
+    name: fwi-3
+    type: Style
+    colors:
+    - '#19562be6'
+    - '#448e87e6'
+    - '#c1e1eae6'
+    - '#f7fcfde6'
+    - '#fefde4e6'
+    - '#ffd0b7e6'
+    - '#f07c4ae6'
+    - '#f8987de6'
+    - '#dd6c57e6'
+    - '#b94539e6'
+    levels:
+    - 0.0
+    - 5.0
+    - 10.0
+    - 15.0
+    - 20.0
+    - 25.0
+    - 30.0
+    - 35.0
+    - 40.0
+    - 50.0
+    - 60.0
+    extend: max

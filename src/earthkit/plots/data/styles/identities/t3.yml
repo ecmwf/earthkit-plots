@@ -1,0 +1,15 @@
+id: t3
+criteria:
+- levelist:
+  - '1'
+  - '2'
+  - '3'
+  paramId: '130'
+  shortName: t
+  levtype: pl
+- level:
+  - '1'
+  - '2'
+  - '3'
+  long_name: Temperature
+  standard_name: air_temperature

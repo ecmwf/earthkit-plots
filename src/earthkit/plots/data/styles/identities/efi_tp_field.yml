@@ -1,0 +1,6 @@
+id: efi_tp_field
+criteria:
+- paramId: '132228'
+  shortName: tpi
+  type: efi
+- long_name: Total precipitation index

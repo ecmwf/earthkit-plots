@@ -1,0 +1,57 @@
+id: aristotle_drought_code
+optimal: ARISTOTLE_DROUGHT_CODE_DROUGHT_CODE_1
+styles:
+  ARISTOTLE_DROUGHT_CODE_DROUGHT_CODE_1:
+    name: drought-code-1
+    type: Style
+    colors:
+    - '#355e00ff'
+    - '#1a9641ff'
+    - '#a6d96aff'
+    - '#e1f2a3ff'
+    - '#ffff77ff'
+    - '#fdc980ff'
+    - '#f07c4aff'
+    - '#e34a33ff'
+    - '#d7191cff'
+    - '#b8470aff'
+    levels:
+    - 0.0
+    - 50.0
+    - 100.0
+    - 200.0
+    - 300.0
+    - 400.0
+    - 500.0
+    - 600.0
+    - 700.0
+    - 850.0
+    - 1000.0
+    extend: max
+  ARISTOTLE_DROUGHT_CODE_DROUGHT_CODE_2:
+    name: drought-code-2
+    type: Style
+    colors:
+    - '#003c30ff'
+    - '#01665eff'
+    - '#35978fff'
+    - '#80cdc1ff'
+    - '#c7eae5ff'
+    - '#f5f5f5ff'
+    - '#f6e8c3ff'
+    - '#dfc27dff'
+    - '#bf812dff'
+    - '#8c510aff'
+    levels:
+    - 0.0
+    - 50.0
+    - 100.0
+    - 200.0
+    - 300.0
+    - 400.0
+    - 500.0
+    - 600.0
+    - 700.0
+    - 850.0
+    - 1000.0
+    extend: max

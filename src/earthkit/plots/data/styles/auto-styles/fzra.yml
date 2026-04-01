@@ -1,0 +1,67 @@
+id: fzra
+optimal: FZRA_SH_ALL_F05T100
+styles:
+  FZRA_SH_ALL_F05T100:
+    name: sh-all-f05t100
+    type: Style
+    colors:
+    - '#7dd9f5ff'
+    - '#03abdeff'
+    - '#0685abff'
+    - '#c73696ff'
+    - '#f754c4ff'
+    - '#f594e0ff'
+    - '#f57878ff'
+    - '#fc0101ff'
+    levels:
+    - 5.0e-05
+    - 0.0002
+    - 0.0005
+    - 0.001
+    - 0.002
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+    extend: max
+    units: mm
+  FZRA_SH_RED_F001T10:
+    name: sh-red-f001t10
+    type: Style
+    colors:
+    - '#ffa07aff'
+    - '#f18f6dff'
+    - '#e37e60ff'
+    - '#d56d53ff'
+    - '#c75c46ff'
+    - '#b94b39ff'
+    - '#ab3a2cff'
+    - '#9d291fff'
+    levels:
+    - 5.0e-05
+    - 0.0002
+    - 0.0005
+    - 0.001
+    - 0.002
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+    extend: max
+    units: mm
+  FZRA_CT_BLK_F005T25:
+    name: ct-blk-f005t25
+    type: Contour
+    colors: black
+    levels:
+    - 5.0e-05
+    - 0.0002
+    - 0.0005
+    - 0.001
+    - 0.002
+    - 0.005
+    - 0.01
+    - 0.02
+    - 0.05
+    extend: max
+    units: mm
