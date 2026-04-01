@@ -24,7 +24,6 @@ dependencies = [
   "earthkit-utils>=1.0.0rc0",
   "earthkit-data>=1.0.0rc0",
   "cartopy>=0.22.0",
-  "fiona",
   "pint",
   "matplotlib",
   "pandas",
