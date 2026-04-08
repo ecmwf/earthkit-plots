@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
 import warnings
 
 import cartopy.io.shapereader as shpreader
@@ -193,9 +194,7 @@ class NaturalEarthDomain:
     def record(self):
         if self._record is None:
             for source, attribute in self.NATURAL_EARTH_SOURCES.items():
-                shpfilename = shpreader.natural_earth(resolution="110m", category="cultural", name=source)
-                reader = shpreader.Reader(shpfilename)
-                for record in reader.records():
+                for record in _load_records("cultural", source, "110m"):
                     name = record.attributes.get(attribute) or ""
                     name = name.replace("\x00", "")
                     if name.lower() == self._domain_name.lower():
@@ -240,6 +239,13 @@ class NaturalEarthDomain:
         return crs_bounds
 
 
+@functools.lru_cache(maxsize=32)
+def _load_records(category, name, resolution):
+    """Load and cache Natural Earth shapefile records by (category, name, resolution)."""
+    shpfilename = shpreader.natural_earth(resolution=resolution, category=category, name=name)
+    return list(shpreader.Reader(shpfilename).records())
+
+
 def load_layer(config, resolution, ax, crs, max_resolution="high", min_resolution="low"):
     """
     Load Natural Earth layer data.
@@ -279,13 +285,7 @@ def load_layer(config, resolution, ax, crs, max_resolution="high", min_resolutio
     if isinstance(shape_name, dict):
         shape_name = shape_name[resolution]
 
-    shpfilename = shpreader.natural_earth(
-        resolution=resolution,
-        category=config["category"],
-        name=shape_name,
-    )
-    reader = shpreader.Reader(shpfilename)
-    records_list = list(reader.records())
+    records_list = _load_records(config["category"], shape_name, resolution)
 
     # Use Natural Earth attribute names from configuration
     attribute_key = config.get("attribute", "NAME_LONG")

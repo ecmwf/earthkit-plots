@@ -493,7 +493,7 @@ class Map(Subplot):
                     tuple(sorted(exclude)) if exclude is not None else None,
                     str(special_styles),
                     _transform_first,
-                    type(self.crs).__name__,
+                    tuple(sorted(self.crs.proj4_params.items())),
                 )
                 cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
 
