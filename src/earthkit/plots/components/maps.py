@@ -485,6 +485,12 @@ class Map(Subplot):
                 # The extent is not part of the key because reproject_geometries
                 # operates on the full global geometry; clipping to the axes extent
                 # happens at render time by matplotlib/cartopy.
+                if self.domain is not None:
+                    _llbbox = self.domain.bbox.to_latlon_bbox()
+                    _domain_key = (round(_llbbox.x_min, 4), round(_llbbox.x_max, 4),
+                                   round(_llbbox.y_min, 4), round(_llbbox.y_max, 4))
+                else:
+                    _domain_key = None
                 cache_key = (
                     method.__name__,
                     source,
@@ -494,6 +500,7 @@ class Map(Subplot):
                     str(special_styles),
                     _transform_first,
                     tuple(sorted(self.crs.proj4_params.items())),
+                    _domain_key,
                 )
                 cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
 
@@ -555,11 +562,33 @@ class Map(Subplot):
                             adjust_labels=adjust_labels,
                         )
 
+                # Clip geometries to the domain extent (in PlateCarree) before
+                # reprojecting. Natural Earth shapefiles are global; for small
+                # domains this can eliminate the vast majority of vertices and
+                # dramatically reduces both reprojection and rasterisation cost.
+                clip_box = None
+                if _domain_key is not None:
+                    from shapely.geometry import box as shapely_box
+
+                    pad = 5.0  # degrees — avoids excluding features on the boundary
+                    clip_box = shapely_box(
+                        max(_llbbox.x_min - pad, -180),
+                        max(_llbbox.y_min - pad, -90),
+                        min(_llbbox.x_max + pad, 180),
+                        min(_llbbox.y_max + pad, 90),
+                    )
+
                 geometries = []
                 for record in filtered_records:
                     geom = record.geometry
 
                     if not geom.is_empty:  # Only keep visible parts
+                        # If a clip box is defined, skip geometries that don't
+                        # intersect the domain at all — but keep the full geometry
+                        # intact to avoid breaking polar or antimeridian-spanning
+                        # features.
+                        if clip_box is not None and not geom.intersects(clip_box):
+                            continue
                         geometries.append(geom)
 
                 # Determine source and target CRS for features.
@@ -587,6 +616,8 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record, sf_kwargs in special_records:
                         geom = record.geometry
+                        if clip_box is not None:
+                            geom = geom.intersection(clip_box)
                         if _transform_first and not coordinate_reference_systems.crs_equal(
                             target_crs, match_type_only=True
                         ):
@@ -594,7 +625,10 @@ class Map(Subplot):
                                 reproject_geometries,
                             )
 
-                            geom = reproject_geometries([geom], src_crs, target_crs)[0]
+                            reprojected = reproject_geometries([geom], src_crs, target_crs)
+                            if not reprojected:
+                                continue
+                            geom = reprojected[0]
                         if not geom.is_empty:
                             special_features.append((
                                 cfeature.ShapelyFeature([geom], feature_crs),
