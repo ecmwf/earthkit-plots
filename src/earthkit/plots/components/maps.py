@@ -34,6 +34,85 @@ from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
 
 
+def _add_preprojected_feature(ax, geometries, kwargs, line=False):
+    """Add already-reprojected shapely geometries directly to axes as matplotlib patches.
+
+    Bypasses cartopy's feature_artist / project_geometry pipeline entirely,
+    which is the dominant cost on systems without cartopy's Cython extension.
+
+    Parameters
+    ----------
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        The axes to add the geometries to.
+    geometries : list
+        Shapely geometries already in the axes' CRS coordinates.
+    kwargs : dict
+        Style keyword arguments (facecolor, edgecolor, linewidth, etc.).
+    line : bool
+        If True, render as lines (no fill). If False, render as filled patches.
+    """
+    import numpy as np
+    from matplotlib.patches import PathPatch
+    from matplotlib.path import Path
+
+    if not geometries:
+        return
+
+    facecolor = kwargs.get("facecolor", "none") if not line else "none"
+    edgecolor = kwargs.get("edgecolor", kwargs.get("color", "black"))
+    linewidth = kwargs.get("linewidth", kwargs.get("lw", 0.5))
+    alpha = kwargs.get("alpha", 1.0)
+    zorder = kwargs.get("zorder", 1)
+
+    paths = []
+    for geom in geometries:
+        geom_type = geom.geom_type
+        if geom_type in ("Polygon", "MultiPolygon"):
+            parts = geom.geoms if geom_type == "MultiPolygon" else [geom]
+            for poly in parts:
+                ext = np.array(poly.exterior.coords)
+                codes = np.full(len(ext), Path.LINETO, dtype=np.uint8)
+                codes[0] = Path.MOVETO
+                codes[-1] = Path.CLOSEPOLY
+                verts = [ext]
+                code_list = [codes]
+                for interior in poly.interiors:
+                    coords = np.array(interior.coords)
+                    c = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+                    c[0] = Path.MOVETO
+                    c[-1] = Path.CLOSEPOLY
+                    verts.append(coords)
+                    code_list.append(c)
+                paths.append(Path(np.concatenate(verts), np.concatenate(code_list)))
+        elif geom_type in ("LineString", "MultiLineString"):
+            parts = geom.geoms if geom_type == "MultiLineString" else [geom]
+            for line_geom in parts:
+                coords = np.array(line_geom.coords)
+                codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+                codes[0] = Path.MOVETO
+                paths.append(Path(coords, codes))
+        elif geom_type == "GeometryCollection":
+            # Recurse for mixed collections
+            _add_preprojected_feature(ax, list(geom.geoms), kwargs, line=line)
+
+    if not paths:
+        return
+
+    from matplotlib.collections import PatchCollection
+
+    patches = [PathPatch(p) for p in paths]
+    col = PatchCollection(
+        patches,
+        facecolor=facecolor,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
+        alpha=alpha,
+        zorder=zorder,
+        transform=ax.transData,
+    )
+    ax.add_collection(col)
+
+
 class Map(Subplot):
     """
     A specialized Subplot for plotting geospatial data.
@@ -510,9 +589,16 @@ class Map(Subplot):
 
                 if cached is not None:
                     feature, special_features = cached
-                    self.ax.add_feature(feature, *args, **kwargs)
-                    for sf, sf_kwargs in special_features:
-                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                    if _transform_first and feature.crs is self.crs:
+                        _add_preprojected_feature(self.ax, list(feature.geometries()), kwargs, line=line)
+                        for sf, sf_kwargs in special_features:
+                            _add_preprojected_feature(
+                                self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line
+                            )
+                    else:
+                        self.ax.add_feature(feature, *args, **kwargs)
+                        for sf, sf_kwargs in special_features:
+                            self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
                     return None
 
                 filtered_records = []
@@ -645,9 +731,14 @@ class Map(Subplot):
                         special_features,
                     )
 
-                self.ax.add_feature(feature, *args, **kwargs)
-                for sf, sf_kwargs in special_features:
-                    self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                if _transform_first and feature_crs is target_crs:
+                    _add_preprojected_feature(self.ax, geometries, kwargs, line=line)
+                    for sf, sf_kwargs in special_features:
+                        _add_preprojected_feature(self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line)
+                else:
+                    self.ax.add_feature(feature, *args, **kwargs)
+                    for sf, sf_kwargs in special_features:
+                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
                 return None
 
             return wrapper
@@ -1017,15 +1108,21 @@ class Map(Subplot):
             feature_crs = src_crs
 
         # Add optimized features
-        feature = cfeature.ShapelyFeature(geometries, feature_crs)
-        self.ax.add_feature(feature, *args, **kwargs)
+        if transform_first and feature_crs is target_crs:
+            _add_preprojected_feature(self.ax, geometries, kwargs)
+        else:
+            feature = cfeature.ShapelyFeature(geometries, feature_crs)
+            self.ax.add_feature(feature, *args, **kwargs)
 
         if special_styles is not None:
             for record, style in special_records:
                 geom = record.geometry
                 if not geom.is_empty:
-                    feature = cfeature.ShapelyFeature([geom], self.crs)
-                    self.ax.add_feature(feature, *args, **{**kwargs, **style})
+                    if transform_first and feature_crs is target_crs:
+                        _add_preprojected_feature(self.ax, [geom], {**kwargs, **style})
+                    else:
+                        sf = cfeature.ShapelyFeature([geom], self.crs)
+                        self.ax.add_feature(sf, *args, **{**kwargs, **style})
 
     @chainable_method
     @schema.land.apply()
