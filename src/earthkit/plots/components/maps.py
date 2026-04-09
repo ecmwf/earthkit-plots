@@ -588,8 +588,8 @@ class Map(Subplot):
                 cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
 
                 if cached is not None:
-                    feature, special_features = cached
-                    if _transform_first and feature.crs is self.crs:
+                    feature, special_features, preprojected = cached
+                    if preprojected:
                         _add_preprojected_feature(self.ax, list(feature.geometries()), kwargs, line=line)
                         for sf, sf_kwargs in special_features:
                             _add_preprojected_feature(
@@ -686,17 +686,20 @@ class Map(Subplot):
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Apply transform_first optimization if requested and needed.
-                # crs_equal defaults to comparing against PlateCarree, which is
-                # exactly the Natural Earth source CRS.
-                if _transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
+                # Determine whether we need to reproject geometries from
+                # PlateCarree (Natural Earth source) into the map CRS.
+                # For PlateCarree maps (same CRS family) no reprojection is
+                # needed, but we still use _add_preprojected_feature to bypass
+                # cartopy's rendering pipeline entirely.
+                needs_reproject = _transform_first and not coordinate_reference_systems.crs_equal(
+                    target_crs, match_type_only=True
+                )
+                if needs_reproject:
                     from earthkit.plots.geography.geometry import reproject_geometries
 
-                    # Reproject geometries before adding to map for better performance
                     geometries = reproject_geometries(geometries, src_crs, target_crs)
                     feature_crs = target_crs
                 else:
-                    # Let cartopy handle reprojection (needed for proper line interpolation)
                     feature_crs = src_crs
 
                 # Build and cache the ShapelyFeature so subsequent subplots with
@@ -708,9 +711,7 @@ class Map(Subplot):
                         geom = record.geometry
                         if clip_box is not None:
                             geom = geom.intersection(clip_box)
-                        if _transform_first and not coordinate_reference_systems.crs_equal(
-                            target_crs, match_type_only=True
-                        ):
+                        if needs_reproject:
                             from earthkit.plots.geography.geometry import (
                                 reproject_geometries,
                             )
@@ -725,13 +726,19 @@ class Map(Subplot):
                                 sf_kwargs,
                             ))
 
+                # Use fast path whenever transform_first is set — even for
+                # PlateCarree maps where no reprojection was needed, this still
+                # bypasses cartopy's feature_artist / project_geometry pipeline.
+                preprojected = _transform_first
+
                 if hasattr(self.figure, "_ancillary_cache"):
                     self.figure._ancillary_cache[cache_key] = (
                         feature,
                         special_features,
+                        preprojected,
                     )
 
-                if _transform_first and feature_crs is target_crs:
+                if preprojected:
                     _add_preprojected_feature(self.ax, geometries, kwargs, line=line)
                     for sf, sf_kwargs in special_features:
                         _add_preprojected_feature(self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line)
