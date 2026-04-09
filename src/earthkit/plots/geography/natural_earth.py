@@ -72,7 +72,7 @@ def get_resolution(resolution, ax, crs, max_resolution="high", min_resolution="l
     valid_resolutions = resolutions[resolutions.index(min_resolution) : resolutions.index(max_resolution) + 1]
     if resolution is None:
         bbox = BoundingBox(*ax.get_extent(), crs=crs)
-        latlon_extents = list(bbox.to_latlon_bbox())
+        latlon_extents = list(bbox.to_latlon_bbox)
         min_diff = min(
             (latlon_extents[1] - latlon_extents[0]),
             (latlon_extents[3] - latlon_extents[2]),

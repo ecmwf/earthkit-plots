@@ -14,7 +14,7 @@
 
 import json
 import os
-from functools import partial
+from functools import lru_cache, partial
 
 import cartopy
 import yaml
@@ -35,6 +35,7 @@ class AmbiguousDataError(Exception):
     pass
 
 
+@lru_cache(maxsize=None)
 def load(source, data_type=None):
     """
     Load an earthkit.plots ancillary data file.

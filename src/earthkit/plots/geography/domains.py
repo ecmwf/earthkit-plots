@@ -168,7 +168,7 @@ def union(domains, name=None):
     domains = [domain if not isinstance(domain, str) else Domain.from_string(domain) for domain in domains]
     names = [d._name for d in domains]
     if len(domains) > 1:
-        latlon_bboxes = [d.bbox.to_latlon_bbox() for d in domains]
+        latlon_bboxes = [d.bbox.to_latlon_bbox for d in domains]
         combined = sum(latlon_bboxes[1:], latlon_bboxes[0])
         domain = Domain.from_bbox(combined, name=names if len(names) > 1 else names[0])
     else:
@@ -330,7 +330,7 @@ class Domain:
             if self.bbox is None:
                 string = "None"
             else:
-                bounds = list(self.bbox.to_latlon_bbox())
+                bounds = list(self.bbox.to_latlon_bbox)
                 strings = []
                 for value, ordinal in zip(bounds, "WESN"):
                     strings.append(f"{value:.5g}°" + (ordinal if value != 0 else ""))
