@@ -35,7 +35,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-import cartopy.crs as ccrs
 import numpy as np
 
 if TYPE_CHECKING:
@@ -476,6 +475,8 @@ def _apply_pixel_sampling(
     supports_pixel_sampling = method_name.startswith("contour") or method_name == "pcolormesh"
     if pixel_sampler is None or no_style or not supports_pixel_sampling or not hasattr(subplot, "crs"):
         return PixelSamplingResult(x_values, y_values, z_values)
+
+    import cartopy.crs as ccrs
 
     target_crs = subplot.crs
     resolved_data_crs = data_crs or ccrs.PlateCarree()

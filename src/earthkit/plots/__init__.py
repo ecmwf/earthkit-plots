@@ -20,7 +20,6 @@ import matplotlib.pyplot as plt
 
 from earthkit.plots import styles
 from earthkit.plots.components.figures import Figure
-from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
 from earthkit.plots.namespaces import climatology, geo, timeseries
@@ -28,8 +27,6 @@ from earthkit.plots.quickplot import quickplot
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import Style
 from earthkit.plots.styles.auto import list_styles, load_style
-from earthkit.plots.temporal.climatology import Climatology
-from earthkit.plots.temporal.timeseries import TimeSeries
 
 try:
     # NOTE: the `version.py` file must not be present in the git repository
@@ -77,3 +74,19 @@ def _register_styles():
 
 _register_fonts()
 _register_styles()
+
+
+def __getattr__(name):
+    if name == "Map":
+        from earthkit.plots.components.maps import Map
+
+        return Map
+    if name == "TimeSeries":
+        from earthkit.plots.temporal.timeseries import TimeSeries
+
+        return TimeSeries
+    if name == "Climatology":
+        from earthkit.plots.temporal.climatology import Climatology
+
+        return Climatology
+    raise AttributeError(f"module 'earthkit.plots' has no attribute {name!r}")

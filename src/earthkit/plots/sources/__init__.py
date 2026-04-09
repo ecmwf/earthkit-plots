@@ -14,19 +14,12 @@
 
 from typing import Any
 
-import earthkit.data as ek_data
 import numpy as np
 
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo
 from earthkit.plots.sources.dimensions import DimensionInfo
-
-# New architecture imports
-from earthkit.plots.sources.extractors import (
-    EarthkitExtractor,
-    NumpyExtractor,
-    XarrayExtractor,
-)
+from earthkit.plots.sources.extractors.numpy import NumpyExtractor
 from earthkit.plots.sources.metadata import MetadataResolver
 from earthkit.plots.sources.protocols import DataExtractor
 
@@ -710,6 +703,10 @@ def _is_xarray_backed_earthkit(data: Any) -> bool:
     Detects any earthkit Base subclass whose module contains 'netcdf' and which
     exposes a to_xarray() method, covering all known earthkit.data versions.
     """
+    try:
+        import earthkit.data as ek_data
+    except ImportError:
+        return False
     if not isinstance(data, ek_data.core.Base):
         return False
     if not hasattr(data, "to_xarray"):
@@ -740,15 +737,26 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
 
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
+        from earthkit.plots.sources.extractors.xarray import XarrayExtractor
+
         return XarrayExtractor(data)
 
     # xarray-backed earthkit objects (NetCDF FieldLists, etc.) — convert first
     if _is_xarray_backed_earthkit(data):
+        from earthkit.plots.sources.extractors.xarray import XarrayExtractor
+
         return XarrayExtractor(data.to_xarray())
 
     # Check for earthkit types
-    if isinstance(data, ek_data.core.Base):
-        return EarthkitExtractor(data)
+    try:
+        import earthkit.data as ek_data
+
+        if isinstance(data, ek_data.core.Base):
+            from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
+
+            return EarthkitExtractor(data)
+    except ImportError:
+        pass
 
     # Default to numpy extractor (handles arrays, lists, etc.)
     return NumpyExtractor(data, metadata=metadata)
@@ -828,7 +836,13 @@ def get_source(
     """
     # Determine data object
     data_obj = data if data is not None else (args[0] if args else None)
-    if isinstance(data_obj, ek_data.core.Base) and not _is_xarray_backed_earthkit(data_obj):
+    try:
+        import earthkit.data as ek_data
+
+        _ek_base = ek_data.core.Base
+    except ImportError:
+        _ek_base = type(None)
+    if isinstance(data_obj, _ek_base) and not _is_xarray_backed_earthkit(data_obj):
         if hasattr(data_obj, "to_fieldlist"):
             data_obj = data_obj.to_fieldlist()
         if hasattr(data_obj, "__len__") and len(data_obj) >= 1:

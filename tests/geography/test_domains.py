@@ -39,10 +39,10 @@ def test_format_name_UK():
 
 
 def test_union():
-    uk = domains.Domain.from_string("UK").bbox.to_latlon_bbox()
-    france = domains.Domain.from_string("France").bbox.to_latlon_bbox()
+    uk = domains.Domain.from_string("UK").bbox.to_latlon_bbox
+    france = domains.Domain.from_string("France").bbox.to_latlon_bbox
     domain = domains.union(["UK", "France"])
-    latlon = list(domain.bbox.to_latlon_bbox())
+    latlon = list(domain.bbox.to_latlon_bbox)
     # The union must contain both individual domains
     assert latlon[0] <= min(uk.x_min, france.x_min)
     assert latlon[1] >= max(uk.x_max, france.x_max)
@@ -52,7 +52,7 @@ def test_union():
 
 def test_union_multi_region():
     domain = domains.union(["Canada", "Brazil", "Asia", "Japan"])
-    latlon = list(domain.bbox.to_latlon_bbox())
+    latlon = list(domain.bbox.to_latlon_bbox)
     # The optimised CRS is Pacific-centred, so longitudes may be in 0-360 space.
     # Normalise to 0-360 for comparison.
     west = latlon[0] % 360

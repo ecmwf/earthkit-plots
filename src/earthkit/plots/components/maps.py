@@ -487,8 +487,12 @@ class Map(Subplot):
                 # happens at render time by matplotlib/cartopy.
                 if self.domain is not None:
                     _llbbox = self.domain.bbox.to_latlon_bbox
-                    _domain_key = (round(_llbbox.x_min, 4), round(_llbbox.x_max, 4),
-                                   round(_llbbox.y_min, 4), round(_llbbox.y_max, 4))
+                    _domain_key = (
+                        round(_llbbox.x_min, 4),
+                        round(_llbbox.x_max, 4),
+                        round(_llbbox.y_min, 4),
+                        round(_llbbox.y_max, 4),
+                    )
                 else:
                     _domain_key = None
                 cache_key = (

@@ -16,14 +16,19 @@ import functools
 from contextlib import AbstractContextManager
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import yaml
 from matplotlib import rcParams
 
 from earthkit.plots._plugins import PLUGINS
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR
-from earthkit.plots.geography.coordinate_reference_systems import parse_crs
 from earthkit.plots.utils.dict_utils import recursive_dict_update
+
+
+def _parse_crs(value):
+    from earthkit.plots.geography.coordinate_reference_systems import parse_crs
+
+    return parse_crs(value)
+
 
 _DEFAULT_SCHEMA = "earthkit-plots"
 
@@ -86,8 +91,10 @@ class Schema(dict):
 
     PROTECTED_KEYS = ["_parent"]
 
-    parsers = {
-        "reference_crs": parse_crs,
+    # Keys listed here are parsed lazily on first access rather than at load time.
+    # This avoids importing heavy libraries (e.g. cartopy) during schema initialisation.
+    lazy_parsers = {
+        "reference_crs": _parse_crs,
     }
 
     def __init__(self, parent=None, **kwargs):
@@ -102,6 +109,8 @@ class Schema(dict):
         scoped, non-global style application inside earthkit-plots functions.
         """
         if "style_sheet" in self:
+            import matplotlib.pyplot as plt
+
             plt.style.use(self["style_sheet"])
         for param, config in self.items():
             if param in RCPARAMS and self._parent is None:
@@ -112,7 +121,12 @@ class Schema(dict):
 
     def __getattr__(self, key):
         if key in self:
-            return self[key]
+            value = self[key]
+            # Apply lazy parser on first access, then cache the result.
+            if key in self.lazy_parsers and isinstance(value, str):
+                value = self.lazy_parsers[key](value)
+                self[key] = value
+            return value
         raise AttributeError(key)
 
     def __setattr__(self, key, value):
@@ -129,8 +143,6 @@ class Schema(dict):
 
     def _update(self, **kwargs):
         for key, value in kwargs.items():
-            if key in self.parsers:
-                value = self.parsers[key](value)
             setattr(self, key, value)
 
     def apply(self, *keys):
@@ -383,6 +395,8 @@ class Schema(dict):
             # ... create and populate figure ...
             ctx.__exit__(None, None, None)
         """
+        import matplotlib.pyplot as plt
+
         return plt.style.context(self.to_stylesheet())
 
     def _reset(self, **kwargs):

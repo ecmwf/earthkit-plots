@@ -21,7 +21,6 @@ from earthkit.plots.plottypes.rgb_composite import (
     RGBCompositeResult,
     prepare_rgb_composite,
 )
-from earthkit.plots.plottypes.statistics import bandplot, boxplot
 
 __all__ = [
     "bandplot",
@@ -32,3 +31,13 @@ __all__ = [
     "prepare_rgb_composite",
     "RGBCompositeResult",
 ]
+
+
+def __getattr__(name):
+    if name in ("bandplot", "boxplot"):
+        from earthkit.plots.plottypes.statistics import bandplot, boxplot
+
+        globals()["bandplot"] = bandplot
+        globals()["boxplot"] = boxplot
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

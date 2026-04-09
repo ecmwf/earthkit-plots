@@ -14,13 +14,25 @@
 
 import re
 
-import pint
-from pint import UnitRegistry
-
 from earthkit.plots.schemas import schema
 
-ureg = UnitRegistry()
-Q_ = ureg.Quantity
+_ureg = None
+
+
+def _get_ureg():
+    """Return the shared UnitRegistry, creating it (and registering formatters) on first call."""
+    global _ureg
+    if _ureg is None:
+        import pint
+        from pint import UnitRegistry
+
+        _ureg = UnitRegistry()
+
+        @pint.register_unit_format("E")
+        def _format_unit_simple(unit, registry, **options):
+            return _format_unit_simple_impl(unit, registry, **options)
+
+    return _ureg
 
 
 def _convert_whole_numbers(strings):
@@ -51,8 +63,7 @@ def _convert_whole_numbers(strings):
     return converted
 
 
-@pint.register_unit_format("E")
-def format_unit_simple(unit, registry, **options):
+def _format_unit_simple_impl(unit, registry, **options):
     # Generating unit string with powers
     unit_str = " * ".join(f"{u} ** {p}" for u, p in unit.items())
     # Split the unit string correctly handling spaces and asterisks
@@ -96,6 +107,9 @@ def _pintify(unit_str):
     # Insert ^ between characters and numbers (including negative numbers)
     unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
 
+    import pint
+
+    ureg = _get_ureg()
     try:
         result = ureg(unit_str).units
     except pint.errors.UndefinedUnitError:

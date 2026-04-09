@@ -14,10 +14,6 @@
 
 import warnings
 
-import earthkit.data
-from earthkit.data import FieldList
-from earthkit.data.core import Base
-
 from earthkit.plots.components import layouts
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.metadata.units import are_equal
@@ -26,6 +22,10 @@ from earthkit.plots.schemas import schema
 
 def _coerce_to_fieldlist(*args):
     """Convert positional data arguments to a FieldList."""
+    import earthkit.data
+    from earthkit.data import FieldList
+    from earthkit.data.core import Base
+
     field_list = []
     for arg in args:
         if isinstance(arg, FieldList):
@@ -94,13 +94,21 @@ def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
 
         ds = xr.merge(args, compat="override")
         yield from iter_plot_groups(ds, groupby, mode, combine_vectors=combine_vectors)
-    elif all(isinstance(a, FieldList) for a in args):
-        from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
-
-        yield from iter_plot_groups(_coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors)
     else:
-        # Numpy arrays or other raw data — yield directly, one panel.
-        yield None, list(args)
+        try:
+            from earthkit.data import FieldList
+
+            is_fieldlist = all(isinstance(a, FieldList) for a in args)
+        except ImportError:
+            is_fieldlist = False
+
+        if is_fieldlist:
+            from earthkit.plots.sources.extractors.earthkit import iter_plot_groups
+
+            yield from iter_plot_groups(_coerce_to_fieldlist(*args), groupby, mode, combine_vectors=combine_vectors)
+        else:
+            # Numpy arrays or other raw data — yield directly, one panel.
+            yield None, list(args)
 
 
 def _iter_plot_groups_2d(args, row_dim, col_dim, groupby, mode):

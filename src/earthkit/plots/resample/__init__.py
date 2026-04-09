@@ -49,10 +49,6 @@ from earthkit.plots.resample._regrid import (
     _generate_latlon_grid,
     _is_structured_grid,
 )
-from earthkit.plots.resample._unstructured import Unstructured
-
-# Backwards-compatible alias
-Interpolate = Unstructured
 
 __all__ = [
     # Public resamplers
@@ -75,3 +71,13 @@ __all__ = [
     "_generate_latlon_grid",
     "_call_regrid_compat",
 ]
+
+
+def __getattr__(name):
+    if name in ("Unstructured", "Interpolate"):
+        from earthkit.plots.resample._unstructured import Unstructured
+
+        globals()["Unstructured"] = Unstructured
+        globals()["Interpolate"] = Unstructured
+        return Unstructured
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

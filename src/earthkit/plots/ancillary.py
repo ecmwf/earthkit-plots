@@ -16,7 +16,6 @@ import json
 import os
 from functools import lru_cache, partial
 
-import cartopy
 import yaml
 
 from earthkit.plots import definitions
@@ -92,6 +91,8 @@ def find_logo(organisation):
 
 
 def remote_shp(namespace, name, url):
+    import cartopy
+
     data_dir = os.path.join(cartopy.config["data_dir"], "shapefiles", namespace)
 
     file_path = os.path.join(data_dir, f"{name}.shp")

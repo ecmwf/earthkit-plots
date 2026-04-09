@@ -15,7 +15,6 @@
 
 import cartopy.crs as ccrs
 import numpy as np
-from shapely.geometry import Point, Polygon
 
 from earthkit.plots.ancillary import load
 from earthkit.plots.geography.bounds import BoundingBox
@@ -453,6 +452,8 @@ class Domain:
                         crs_bounds[3] + 0.05 * (crs_bounds[3] - crs_bounds[2]),
                     ]
                     # Unstructured data: use point-in-polygon
+                    from shapely.geometry import Point, Polygon
+
                     polygon = Polygon([
                         (_crs_bounds[0], _crs_bounds[2]),
                         (_crs_bounds[1], _crs_bounds[2]),
