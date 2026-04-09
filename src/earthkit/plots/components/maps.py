@@ -34,8 +34,58 @@ from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
 
 
+def _geom_to_paths(geom):
+    """Convert a shapely geometry to a list of matplotlib Path objects."""
+    import numpy as np
+    from matplotlib.path import Path
+
+    geom_type = geom.geom_type
+    paths = []
+
+    if geom_type == "Polygon":
+        parts = [geom]
+    elif geom_type == "MultiPolygon":
+        parts = list(geom.geoms)
+    elif geom_type == "LineString":
+        coords = np.array(geom.coords)
+        codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+        codes[0] = Path.MOVETO
+        return [Path(coords, codes)]
+    elif geom_type == "MultiLineString":
+        for line_geom in geom.geoms:
+            coords = np.array(line_geom.coords)
+            codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+            codes[0] = Path.MOVETO
+            paths.append(Path(coords, codes))
+        return paths
+    elif geom_type == "GeometryCollection":
+        for sub in geom.geoms:
+            paths.extend(_geom_to_paths(sub))
+        return paths
+    else:
+        return paths
+
+    for poly in parts:
+        ext = np.array(poly.exterior.coords)
+        codes = np.full(len(ext), Path.LINETO, dtype=np.uint8)
+        codes[0] = Path.MOVETO
+        codes[-1] = Path.CLOSEPOLY
+        verts = [ext]
+        code_list = [codes]
+        for interior in poly.interiors:
+            coords = np.array(interior.coords)
+            c = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+            c[0] = Path.MOVETO
+            c[-1] = Path.CLOSEPOLY
+            verts.append(coords)
+            code_list.append(c)
+        paths.append(Path(np.concatenate(verts), np.concatenate(code_list)))
+
+    return paths
+
+
 def _add_preprojected_feature(ax, geometries, kwargs, line=False):
-    """Add already-reprojected shapely geometries directly to axes as matplotlib patches.
+    """Add already-reprojected shapely geometries directly to axes.
 
     Bypasses cartopy's feature_artist / project_geometry pipeline entirely,
     which is the dominant cost on systems without cartopy's Cython extension.
@@ -51,65 +101,35 @@ def _add_preprojected_feature(ax, geometries, kwargs, line=False):
     line : bool
         If True, render as lines (no fill). If False, render as filled patches.
     """
-    import numpy as np
-    from matplotlib.patches import PathPatch
-    from matplotlib.path import Path
+    from matplotlib.collections import PathCollection
 
     if not geometries:
         return
 
-    facecolor = kwargs.get("facecolor", "none") if not line else "none"
-    edgecolor = kwargs.get("edgecolor", kwargs.get("color", "black"))
+    color = kwargs.get("color")
+    facecolor = "none" if line else kwargs.get("facecolor", color if color is not None else "none")
+    edgecolor = kwargs.get("edgecolor", color if color is not None else "black")
     linewidth = kwargs.get("linewidth", kwargs.get("lw", 0.5))
     alpha = kwargs.get("alpha", 1.0)
     zorder = kwargs.get("zorder", 1)
 
     paths = []
     for geom in geometries:
-        geom_type = geom.geom_type
-        if geom_type in ("Polygon", "MultiPolygon"):
-            parts = geom.geoms if geom_type == "MultiPolygon" else [geom]
-            for poly in parts:
-                ext = np.array(poly.exterior.coords)
-                codes = np.full(len(ext), Path.LINETO, dtype=np.uint8)
-                codes[0] = Path.MOVETO
-                codes[-1] = Path.CLOSEPOLY
-                verts = [ext]
-                code_list = [codes]
-                for interior in poly.interiors:
-                    coords = np.array(interior.coords)
-                    c = np.full(len(coords), Path.LINETO, dtype=np.uint8)
-                    c[0] = Path.MOVETO
-                    c[-1] = Path.CLOSEPOLY
-                    verts.append(coords)
-                    code_list.append(c)
-                paths.append(Path(np.concatenate(verts), np.concatenate(code_list)))
-        elif geom_type in ("LineString", "MultiLineString"):
-            parts = geom.geoms if geom_type == "MultiLineString" else [geom]
-            for line_geom in parts:
-                coords = np.array(line_geom.coords)
-                codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
-                codes[0] = Path.MOVETO
-                paths.append(Path(coords, codes))
-        elif geom_type == "GeometryCollection":
-            # Recurse for mixed collections
-            _add_preprojected_feature(ax, list(geom.geoms), kwargs, line=line)
+        paths.extend(_geom_to_paths(geom))
 
     if not paths:
         return
 
-    from matplotlib.collections import PatchCollection
-
-    patches = [PathPatch(p) for p in paths]
-    col = PatchCollection(
-        patches,
-        facecolor=facecolor,
-        edgecolor=edgecolor,
-        linewidth=linewidth,
+    col = PathCollection(
+        paths,
+        facecolors=facecolor,
+        edgecolors=edgecolor,
+        linewidths=linewidth,
         alpha=alpha,
         zorder=zorder,
         transform=ax.transData,
     )
+    col.set_clip_box(ax.bbox)
     ax.add_collection(col)
 
 
@@ -687,12 +707,11 @@ class Map(Subplot):
                 target_crs = self.crs
 
                 # Determine whether we need to reproject geometries from
-                # PlateCarree (Natural Earth source) into the map CRS.
-                # For PlateCarree maps (same CRS family) no reprojection is
-                # needed, but we still use _add_preprojected_feature to bypass
-                # cartopy's rendering pipeline entirely.
+                # PlateCarree(-180..180) (Natural Earth source) into the map CRS.
+                # Uses full equality (not type-only) so PlateCarree maps with a
+                # non-zero central_longitude are correctly reprojected.
                 needs_reproject = _transform_first and not coordinate_reference_systems.crs_equal(
-                    target_crs, match_type_only=True
+                    target_crs, match_type_only=False
                 )
                 if needs_reproject:
                     from earthkit.plots.geography.geometry import reproject_geometries
