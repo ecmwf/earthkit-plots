@@ -740,7 +740,7 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
 
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
-        return XarrayExtractor(data)
+        return XarrayExtractor(data, metadata=metadata)
 
     # xarray-backed earthkit objects (NetCDF FieldLists, etc.) — convert first
     if _is_xarray_backed_earthkit(data):

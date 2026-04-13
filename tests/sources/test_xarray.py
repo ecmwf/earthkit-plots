@@ -1,5 +1,6 @@
 import cartopy.crs as ccrs
 import numpy as np
+import pytest
 import xarray as xr
 
 from earthkit.plots.sources import get_source
@@ -1068,3 +1069,101 @@ def test_gridspec_is_not_structured_for_regular_grid():
     )
     source = get_source(da)
     assert _is_structured_grid(source.gridspec) is False
+
+
+N_CELLS = 48  # nside=2 HEALPix has 48 cells — small enough for fast tests
+
+
+def _make_healpix_da(ordering="nested", gridspec_in_attrs=True, gridspec_as_json=False):
+    """Build a minimal 1D HEALPix-style DataArray with no lat/lon coordinates."""
+    import pandas as pd
+
+    data = np.random.rand(N_CELLS).astype(np.float32)
+    attrs = {
+        "long_name": "Specific humidity",
+        "standard_name": "specific_humidity",
+        "units": "kg kg-1",
+        "cell_methods": "time: mean cell: mean",
+        "grid_mapping": "crs",
+    }
+    if gridspec_in_attrs:
+        spec = {"grid": "H2", "ordering": ordering}
+        attrs["ek_grid_spec"] = str(spec).replace("'", '"') if gridspec_as_json else spec
+
+    return xr.DataArray(
+        data,
+        dims=["cell"],
+        coords={
+            "level_full": 89.0,
+            "time": pd.Timestamp("2020-02-01"),
+        },
+        attrs=attrs,
+        name="hus",
+    )
+
+
+def test_healpix_xarray_gridspec_from_attrs():
+    """GridSpec is detected from ek_grid_spec attr (dict form)."""
+    from earthkit.plots.resample import _is_structured_grid
+
+    da = _make_healpix_da(gridspec_in_attrs=True)
+    source = get_source(da)
+    assert source.gridspec is not None
+    assert _is_structured_grid(source.gridspec) is True
+    assert source.gridspec.name == "healpix"
+
+
+def test_healpix_xarray_gridspec_from_attrs_json_string():
+    """GridSpec is detected from ek_grid_spec attr when stored as a JSON string."""
+    from earthkit.plots.resample import _is_structured_grid
+
+    da = _make_healpix_da(gridspec_in_attrs=True, gridspec_as_json=True)
+    source = get_source(da)
+    assert source.gridspec is not None
+    assert _is_structured_grid(source.gridspec) is True
+
+
+def test_healpix_xarray_gridspec_from_metadata_kwarg():
+    """GridSpec is detected from user-supplied metadata= kwarg when attrs carry no gridspec."""
+    from earthkit.plots.resample import _is_structured_grid
+
+    da = _make_healpix_da(gridspec_in_attrs=False)
+    assert da.attrs.get("ek_grid_spec") is None  # no gridspec in attrs
+
+    source = get_source(da, metadata={"grid": "H2", "ordering": "nested"})
+    assert source.gridspec.to_dict() == {"grid": "H2", "ordering": "nested"}
+    assert _is_structured_grid(source.gridspec) is True
+
+
+def test_healpix_xarray_1d_source_extracts_z():
+    """1D HEALPix DataArray produces a valid Source with z values and placeholder x/y."""
+    from earthkit.plots.sources.context import PlotContext
+
+    da = _make_healpix_da()
+    source = get_source(da, context=PlotContext.GEOGRAPHIC_2D)
+
+    assert source.z is not None
+    assert source.z.values.shape == (N_CELLS,)
+    # x/y are placeholders (all zeros) — the Regrid step replaces them
+    assert source.x.values.shape == (N_CELLS,)
+    assert source.y.values.shape == (N_CELLS,)
+
+
+def test_healpix_xarray_1d_no_gridspec_raises():
+    """1D data with no gridspec raises a clear ValueError rather than silently plotting garbage."""
+    from earthkit.plots.sources.context import PlotContext
+
+    da = _make_healpix_da(gridspec_in_attrs=False)
+    source = get_source(da, context=PlotContext.GEOGRAPHIC_2D)
+
+    with pytest.raises(ValueError, match="no recognised grid specification"):
+        _ = source.z  # triggers lazy extraction
+
+
+def test_healpix_xarray_ordering():
+    """GridSpec.to_dict() includes the correct ordering for nested HEALPix."""
+    da = _make_healpix_da(ordering="nested")
+    source = get_source(da)
+    spec = source.gridspec.to_dict()
+    ordering = spec.get("ordering") or spec.get("order")
+    assert str(ordering).lower() == "nested"
