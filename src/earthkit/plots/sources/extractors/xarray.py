@@ -364,6 +364,22 @@ class XarrayExtractor(BaseExtractor):
             # Gaussian) where the cell dimension is 1D and lat/lon are derived
             # from the gridspec at regrid time.  Return the raw values with
             # placeholder x/y — the Regrid step will replace them.
+
+            # Check the gridspec *before* touching da.values — for dask-backed
+            # arrays, calling .values triggers a compute that can take seconds
+            # even if we are about to raise an error anyway.
+            if da.ndim == 1:
+                from earthkit.plots.resample._regrid import _is_structured_grid
+
+                gridspec = self.get_gridspec()
+                if not _is_structured_grid(gridspec):
+                    raise ValueError(
+                        f"Got 1D data (shape {da.shape}) in a geographic 2D plot context "
+                        "but no recognised grid specification was found. "
+                        "Pass a grid spec via the data's 'ek_grid_spec' attribute or via the "
+                        "metadata argument."
+                    )
+
             if z is not None:
                 z_values, z_name, z_metadata, z_units = self._resolve_coordinate_spec(da, z)
             else:

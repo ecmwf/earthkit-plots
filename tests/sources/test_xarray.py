@@ -1,5 +1,6 @@
 import cartopy.crs as ccrs
 import numpy as np
+import pytest
 import xarray as xr
 
 from earthkit.plots.sources import get_source
@@ -1146,6 +1147,17 @@ def test_healpix_xarray_1d_source_extracts_z():
     # x/y are placeholders (all zeros) — the Regrid step replaces them
     assert source.x.values.shape == (N_CELLS,)
     assert source.y.values.shape == (N_CELLS,)
+
+
+def test_healpix_xarray_1d_no_gridspec_raises():
+    """1D data with no gridspec raises a clear ValueError rather than silently plotting garbage."""
+    from earthkit.plots.sources.context import PlotContext
+
+    da = _make_healpix_da(gridspec_in_attrs=False)
+    source = get_source(da, context=PlotContext.GEOGRAPHIC_2D)
+
+    with pytest.raises(ValueError, match="no recognised grid specification"):
+        _ = source.z  # triggers lazy extraction
 
 
 def test_healpix_xarray_ordering():
