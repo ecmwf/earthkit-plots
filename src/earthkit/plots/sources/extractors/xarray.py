@@ -44,11 +44,14 @@ class XarrayExtractor(BaseExtractor):
         Xarray data structure.
     """
 
-    def __init__(self, data: xr.DataArray | xr.Dataset):
+    def __init__(self, data: xr.DataArray | xr.Dataset, metadata: dict | None = None):
         super().__init__(data)
 
         # Remove singleton dimensions for easier handling
         self.data = data.squeeze()
+
+        # User-supplied metadata (e.g. grid spec overrides)
+        self._user_metadata: dict = metadata or {}
 
         # Set up cache for selected DataArray (when data is Dataset)
         self._selected_dataarray: xr.DataArray | None = None
@@ -355,6 +358,26 @@ class XarrayExtractor(BaseExtractor):
                     result["u"] = u_info
                     result["v"] = v_info
                 return result
+
+            # Geographic extraction found no lat/lon coordinates.  This is
+            # normal for structured unstructured grids (HEALPix, reduced
+            # Gaussian) where the cell dimension is 1D and lat/lon are derived
+            # from the gridspec at regrid time.  Return the raw values with
+            # placeholder x/y — the Regrid step will replace them.
+            if z is not None:
+                z_values, z_name, z_metadata, z_units = self._resolve_coordinate_spec(da, z)
+            else:
+                z_values = da.values
+                z_name = da.name if da.name else ""
+                z_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                z_units = z_metadata.get("units")
+
+            if z_values.ndim == 1:
+                placeholder = np.zeros(len(z_values))
+                x_info = CoordinateInfo(values=placeholder, name="", source_units=None, metadata={})
+                y_info = CoordinateInfo(values=placeholder, name="", source_units=None, metadata={})
+                z_info = CoordinateInfo(values=z_values, name=z_name, source_units=z_units, metadata=z_metadata)
+                return {"x": x_info, "y": y_info, "z": z_info, "u": None, "v": None}
 
         # Cartesian 2D or fallback for geographic
         # Convention: z is 2D data field, x/y are coordinates along axes
@@ -910,6 +933,18 @@ class XarrayExtractor(BaseExtractor):
                     if spec:
                         return GridSpec(spec)
             return None
+
+        # User-supplied metadata takes priority.  Also accept a plain "grid"
+        # key (e.g. metadata={"grid": "H512"}) as a shorthand for ek_grid_spec.
+        if self._user_metadata:
+            result = _extract(self._user_metadata)
+            if result is not None:
+                return result
+            # Shorthand: {"grid": "H512", ...} passed directly
+            if "grid" in self._user_metadata:
+                spec = GridSpec._to_dict(self._user_metadata)
+                if spec:
+                    return GridSpec(spec)
 
         # Check attrs on self.data — covers both DataArrays (variable attrs) and
         # Datasets (global attrs). xarray DataArrays don't carry a back-reference
