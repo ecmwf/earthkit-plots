@@ -220,7 +220,9 @@ class Regrid(Resample):
         """Call the best available executor."""
         executor = Regrid._find_executor()
         if executor is None:
-            raise ImportError("Regridding not available. Please install the earthkit-geo package.")
+            raise ImportError(
+                "Regridding not available. Please install the earthkit-geo package at a version >= 1.0.0rc0"
+            )
         return executor.call(array, in_grid, out_grid)
 
     # ------------------------------------------------------------------
