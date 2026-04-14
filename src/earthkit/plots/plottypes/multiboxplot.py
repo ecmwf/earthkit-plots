@@ -108,8 +108,10 @@ def _resolve_quantiles(data, quantiles, dim):
         elif dim not in data.dims:
             raise ValueError(f"Dimension '{dim}' not found; available: {list(data.dims)}")
 
-        # Preserve attrs through quantile reduction — xarray drops them by default.
+        # Preserve attrs and scalar coords through quantile reduction — xarray
+        # drops both by default (and always drops scalar/non-dim coords).
         attrs_backup = data.attrs.copy()
+        scalar_coords_backup = {c: data.coords[c] for c in data.coords if data.coords[c].ndim == 0}
         coord_attrs_backup = {c: data.coords[c].attrs.copy() for c in data.coords}
         quantile_data = data.quantile(quantiles, dim=dim)
         quantile_dim = "quantile"
@@ -118,6 +120,10 @@ def _resolve_quantiles(data, quantiles, dim):
         for coord, attrs in coord_attrs_backup.items():
             if coord in quantile_data.coords:
                 quantile_data.coords[coord].attrs.update(attrs)
+        # Re-attach scalar coords that were dropped by quantile().
+        for coord, coord_da in scalar_coords_backup.items():
+            if coord not in quantile_data.coords:
+                quantile_data = quantile_data.assign_coords({coord: coord_da})
 
     remaining = [d for d in quantile_data.dims if d != quantile_dim]
     if len(remaining) != 1:
