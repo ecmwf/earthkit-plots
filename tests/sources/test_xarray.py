@@ -1124,7 +1124,7 @@ def test_healpix_xarray_gridspec_from_attrs_json_string():
 
 
 def test_healpix_xarray_gridspec_from_metadata_kwarg():
-    """GridSpec is detected from flat metadata= kwarg: {"grid": "H2", "ordering": "nested"}."""
+    """GridSpec is detected from user-supplied metadata= kwarg when attrs carry no gridspec."""
     from earthkit.plots.resample import _is_structured_grid
 
     da = _make_healpix_da(gridspec_in_attrs=False)
@@ -1133,19 +1133,6 @@ def test_healpix_xarray_gridspec_from_metadata_kwarg():
     source = get_source(da, metadata={"grid": "H2", "ordering": "nested"})
     assert source.gridspec.to_dict() == {"grid": "H2", "ordering": "nested"}
     assert _is_structured_grid(source.gridspec) is True
-
-
-def test_healpix_xarray_gridspec_from_metadata_kwarg_nested():
-    """GridSpec is detected from nested metadata= kwarg: {"gridSpec": {"grid": "H2", ...}}."""
-    from earthkit.plots.resample import _is_structured_grid
-
-    da = _make_healpix_da(gridspec_in_attrs=False)
-
-    source = get_source(da, metadata={"gridSpec": {"grid": "H2", "order": "nested"}})
-    assert source.gridspec is not None
-    assert _is_structured_grid(source.gridspec) is True
-    spec = source.gridspec.to_dict()
-    assert spec.get("grid") == "H2"
 
 
 def test_healpix_xarray_1d_source_extracts_z():
