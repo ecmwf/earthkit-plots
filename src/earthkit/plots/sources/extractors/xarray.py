@@ -791,10 +791,14 @@ class XarrayExtractor(BaseExtractor):
             coord = da_for_coords.coords[key]
             if coord.ndim == 0:
                 return _coord_item(coord)
+            elif coord.ndim == 1 and coord.size == 1:
+                return _coord_item(coord[0])
         if isinstance(self.data, xr.Dataset) and key in self.data.coords:
             coord = self.data.coords[key]
             if coord.ndim == 0:
                 return _coord_item(coord)
+            elif coord.ndim == 1 and coord.size == 1:
+                return _coord_item(coord[0])
 
         # Step 3: Variable name as "name" fallback
         if key == "name":
