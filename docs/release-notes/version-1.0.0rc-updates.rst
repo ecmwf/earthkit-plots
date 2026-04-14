@@ -1,7 +1,7 @@
 Version 1.0.0 Release Candidate Updates
 ///////////////////////////////////////
 
-Version 1.0.0rc1
+Version 1.0.0rc2
 ================
 
 Bug fixes
