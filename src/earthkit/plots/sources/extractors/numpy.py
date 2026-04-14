@@ -108,7 +108,7 @@ class NumpyExtractor(BaseExtractor):
             )
 
         if context.is_2d:
-            coords = self._extract_2d_coordinates(x_arr, y_arr, z_arr, u_arr, v_arr)
+            coords = self._extract_2d_coordinates(x_arr, y_arr, z_arr, u_arr, v_arr, context=context)
         else:
             coords = self._extract_1d_coordinates(x_arr, y_arr, z_arr, context)
 
@@ -227,6 +227,7 @@ class NumpyExtractor(BaseExtractor):
         z_arr: np.ndarray | None,
         u_arr: np.ndarray | None,
         v_arr: np.ndarray | None,
+        context: "PlotContext | None" = None,
     ) -> dict[str, CoordinateInfo]:
         """
         Extract coordinates for 2D plots including optional vector components.
@@ -270,14 +271,34 @@ class NumpyExtractor(BaseExtractor):
             if x_arr is not None:
                 x_values = x_arr
             else:
-                # Auto-generate x as indices
-                x_values = np.arange(n_points)
+                is_geographic = context is not None and context.is_geographic
+                if is_geographic:
+                    # No explicit coordinates — only valid if we know the grid
+                    # type (HEALPix / reduced Gaussian), so the Regrid/nnshow
+                    # step can derive lat/lon.  Without a gridspec the
+                    # auto-generated indices would be passed to the bilinear
+                    # resampler and cause a Qhull error or silent garbage output.
+                    from earthkit.plots.resample._regrid import _is_structured_grid
+
+                    if not _is_structured_grid(self.get_gridspec()):
+                        raise ValueError(
+                            f"Got 1D data (shape ({n_points},)) in a geographic 2D plot context "
+                            "but no x coordinates and no recognised grid specification were found. "
+                            "Either pass explicit x (longitude) and y (latitude) arrays, or supply "
+                            "a grid spec via the metadata argument."
+                        )
+                    # Known structured grid — use placeholder zeros; the
+                    # Regrid/nnshow step derives the real coordinates from the
+                    # gridspec.
+                    x_values = np.zeros(n_points)
+                else:
+                    x_values = np.arange(n_points)
 
             if y_arr is not None:
                 y_values = y_arr
             else:
-                # Auto-generate y as indices
-                y_values = np.arange(n_points)
+                is_geographic = context is not None and context.is_geographic
+                y_values = np.zeros(n_points) if is_geographic else np.arange(n_points)
 
             # Verify all arrays have matching lengths for scattered data
             if len(x_values) != n_points or len(y_values) != n_points:
@@ -380,3 +401,31 @@ class NumpyExtractor(BaseExtractor):
             Metadata value or default.
         """
         return self._metadata.get(key, default)
+
+    def get_gridspec(self) -> Any | None:
+        """
+        Extract gridspec from user-supplied metadata.
+
+        Supports the same key forms as XarrayExtractor:
+        - ``{"ek_grid_spec": {...}}`` / ``{"gridSpec": {...}}`` / ``{"grid_spec": {...}}``
+        - Flat shorthand: ``{"grid": "H512", ...}``
+        """
+        if not self._metadata:
+            return None
+
+        from earthkit.plots.sources.gridspec import GridSpec
+
+        _KEYS = ("ek_grid_spec", "gridSpec", "grid_spec")
+        for key in _KEYS:
+            if key in self._metadata:
+                spec = GridSpec._to_dict(self._metadata[key])
+                if spec:
+                    return GridSpec(spec)
+
+        # Flat shorthand: {"grid": "H512", ...}
+        if "grid" in self._metadata:
+            spec = GridSpec._to_dict(self._metadata)
+            if spec:
+                return GridSpec(spec)
+
+        return None
