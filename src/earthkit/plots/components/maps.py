@@ -568,9 +568,19 @@ class Map(Subplot):
                 target_crs = self.crs
 
                 # Apply transform_first optimization if requested and needed.
-                # crs_equal defaults to comparing against PlateCarree, which is
-                # exactly the Natural Earth source CRS.
-                if _transform_first and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True):
+                # Only safe for cylindrical projections — pseudo-cylindrical
+                # projections (Robinson, Mollweide, etc.) produce a spurious
+                # line across the globe when antimeridian-crossing geometries
+                # are pre-reprojected, because the straight connector between
+                # the two ends of a split ring maps as a full-width stroke.
+                # Cartopy's own reprojection handles antimeridian splitting
+                # correctly, so we fall back to it for non-cylindrical CRSes.
+                _can_transform_first = (
+                    _transform_first
+                    and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
+                    and coordinate_reference_systems.is_cylindrical(target_crs)
+                )
+                if _can_transform_first:
                     from earthkit.plots.geography.geometry import reproject_geometries
 
                     # Reproject geometries before adding to map for better performance
@@ -587,9 +597,7 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record, sf_kwargs in special_records:
                         geom = record.geometry
-                        if _transform_first and not coordinate_reference_systems.crs_equal(
-                            target_crs, match_type_only=True
-                        ):
+                        if _can_transform_first:
                             from earthkit.plots.geography.geometry import (
                                 reproject_geometries,
                             )
