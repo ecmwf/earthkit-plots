@@ -97,7 +97,11 @@ def _pintify(unit_str):
     unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
 
     try:
-        result = ureg(unit_str).units
+        quantity = ureg(unit_str)
+        if not hasattr(quantity, "units"):
+            result = unit_str
+        else:
+            result = quantity.units
     except pint.errors.UndefinedUnitError:
         result = unit_str
     return result

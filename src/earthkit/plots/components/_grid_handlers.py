@@ -219,7 +219,17 @@ def _plot_healpix(
     """Render HEALPix grid data via the nearest-neighbour imshow backend."""
     from earthkit.plots.resample import healpix
 
-    nest = source.metadata("orderingConvention", default=None) == "nested"
+    # Determine nest flag from the gridspec (keys: "ordering", "order") or
+    # from the earthkit-data legacy metadata key "orderingConvention".
+    # Default to ring (nest=False) when ordering is absent or unrecognised.
+    gridspec = source.gridspec
+    ordering = None
+    if gridspec is not None:
+        spec_dict = gridspec.to_dict() if hasattr(gridspec, "to_dict") else {}
+        ordering = spec_dict.get("ordering") or spec_dict.get("order")
+    if ordering is None:
+        ordering = source.metadata("orderingConvention", default=None)
+    nest = str(ordering).lower() == "nested" if ordering is not None else False
     kwargs["transform"] = subplot.crs
     return healpix.nnshow(z_values, ax=subplot.ax, nest=nest, style=style, **kwargs)
 

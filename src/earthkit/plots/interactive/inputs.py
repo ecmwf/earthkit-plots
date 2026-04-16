@@ -31,6 +31,10 @@ def _earthkitify(data):
 
 
 def to_xarray(data):
+    import xarray as xr
+
+    if isinstance(data, xr.DataArray):
+        return data.to_dataset().squeeze()
     return _earthkitify(data).to_xarray().squeeze()
 
 
