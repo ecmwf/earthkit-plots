@@ -517,6 +517,9 @@ class FigureFormatter(BaseFormatter):
                 value = values[self._layer_index]
                 self._layer_index = None
             else:
+                # Drop empty strings that arose from None values before
+                # deduplication so they don't pollute the rendered title.
+                values = [v for v in values if v != ""]
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
