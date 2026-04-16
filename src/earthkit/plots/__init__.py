@@ -18,9 +18,8 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 
-from earthkit.plots import styles
-from earthkit.plots.animation import Batch, Slider
-from earthkit.plots.ui import Explorer
+from earthkit.plots import frames, styles
+from earthkit.plots.frames import Batch, Browser
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
@@ -44,8 +43,8 @@ except ImportError:  # pragma: no cover
 
 __all__ = [
     "Batch",
-    "Slider",
-    "Explorer",
+    "Browser",
+    "frames",
     "Figure",
     "Subplot",
     "Map",

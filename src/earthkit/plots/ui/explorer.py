@@ -30,9 +30,8 @@ and updates the output in-place — no cell re-execution needed.
 
 import io
 
-from earthkit.plots.animation._base import ChartBase
+from earthkit.plots.frames._base import ChartBase
 from earthkit.plots.ui import controls
-
 
 # CSS for the control bar and loader spinner, injected once on show().
 _PANEL_CSS = """
@@ -106,10 +105,7 @@ class Explorer(ChartBase):
             import ipywidgets as widgets
             from IPython.display import HTML, display
         except ImportError:
-            raise ImportError(
-                "ipywidgets is required for Explorer. "
-                "Install it with: pip install ipywidgets"
-            )
+            raise ImportError("ipywidgets is required for Explorer. Install it with: pip install ipywidgets")
 
         import matplotlib.pyplot as plt
 
@@ -156,6 +152,7 @@ class Explorer(ChartBase):
 
             with map_out:
                 from IPython.display import Image
+
                 map_out.clear_output(wait=True)
                 display(Image(data=buf.getvalue()))
 

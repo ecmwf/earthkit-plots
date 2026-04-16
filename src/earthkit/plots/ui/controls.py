@@ -25,31 +25,30 @@ import functools
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shpreader
 
-
 # --- Projection catalogue ---------------------------------------------------
 
 # Projections offered in the CRS dropdown, grouped by rough category.
 # Each entry is (display_label, cartopy_class, default_kwargs).
 PROJECTIONS = [
-    ("Auto",                       None,                     {}),
-    ("Plate Carrée",               ccrs.PlateCarree,         {}),
-    ("Mercator",                   ccrs.Mercator,            {}),
-    ("Miller Cylindrical",         ccrs.Miller,              {}),
-    ("Lambert Cylindrical",        ccrs.LambertCylindrical,  {}),
-    ("Mollweide",                  ccrs.Mollweide,           {}),
-    ("Robinson",                   ccrs.Robinson,            {}),
-    ("Sinusoidal",                 ccrs.Sinusoidal,          {}),
-    ("Albers Equal Area",          ccrs.AlbersEqualArea,     {}),
-    ("Lambert Conformal Conic",    ccrs.LambertConformal,    {}),
-    ("Azimuthal Equidistant",      ccrs.AzimuthalEquidistant, {}),
-    ("Stereographic",              ccrs.Stereographic,       {}),
-    ("North Polar Stereographic",  ccrs.NorthPolarStereo,    {}),
-    ("South Polar Stereographic",  ccrs.SouthPolarStereo,    {}),
-    ("Orthographic",               ccrs.Orthographic,        {}),
-    ("Nearside Perspective",       ccrs.NearsidePerspective, {}),
-    ("Transverse Mercator",        ccrs.TransverseMercator,  {}),
-    ("OSGB",                       ccrs.OSGB,                {}),
-    ("EuroPP",                     ccrs.EuroPP,              {}),
+    ("Auto", None, {}),
+    ("Plate Carrée", ccrs.PlateCarree, {}),
+    ("Mercator", ccrs.Mercator, {}),
+    ("Miller Cylindrical", ccrs.Miller, {}),
+    ("Lambert Cylindrical", ccrs.LambertCylindrical, {}),
+    ("Mollweide", ccrs.Mollweide, {}),
+    ("Robinson", ccrs.Robinson, {}),
+    ("Sinusoidal", ccrs.Sinusoidal, {}),
+    ("Albers Equal Area", ccrs.AlbersEqualArea, {}),
+    ("Lambert Conformal Conic", ccrs.LambertConformal, {}),
+    ("Azimuthal Equidistant", ccrs.AzimuthalEquidistant, {}),
+    ("Stereographic", ccrs.Stereographic, {}),
+    ("North Polar Stereographic", ccrs.NorthPolarStereo, {}),
+    ("South Polar Stereographic", ccrs.SouthPolarStereo, {}),
+    ("Orthographic", ccrs.Orthographic, {}),
+    ("Nearside Perspective", ccrs.NearsidePerspective, {}),
+    ("Transverse Mercator", ccrs.TransverseMercator, {}),
+    ("OSGB", ccrs.OSGB, {}),
+    ("EuroPP", ccrs.EuroPP, {}),
 ]
 
 # Map from display label → (class, kwargs) for fast lookup.
@@ -76,6 +75,7 @@ def preset_domains():
     global _PRESET_DOMAINS
     if _PRESET_DOMAINS is None:
         from earthkit.plots.ancillary import load
+
         data = load("domains", data_type="geo")
         _PRESET_DOMAINS = sorted(data["domains"].keys())
     return _PRESET_DOMAINS
@@ -96,9 +96,7 @@ def countries_by_continent():
     -------
     dict of str → list of str
     """
-    shpfile = shpreader.natural_earth(
-        resolution="110m", category="cultural", name="admin_0_countries"
-    )
+    shpfile = shpreader.natural_earth(resolution="110m", category="cultural", name="admin_0_countries")
     reader = shpreader.Reader(shpfile)
 
     grouped = {}
@@ -133,6 +131,7 @@ def continent_display_name(raw):
 
 
 # --- Widget builders --------------------------------------------------------
+
 
 def domain_selector(initial_type="Global", initial_domain="Global", widgets=None):
     """Return a ``(type_dropdown, domain_dropdown, get_domain)`` triple.
@@ -178,7 +177,6 @@ def domain_selector(initial_type="Global", initial_domain="Global", widgets=None
         # Country: all countries grouped under their continent label.
         options = []
         for raw_continent in sorted(countries_by_continent()):
-            label = continent_display_name(raw_continent)
             for country in countries_by_continent()[raw_continent]:
                 options.append(country)
         return options
