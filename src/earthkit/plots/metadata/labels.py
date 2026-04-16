@@ -220,10 +220,20 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         from the general metadata of the data.
     """
     if attr in TIME_KEYS:
-        handler = TimeFormatter(data.datetime())
-        label = getattr(handler, attr)
-        if len(label) == 1:
-            label = label[0]
+        try:
+            dt_info = data.datetime()
+            # datetime() returns {} when the source has no scalar/single time coord
+            # (e.g. an xarray DataArray whose time dimension has many values).
+            # In that case treat the key as missing rather than crashing.
+            if not dt_info:
+                label = default
+            else:
+                handler = TimeFormatter(dt_info)
+                label = getattr(handler, attr)
+                if len(label) == 1:
+                    label = label[0]
+        except Exception:
+            label = default
 
     else:
         if axis is not None:

@@ -446,10 +446,26 @@ class SubplotFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
+        import warnings
+
+        from earthkit.plots.metadata.labels import LocationInfo
+
         if key in self.SUBPLOT_ATTRIBUTES:
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
-            values = [LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers]
+            # Collect values without per-layer warnings; warn once only if no
+            # layer carries the key at all.
+            values = [
+                LayerFormatter(layer, axis=self._axis, issue_warnings=False).format_key(key)
+                for layer in self.subplot.layers
+            ]
+            if all(v is None for v in values):
+                # For location, fall back to a single "Unknown location" sentinel
+                # rather than warning — missing geographic metadata is expected.
+                if key == "location":
+                    values = [LocationInfo()]
+                else:
+                    warnings.warn(f'No key "{key}" found in layer metadata.')
         return values
 
     def format_field(self, value, format_spec):
@@ -460,6 +476,9 @@ class SubplotFormatter(BaseFormatter):
                 value = values[self._layer_index]
                 self._layer_index = None
             else:
+                # Drop empty strings that arose from None values before
+                # deduplication so they don't pollute the rendered title.
+                values = [v for v in values if v != ""]
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
@@ -498,6 +517,9 @@ class FigureFormatter(BaseFormatter):
                 value = values[self._layer_index]
                 self._layer_index = None
             else:
+                # Drop empty strings that arose from None values before
+                # deduplication so they don't pollute the rendered title.
+                values = [v for v in values if v != ""]
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
