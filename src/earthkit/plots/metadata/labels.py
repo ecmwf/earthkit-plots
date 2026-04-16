@@ -98,7 +98,7 @@ def get_location(data):
             pass
 
     if lat is None or lon is None:
-        return LocationInfo(lat=lat, lon=lon)
+        return None
 
     def calculate_distance(lat1, lon1, lat2, lon2):
         """Calculate distance in degrees between two points."""
