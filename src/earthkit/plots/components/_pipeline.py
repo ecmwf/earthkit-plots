@@ -44,6 +44,7 @@ from typing import Any
 import numpy as np
 
 from earthkit.plots.components._grid_handlers import (
+    _add_pcolormesh_wrap_column,
     _handle_cyclic_points,
     _handle_specialized_grids,
     _handle_transform_settings,
@@ -511,6 +512,38 @@ def extract_plottables_2D(
     if mappable is None:
         # Step 6: Extract coordinate arrays and apply stride-based thinning.
         x_values, y_values = source.x.values, source.y.values
+
+        # Step 6.1: Normalise 0–360 longitudes to –180..+180 for cylindrical CRS
+        # (e.g. PlateCarree).  Without this, data west of 0° is invisible because
+        # cartopy clips longitudes > 180 outside the default axes extent.
+        # x_values may be 1D (earthkit) or 2D (meshgrid); z_values is always 2D.
+        _lon_normalised = False
+        if hasattr(subplot, "crs") and np.any(x_values > 180):
+            import cartopy.crs as _ccrs
+
+            _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
+            if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(
+                _src_crs, _ccrs._CylindricalProjection
+            ):
+                from earthkit.plots.geography.domains import (
+                    force_minus_180_to_180,
+                    roll_from_0_360_to_minus_180_180,
+                )
+
+                _ref = x_values[0] if x_values.ndim == 2 else x_values
+                _roll_by = roll_from_0_360_to_minus_180_180(_ref)
+                if x_values.ndim == 2:
+                    x_values = np.roll(x_values, _roll_by, axis=1)
+                    y_values = np.roll(y_values, _roll_by, axis=1)
+                else:
+                    x_values = np.roll(x_values, _roll_by)
+                z_values = np.roll(z_values, _roll_by, axis=1)
+                # force_minus_180_to_180 preserves +180 as-is to avoid
+                # collapsing the east edge; here we want -180 so the result
+                # is sorted and the 180/−180 antimeridian column sits at index 0.
+                x_values = np.where(np.isclose(x_values, 180), -180, force_minus_180_to_180(x_values))
+                _lon_normalised = True
+
         x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
         # Step 6.5: Data-space resampling (Regrid, Unstructured, generic).
@@ -557,10 +590,19 @@ def extract_plottables_2D(
         if ps_result.mappable is not None:
             mappable = ps_result.mappable
 
-        # Step 9: Add cyclic longitude column for global contour plots.
+        # Step 9: Add cyclic longitude column for global plots.
+        # For contourf/contour this prevents a gap at the antimeridian.
+        # For pcolormesh after 0-360→-180..+180 normalisation, this ensures the
+        # last cell (e.g. 150°→180° for 30° data) is fully rendered — without it
+        # pcolormesh can only infer half the cell width at the eastern edge.
         # Skipped when pixel-sampling already produced a complete regular grid.
-        if method_name.startswith("contour") and not ps_result.reprojected:
-            x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
+        if not ps_result.reprojected:
+            if method_name.startswith("contour"):
+                x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
+            elif method_name == "pcolormesh" and _lon_normalised:
+                # needs_cyclic_point won't fire for coarse grids (e.g. 30°) after
+                # normalisation, so force the closing column directly.
+                x_values, y_values, z_values = _add_pcolormesh_wrap_column(x_values, y_values, z_values)
 
         # Step 10: Disable transform_first for unsupported projections.
         kwargs = _handle_transform_settings(subplot, kwargs)
