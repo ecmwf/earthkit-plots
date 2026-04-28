@@ -45,7 +45,6 @@ from earthkit.plots.frames._base import (
     ChartBase,
     extract_datetimes,
     iter_data,
-    n_slices,
 )
 
 # How many frames ahead must be cached before the player unblocks the loader.
@@ -69,16 +68,16 @@ _LOADER_HTML = """
 
 # Default strftime formats for each temporal frequency.
 FREQUENCY_FORMATS = {
-    "hourly":  "%d %b %Y %H:%M",
-    "daily":   "%d %b %Y",
+    "hourly": "%d %b %Y %H:%M",
+    "daily": "%d %b %Y",
     "monthly": "%b %Y",
-    "yearly":  "%Y",
+    "yearly": "%Y",
 }
 
 
-def _render_frame_to_bytes(frame_index, calls, domain, crs, figsize,
-                           title_template, title_kwargs, quality_resolution,
-                           result_queue):
+def _render_frame_to_bytes(
+    frame_index, calls, domain, crs, figsize, title_template, title_kwargs, quality_resolution, result_queue
+):
     """Render one frame in a worker process and put PNG bytes onto *result_queue*.
 
     Designed to be the target of a ``multiprocessing.Process``.  Each worker
@@ -87,9 +86,9 @@ def _render_frame_to_bytes(frame_index, calls, domain, crs, figsize,
     try:
         import io as _io
 
+        from earthkit.plots.components.figures import Figure
         from earthkit.plots.frames._artists import remove_data_layers
         from earthkit.plots.frames._base import iter_data
-        from earthkit.plots.components.figures import Figure
 
         figure = Figure(rows=1, columns=1, figsize=figsize, chainable=True)
         subplot = figure.add_map(domain=domain, crs=crs)
@@ -105,6 +104,7 @@ def _render_frame_to_bytes(frame_index, calls, domain, crs, figsize,
             kwargs = call["kwargs"]
             if quality_resolution is not None and "resample" not in kwargs:
                 from earthkit.plots.resample import Bilinear
+
                 nx, ny = quality_resolution
                 kwargs = {**kwargs, "resample": Bilinear(nx, ny)}
             slice_ = iter_data(call["args"][0], frame_index, dim=call["dim"])
@@ -127,12 +127,22 @@ def _render_frame_to_bytes(frame_index, calls, domain, crs, figsize,
 class _Prefetcher:
     """Prefetch animation frames into a shared cache using worker processes."""
 
-    def __init__(self, start_index, n_frames, calls, domain, crs, figsize,
-                 title_template, title_kwargs, quality_resolution,
-                 frame_cache, on_frame_cached=None):
+    def __init__(
+        self,
+        start_index,
+        n_frames,
+        calls,
+        domain,
+        crs,
+        figsize,
+        title_template,
+        title_kwargs,
+        quality_resolution,
+        frame_cache,
+        on_frame_cached=None,
+    ):
         self._stop_event = threading.Event()
-        self._worker_args = (calls, domain, crs, figsize,
-                             title_template, title_kwargs, quality_resolution)
+        self._worker_args = (calls, domain, crs, figsize, title_template, title_kwargs, quality_resolution)
         self._start_index = start_index
         self._n_frames = n_frames
         self._frame_cache = frame_cache
@@ -157,8 +167,7 @@ class _Prefetcher:
             queue = ctx.Queue()
             proc = ctx.Process(
                 target=_render_frame_to_bytes,
-                args=(i, calls, domain, crs, figsize,
-                      title_template, title_kwargs, quality_resolution, queue),
+                args=(i, calls, domain, crs, figsize, title_template, title_kwargs, quality_resolution, queue),
                 daemon=True,
             )
             proc.start()
@@ -212,16 +221,15 @@ class Browser(ChartBase):
 
     QUALITY_RESOLUTIONS = {
         "very high": (1000, 1000),
-        "high":      (500, 500),
-        "medium":    (250, 250),
-        "low":       (100, 100),
+        "high": (500, 500),
+        "medium": (250, 250),
+        "low": (100, 100),
     }
 
     def __init__(self, subplot, quality=None):
         if quality is not None and quality not in self.QUALITY_RESOLUTIONS:
             raise ValueError(
-                f"quality={quality!r} is not supported. "
-                f"Choose one of: {list(self.QUALITY_RESOLUTIONS)} or None."
+                f"quality={quality!r} is not supported. Choose one of: {list(self.QUALITY_RESOLUTIONS)} or None."
             )
         super().__init__(subplot)
         self._quality = quality
@@ -264,19 +272,18 @@ class Browser(ChartBase):
             import ipywidgets as widgets
             from IPython.display import HTML, display
         except ImportError:
-            raise ImportError(
-                "ipywidgets is required for Browser. "
-                "Install it with: pip install ipywidgets"
-            )
+            raise ImportError("ipywidgets is required for Browser. Install it with: pip install ipywidgets")
 
-        display(HTML(
-            "<style>"
-            "@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');"
-            ".widget-label, .widget-readout, .widget-button, "
-            ".widget-dropdown select, .widget-datepicker input { "
-            "font-family: 'Roboto', sans-serif !important; }"
-            "</style>"
-        ))
+        display(
+            HTML(
+                "<style>"
+                "@import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');"
+                ".widget-label, .widget-readout, .widget-button, "
+                ".widget-dropdown select, .widget-datepicker input { "
+                "font-family: 'Roboto', sans-serif !important; }"
+                "</style>"
+            )
+        )
 
         import matplotlib
 
@@ -290,12 +297,11 @@ class Browser(ChartBase):
         if picker == "player":
             self._show_player(n_frames, interval or PLAYER_DEFAULT_INTERVAL, widgets, display)
             import matplotlib.pyplot as plt
+
             plt.close(self._figure.fig)
             return
 
-        inner, to_index, step = self._build_picker(
-            picker, n_frames, frequency, picker_format, widgets
-        )
+        inner, to_index, step = self._build_picker(picker, n_frames, frequency, picker_format, widgets)
         widget = self._add_step_buttons(inner, step, widgets)
 
         backend = matplotlib.get_backend().lower()
@@ -306,6 +312,7 @@ class Browser(ChartBase):
         else:
             self._show_output(widget, to_index, widgets, display)
             import matplotlib.pyplot as plt
+
             plt.close(self._figure.fig)
 
     # ------------------------------------------------------------------
@@ -390,8 +397,7 @@ class Browser(ChartBase):
             return self._date_picker(datetimes, widgets)
 
         raise ValueError(
-            f"picker={picker!r} is not supported. "
-            "Choose 'slider', 'select', 'date', 'datetime', or 'player'."
+            f"picker={picker!r} is not supported. Choose 'slider', 'select', 'date', 'datetime', or 'player'."
         )
 
     def _integer_slider(self, n_frames, frequency, picker_format, widgets):
@@ -399,7 +405,10 @@ class Browser(ChartBase):
         first_dt, last_dt = self._frame_datetime_bounds(n_frames)
 
         slider = widgets.IntSlider(
-            value=0, min=0, max=n_frames - 1, step=1,
+            value=0,
+            min=0,
+            max=n_frames - 1,
+            step=1,
             description="Frame:",
             continuous_update=False,
             layout=widgets.Layout(flex="1 1 auto", min_width="200px"),
@@ -489,9 +498,7 @@ class Browser(ChartBase):
     def _hourly_picker(self, n_frames, first_dt, last_dt, widgets):
         step_size = (last_dt - first_dt) / (n_frames - 1)
 
-        w = widgets.NaiveDatetimePicker(
-            value=first_dt, min=first_dt, max=last_dt, description="Time:"
-        )
+        w = widgets.NaiveDatetimePicker(value=first_dt, min=first_dt, max=last_dt, description="Time:")
 
         def to_index(v):
             idx = round((v - first_dt) / step_size)
@@ -523,20 +530,13 @@ class Browser(ChartBase):
     def _monthly_picker(self, n_frames, first_dt, last_dt, widgets):
         year_month_to_index = self._build_year_month_index(n_frames, first_dt, last_dt)
 
-        all_ym = sorted(
-            (y, m)
-            for y, months in year_month_to_index.items()
-            for m in months
-        )
+        all_ym = sorted((y, m) for y, months in year_month_to_index.items() for m in months)
 
         years = sorted(year_month_to_index)
         first_months = sorted(year_month_to_index[years[0]])
 
         def month_options(year):
-            return [
-                (calendar.month_abbr[m], m)
-                for m in sorted(year_month_to_index[year])
-            ]
+            return [(calendar.month_abbr[m], m) for m in sorted(year_month_to_index[year])]
 
         year_w = widgets.Dropdown(
             options=[(str(y), y) for y in years],
@@ -591,9 +591,7 @@ class Browser(ChartBase):
         year_to_index = self._build_year_index(n_frames, first_dt, last_dt)
         years = sorted(year_to_index)
 
-        w = widgets.Dropdown(
-            options=[(str(y), y) for y in years], value=years[0], description="Year:"
-        )
+        w = widgets.Dropdown(options=[(str(y), y) for y in years], value=years[0], description="Year:")
 
         def step(delta):
             idx = years.index(w.value)
@@ -617,11 +615,7 @@ class Browser(ChartBase):
             dt_info = src.datetime()
             return dt_info.get("valid_time") if dt_info else None
 
-        total_months = (
-            (last_dt.year - first_dt.year) * 12
-            + (last_dt.month - first_dt.month)
-            + 1
-        )
+        total_months = (last_dt.year - first_dt.year) * 12 + (last_dt.month - first_dt.month) + 1
         stride = max(1, n_frames // (total_months + 1))
 
         result = {}
@@ -693,18 +687,21 @@ class Browser(ChartBase):
         self._figure.fig.savefig(buf, format="png", bbox_inches="tight")
         self._frame_cache[0] = buf.getvalue()
 
-        quality_resolution = (
-            self.QUALITY_RESOLUTIONS[self._quality] if self._quality else None
-        )
+        quality_resolution = self.QUALITY_RESOLUTIONS[self._quality] if self._quality else None
 
         play = widgets.Play(
-            value=0, min=0, max=0, step=1,
+            value=0,
+            min=0,
+            max=0,
+            step=1,
             interval=interval,
             description="Play",
             disabled=True,
         )
         slider = widgets.IntSlider(
-            value=0, min=0, max=0,
+            value=0,
+            min=0,
+            max=0,
             continuous_update=False,
             disabled=True,
             layout=widgets.Layout(flex="1 1 auto", min_width="200px"),

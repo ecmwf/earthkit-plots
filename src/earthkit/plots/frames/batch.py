@@ -190,8 +190,8 @@ def _render_frame_worker(
     """Render one frame in a worker process with its own fresh Figure."""
     import os
 
-    from earthkit.plots.frames._base import slugify_path
     from earthkit.plots.components.figures import Figure
+    from earthkit.plots.frames._base import slugify_path
 
     figure = Figure(rows=1, columns=1, figsize=figsize, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
