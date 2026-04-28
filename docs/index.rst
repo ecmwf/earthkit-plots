@@ -69,6 +69,7 @@ Key features:
    :caption: Documentation
 
    styles-gallery
+   domains-gallery
    api
    development
 
