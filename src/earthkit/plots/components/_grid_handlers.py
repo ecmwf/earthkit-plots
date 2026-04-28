@@ -274,6 +274,53 @@ def _plot_orca(
     )
 
 
+def _add_pcolormesh_wrap_column(
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    z_values: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Append a closing longitude column at 180° for pcolormesh after 0–360 →
+    –180..+180 normalisation, so the last cell renders fully.
+
+    ``pcolormesh`` infers cell edges as midpoints between adjacent centres.
+    For a global grid with centres at –180..+150 (step 30°) the inferred
+    right edge of the last cell is 165°, not 180° — the east half is blank.
+
+    Appending a duplicate z-column and setting the closing longitude to 180°
+    gives pcolormesh a right-neighbour at 180° so it infers the edge of the
+    original last cell at 165° and of the new closing cell from 165° onward.
+    The closing cell is a duplicate of the first (wrap-around) cell, which is
+    the correct value at the antimeridian for global data.
+
+    Only applied when x_max + step ≈ 180° (data was originally global 0–360
+    and the last cell wraps at the antimeridian).
+
+    x_values may be 1-D (earthkit path) or 2-D meshgrid.
+    z_values is always 2-D (ny, nx).
+    """
+    x_1d = x_values[0] if x_values.ndim == 2 else x_values
+
+    x_step = np.abs(np.median(np.diff(x_1d)))
+    x_max = x_1d.max()
+
+    # Only activate when the last centre is exactly one step below 180°.
+    if not np.isclose(x_max + x_step, 180.0, atol=x_step * 0.1):
+        return x_values, y_values, z_values
+
+    # Append a closing column so pcolormesh has a right-neighbour at 180°.
+    z_values = np.concatenate([z_values, z_values[:, :1]], axis=1)
+
+    if x_values.ndim == 2:
+        ny = x_values.shape[0]
+        x_values = np.concatenate([x_values, np.full((ny, 1), 180.0)], axis=1)
+        y_values = np.concatenate([y_values, y_values[:, :1]], axis=1)
+    else:
+        x_values = np.append(x_values, 180.0)
+
+    return x_values, y_values, z_values
+
+
 def _handle_cyclic_points(
     x_values: np.ndarray,
     y_values: np.ndarray,

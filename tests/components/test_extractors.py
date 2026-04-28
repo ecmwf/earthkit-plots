@@ -964,3 +964,241 @@ class TestGetSubplotBbox:
         subplot = type("S", (), {"ax": _FakeAx3(), "domain": None, "crs": None})()
         bbox = _get_subplot_bbox(subplot, None)
         assert bbox == (-180, 180, -90, 90)
+
+
+# ---------------------------------------------------------------------------
+# 0-360 longitude normalisation (bug: data west of 0° invisible with
+# crs=PlateCarree() on fieldlist / regular lat-lon data)
+# ---------------------------------------------------------------------------
+
+
+class TestLongitudeNormalisation:
+    """
+    extract_plottables_2D must normalise 0–360 longitudes to –180..+180
+    before passing them to matplotlib when both source and target CRS are
+    cylindrical (e.g. PlateCarree).  Without this, cartopy clips everything
+    west of 0° because the axes extent is –180..+180 but the data runs 0..360.
+
+    We intercept the matplotlib call via monkeypatching to inspect the
+    x-values that would be rendered, avoiding any figure/display dependency.
+    Uses earthkit.plots.Map() directly (standalone, no Figure.add_map()) to
+    avoid the lazy-gridspec None-return issue.
+    """
+
+    def _make_0_360_data(self, as_2d_meshgrid=False):
+        """Return an xarray DataArray with 0–360 longitudes."""
+        import xarray as xr
+
+        lons = np.linspace(0, 359, 36)
+        lats = np.linspace(-90, 90, 19)
+        z = np.random.default_rng(0).random((len(lats), len(lons)))
+
+        if as_2d_meshgrid:
+            lon2d, lat2d = np.meshgrid(lons, lats)
+            return xr.DataArray(
+                z,
+                dims=["y", "x"],
+                coords={"latitude": (["y", "x"], lat2d), "longitude": (["y", "x"], lon2d)},
+            )
+        return xr.DataArray(
+            z,
+            dims=["latitude", "longitude"],
+            coords={"latitude": lats, "longitude": lons},
+        )
+
+    def _run_and_capture(self, data, monkeypatch, crs=None):
+        """
+        Run extract_plottables_2D with a Map(crs=...) and capture the
+        x-values passed to the matplotlib contourf call.
+
+        Uses earthkit.plots.Map() standalone so subplot is a real Map object,
+        then forces axes creation via subplot.ax before patching contourf.
+        """
+        import cartopy.crs as ccrs
+        import matplotlib.pyplot as plt
+
+        import earthkit.plots
+        from earthkit.plots.components._pipeline import extract_plottables_2D
+
+        if crs is None:
+            crs = ccrs.PlateCarree()
+
+        # Standalone Map creates its own Figure(1, 1) lazily — subplot is real.
+        subplot = earthkit.plots.Map(crs=crs)
+
+        # Force axes creation now so we can patch the live axes class.
+        ax = subplot.ax
+
+        captured = {}
+        real_contourf = ax.__class__.contourf
+
+        def _fake_contourf(self_ax, x, y, z, **kwargs):
+            captured["x"] = np.asarray(x)
+            return real_contourf(self_ax, x, y, z, **kwargs)
+
+        monkeypatch.setattr(ax.__class__, "contourf", _fake_contourf)
+
+        try:
+            extract_plottables_2D(
+                subplot=subplot,
+                method_name="contourf",
+                args=(data,),
+                resample=False,
+            )
+        finally:
+            # Always restore, then close figure to avoid matplotlib state leak.
+            monkeypatch.setattr(ax.__class__, "contourf", real_contourf)
+            plt.close("all")
+
+        return captured.get("x")
+
+    def test_1d_lons_normalised_to_minus180_180(self, monkeypatch):
+        """1D longitude coordinate (xarray dim-coord path) is normalised to –180..+180."""
+        data = self._make_0_360_data(as_2d_meshgrid=False)
+        x = self._run_and_capture(data, monkeypatch)
+        assert x is not None, "contourf was never called"
+        assert x.max() <= 180, f"x.max()={x.max():.1f} — expected ≤ 180"
+        assert x.min() >= -180, f"x.min()={x.min():.1f} — expected ≥ -180"
+
+    def test_2d_lons_normalised_to_minus180_180(self, monkeypatch):
+        """2D meshgrid longitude coordinate is normalised to –180..+180."""
+        data = self._make_0_360_data(as_2d_meshgrid=True)
+        x = self._run_and_capture(data, monkeypatch)
+        assert x is not None, "contourf was never called"
+        assert x.max() <= 180, f"x.max()={x.max():.1f} — expected ≤ 180"
+        assert x.min() >= -180, f"x.min()={x.min():.1f} — expected ≥ -180"
+
+    def test_minus180_180_data_unchanged(self, monkeypatch):
+        """Data already in –180..+180 must not be modified by the normalisation step."""
+        import xarray as xr
+
+        lons = np.linspace(-180, 179, 36)
+        lats = np.linspace(-90, 90, 19)
+        z = np.random.default_rng(1).random((len(lats), len(lons)))
+        data = xr.DataArray(
+            z,
+            dims=["latitude", "longitude"],
+            coords={"latitude": lats, "longitude": lons},
+        )
+        x = self._run_and_capture(data, monkeypatch)
+        assert x is not None, "contourf was never called"
+        assert x.min() >= -180
+        assert x.max() <= 180
+
+    def test_no_normalisation_for_non_cylindrical_crs(self, monkeypatch):
+        """
+        With a non-cylindrical CRS (Robinson) the normalisation step must not
+        fire — cartopy handles coordinate transformation itself for those
+        projections.  The plot must complete without error.
+        """
+        import cartopy.crs as ccrs
+
+        data = self._make_0_360_data()
+        # Just check it doesn't raise; x capture is a bonus.
+        self._run_and_capture(data, monkeypatch, crs=ccrs.Robinson())
+
+
+# ---------------------------------------------------------------------------
+# 0-360 longitude normalisation for the 1D pipeline (point_cloud / scatter)
+# ---------------------------------------------------------------------------
+
+
+class TestLongitudeNormalisation1D:
+    """
+    extract_plottables_1D must normalise 0–360 longitudes to –180..+180 when
+    the subplot is a geographic Map with a cylindrical CRS (e.g. PlateCarree).
+
+    point_cloud calls scatter which uses the 1D pipeline.  Without this fix,
+    scatter points whose longitude > 180 fall outside the default axes extent
+    and are invisible — producing the same half-globe symptom as the 2D bug.
+
+    Data is a flat (unstructured) array of points, matching the GRIB fieldlist
+    case where earthkit returns 1D lon/lat arrays.
+    """
+
+    def _make_0_360_points(self):
+        """Return an xarray DataArray with unstructured points spanning 0–360."""
+        import xarray as xr
+
+        rng = np.random.default_rng(42)
+        lons = np.linspace(0, 355, 72)
+        lats = rng.uniform(-90, 90, 72)
+        z = rng.random(72)
+        return xr.DataArray(
+            z,
+            dims=["points"],
+            coords={"longitude": ("points", lons), "latitude": ("points", lats)},
+        )
+
+    def _run_scatter_and_capture(self, data, monkeypatch, crs=None):
+        """
+        Run extract_plottables_1D with method_name='scatter' on a Map and
+        capture the x-values passed to ax.scatter.
+        """
+        import cartopy.crs as ccrs
+        import matplotlib.pyplot as plt
+
+        import earthkit.plots
+        from earthkit.plots.components._pipeline import extract_plottables_1D
+
+        if crs is None:
+            crs = ccrs.PlateCarree()
+
+        subplot = earthkit.plots.Map(crs=crs)
+        ax = subplot.ax
+
+        captured = {}
+        real_scatter = ax.__class__.scatter
+
+        def _fake_scatter(self_ax, x, y, *args, **kwargs):
+            captured["x"] = np.asarray(x)
+            return real_scatter(self_ax, x, y, *args, **kwargs)
+
+        monkeypatch.setattr(ax.__class__, "scatter", _fake_scatter)
+
+        try:
+            extract_plottables_1D(
+                subplot=subplot,
+                method_name="scatter",
+                args=(data,),
+                resample=False,
+            )
+        finally:
+            monkeypatch.setattr(ax.__class__, "scatter", real_scatter)
+            plt.close("all")
+
+        return captured.get("x")
+
+    def test_point_cloud_lons_normalised_to_minus180_180(self, monkeypatch):
+        """scatter/point_cloud normalises 0–360 longitudes to –180..+180 on a PlateCarree map."""
+        data = self._make_0_360_points()
+        x = self._run_scatter_and_capture(data, monkeypatch)
+        assert x is not None, "scatter was never called"
+        assert x.max() <= 180, f"x.max()={x.max():.1f} — expected ≤ 180"
+        assert x.min() >= -180, f"x.min()={x.min():.1f} — expected ≥ -180"
+
+    def test_point_cloud_minus180_180_unchanged(self, monkeypatch):
+        """Data already in –180..+180 is not modified by the normalisation step."""
+        import xarray as xr
+
+        rng = np.random.default_rng(7)
+        lons = np.linspace(-180, 175, 72)
+        lats = rng.uniform(-90, 90, 72)
+        z = rng.random(72)
+        data = xr.DataArray(
+            z,
+            dims=["points"],
+            coords={"longitude": ("points", lons), "latitude": ("points", lats)},
+        )
+        x = self._run_scatter_and_capture(data, monkeypatch)
+        assert x is not None, "scatter was never called"
+        assert x.min() >= -180
+        assert x.max() <= 180
+
+    def test_point_cloud_no_normalisation_for_non_cylindrical_crs(self, monkeypatch):
+        """Non-cylindrical CRS (Robinson) does not trigger normalisation."""
+        import cartopy.crs as ccrs
+
+        data = self._make_0_360_points()
+        # Should complete without error; cartopy handles the transform itself.
+        self._run_scatter_and_capture(data, monkeypatch, crs=ccrs.Robinson())
