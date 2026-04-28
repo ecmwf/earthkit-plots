@@ -12,40 +12,33 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import earthkit.data
+import earthkit.data as ekd
 import pytest
 
-import earthkit.plots
+import earthkit.plots as ekp
 from earthkit.plots import schema
+
 
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_healpix_interpolated():
-    data = earthkit.data.from_source("sample", "healpix-h128-nested-2t.grib")
-    chart = earthkit.plots.Map()
-    chart.quickplot(data, units="celsius")
+def test_0_360_grid_cells():
+    ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
 
-    chart.legend()
+    chart = ekp.Map()
+
+    chart.grid_cells(ds)
     chart.coastlines()
-    chart.title()
-    chart.gridlines()
-
     return chart.fig
 
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_healpix_pixels():
-    data = earthkit.data.from_source("sample", "healpix-h128-nested-2t.grib")
-    chart = earthkit.plots.Map(domain=["France", "Spain"])
-    chart.grid_cells(data, units="celsius")
+def test_0_360_point_cloud():
+    ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
 
-    chart.legend()
+    chart = ekp.Map()
 
+    chart.point_cloud(ds)
     chart.coastlines()
-
-    chart.title()
-    chart.gridlines()
-
     return chart.fig
