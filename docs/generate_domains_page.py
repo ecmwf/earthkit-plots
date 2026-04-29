@@ -160,17 +160,10 @@ Named domains
 =============
 
 Any of the names below can be passed as the ``domain`` argument to any
-earthkit-plots map function:
-
-.. code-block:: python
-
-   import earthkit.plots as ekp
-
-   ekp.Map(domain="France").standard_layers().show()
-   ekp.Map(domain="Europe").standard_layers().show()
+earthkit-plots map function.
 
 Use the dropdowns below to preview the map extent and default projection
-chosen automatically for each domain.
+chosen automatically for each domain, along with the code snippet to reproduce it.
 
 .. raw:: html
 
@@ -201,13 +194,29 @@ _HTML_TEMPLATE = """\
    #ek-domain-error {{
      color: #a00; font-size: 0.9em; margin-top: 0.5em; display: none;
    }}
+   #ek-domain-code-wrap {{
+     position: relative; margin-top: 1.2em;
+   }}
+   #ek-domain-code {{
+     background: #2b2b2b; border: 1px solid #444; color: #d4d4d4;
+     border-radius: 4px; padding: 0.8em 1em; font-family: monospace;
+     font-size: 1.1em; white-space: pre; margin: 0;
+   }}
+   #ek-domain-code .ek-str {{ color: #e06c75; }}
+   #ek-domain-code .ek-eq  {{ color: #c792ea; }}
+   #ek-domain-copy {{
+     position: absolute; top: 0.5em; right: 0.5em;
+     width: 1.1em; height: 1.1em; cursor: pointer; opacity: 0.4;
+     background: none; border: none; padding: 0; filter: invert(1);
+   }}
+   #ek-domain-copy:hover {{ opacity: 0.9; }}
    </style>
    <div id="ek-domain-wrap">
      <div class="ek-domain-row">
        <span class="ek-domain-label">Category:</span>
        <select id="ek-cat-select" class="ek-domain-sel" onchange="ekCatSwap(this)">
          <option value="countries">Countries</option>
-         <option value="regions">Built-in regions</option>
+         <option value="regions">Other regions</option>
        </select>
      </div>
      <div class="ek-domain-row">
@@ -218,6 +227,10 @@ _HTML_TEMPLATE = """\
      <div id="ek-domain-img-wrap">
        <img id="ek-domain-img" src="" alt="">
        <div id="ek-domain-error"></div>
+     </div>
+     <div id="ek-domain-code-wrap">
+       <pre id="ek-domain-code"></pre>
+       <img id="ek-domain-copy" src="_static/copy.svg" alt="Copy" title="Copy" onclick="ekCopyCode()">
      </div>
    </div>
    <script>
@@ -247,6 +260,7 @@ _HTML_TEMPLATE = """\
      var name = sel.value;
      var img = document.getElementById('ek-domain-img');
      var err = document.getElementById('ek-domain-error');
+     var code = document.getElementById('ek-domain-code');
      img.src = EK_DOMAIN_BASE + slug + '.png';
      img.alt = name;
      err.style.display = 'none';
@@ -254,6 +268,20 @@ _HTML_TEMPLATE = """\
        err.textContent = 'Map preview unavailable for: ' + name;
        err.style.display = '';
      }};
+     var s = '<span class="ek-str">';
+     var e = '</span>';
+     var q = '<span class="ek-eq">=</span>';
+     var esc = name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+     code.innerHTML = 'import earthkit.plots as ekp\\n\\nchart ' + q + ' ekp.Map(domain' + q + s + '"' + esc + '"' + e + ')\\nchart.standard_layers()\\nchart.title(' + s + '"{{domain}} | {{crs}}"' + e + ')\\nchart.show()';
+   }}
+   function ekCopyCode() {{
+     var text = document.getElementById('ek-domain-code').textContent;
+     navigator.clipboard.writeText(text).then(function() {{
+       var btn = document.getElementById('ek-domain-copy');
+       btn.src = '_static/check.svg';
+       btn.alt = 'Copied';
+       setTimeout(function() {{ btn.src = '_static/copy.svg'; btn.alt = 'Copy'; }}, 1500);
+     }});
    }}
    function ekCatSwap(catSel) {{
      ekPopulate(catSel.value);
