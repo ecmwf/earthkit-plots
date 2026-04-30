@@ -1,0 +1,11 @@
+id: ssr
+optimal: SSR_CIVIDIS_J_M2
+
+styles:
+  SSR_CIVIDIS_J_M2:
+    name: ssr-cividis-j-m2
+    type: Style
+    colors: cividis
+    extend: max
+    levels: range(0, 3500001, 500000)
+    units: J m**-2

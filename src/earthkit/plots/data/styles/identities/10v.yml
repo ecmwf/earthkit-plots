@@ -1,0 +1,9 @@
+id: 10v
+criteria:
+- paramId: '166'
+  shortName: 10v
+- paramId: 166
+  shortName: 10v
+- long_name: 10 metre V wind component
+- long_name: 10m v-component of wind
+- standard_name: northward_wind

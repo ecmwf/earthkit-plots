@@ -1,6 +1,32 @@
 id: 2t_dewpoint
-optimal: 2T_DEWPOINT_SH_ALL_FM48T56I4
+optimal: 2T_DEWPOINT_SPECTRAL_CELSIUS
+
 styles:
+  2T_DEWPOINT_SPECTRAL_KELVIN:
+    name: 2m-dewpoint-spectral-kelvin
+    type: Style
+    colors: BrBG_r
+    extend: both
+    levels: range(233, 309, 2)
+    units: K
+
+  2T_DEWPOINT_SPECTRAL_FAHRENHEIT:
+    name: 2m-dewpoint-spectral-fahrenheit
+    type: Style
+    colors: BrBG_r
+    extend: both
+    levels: range(-40, 96, 5)
+    units: fahrenheit
+
+  2T_DEWPOINT_SPECTRAL_CELSIUS:
+    name: 2m-dewpoint-spectral-celsius
+    type: Style
+    colors: BrBG_r
+    extend: both
+    levels: range(-40, 36, 2)
+    units: celsius
+
+
   2T_DEWPOINT_SH_ALL_FM48T56I4:
     name: sh-all-fm48t56i4
     type: Style

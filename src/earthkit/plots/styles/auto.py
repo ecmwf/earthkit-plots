@@ -36,6 +36,18 @@ _fallback_style_cache: dict[str, "styles.Style"] = {}
 _VariableFallbackStyle = None  # built lazily after styles.Style is available
 
 
+def clear_fallback_cache():
+    """Clear the per-variable fallback style cache.
+
+    Call this after adding new identity/style YAML files so that variables
+    previously assigned a fallback colormap are re-evaluated against the
+    updated style library.
+    """
+    _fallback_cmap_assignments.clear()
+    _fallback_style_cache.clear()
+    _cache.invalidate()
+
+
 def _get_variable_fallback_style_class():
     """Return _VariableFallbackStyle, constructing it on first call.
 
@@ -60,10 +72,24 @@ def _get_variable_fallback_style_class():
     return _VariableFallbackStyle
 
 
+_METADATA_KEY_ALIASES = {
+    "long_name": ["long_name", "parameter.long_name"],
+    "short_name": ["short_name", "parameter.variable"],
+    "shortName": ["shortName", "parameter.variable"],
+    "standard_name": ["standard_name", "parameter.standard_name"],
+    "paramId": ["paramId", "parameter.id"],
+}
+
+
 def criteria_matches(data, criteria: METADATA) -> bool:
     """Test if the metadata matches the criteria."""
     for key, value in criteria.items():
-        metadata_value = data.metadata(key, None)
+        aliases = _METADATA_KEY_ALIASES.get(key, [key])
+        metadata_value = None
+        for alias in aliases:
+            metadata_value = data.metadata(alias, None)
+            if metadata_value is not None:
+                break
         if metadata_value is None:
             break
 
