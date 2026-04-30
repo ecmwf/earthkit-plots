@@ -402,6 +402,56 @@ class EarthkitExtractor(BaseExtractor):
         # Default to PlateCarree for geographic data
         return ccrs.PlateCarree()
 
+    def get_datetime(self) -> dict | None:
+        """
+        Extract datetime information from an earthkit-data Field.
+
+        Tries Field.datetime() first (earthkit-data < 1.0), then falls back to
+        the earthkit time-namespace keys ``time.valid_datetime``,
+        ``time.base_datetime``, and ``time.step`` via Field.get() (earthkit-data
+        >= 1.0).
+
+        Returns
+        -------
+        dict or None
+            Dict with ``base_time``, ``valid_time``, and ``time.step`` keys,
+            or None if no time information is available.
+        """
+        if hasattr(self.data, "datetime") and callable(self.data.datetime):
+            try:
+                dt = self.data.datetime()
+                if dt and not (dt.get("base_time") is None and dt.get("valid_time") is None):
+                    result = {
+                        "base_time": dt.get("base_time"),
+                        "valid_time": dt.get("valid_time"),
+                    }
+                    try:
+                        step = self.data.metadata("step")
+                        if step is not None:
+                            result["time.step"] = step
+                    except Exception:
+                        pass
+                    return result
+            except Exception:
+                pass
+
+        # earthkit-data >= 1.0: use time-namespace keys via .get()
+        if hasattr(self.data, "get"):
+            try:
+                valid_time = self.data.get("time.valid_datetime", default=None)
+                base_time = self.data.get("time.base_datetime", default=None)
+                if valid_time is None and base_time is None:
+                    return None
+                result = {"base_time": base_time, "valid_time": valid_time}
+                step = self.data.get("time.step", default=None)
+                if step is not None:
+                    result["time.step"] = step
+                return result
+            except Exception:
+                pass
+
+        return None
+
     def get_gridspec(self) -> Any | None:
         """
         Extract gridspec from earthkit data.

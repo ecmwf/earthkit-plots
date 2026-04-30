@@ -880,6 +880,75 @@ class XarrayExtractor(BaseExtractor):
 
         return None
 
+    def get_datetime(self) -> dict | None:
+        """
+        Extract datetime information from xarray scalar time coordinates.
+
+        Scans for well-known time coordinate names (``valid_time``, ``time``,
+        ``forecast_reference_time``, ``initial_time``) and returns a dict
+        with ``base_time`` and ``valid_time`` keys, or None if none found.
+
+        Returns
+        -------
+        dict or None
+            Dict with ``base_time`` and ``valid_time`` datetime values,
+            or None if no scalar/single time coordinate is found.
+        """
+        da = self._get_primary_da()
+        if da is None:
+            if isinstance(self.data, xr.Dataset):
+                da = next(iter(self.data.data_vars.values()), None)
+                if da is None:
+                    return None
+            else:
+                da = self.data
+
+        time_coord_names = [
+            "valid_time",
+            "time",
+            "forecast_reference_time",
+            "initial_time",
+        ]
+        found = {}
+        for name in time_coord_names:
+            if name in da.coords:
+                coord = da.coords[name]
+                val = coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+                if val is not None:
+                    dt = self._parse_time_value(val)
+                    if dt is not None:
+                        found[name] = dt
+
+        if not found:
+            return None
+
+        valid = found.get("valid_time") or found.get("time")
+        base = found.get("forecast_reference_time") or found.get("initial_time") or valid
+        return {"base_time": base, "valid_time": valid}
+
+    @staticmethod
+    def _parse_time_value(value):
+        """Parse a numpy datetime64, Python datetime, or string into a datetime."""
+        import datetime
+
+        import numpy as np
+
+        if isinstance(value, datetime.datetime):
+            return value
+        if isinstance(value, np.datetime64):
+            try:
+                import pandas as pd
+
+                return pd.Timestamp(value).to_pydatetime()
+            except ImportError:
+                return value.astype("datetime64[ms]").astype(datetime.datetime)
+        try:
+            import dateutil.parser
+
+            return dateutil.parser.parse(str(value))
+        except (ValueError, TypeError, OverflowError):
+            return None
+
     def get_crs(self) -> Any | None:
         """
         Extract CRS from xarray data.

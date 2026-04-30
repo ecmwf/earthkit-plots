@@ -145,7 +145,16 @@ DEFAULT_ANALYSIS_TITLE = "{variable_name} at {valid_time:%H:%M} on {valid_time:%
 DEFAULT_NO_TIME_TITLE = "{variable_name}"
 
 #: Keys that are related to time.
-TIME_KEYS = ["base_time", "valid_time", "lead_time", "time", "utc_offset"]
+TIME_KEYS = [
+    "base_time",
+    "valid_time",
+    "lead_time",
+    "time",
+    "utc_offset",
+    "time.valid_datetime",
+    "time.base_datetime",
+    "time.step",
+]
 
 #: Magic keys that can be used to extract metadata.
 MAGIC_KEYS = {
@@ -220,17 +229,24 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         from the general metadata of the data.
     """
     if attr in TIME_KEYS:
+        # Map earthkit-data namespace keys to canonical TimeFormatter property names.
+        _TIME_KEY_MAP = {
+            "time.valid_datetime": "valid_time",
+            "time.base_datetime": "base_time",
+            "time.step": "lead_time",
+        }
+        handler_attr = _TIME_KEY_MAP.get(attr, attr)
         try:
-            dt_info = data.datetime()
-            # datetime() returns {} when the source has no scalar/single time coord
-            # (e.g. an xarray DataArray whose time dimension has many values).
-            # In that case treat the key as missing rather than crashing.
-            if not dt_info:
+            # Pass the source directly; TimeFormatter calls .datetime() itself.
+            handler = TimeFormatter(data)
+            dt_info = handler.times[0] if handler.times else {}
+            # datetime() returns all-None when the source has no scalar/single
+            # time coord — treat that as missing rather than returning None values.
+            if not dt_info or not any(v is not None for v in dt_info.values()):
                 label = default
             else:
-                handler = TimeFormatter(dt_info)
-                label = getattr(handler, attr)
-                if len(label) == 1:
+                label = getattr(handler, handler_attr)
+                if isinstance(label, list) and len(label) == 1:
                     label = label[0]
         except Exception:
             label = default
