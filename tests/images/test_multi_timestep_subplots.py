@@ -13,10 +13,10 @@
 # limitations under the License.
 
 import earthkit.data as ekd
+import matplotlib.pyplot as plt
 import pytest
 
 import earthkit.plots as ekp
-import matplotlib.pyplot as plt
 from earthkit.plots import schema
 
 
