@@ -115,3 +115,20 @@ class BaseExtractor:
             Grid specification if data has special grid structure.
         """
         return None
+
+    def get_datetime(self) -> dict | None:
+        """
+        Extract datetime information from the data.
+
+        Returns a dict with keys ``base_time``, ``valid_time``, and optionally
+        ``time.step``, or ``None`` if no time information is available.
+
+        Default implementation returns None.
+        Subclasses should override for their data type.
+
+        Returns
+        -------
+        dict or None
+            Dict with datetime information, or None if not available.
+        """
+        return None
