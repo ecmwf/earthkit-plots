@@ -29,6 +29,35 @@ METADATA = dict[str, Any | Sequence[Any]]
 # Variables are assigned a cmap in the order they are first encountered.
 _FALLBACK_CMAPS = ["plasma", "viridis", "pink", "copper"]
 _fallback_cmap_assignments: dict[str, str] = {}
+# One Style instance per variable name so that the same variable always maps to
+# the same object (legend deduplication uses ==), while two different variables
+# that happen to share a cmap are still distinct objects.
+_fallback_style_cache: dict[str, "styles.Style"] = {}
+_VariableFallbackStyle = None  # built lazily after styles.Style is available
+
+
+def _get_variable_fallback_style_class():
+    """Return _VariableFallbackStyle, constructing it on first call.
+
+    Deferred to avoid a circular import: auto.py is imported by
+    styles/__init__.py before styles.Style is defined.
+    """
+    global _VariableFallbackStyle
+    if _VariableFallbackStyle is None:
+
+        class _VFS(styles.Style):
+            """Fallback Style that compares by identity so two variables sharing
+            the same cmap are never merged into one legend entry.
+            """
+
+            def __eq__(self, other):
+                return self is other
+
+            def __hash__(self):
+                return id(self)
+
+        _VariableFallbackStyle = _VFS
+    return _VariableFallbackStyle
 
 
 def criteria_matches(data, criteria: METADATA) -> bool:
@@ -55,6 +84,10 @@ def _fallback_style(data):
     in the order they are first seen; once the list is exhausted, cmaps cycle.
     Variables that don't expose a recognisable name all share the last fallback
     slot (same behaviour as the old ``DEFAULT_STYLE``).
+
+    Each variable gets its own cached :class:`_VariableFallbackStyle` instance.
+    Because that subclass compares by identity (not value), two variables that
+    happen to share a cmap are never incorrectly merged into the same legend.
     """
     var_name = None
     for attr in ("name", "short_name", "param"):
@@ -69,11 +102,14 @@ def _fallback_style(data):
     if var_name is None:
         return styles.DEFAULT_STYLE
 
-    if var_name not in _fallback_cmap_assignments:
-        idx = len(_fallback_cmap_assignments) % len(_FALLBACK_CMAPS)
-        _fallback_cmap_assignments[var_name] = _FALLBACK_CMAPS[idx]
+    if var_name not in _fallback_style_cache:
+        if var_name not in _fallback_cmap_assignments:
+            idx = len(_fallback_cmap_assignments) % len(_FALLBACK_CMAPS)
+            _fallback_cmap_assignments[var_name] = _FALLBACK_CMAPS[idx]
+        cls = _get_variable_fallback_style_class()
+        _fallback_style_cache[var_name] = cls(colors=_fallback_cmap_assignments[var_name])
 
-    return styles.Style(colors=_fallback_cmap_assignments[var_name])
+    return _fallback_style_cache[var_name]
 
 
 # ---------------------------------------------------------------------------
