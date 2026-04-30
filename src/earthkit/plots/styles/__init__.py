@@ -170,11 +170,12 @@ class Style:
     def from_dict(cls, kwargs):
         """Create a `Style` from a dictionary."""
         style_type = kwargs.pop("type")
-        # Remove YAML-only metadata fields that are not matplotlib or Style kwargs
-        kwargs.pop("name", None)
+        name = kwargs.pop("name", None)
         if "levels" in kwargs:
             kwargs["levels"] = levels.Levels.from_config(kwargs["levels"])
-        return getattr(styles, style_type)(**kwargs)
+        instance = getattr(styles, style_type)(**kwargs)
+        instance._name = name
+        return instance
 
     def __init__(
         self,
@@ -240,6 +241,7 @@ class Style:
         self._preferred_method = preferred_method
         self._vmin = vmin
         self._vmax = vmax
+        self._name = None
 
     # TODO
     # def to_yaml(self):
@@ -250,7 +252,7 @@ class Style:
     #     pass
 
     def __eq__(self, other):
-        keys = ["_levels", "_colors"]
+        keys = ["_name", "_levels", "_colors"]
         return compare_attributes(self, other, keys)
 
     def _get_config(self):

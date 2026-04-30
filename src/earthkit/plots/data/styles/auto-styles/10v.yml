@@ -1,0 +1,19 @@
+id: 10v
+optimal: 10V_RDBU_M_S
+
+styles:
+  10V_RDBU_M_S:
+    name: 10v-rdbu-m-s
+    type: Style
+    colors: PiYG
+    extend: both
+    levels: range(-26, 27, 2)
+    units: m s-1
+
+  10V_RDBU_KNOTS:
+    name: 10v-rdbu-knots
+    type: Style
+    colors: PiYG
+    extend: both
+    levels: range(-50, 51, 5)
+    units: knots

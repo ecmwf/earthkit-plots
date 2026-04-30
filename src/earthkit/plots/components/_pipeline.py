@@ -496,28 +496,54 @@ def extract_plottables_2D(
             # renders a proper world map rather than a slightly-clipped view.
             _x_1d = x_ext[0] if x_ext.ndim == 2 else x_ext
             _y_1d = y_ext[:, 0] if y_ext.ndim == 2 else y_ext
+            _is_global_x = False
+            _is_global_y = False
             if _x_1d.size > 1:
-                _x_step = float(np.abs(np.median(np.diff(np.unique(_x_1d)))))
-                if _x_step > 0 and np.isclose((x_max - x_min) + _x_step, 360.0, atol=_x_step * 0.1):
+                # Sort unique values before diffing — wrapping (0→360 to -180→180)
+                # produces a large negative jump that corrupts the unsorted median.
+                _x_sorted = np.sort(np.unique(_x_1d))
+                _x_step = float(np.abs(np.median(np.diff(_x_sorted))))
+                _x_span = x_max - x_min
+                # Accept both: cell-centre data (span + step ≈ 360) and already-
+                # wrapped data whose centres touch ±180 exactly (span ≈ 360).
+                if _x_step > 0 and (
+                    np.isclose(_x_span + _x_step, 360.0, atol=_x_step * 0.1)
+                    or np.isclose(_x_span, 360.0, atol=_x_step * 0.1)
+                ):
                     x_min, x_max = -180.0, 180.0
+                    _is_global_x = True
             if _y_1d.size > 1:
                 _y_step = float(np.abs(np.median(np.diff(np.unique(_y_1d)))))
-                if _y_step > 0 and np.isclose((y_max - y_min) + _y_step, 180.0, atol=_y_step * 0.1):
+                _y_span = y_max - y_min
+                if _y_step > 0 and (
+                    np.isclose(_y_span + _y_step, 180.0, atol=_y_step * 0.1)
+                    or np.isclose(_y_span, 180.0, atol=_y_step * 0.1)
+                ):
                     y_min, y_max = -90.0, 90.0
+                    _is_global_y = True
 
-            domain = _domains.Domain.from_bbox(
-                bbox=[x_min, x_max, y_min, y_max],
-                source_crs=source.crs,
-                target_crs=subplot.crs,
-            )
-            bbox_vals = list(domain.bbox)
-            if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
-                subplot.domain = domain
-                if subplot._ax is not None:
-                    subplot._ax.set_extent(
-                        domain.bbox.to_cartopy_bounds(),
-                        domain.bbox.crs,
-                    )
+            # For pseudo-cylindrical projections (Robinson, EqualEarth, Mollweide,
+            # etc.) with global data, skip set_extent entirely. These projections
+            # have a curved, non-rectangular boundary: reprojecting just the four
+            # corners under-samples that boundary, producing a bounding box smaller
+            # than the full globe and clipping the poles/edges. Cartopy's default
+            # natural extent for these projections already shows the full globe.
+            _is_global = _is_global_x and _is_global_y
+            _is_pseudo_cylindrical = not isinstance(subplot.crs, _ccrs._CylindricalProjection)
+            if not (_is_global and _is_pseudo_cylindrical):
+                domain = _domains.Domain.from_bbox(
+                    bbox=[x_min, x_max, y_min, y_max],
+                    source_crs=source.crs,
+                    target_crs=subplot.crs,
+                )
+                bbox_vals = list(domain.bbox)
+                if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
+                    subplot.domain = domain
+                    if subplot._ax is not None:
+                        subplot._ax.set_extent(
+                            domain.bbox.to_cartopy_bounds(),
+                            domain.bbox.crs,
+                        )
         except Exception:
             pass
 

@@ -1,0 +1,19 @@
+id: 10u
+optimal: 10U_RDBU_M_S
+
+styles:
+  10U_RDBU_M_S:
+    name: 10u-rdbu-m-s
+    type: Style
+    colors: PiYG
+    extend: both
+    levels: range(-26, 27, 2)
+    units: m s-1
+
+  10U_RDBU_KNOTS:
+    name: 10u-rdbu-knots
+    type: Style
+    colors: PiYG
+    extend: both
+    levels: range(-50, 51, 5)
+    units: knots

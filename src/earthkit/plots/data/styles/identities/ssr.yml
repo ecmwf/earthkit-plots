@@ -1,0 +1,5 @@
+id: ssr
+criteria:
+- shortName: ssr
+- long_name: Surface net short-wave (solar) radiation
+- standard_name: surface_net_downward_shortwave_flux

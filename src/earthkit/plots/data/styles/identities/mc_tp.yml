@@ -3,4 +3,3 @@ criteria:
 - paramId: '228'
   shortName: tp
   type: cd
-- long_name: Total precipitation

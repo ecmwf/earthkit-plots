@@ -1,28 +1,34 @@
 id: total-precipitation
-optimal: TOTAL_PRECIPITATION_IN_MM
+optimal: TOTAL_PRECIPITATION_BLUE_GRADIENT
 
 styles:
 
+  TOTAL_PRECIPITATION_BLUE_GRADIENT:
+    name: precipitation-blue-gradient
+    type: Style
+    colors:
+    - '#ffffff'
+    - '#6FAFD6'
+    - '#08326E'
+    extend: max
+
   TOTAL_PRECIPITATION_IN_MM:
-    name: precipitation-turbo-mm
+    name: precipitation-mm
     type: Style
     colors: turbo
     extend: max
-    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
     units: mm
 
   TOTAL_PRECIPITATION_IN_M:
-    name: precipitation-turbo-m
+    name: precipitation-m
     type: Style
-    colors: turbo
+    colors: ["white", "#84BCDC", "#08306B"]
     extend: max
-    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
     units: m
 
   TOTAL_PRECIPITATION_IN_KG_M-2:
-    name: precipitation-turbo-kg-m2
+    name: precipitation-kg-m2
     type: Style
     colors: turbo
     extend: max
-    levels: [0.1, 0.2, 0.5, 1, 2, 3, 4, 5]
     units: kg m-2
