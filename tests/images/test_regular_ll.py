@@ -21,35 +21,50 @@ from earthkit.plots import schema
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_0_360_grid_cells():
-    ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
-
+def test_global_ll():
+    data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     chart = ekp.Map()
+    chart.contourf(data, units="celsius", style="auto")
+    chart.title("ERA5 monthly averaged {variable_name} over {domain} - {time:%B %Y}")
 
-    chart.grid_cells(ds)
     chart.coastlines()
+    chart.borders()
+    chart.gridlines()
+
+    chart.legend(label="{variable_name} ({units})")
+
     return chart.fig
 
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_0_360_grid_cells_robinson():
-    ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
-
+def test_global_ll_robinson():
+    data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     chart = ekp.Map(crs="Robinson")
+    chart.contourf(data, units="celsius", style="auto")
+    chart.title("ERA5 monthly averaged {variable_name} over {domain} - {time:%B %Y}")
 
-    chart.grid_cells(ds)
     chart.coastlines()
+    chart.borders()
+    chart.gridlines()
+
+    chart.legend(label="{variable_name} ({units})")
+
     return chart.fig
 
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
-def test_0_360_point_cloud():
-    ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
+def test_global_ll_europe():
+    data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
+    chart = ekp.Map(domain="europe")
+    chart.contourf(data, units="celsius", style="auto")
+    chart.title("ERA5 monthly averaged {variable_name} over {domain} - {time:%B %Y}")
 
-    chart = ekp.Map()
-
-    chart.point_cloud(ds)
     chart.coastlines()
+    chart.borders()
+    chart.gridlines()
+
+    chart.legend(label="{variable_name} ({units})")
+
     return chart.fig

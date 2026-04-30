@@ -1,0 +1,9 @@
+id: 10u
+criteria:
+- paramId: '165'
+  shortName: 10u
+- paramId: 165
+  shortName: 10u
+- long_name: 10 metre U wind component
+- long_name: 10m u-component of wind
+- standard_name: eastward_wind
