@@ -580,9 +580,7 @@ def extract_plottables_2D(
         # cartopy clips longitudes > 180 outside the default axes extent.
         # x_values may be 1D (earthkit) or 2D (meshgrid); z_values is always 2D.
         _lon_normalised = False
-        _is_regular_latlon = source.gridspec is None or source.gridspec.name not in (
-            "healpix", "reduced_gg", "orca"
-        )
+        _is_regular_latlon = source.gridspec is None or source.gridspec.name not in ("healpix", "reduced_gg", "orca")
         if _is_regular_latlon and hasattr(subplot, "crs") and np.any(x_values > 180):
             import cartopy.crs as _ccrs
 
