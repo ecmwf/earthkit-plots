@@ -679,14 +679,28 @@ class Map(Subplot):
                 clip_box = None
                 if _domain_key is not None:
                     from shapely.geometry import box as shapely_box
+                    from shapely.ops import unary_union
 
                     pad = 5.0  # degrees — avoids excluding features on the boundary
-                    clip_box = shapely_box(
-                        max(_llbbox.x_min - pad, -180),
-                        max(_llbbox.y_min - pad, -90),
-                        min(_llbbox.x_max + pad, 180),
-                        min(_llbbox.y_max + pad, 90),
-                    )
+                    y_min = max(_llbbox.y_min - pad, -90)
+                    y_max = min(_llbbox.y_max + pad, 90)
+                    x_min_pad = _llbbox.x_min - pad
+                    x_max_pad = _llbbox.x_max + pad
+
+                    if x_max_pad > 180:
+                        # Domain is in 0-360 space and wraps the antimeridian
+                        # (e.g. Canada: ~170E-360E). Build two boxes in -180/180 space
+                        # so we don't clip away the eastern part of the domain.
+                        box_east = shapely_box(max(x_min_pad, -180), y_min, 180, y_max)
+                        box_west = shapely_box(-180, y_min, min(x_max_pad - 360, 180), y_max)
+                        clip_box = unary_union([box_east, box_west])
+                    else:
+                        clip_box = shapely_box(
+                            max(x_min_pad, -180),
+                            y_min,
+                            min(x_max_pad, 180),
+                            y_max,
+                        )
 
                 geometries = []
                 for record in filtered_records:
