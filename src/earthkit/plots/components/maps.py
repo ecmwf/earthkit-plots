@@ -751,10 +751,7 @@ class Map(Subplot):
                                 sf_kwargs,
                             ))
 
-                # Use fast path whenever transform_first is set — even for
-                # PlateCarree maps where no reprojection was needed, this still
-                # bypasses cartopy's feature_artist / project_geometry pipeline.
-                preprojected = _transform_first
+                preprojected = _can_transform_first
 
                 if hasattr(self.figure, "_ancillary_cache"):
                     self.figure._ancillary_cache[cache_key] = (
