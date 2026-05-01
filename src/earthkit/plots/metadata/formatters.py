@@ -12,7 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import logging
+import re
 from string import Formatter
 from zoneinfo import ZoneInfo
 
@@ -25,6 +27,71 @@ from earthkit.plots.sources.dimensions import DimensionInfo
 from earthkit.plots.utils import iter_utils, string_utils
 
 logger = logging.getLogger(__name__)
+
+# Matches an optional standard fill/align/width/precision prefix followed by a
+# timedelta unit letter.  Examples: "h", "03h", ".1h", ">5d", "D", "H", "M".
+_TIMEDELTA_SPEC_RE = re.compile(r"^(?P<std_prefix>[^a-zA-Z]*)(?P<unit>[dhmsHDMS])$")
+
+_SINGLE_UNITS = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+_COMPOUND_UNITS = {
+    # spec letter -> (units to emit, in descending order)
+    "D": ("d", "h", "m", "s"),
+    "H": ("h", "m", "s"),
+    "M": ("m", "s"),
+}
+_ALL_TIMEDELTA_UNITS = set(_SINGLE_UNITS) | set(_COMPOUND_UNITS)
+
+
+def _coerce_to_timedelta(value):
+    """Return a timedelta from an int (hours), float (hours), or timedelta."""
+    if isinstance(value, datetime.timedelta):
+        return value
+    if isinstance(value, (int, float)):
+        return datetime.timedelta(hours=value)
+    raise TypeError(f"Cannot convert {type(value).__name__!r} to timedelta")
+
+
+def format_timedelta(value, spec):
+    """Format a timedelta using earthkit-plots timedelta specs.
+
+    Single-unit lowercase (d/h/m/s): total in that unit, truncated toward zero
+    (or formatted with the given precision if the prefix includes one).
+    Compound uppercase (D/H/M): largest named unit descending, zero components
+    omitted. Compound specs do not accept a fill/align/width prefix.
+    """
+    match = _TIMEDELTA_SPEC_RE.match(spec)
+    unit = match.group("unit") if match else None
+    if unit not in _ALL_TIMEDELTA_UNITS:
+        raise ValueError(f"Invalid timedelta format spec {spec!r}. Valid unit codes: {sorted(_ALL_TIMEDELTA_UNITS)}")
+    prefix = match.group("std_prefix")
+
+    total_seconds = _coerce_to_timedelta(value).total_seconds()
+    sign = "-" if total_seconds < 0 else ""
+    total_seconds = abs(total_seconds)
+
+    if unit in _SINGLE_UNITS:
+        amount = total_seconds / _SINGLE_UNITS[unit]
+        # If the prefix specifies precision (".1f"-style), format as float;
+        # otherwise truncate toward zero and let the prefix handle width/fill.
+        if "." in prefix:
+            body = format(amount, prefix + "f")
+        else:
+            body = format(int(amount), prefix) if prefix else str(int(amount))
+        return sign + body
+
+    if prefix:
+        raise ValueError(f"Fill/align/width prefix {prefix!r} is not supported for compound timedelta spec {spec!r}")
+
+    # Compound: walk units largest-to-smallest, taking the integer quotient
+    # and carrying the remainder forward.
+    remaining = int(total_seconds)
+    parts = []
+    for u in _COMPOUND_UNITS[unit]:
+        qty, remaining = divmod(remaining, _SINGLE_UNITS[u])
+        if qty:
+            parts.append(f"{qty}{u}")
+    body = " ".join(parts) if parts else f"0{_COMPOUND_UNITS[unit][0]}"
+    return sign + body
 
 
 def parse_time(time):
@@ -195,10 +262,6 @@ class BaseFormatter(Formatter):
             return metadata.units.format_units(value.replace("__units__", ""), format_spec)
 
         # Pass datetime-like objects directly when format_spec contains strftime patterns
-        import datetime
-
-        import numpy as np
-
         if isinstance(value, np.datetime64) and "%" in format_spec:
             import pandas as pd
 
@@ -207,6 +270,15 @@ class BaseFormatter(Formatter):
             value = int(value)
         if isinstance(value, (datetime.datetime, datetime.date)) and "%" in format_spec:
             return format(value, format_spec)
+
+        # Timedelta format specs (e.g. h, d, D, H, 03h, .1h).
+        # With no spec, default to the compound "H" format (e.g. "3 days 6 hours").
+        if isinstance(value, (int, float, datetime.timedelta)):
+            if not format_spec:
+                return format_timedelta(value, "h")
+            td_match = _TIMEDELTA_SPEC_RE.match(format_spec)
+            if td_match and td_match.group("unit") in _ALL_TIMEDELTA_UNITS:
+                return format_timedelta(value, format_spec)
 
         # Handle coordinate format specifiers
         if format_spec.startswith("%Lt"):
@@ -446,10 +518,23 @@ class SubplotFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
+
+        from earthkit.plots.metadata.labels import LocationInfo
+
         if key in self.SUBPLOT_ATTRIBUTES:
             values = [getattr(self.subplot, self.SUBPLOT_ATTRIBUTES[key])]
         else:
-            values = [LayerFormatter(layer, axis=self._axis).format_key(key) for layer in self.subplot.layers]
+            # Collect values without per-layer warnings; warn once only if no
+            # layer carries the key at all.
+            values = [
+                LayerFormatter(layer, axis=self._axis, issue_warnings=False).format_key(key)
+                for layer in self.subplot.layers
+            ]
+            if all(v is None for v in values):
+                # For location, fall back to a single "Unknown location" sentinel
+                # rather than warning — missing geographic metadata is expected.
+                if key == "location":
+                    values = [LocationInfo()]
         return values
 
     def format_field(self, value, format_spec):
@@ -460,6 +545,9 @@ class SubplotFormatter(BaseFormatter):
                 value = values[self._layer_index]
                 self._layer_index = None
             else:
+                # Drop empty strings that arose from None values before
+                # deduplication so they don't pollute the rendered title.
+                values = [v for v in values if v != ""]
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
@@ -498,6 +586,9 @@ class FigureFormatter(BaseFormatter):
                 value = values[self._layer_index]
                 self._layer_index = None
             else:
+                # Drop empty strings that arose from None values before
+                # deduplication so they don't pollute the rendered title.
+                values = [v for v in values if v != ""]
                 if self.unique:
                     values = list(dict.fromkeys(values))
                 value = string_utils.list_to_human(values)
@@ -519,6 +610,9 @@ class TimeFormatter:
     """
 
     def __init__(self, times, time_zone=None):
+        # Accept a Source (or any object with a .datetime() method) directly.
+        if hasattr(times, "datetime") and callable(times.datetime):
+            times = times.datetime()
         if not isinstance(times, (list, tuple)):
             times = [times]
         for i, time in enumerate(times):
@@ -547,9 +641,21 @@ class TimeFormatter:
 
         return property(wrapper)
 
+    # Maps canonical TimeFormatter attribute names to the keys that may appear
+    # in the time dict, in priority order.
+    _KEY_ALIASES = {
+        "valid_time": ["valid_time", "time.valid_datetime", "time"],
+        "base_time": ["base_time", "time.base_datetime"],
+        "lead_time": ["lead_time", "time.step"],
+    }
+
     @staticmethod
     def _named_time(time, attr):
-        return time.get(attr, time.get("time"))
+        for key in TimeFormatter._KEY_ALIASES.get(attr, [attr, "time"]):
+            value = time.get(key)
+            if value is not None:
+                return value
+        return time.get("time")
 
     @property
     def time(self):
@@ -582,6 +688,11 @@ class TimeFormatter:
         """The lead time of the data, i.e. the time between the base and valid times."""
         lead_times = []
         for time in self.times:
+            # Prefer an explicit step/lead_time value.
+            step = time.get("lead_time") or time.get("time.step")
+            if step is not None:
+                lead_times.append(_coerce_to_timedelta(step))
+                continue
             btime = self._named_time(time, "base_time")
             vtime = self._named_time(time, "valid_time")
             if isinstance(btime, (list, tuple)):
@@ -589,26 +700,22 @@ class TimeFormatter:
             if isinstance(vtime, (list, tuple)):
                 vtime = vtime[0]
             if btime is not None and vtime is not None:
-                lead_time_hours = int((vtime - btime).total_seconds() / 3600)
-                lead_times.append(lead_time_hours)
+                lead_times.append(vtime - btime)
             else:
                 lead_times.append(None)
 
         if len(lead_times) > 1:
             non_none_values = [x for x in lead_times if x is not None]
-
             if non_none_values:
-                # Create result list preserving None values and unique non-None values
                 result = []
                 seen_values = set()
-                for _, value in enumerate(lead_times):
+                for value in lead_times:
                     if value is None:
                         result.append(None)
                     elif value not in seen_values:
                         result.append(value)
                         seen_values.add(value)
             else:
-                # All values are None
                 result = lead_times
         else:
             result = lead_times
@@ -631,10 +738,7 @@ def format_month(data):
     if month is not None:
         month = calendar.month_name[month]
     else:
-        time = data.datetime()
-        if "valid_time" in time:
-            time = time["valid_time"]
-        else:
-            time = time["base_time"]
-        month = f"{time:%B}"
+        dt_info = data.datetime()
+        time = dt_info.get("valid_time") or dt_info.get("base_time")
+        month = f"{time:%B}" if time is not None else None
     return month

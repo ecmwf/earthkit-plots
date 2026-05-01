@@ -18,7 +18,8 @@ import os
 import matplotlib
 import matplotlib.pyplot as plt
 
-from earthkit.plots import styles
+from earthkit.plots import frames, styles
+from earthkit.plots.frames import Batch, Browser
 from earthkit.plots.components.figures import Figure
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.definitions import DEFAULT_STYLES_DIR, FONTS_DIR
@@ -38,6 +39,9 @@ except ImportError:  # pragma: no cover
 
 
 __all__ = [
+    "Batch",
+    "Browser",
+    "frames",
     "Figure",
     "Subplot",
     "Map",

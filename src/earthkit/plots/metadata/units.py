@@ -111,7 +111,11 @@ def _pintify(unit_str):
 
     ureg = _get_ureg()
     try:
-        result = ureg(unit_str).units
+        quantity = ureg(unit_str)
+        if not hasattr(quantity, "units"):
+            result = unit_str
+        else:
+            result = quantity.units
     except pint.errors.UndefinedUnitError:
         result = unit_str
     return result

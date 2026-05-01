@@ -818,6 +818,59 @@ class Figure:
         """
 
     @iterate_subplots
+    def grid_cells(self, *args, **kwargs):
+        """
+        Plot data as grid cells on every subplot in the figure.
+
+        For HEALPix and octahedral reduced Gaussian grids the fast pixel-
+        sampling ``nnshow`` backends are used automatically.  For other grid
+        types, plain pcolormesh rendering is used.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data to plot.
+        x, y, z : str, array-like, or None, optional
+            Explicit coordinates / values.
+        style : earthkit.plots.styles.Style, optional
+            The Style to apply. If None, a Style is automatically generated from the data.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        grid : str or GridSpec, optional
+            Grid specification to use for rendering.  Pass ``"auto"`` (the
+            default) to detect the grid type from the data metadata.
+        **kwargs
+            Additional keyword arguments forwarded to the underlying plot method.
+        """
+
+    @iterate_subplots
+    def point_cloud(self, *args, **kwargs):
+        """
+        Plot data values as a coloured point cloud on every subplot in the figure.
+
+        Each data point is rendered as a scatter point coloured by its value.
+        Suitable for sparse or unstructured observation data.
+
+        Parameters
+        ----------
+        data : xarray.DataArray or earthkit.data.core.Base, optional
+            The data to plot.
+        x : str, optional
+            The name of the x-coordinate variable in the data source.
+        y : str, optional
+            The name of the y-coordinate variable in the data source.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        **kwargs
+            Additional keyword arguments passed to
+            :meth:`matplotlib.axes.Axes.scatter`.
+        """
+
+    @iterate_subplots
     def imshow(self, *args, **kwargs):
         """
         Plot an image on every subplot in the figure.

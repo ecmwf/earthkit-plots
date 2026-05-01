@@ -174,14 +174,26 @@ def _apply_time_offset(da, offset, time_dim=None):
 
     Parameters
     ----------
-    da : xarray.DataArray or any
-        Data to shift.  Non-DataArray inputs pass through unmodified.
+    da : xarray.DataArray or xarray.Dataset or any
+        Data to shift.  Non-DataArray/Dataset inputs pass through unmodified.
     offset : pandas.Timedelta or pandas.DateOffset
         Amount to shift the time coordinate.
     time_dim : str, optional
         Name of the time dimension.  Auto-detected if ``None``.
     """
     import xarray as xr
+
+    if isinstance(da, xr.Dataset):
+        if time_dim is None:
+            time_dim = find_time(list(da.dims))
+        if time_dim is None or time_dim not in da.coords:
+            return da
+        old_times = pd.DatetimeIndex(da[time_dim].values)
+        if isinstance(offset, pd.Timedelta):
+            new_times = old_times + offset
+        else:
+            new_times = pd.DatetimeIndex([t + offset for t in old_times])
+        return da.assign_coords({time_dim: new_times})
 
     if not isinstance(da, xr.DataArray):
         return da

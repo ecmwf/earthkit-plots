@@ -314,6 +314,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/_static/domains/
 
 # PyBuilder
 .pybuilder/

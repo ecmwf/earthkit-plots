@@ -44,11 +44,14 @@ class XarrayExtractor(BaseExtractor):
         Xarray data structure.
     """
 
-    def __init__(self, data: xr.DataArray | xr.Dataset):
+    def __init__(self, data: xr.DataArray | xr.Dataset, metadata: dict | None = None):
         super().__init__(data)
 
         # Remove singleton dimensions for easier handling
         self.data = data.squeeze()
+
+        # User-supplied metadata (e.g. grid spec overrides)
+        self._user_metadata: dict = metadata or {}
 
         # Set up cache for selected DataArray (when data is Dataset)
         self._selected_dataarray: xr.DataArray | None = None
@@ -355,6 +358,42 @@ class XarrayExtractor(BaseExtractor):
                     result["u"] = u_info
                     result["v"] = v_info
                 return result
+
+            # Geographic extraction found no lat/lon coordinates.  This is
+            # normal for structured unstructured grids (HEALPix, reduced
+            # Gaussian) where the cell dimension is 1D and lat/lon are derived
+            # from the gridspec at regrid time.  Return the raw values with
+            # placeholder x/y — the Regrid step will replace them.
+
+            # Check the gridspec *before* touching da.values — for dask-backed
+            # arrays, calling .values triggers a compute that can take seconds
+            # even if we are about to raise an error anyway.
+            if da.ndim == 1:
+                from earthkit.plots.resample._regrid import _is_structured_grid
+
+                gridspec = self.get_gridspec()
+                if not _is_structured_grid(gridspec):
+                    raise ValueError(
+                        f"Got 1D data (shape {da.shape}) in a geographic 2D plot context "
+                        "but no recognised grid specification was found. "
+                        "Pass a grid spec via the data's 'ek_grid_spec' attribute or via the "
+                        "metadata argument."
+                    )
+
+            if z is not None:
+                z_values, z_name, z_metadata, z_units = self._resolve_coordinate_spec(da, z)
+            else:
+                z_values = da.values
+                z_name = da.name if da.name else ""
+                z_metadata = dict(da.attrs) if hasattr(da, "attrs") else {}
+                z_units = z_metadata.get("units")
+
+            if z_values.ndim == 1:
+                placeholder = np.zeros(len(z_values))
+                x_info = CoordinateInfo(values=placeholder, name="", source_units=None, metadata={})
+                y_info = CoordinateInfo(values=placeholder, name="", source_units=None, metadata={})
+                z_info = CoordinateInfo(values=z_values, name=z_name, source_units=z_units, metadata=z_metadata)
+                return {"x": x_info, "y": y_info, "z": z_info, "u": None, "v": None}
 
         # Cartesian 2D or fallback for geographic
         # Convention: z is 2D data field, x/y are coordinates along axes
@@ -791,10 +830,14 @@ class XarrayExtractor(BaseExtractor):
             coord = da_for_coords.coords[key]
             if coord.ndim == 0:
                 return _coord_item(coord)
+            elif coord.ndim == 1 and coord.size == 1:
+                return _coord_item(coord[0])
         if isinstance(self.data, xr.Dataset) and key in self.data.coords:
             coord = self.data.coords[key]
             if coord.ndim == 0:
                 return _coord_item(coord)
+            elif coord.ndim == 1 and coord.size == 1:
+                return _coord_item(coord[0])
 
         # Step 3: Variable name as "name" fallback
         if key == "name":
@@ -835,6 +878,122 @@ class XarrayExtractor(BaseExtractor):
             except Exception:
                 pass
 
+        return None
+
+    def get_datetime(self) -> dict | None:
+        """
+        Extract datetime information from xarray scalar time coordinates.
+
+        Handles three cases:
+        - ``valid_time``/``time`` (+ optional ``forecast_reference_time``/``initial_time``
+          as base): returns ``base_time`` and ``valid_time``.
+        - ``forecast_reference_time`` + ``step``: returns ``base_time``, ``lead_time``
+          (as a timedelta), and the derived ``valid_time``.
+        - ``step`` only: returns ``lead_time`` (as a timedelta) with no absolute times.
+
+        Returns
+        -------
+        dict or None
+            Dict with a subset of ``base_time``, ``valid_time``, ``lead_time`` keys,
+            or None if no recognised time coordinate is found.
+        """
+        da = self._get_primary_da()
+        if da is None:
+            if isinstance(self.data, xr.Dataset):
+                da = next(iter(self.data.data_vars.values()), None)
+                if da is None:
+                    return None
+            else:
+                da = self.data
+
+        def _scalar_val(coord):
+            return coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+
+        # --- absolute datetime coords ---
+        datetime_coord_names = ["valid_time", "time", "forecast_reference_time", "initial_time"]
+        found = {}
+        for name in datetime_coord_names:
+            if name in da.coords:
+                val = _scalar_val(da.coords[name])
+                if val is not None:
+                    dt = self._parse_time_value(val)
+                    if dt is not None:
+                        found[name] = dt
+
+        # --- step / lead_time coord (timedelta64) ---
+        lead_time = None
+        for step_name in ("step", "lead_time"):
+            if step_name in da.coords:
+                val = _scalar_val(da.coords[step_name])
+                if val is not None:
+                    lead_time = self._parse_timedelta_value(val)
+                    if lead_time is not None:
+                        break
+
+        # Nothing at all found.
+        if not found and lead_time is None:
+            return None
+
+        result = {}
+
+        base = found.get("forecast_reference_time") or found.get("initial_time")
+        valid = found.get("valid_time") or found.get("time")
+
+        if base is not None:
+            result["base_time"] = base
+        if valid is not None:
+            result["valid_time"] = valid
+        elif base is not None and lead_time is not None:
+            # Derive valid_time from base + step.
+            result["valid_time"] = base + lead_time
+        if lead_time is not None:
+            result["lead_time"] = lead_time
+        elif base is not None and valid is not None:
+            # Derive lead_time from the two absolute times.
+            result["lead_time"] = valid - base
+
+        # Ensure base_time falls back to valid when no reference time is present.
+        if "base_time" not in result and "valid_time" in result:
+            result["base_time"] = result["valid_time"]
+
+        return result if result else None
+
+    @staticmethod
+    def _parse_time_value(value):
+        """Parse a numpy datetime64, Python datetime, or string into a datetime."""
+        import datetime
+
+        import numpy as np
+
+        if isinstance(value, datetime.datetime):
+            return value
+        if isinstance(value, np.datetime64):
+            try:
+                import pandas as pd
+
+                return pd.Timestamp(value).to_pydatetime()
+            except ImportError:
+                return value.astype("datetime64[ms]").astype(datetime.datetime)
+        try:
+            import dateutil.parser
+
+            return dateutil.parser.parse(str(value))
+        except (ValueError, TypeError, OverflowError):
+            return None
+
+    @staticmethod
+    def _parse_timedelta_value(value):
+        """Parse a numpy timedelta64 or Python timedelta into a datetime.timedelta."""
+        import datetime
+
+        import numpy as np
+
+        if isinstance(value, datetime.timedelta):
+            return value
+        if isinstance(value, np.timedelta64):
+            # Convert via integer nanoseconds to avoid overflow on large steps.
+            ns = int(value.astype("timedelta64[ns]").astype(np.int64))
+            return datetime.timedelta(microseconds=ns // 1000)
         return None
 
     def get_crs(self) -> Any | None:
@@ -910,6 +1069,18 @@ class XarrayExtractor(BaseExtractor):
                     if spec:
                         return GridSpec(spec)
             return None
+
+        # User-supplied metadata takes priority.  Also accept a plain "grid"
+        # key (e.g. metadata={"grid": "H512"}) as a shorthand for ek_grid_spec.
+        if self._user_metadata:
+            result = _extract(self._user_metadata)
+            if result is not None:
+                return result
+            # Shorthand: {"grid": "H512", ...} passed directly
+            if "grid" in self._user_metadata:
+                spec = GridSpec._to_dict(self._user_metadata)
+                if spec:
+                    return GridSpec(spec)
 
         # Check attrs on self.data — covers both DataArrays (variable attrs) and
         # Datasets (global attrs). xarray DataArrays don't carry a back-reference

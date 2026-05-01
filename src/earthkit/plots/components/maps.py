@@ -706,14 +706,20 @@ class Map(Subplot):
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Determine whether we need to reproject geometries from
-                # PlateCarree(-180..180) (Natural Earth source) into the map CRS.
-                # Uses full equality (not type-only) so PlateCarree maps with a
-                # non-zero central_longitude are correctly reprojected.
-                needs_reproject = _transform_first and not coordinate_reference_systems.crs_equal(
-                    target_crs, match_type_only=False
+                # Apply transform_first optimization if requested and needed.
+                # Only safe for cylindrical projections — pseudo-cylindrical
+                # projections (Robinson, Mollweide, etc.) produce a spurious
+                # line across the globe when antimeridian-crossing geometries
+                # are pre-reprojected, because the straight connector between
+                # the two ends of a split ring maps as a full-width stroke.
+                # Cartopy's own reprojection handles antimeridian splitting
+                # correctly, so we fall back to it for non-cylindrical CRSes.
+                _can_transform_first = (
+                    _transform_first
+                    and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
+                    and coordinate_reference_systems.is_cylindrical(target_crs)
                 )
-                if needs_reproject:
+                if _can_transform_first:
                     from earthkit.plots.geography.geometry import reproject_geometries
 
                     geometries = reproject_geometries(geometries, src_crs, target_crs)
@@ -730,7 +736,7 @@ class Map(Subplot):
                         geom = record.geometry
                         if clip_box is not None:
                             geom = geom.intersection(clip_box)
-                        if needs_reproject:
+                        if _can_transform_first and not geom.is_empty:
                             from earthkit.plots.geography.geometry import (
                                 reproject_geometries,
                             )

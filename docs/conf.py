@@ -16,6 +16,7 @@ on_rtd = os.environ.get("READTHEDOCS") == "True"
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("."))
 
+import generate_domains_page  # noqa: E402
 import generate_styles_page  # noqa: E402
 
 if on_rtd:
@@ -37,6 +38,7 @@ else:
 
 _docs_dir = os.path.dirname(os.path.abspath(__file__))
 generate_styles_page.generate(docs_dir=_docs_dir)
+generate_domains_page.generate(docs_dir=_docs_dir)
 
 # -- Project information -----------------------------------------------------
 

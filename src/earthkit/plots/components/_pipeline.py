@@ -44,6 +44,7 @@ from typing import Any
 import numpy as np
 
 from earthkit.plots.components._grid_handlers import (
+    _add_pcolormesh_wrap_column,
     _handle_cyclic_points,
     _handle_specialized_grids,
     _handle_transform_settings,
@@ -216,7 +217,12 @@ def extract_plottables_1D(
     # Step 4: Extract x/y values (unit conversion already applied by Source).
     x_values, y_values = source.x.values, source.y.values
 
-    # Step 4.1: Roll 0–360 longitudes to –180 to +180 if requested.
+    # Step 4.1: Normalise 0–360 longitudes to –180..+180.
+    # Two cases:
+    #   a) Explicit _wrap_longitudes flag (timeseries / non-geographic callers).
+    #   b) Geographic map with a cylindrical CRS — mirrors the 2D pipeline
+    #      Step 6.1 fix so that scatter/point_cloud works the same way as
+    #      contourf/pcolormesh when data runs 0→360.
     if getattr(subplot, "_wrap_longitudes", None) == "x" and np.any(x_values > 180):
         from earthkit.plots.geography.domains import force_minus_180_to_180
 
@@ -229,6 +235,48 @@ def extract_plottables_1D(
         sort_idx = np.argsort(force_minus_180_to_180(y_values))
         y_values = force_minus_180_to_180(y_values)[sort_idx]
         x_values = x_values[sort_idx]
+    elif context == PlotContext.GEOGRAPHIC_1D and np.any(x_values > 180):
+        import cartopy.crs as _ccrs
+
+        _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
+        if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(_src_crs, _ccrs._CylindricalProjection):
+            from earthkit.plots.geography.domains import force_minus_180_to_180
+
+            x_values = force_minus_180_to_180(x_values)
+
+    # Step 4.2: Auto-fit map extent for geographic scatter/point_cloud when no
+    # domain is set.  Mirrors the 2D pipeline Step 2.5a logic.  Must run after
+    # Step 4.1 so x_values is already in –180..+180.
+    if context == PlotContext.GEOGRAPHIC_1D and subplot.domain is None and source.crs is not None:
+        try:
+            import cartopy.crs as _ccrs
+
+            from earthkit.plots.geography import domains as _domains
+
+            _x_flat = x_values.flatten() if x_values.ndim > 1 else x_values
+            _y_flat = y_values.flatten() if y_values.ndim > 1 else y_values
+            _xmn, _xmx = float(_x_flat.min()), float(_x_flat.max())
+            _ymn, _ymx = float(_y_flat.min()), float(_y_flat.max())
+
+            _x_step = float(np.abs(np.median(np.diff(np.unique(_x_flat)))))
+            _y_step = float(np.abs(np.median(np.diff(np.unique(_y_flat)))))
+            if _x_step > 0 and np.isclose((_xmx - _xmn) + _x_step, 360.0, atol=_x_step * 0.1):
+                _xmn, _xmx = -180.0, 180.0
+            if _y_step > 0 and np.isclose((_ymx - _ymn) + _y_step, 180.0, atol=_y_step * 0.1):
+                _ymn, _ymx = -90.0, 90.0
+
+            _domain = _domains.Domain.from_bbox(
+                bbox=[_xmn, _xmx, _ymn, _ymx],
+                source_crs=source.crs,
+                target_crs=subplot.crs,
+            )
+            _bbox_vals = list(_domain.bbox)
+            if None not in _bbox_vals and all(np.isfinite(v) for v in _bbox_vals if v is not None):
+                subplot.domain = _domain
+                if subplot._ax is not None:
+                    subplot._ax.set_extent(_domain.bbox.to_cartopy_bounds(), _domain.bbox.crs)
+        except Exception:
+            pass
 
     # Step 5: Stride-based thinning.
     x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
@@ -437,24 +485,65 @@ def extract_plottables_2D(
             y_ext = source.y.values.squeeze()
             if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(x_ext > 180):
                 x_ext = force_minus_180_to_180(x_ext)
-            domain = _domains.Domain.from_bbox(
-                bbox=[
-                    float(x_ext.min()),
-                    float(x_ext.max()),
-                    float(y_ext.min()),
-                    float(y_ext.max()),
-                ],
-                source_crs=source.crs,
-                target_crs=subplot.crs,
-            )
-            bbox_vals = list(domain.bbox)
-            if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
-                subplot.domain = domain
-                if subplot._ax is not None:
-                    subplot._ax.set_extent(
-                        domain.bbox.to_cartopy_bounds(),
-                        domain.bbox.crs,
-                    )
+
+            x_min, x_max = float(x_ext.min()), float(x_ext.max())
+            y_min, y_max = float(y_ext.min()), float(y_ext.max())
+
+            # For regular global grids (0→360 data), cell centres don't reach
+            # ±180°/±90° — the outermost values sit half a step inside the edge.
+            # Detect this by checking whether span + step ≈ 360° (longitude) or
+            # 180° (latitude), and snap to the full global extent so cartopy
+            # renders a proper world map rather than a slightly-clipped view.
+            _x_1d = x_ext[0] if x_ext.ndim == 2 else x_ext
+            _y_1d = y_ext[:, 0] if y_ext.ndim == 2 else y_ext
+            _is_global_x = False
+            _is_global_y = False
+            if _x_1d.size > 1:
+                # Sort unique values before diffing — wrapping (0→360 to -180→180)
+                # produces a large negative jump that corrupts the unsorted median.
+                _x_sorted = np.sort(np.unique(_x_1d))
+                _x_step = float(np.abs(np.median(np.diff(_x_sorted))))
+                _x_span = x_max - x_min
+                # Accept both: cell-centre data (span + step ≈ 360) and already-
+                # wrapped data whose centres touch ±180 exactly (span ≈ 360).
+                if _x_step > 0 and (
+                    np.isclose(_x_span + _x_step, 360.0, atol=_x_step * 0.1)
+                    or np.isclose(_x_span, 360.0, atol=_x_step * 0.1)
+                ):
+                    x_min, x_max = -180.0, 180.0
+                    _is_global_x = True
+            if _y_1d.size > 1:
+                _y_step = float(np.abs(np.median(np.diff(np.unique(_y_1d)))))
+                _y_span = y_max - y_min
+                if _y_step > 0 and (
+                    np.isclose(_y_span + _y_step, 180.0, atol=_y_step * 0.1)
+                    or np.isclose(_y_span, 180.0, atol=_y_step * 0.1)
+                ):
+                    y_min, y_max = -90.0, 90.0
+                    _is_global_y = True
+
+            # For pseudo-cylindrical projections (Robinson, EqualEarth, Mollweide,
+            # etc.) with global data, skip set_extent entirely. These projections
+            # have a curved, non-rectangular boundary: reprojecting just the four
+            # corners under-samples that boundary, producing a bounding box smaller
+            # than the full globe and clipping the poles/edges. Cartopy's default
+            # natural extent for these projections already shows the full globe.
+            _is_global = _is_global_x and _is_global_y
+            _is_pseudo_cylindrical = not isinstance(subplot.crs, _ccrs._CylindricalProjection)
+            if not (_is_global and _is_pseudo_cylindrical):
+                domain = _domains.Domain.from_bbox(
+                    bbox=[x_min, x_max, y_min, y_max],
+                    source_crs=source.crs,
+                    target_crs=subplot.crs,
+                )
+                bbox_vals = list(domain.bbox)
+                if None not in bbox_vals and all(np.isfinite(v) for v in bbox_vals if v is not None):
+                    subplot.domain = domain
+                    if subplot._ax is not None:
+                        subplot._ax.set_extent(
+                            domain.bbox.to_cartopy_bounds(),
+                            domain.bbox.crs,
+                        )
         except Exception:
             pass
 
@@ -511,6 +600,40 @@ def extract_plottables_2D(
     if mappable is None:
         # Step 6: Extract coordinate arrays and apply stride-based thinning.
         x_values, y_values = source.x.values, source.y.values
+
+        # Step 6.1: Normalise 0–360 longitudes to –180..+180 for cylindrical CRS
+        # (e.g. PlateCarree).  Without this, data west of 0° is invisible because
+        # cartopy clips longitudes > 180 outside the default axes extent.
+        # x_values may be 1D (earthkit) or 2D (meshgrid); z_values is always 2D.
+        _lon_normalised = False
+        _is_regular_latlon = source.gridspec is None or source.gridspec.name not in ("healpix", "reduced_gg", "orca")
+        if _is_regular_latlon and hasattr(subplot, "crs") and np.any(x_values > 180):
+            import cartopy.crs as _ccrs
+
+            _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
+            if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(
+                _src_crs, _ccrs._CylindricalProjection
+            ):
+                from earthkit.plots.geography.domains import (
+                    force_minus_180_to_180,
+                    roll_from_0_360_to_minus_180_180,
+                )
+
+                _ref = x_values[0] if x_values.ndim == 2 else x_values
+                _roll_by = roll_from_0_360_to_minus_180_180(_ref)
+                if x_values.ndim == 2:
+                    x_values = np.roll(x_values, _roll_by, axis=1)
+                    y_values = np.roll(y_values, _roll_by, axis=1)
+                    z_values = np.roll(z_values, _roll_by, axis=1)
+                else:
+                    x_values = np.roll(x_values, _roll_by)
+                    z_values = np.roll(z_values, _roll_by)
+                # force_minus_180_to_180 preserves +180 as-is to avoid
+                # collapsing the east edge; here we want -180 so the result
+                # is sorted and the 180/−180 antimeridian column sits at index 0.
+                x_values = np.where(np.isclose(x_values, 180), -180, force_minus_180_to_180(x_values))
+                _lon_normalised = True
+
         x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
         # Step 6.5: Data-space resampling (Regrid, Unstructured, generic).
@@ -557,10 +680,19 @@ def extract_plottables_2D(
         if ps_result.mappable is not None:
             mappable = ps_result.mappable
 
-        # Step 9: Add cyclic longitude column for global contour plots.
+        # Step 9: Add cyclic longitude column for global plots.
+        # For contourf/contour this prevents a gap at the antimeridian.
+        # For pcolormesh after 0-360→-180..+180 normalisation, this ensures the
+        # last cell (e.g. 150°→180° for 30° data) is fully rendered — without it
+        # pcolormesh can only infer half the cell width at the eastern edge.
         # Skipped when pixel-sampling already produced a complete regular grid.
-        if method_name.startswith("contour") and not ps_result.reprojected:
-            x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
+        if not ps_result.reprojected:
+            if method_name.startswith("contour"):
+                x_values, y_values, z_values = _handle_cyclic_points(x_values, y_values, z_values)
+            elif method_name == "pcolormesh" and _lon_normalised:
+                # needs_cyclic_point won't fire for coarse grids (e.g. 30°) after
+                # normalisation, so force the closing column directly.
+                x_values, y_values, z_values = _add_pcolormesh_wrap_column(x_values, y_values, z_values)
 
         # Step 10: Disable transform_first for unsupported projections.
         kwargs = _handle_transform_settings(subplot, kwargs)
@@ -834,8 +966,23 @@ def extract_plottables_vector_2D(
             y_ext = source.y.values.squeeze()
             if isinstance(source.crs, _ccrs._CylindricalProjection) and np.any(x_ext > 180):
                 x_ext = force_minus_180_to_180(x_ext)
+
+            x_min, x_max = float(x_ext.min()), float(x_ext.max())
+            y_min, y_max = float(y_ext.min()), float(y_ext.max())
+
+            _x_1d = x_ext[0] if x_ext.ndim == 2 else x_ext
+            _y_1d = y_ext[:, 0] if y_ext.ndim == 2 else y_ext
+            if _x_1d.size > 1:
+                _x_step = float(np.abs(np.median(np.diff(np.unique(_x_1d)))))
+                if _x_step > 0 and np.isclose((x_max - x_min) + _x_step, 360.0, atol=_x_step * 0.1):
+                    x_min, x_max = -180.0, 180.0
+            if _y_1d.size > 1:
+                _y_step = float(np.abs(np.median(np.diff(np.unique(_y_1d)))))
+                if _y_step > 0 and np.isclose((y_max - y_min) + _y_step, 180.0, atol=_y_step * 0.1):
+                    y_min, y_max = -90.0, 90.0
+
             domain = _domains.Domain.from_bbox(
-                bbox=[x_ext.min(), x_ext.max(), y_ext.min(), y_ext.max()],
+                bbox=[x_min, x_max, y_min, y_max],
                 source_crs=source.crs,
                 target_crs=subplot.crs,
             )

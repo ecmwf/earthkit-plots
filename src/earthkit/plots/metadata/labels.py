@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 
 import numpy as np
 
@@ -98,7 +97,7 @@ def get_location(data):
             pass
 
     if lat is None or lon is None:
-        return LocationInfo(lat=lat, lon=lon)
+        return None
 
     def calculate_distance(lat1, lon1, lat2, lon2):
         """Calculate distance in degrees between two points."""
@@ -145,7 +144,16 @@ DEFAULT_ANALYSIS_TITLE = "{variable_name} at {valid_time:%H:%M} on {valid_time:%
 DEFAULT_NO_TIME_TITLE = "{variable_name}"
 
 #: Keys that are related to time.
-TIME_KEYS = ["base_time", "valid_time", "lead_time", "time", "utc_offset"]
+TIME_KEYS = [
+    "base_time",
+    "valid_time",
+    "lead_time",
+    "time",
+    "utc_offset",
+    "time.valid_datetime",
+    "time.base_datetime",
+    "time.step",
+]
 
 #: Magic keys that can be used to extract metadata.
 MAGIC_KEYS = {
@@ -220,10 +228,27 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
         from the general metadata of the data.
     """
     if attr in TIME_KEYS:
-        handler = TimeFormatter(data.datetime())
-        label = getattr(handler, attr)
-        if len(label) == 1:
-            label = label[0]
+        # Map earthkit-data namespace keys to canonical TimeFormatter property names.
+        _TIME_KEY_MAP = {
+            "time.valid_datetime": "valid_time",
+            "time.base_datetime": "base_time",
+            "time.step": "lead_time",
+        }
+        handler_attr = _TIME_KEY_MAP.get(attr, attr)
+        try:
+            # Pass the source directly; TimeFormatter calls .datetime() itself.
+            handler = TimeFormatter(data)
+            dt_info = handler.times[0] if handler.times else {}
+            # datetime() returns all-None when the source has no scalar/single
+            # time coord — treat that as missing rather than returning None values.
+            if not dt_info or not any(v is not None for v in dt_info.values()):
+                label = default
+            else:
+                label = getattr(handler, handler_attr)
+                if isinstance(label, list) and len(label) == 1:
+                    label = label[0]
+        except Exception:
+            label = default
 
     else:
         if axis is not None:
@@ -257,9 +282,6 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
             label = search(item, default=None)
             if label is not None:
                 break
-        else:
-            if issue_warnings:
-                warnings.warn(f'No key "{attr}" found in layer metadata.')
 
         if isinstance(label, list):
             if data.is_vector() and len(label) == 2:
