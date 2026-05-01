@@ -608,9 +608,9 @@ class Map(Subplot):
                 cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
 
                 if cached is not None:
-                    feature, special_features, preprojected = cached
+                    feature, special_features, preprojected, geometries = cached
                     if preprojected:
-                        _add_preprojected_feature(self.ax, list(feature.geometries()), kwargs, line=line)
+                        _add_preprojected_feature(self.ax, geometries, kwargs, line=line)
                         for sf, sf_kwargs in special_features:
                             _add_preprojected_feature(
                                 self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line
@@ -720,18 +720,20 @@ class Map(Subplot):
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Apply transform_first optimization if requested and needed.
-                # Only safe for cylindrical projections — pseudo-cylindrical
-                # projections (Robinson, Mollweide, etc.) produce a spurious
-                # line across the globe when antimeridian-crossing geometries
-                # are pre-reprojected, because the straight connector between
-                # the two ends of a split ring maps as a full-width stroke.
-                # Cartopy's own reprojection handles antimeridian splitting
-                # correctly, so we fall back to it for non-cylindrical CRSes.
+                # Apply transform_first optimization if requested and possible.
+                # Pre-reprojecting and bypassing cartopy's feature_artist pipeline
+                # is safe when geometries don't cross the antimeridian — the main
+                # hazard is that straight-line segments connecting the two sides of
+                # a split ring produce spurious strokes across the globe.
+                # With a domain clip box that doesn't straddle ±180°, no geometry
+                # in the set can span the antimeridian, so the fast path is safe
+                # for any projection. Without a clip box (global maps) we restrict
+                # to cylindrical projections only, where cartopy handles the split.
+                _antimeridian_safe = clip_box is not None and x_max_pad <= 180
                 _can_transform_first = (
                     _transform_first
                     and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
-                    and coordinate_reference_systems.is_cylindrical(target_crs)
+                    and (_antimeridian_safe or coordinate_reference_systems.is_cylindrical(target_crs))
                 )
                 if _can_transform_first:
                     from earthkit.plots.geography.geometry import reproject_geometries
@@ -772,6 +774,7 @@ class Map(Subplot):
                         feature,
                         special_features,
                         preprojected,
+                        geometries,
                     )
 
                 if preprojected:
