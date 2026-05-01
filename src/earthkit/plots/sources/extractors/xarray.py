@@ -1012,20 +1012,14 @@ class XarrayExtractor(BaseExtractor):
         if hasattr(self.data, "attrs") and "crs" in self.data.attrs:
             return self.data.attrs["crs"]
 
-        # Try to use earthkit-data to extract projection from CF conventions
+        # Try to use earthkit-data to extract projection from CF conventions.
+        # self.data is a single-variable Dataset (yielded by iter_plot_groups)
+        # that includes the grid_mapping variable, so from_object sees the full
+        # CF grid_mapping info without needing the original multi-var Dataset.
         try:
             import earthkit.data as ek_data
 
-            # Get the data to convert
-            # For Datasets, pass the whole Dataset to preserve grid_mapping references
-            # For DataArrays, pass the DataArray directly
-            if isinstance(self.data, xr.Dataset):
-                data_to_convert = self.data
-            else:
-                data_to_convert = self.data
-
-            # Convert to earthkit-data object
-            earthkit_data = ek_data.from_object(data_to_convert).to_fieldlist()
+            earthkit_data = ek_data.from_object(self.data).to_fieldlist()
 
             # Extract projection and convert to cartopy CRS
             if hasattr(earthkit_data, "geography"):
@@ -1034,7 +1028,6 @@ class XarrayExtractor(BaseExtractor):
                     return projection.to_cartopy_crs()
 
         except (ImportError, AttributeError, Exception):
-            # If earthkit-data is not available or conversion fails, return None
             pass
 
         return None
@@ -1239,6 +1232,36 @@ def _iter_cartesian(da, dims):
         yield sel, da.sel(sel)
 
 
+def _grid_mapping_vars(ds: xr.Dataset) -> set:
+    """Return the set of variable names that are grid_mapping references."""
+    refs = set()
+    for name in ds.data_vars:
+        gm = ds[name].attrs.get("grid_mapping")
+        if isinstance(gm, str):
+            refs.update(gm.split())
+    return refs
+
+
+def _plottable_vars(ds: xr.Dataset) -> list:
+    """Return data_vars names that are not grid_mapping coordinate variables."""
+    skip = _grid_mapping_vars(ds)
+    return [v for v in ds.data_vars if v not in skip]
+
+
+def _single_var_dataset(ds: xr.Dataset, var: str) -> xr.Dataset:
+    """Return a single-variable Dataset that retains grid_mapping variables.
+
+    This preserves the grid_mapping variable (e.g. lambert_azimuthal_equal_area)
+    alongside the requested variable so that earthkit-data can find it when
+    extracting the CRS via from_object(ds).to_fieldlist().geography.projection().
+    """
+    gm_name = ds[var].attrs.get("grid_mapping")
+    keep = [var]
+    if isinstance(gm_name, str) and gm_name in ds.data_vars:
+        keep.append(gm_name)
+    return ds[keep]
+
+
 def iter_plot_groups(data, groupby, mode, combine_vectors=False):
     """
     Yield ``(key, [DataArray, ...])`` tuples for xarray DataArray/Dataset.
@@ -1268,15 +1291,15 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
     """
     if mode == "overlay":
         if isinstance(data, xr.Dataset):
-            yield None, [data[v] for v in data.data_vars]
+            yield None, [data[v] for v in _plottable_vars(data)]
         else:
             yield None, [data]
         return
 
     if mode == "split":
         if isinstance(data, xr.Dataset):
-            for var in data.data_vars:
-                yield var, [data[var]]
+            for var in _plottable_vars(data):
+                yield var, [_single_var_dataset(data, var)]
         elif groupby is not None:
             coord_vals = _unique_coord_vals(data[groupby])
             for val in coord_vals:
@@ -1289,7 +1312,7 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
     squeezed = data.squeeze() if isinstance(data, xr.DataArray) else data
 
     if isinstance(data, xr.Dataset):
-        var_names = list(data.data_vars)
+        var_names = _plottable_vars(data)
         if len(var_names) > 1:
             # Multi-var Dataset: determine all non-spatial extra dims across variables,
             # then yield the full Cartesian product of (variable × extra_dims).
@@ -1324,7 +1347,7 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
                     da = data.squeeze()[var]
                     for sel, slice_da in _iter_cartesian(da, extra_dims):
                         key = (var,) + tuple(sel.values())
-                        yield key, [slice_da]
+                        yield key, [_single_var_dataset(data, var).sel(sel)]
             else:
                 squeezed_ds = data.squeeze()
                 if vector_pair is not None:
@@ -1334,10 +1357,10 @@ def iter_plot_groups(data, groupby, mode, combine_vectors=False):
                         [squeezed_ds[[u_name, v_name]]],
                     )
                 for var in remaining_vars:
-                    yield (var,), [squeezed_ds[var]]
+                    yield (var,), [_single_var_dataset(squeezed_ds, var)]
             return
-        # Single-var Dataset: unwrap
-        squeezed = data.squeeze()[var_names[0]]
+        # Single-var Dataset: keep as Dataset to preserve grid_mapping variables
+        squeezed = _single_var_dataset(data.squeeze(), var_names[0])
 
     # DataArray path
     if groupby is not None:
