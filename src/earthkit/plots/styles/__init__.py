@@ -17,8 +17,6 @@ import inspect
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.interpolate import interp1d
-
 from earthkit.plots import metadata, plottypes, styles
 from earthkit.plots.schemas import schema
 from earthkit.plots.styles import auto, colors, legends, levels
@@ -962,6 +960,8 @@ class Style:
                 x_smooth = linspace_datetime64(x.min(), x.max(), max(300, len(x) * 5))
             else:
                 x_smooth = np.linspace(x.min(), x.max(), max(300, len(x) * 5))
+            from scipy.interpolate import interp1d
+
             func = interp1d(
                 x,
                 y,

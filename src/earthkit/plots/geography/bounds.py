@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import functools
+
 import cartopy.crs as ccrs
 import numpy as np
 
@@ -219,7 +221,7 @@ class BoundingBox:
         -------
         cartopy.crs.CRS
         """
-        layout = optimisers.Global(self.to_latlon_bbox())
+        layout = optimisers.Global(self.to_latlon_bbox)
         while True:
             new_layout = layout.mutate()
             if new_layout == layout:
@@ -228,6 +230,7 @@ class BoundingBox:
                 layout = new_layout
         return BoundingBox.from_bbox(self, target_crs=layout.crs)
 
+    @functools.cached_property
     def to_latlon_bbox(self):
         """
         Generate a tight bounding box around a geometry.

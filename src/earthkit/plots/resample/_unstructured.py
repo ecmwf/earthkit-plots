@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import cartopy.crs as ccrs
-
 from earthkit.plots.resample._base import Resample
 
 
@@ -209,6 +207,8 @@ class Unstructured(Resample):
             )
 
         if self.transform:
+            import cartopy.crs as ccrs
+
             source_crs = source_crs or ccrs.PlateCarree()
             target_crs = target_crs or ccrs.PlateCarree()
             transformed_points = target_crs.transform_points(source_crs, x.flatten(), y.flatten())

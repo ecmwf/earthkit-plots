@@ -69,6 +69,7 @@ def dict_to_crs(kwargs):
     -------
     cartopy.crs.CRS
     """
+    kwargs = dict(kwargs)
     crs = getattr(ccrs, kwargs.pop("name"))
     return crs(**kwargs)
 

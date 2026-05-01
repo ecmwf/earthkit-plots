@@ -34,9 +34,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from cartopy.util import add_cyclic_point
 
-from earthkit.plots.geography import coordinate_reference_systems
 from earthkit.plots.resample.grids import needs_cyclic_point
 
 if TYPE_CHECKING:
@@ -344,6 +342,8 @@ def _handle_cyclic_points(
         n_x = x_values.shape[0]
         x_values = x_values[0]
 
+    from cartopy.util import add_cyclic_point
+
     z_values, x_values = add_cyclic_point(z_values, coord=x_values)
 
     # Restore 2-D meshgrid structure.
@@ -366,6 +366,8 @@ def _handle_transform_settings(
     ``False`` for those projections.
     """
     if "transform_first" in kwargs:
+        from earthkit.plots.geography import coordinate_reference_systems
+
         if subplot.crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
             kwargs["transform_first"] = False
     return kwargs

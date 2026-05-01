@@ -83,7 +83,7 @@ class _MirRegridExecutor:
     @staticmethod
     def is_valid():
         try:
-            from earthkit.geo.regrid.array import regrid  # noqa: F401
+            from earthkit.geo.grids.array import regrid  # noqa: F401
 
             try:
                 import mir  # noqa: F401
@@ -97,7 +97,7 @@ class _MirRegridExecutor:
     def call(array, in_grid, out_grid):
         import logging
 
-        from earthkit.geo.regrid.array import regrid
+        from earthkit.geo.grids.array import regrid
 
         LOG = logging.getLogger(__name__)
         _kwargs = {}
@@ -221,7 +221,7 @@ class Regrid(Resample):
         executor = Regrid._find_executor()
         if executor is None:
             raise ImportError(
-                "Regridding not available. Please install the earthkit-geo package at a version >= 1.0.0rc0"
+                "Regridding not available. Please install the earthkit-geo package at a version >= 1.0.0rc6"
             )
         return executor.call(array, in_grid, out_grid)
 

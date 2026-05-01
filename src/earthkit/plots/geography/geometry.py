@@ -14,6 +14,8 @@
 
 import warnings
 
+_TRANSFORMER_CACHE = {}
+
 
 def reproject_geometries(geometries, src_crs, target_crs):
     """
@@ -46,11 +48,14 @@ def reproject_geometries(geometries, src_crs, target_crs):
         src_proj = getattr(src_crs, "proj4_init", None) or src_crs.proj4_params
         target_proj = getattr(target_crs, "proj4_init", None) or target_crs.proj4_params
 
-        transformer = pyproj.Transformer.from_crs(
-            src_proj if isinstance(src_proj, str) else pyproj.CRS.from_proj4(src_proj),
-            target_proj if isinstance(target_proj, str) else pyproj.CRS.from_proj4(target_proj),
-            always_xy=True,
-        )
+        src_pyproj = pyproj.CRS.from_proj4(src_proj) if not isinstance(src_proj, str) else pyproj.CRS(src_proj)
+        tgt_pyproj = pyproj.CRS.from_proj4(target_proj) if not isinstance(target_proj, str) else pyproj.CRS(target_proj)
+
+        cache_key = (src_pyproj.to_wkt(), tgt_pyproj.to_wkt())
+        transformer = _TRANSFORMER_CACHE.get(cache_key)
+        if transformer is None:
+            transformer = pyproj.Transformer.from_crs(src_pyproj, tgt_pyproj, always_xy=True)
+            _TRANSFORMER_CACHE[cache_key] = transformer
 
         reprojected = []
         for geom in geometries:

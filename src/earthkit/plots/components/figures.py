@@ -16,13 +16,11 @@ import functools
 import os
 import re
 
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 
 from earthkit.plots.ancillary import find_logo
 from earthkit.plots.components.layers import LayerGroup
 from earthkit.plots.components.layouts import rows_cols
-from earthkit.plots.components.maps import Map
 from earthkit.plots.components.subplots import Subplot
 from earthkit.plots.metadata import formatters
 from earthkit.plots.schemas import schema
@@ -378,6 +376,8 @@ class Figure:
             domain = self._domain
         if crs is None:
             crs = self._crs
+        from earthkit.plots.components.maps import Map
+
         row, column = self._determine_row_column(row, column)
         subplot = Map(
             row=row,
@@ -1524,6 +1524,8 @@ class Figure:
             for i, image_file in enumerate(reversed(self.logos)):
                 if not os.path.exists(image_file):
                     image_file = find_logo(image_file)
+                import matplotlib.image as mpimg
+
                 logo = mpimg.imread(image_file)
                 left = 1.0 - (i + 1) * logo_width - i * spacing - 0.05
                 bottom = -0.05  # 0.01 margin from bottom
