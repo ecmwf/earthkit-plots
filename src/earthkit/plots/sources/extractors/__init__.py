@@ -13,8 +13,18 @@
 # limitations under the License.
 
 from earthkit.plots.sources.extractors.base import BaseExtractor
-from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
 from earthkit.plots.sources.extractors.numpy import NumpyExtractor
-from earthkit.plots.sources.extractors.xarray import XarrayExtractor
 
 __all__ = ["BaseExtractor", "NumpyExtractor", "XarrayExtractor", "EarthkitExtractor"]
+
+
+def __getattr__(name):
+    if name == "XarrayExtractor":
+        from earthkit.plots.sources.extractors.xarray import XarrayExtractor
+
+        return XarrayExtractor
+    if name == "EarthkitExtractor":
+        from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
+
+        return EarthkitExtractor
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

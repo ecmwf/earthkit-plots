@@ -2,12 +2,6 @@ import logging
 import time
 
 import numpy as np
-from pyproj import Transformer
-from scipy.interpolate import (
-    LinearNDInterpolator,
-    NearestNDInterpolator,
-    RegularGridInterpolator,
-)
 
 logger = logging.getLogger(__name__)
 ENABLE_TIMING = True
@@ -79,6 +73,8 @@ def _get_cached_transformer(crs_src, crs_target):
 
     # Check if we have a cached transformer
     if cache_key not in _TRANSFORMER_CACHE:
+        from pyproj import Transformer
+
         # Create new transformer and cache it
         transformer = Transformer.from_crs(crs_target, crs_src, always_xy=True)
         _TRANSFORMER_CACHE[cache_key] = transformer
@@ -190,6 +186,12 @@ def reproject_to_grid(
     z_tgt : ndarray
         Reprojected data values (2D)
     """
+    from scipy.interpolate import (
+        LinearNDInterpolator,
+        NearestNDInterpolator,
+        RegularGridInterpolator,
+    )
+
     t_start = time.time() if ENABLE_TIMING else None
 
     # Determine whether to use GPU

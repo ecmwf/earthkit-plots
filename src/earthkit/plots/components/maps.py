@@ -34,6 +34,105 @@ from earthkit.plots.styles.levels import step_range
 from earthkit.plots.utils import string_utils
 
 
+def _geom_to_paths(geom):
+    """Convert a shapely geometry to a list of matplotlib Path objects."""
+    import numpy as np
+    from matplotlib.path import Path
+
+    geom_type = geom.geom_type
+    paths = []
+
+    if geom_type == "Polygon":
+        parts = [geom]
+    elif geom_type == "MultiPolygon":
+        parts = list(geom.geoms)
+    elif geom_type == "LineString":
+        coords = np.array(geom.coords)
+        codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+        codes[0] = Path.MOVETO
+        return [Path(coords, codes)]
+    elif geom_type == "MultiLineString":
+        for line_geom in geom.geoms:
+            coords = np.array(line_geom.coords)
+            codes = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+            codes[0] = Path.MOVETO
+            paths.append(Path(coords, codes))
+        return paths
+    elif geom_type == "GeometryCollection":
+        for sub in geom.geoms:
+            paths.extend(_geom_to_paths(sub))
+        return paths
+    else:
+        return paths
+
+    for poly in parts:
+        ext = np.array(poly.exterior.coords)
+        codes = np.full(len(ext), Path.LINETO, dtype=np.uint8)
+        codes[0] = Path.MOVETO
+        codes[-1] = Path.CLOSEPOLY
+        verts = [ext]
+        code_list = [codes]
+        for interior in poly.interiors:
+            coords = np.array(interior.coords)
+            c = np.full(len(coords), Path.LINETO, dtype=np.uint8)
+            c[0] = Path.MOVETO
+            c[-1] = Path.CLOSEPOLY
+            verts.append(coords)
+            code_list.append(c)
+        paths.append(Path(np.concatenate(verts), np.concatenate(code_list)))
+
+    return paths
+
+
+def _add_preprojected_feature(ax, geometries, kwargs, line=False):
+    """Add already-reprojected shapely geometries directly to axes.
+
+    Bypasses cartopy's feature_artist / project_geometry pipeline entirely,
+    which is the dominant cost on systems without cartopy's Cython extension.
+
+    Parameters
+    ----------
+    ax : cartopy.mpl.geoaxes.GeoAxes
+        The axes to add the geometries to.
+    geometries : list
+        Shapely geometries already in the axes' CRS coordinates.
+    kwargs : dict
+        Style keyword arguments (facecolor, edgecolor, linewidth, etc.).
+    line : bool
+        If True, render as lines (no fill). If False, render as filled patches.
+    """
+    from matplotlib.collections import PathCollection
+
+    if not geometries:
+        return
+
+    color = kwargs.get("color")
+    facecolor = "none" if line else kwargs.get("facecolor", color if color is not None else "none")
+    edgecolor = kwargs.get("edgecolor", color if color is not None else "black")
+    linewidth = kwargs.get("linewidth", kwargs.get("lw", 0.5))
+    alpha = kwargs.get("alpha", 1.0)
+    zorder = kwargs.get("zorder", 1)
+
+    paths = []
+    for geom in geometries:
+        paths.extend(_geom_to_paths(geom))
+
+    if not paths:
+        return
+
+    col = PathCollection(
+        paths,
+        facecolors=facecolor,
+        edgecolors=edgecolor,
+        linewidths=linewidth,
+        alpha=alpha,
+        zorder=zorder,
+        transform=ax.transData,
+    )
+    col.set_clip_path(ax.patch)
+    ax.add_collection(col)
+
+
 class Map(Subplot):
     """
     A specialized Subplot for plotting geospatial data.
@@ -485,6 +584,16 @@ class Map(Subplot):
                 # The extent is not part of the key because reproject_geometries
                 # operates on the full global geometry; clipping to the axes extent
                 # happens at render time by matplotlib/cartopy.
+                if self.domain is not None:
+                    _llbbox = self.domain.bbox.to_latlon_bbox
+                    _domain_key = (
+                        round(_llbbox.x_min, 4),
+                        round(_llbbox.x_max, 4),
+                        round(_llbbox.y_min, 4),
+                        round(_llbbox.y_max, 4),
+                    )
+                else:
+                    _domain_key = None
                 cache_key = (
                     method.__name__,
                     source,
@@ -493,15 +602,23 @@ class Map(Subplot):
                     tuple(sorted(exclude)) if exclude is not None else None,
                     str(special_styles),
                     _transform_first,
-                    type(self.crs).__name__,
+                    tuple(sorted(self.crs.proj4_params.items())),
+                    _domain_key,
                 )
                 cached = getattr(self.figure, "_ancillary_cache", {}).get(cache_key)
 
                 if cached is not None:
-                    feature, special_features = cached
-                    self.ax.add_feature(feature, *args, **kwargs)
-                    for sf, sf_kwargs in special_features:
-                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                    feature, special_features, preprojected, geometries = cached
+                    if preprojected:
+                        _add_preprojected_feature(self.ax, geometries, kwargs, line=line)
+                        for sf, sf_kwargs in special_features:
+                            _add_preprojected_feature(
+                                self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line
+                            )
+                    else:
+                        self.ax.add_feature(feature, *args, **kwargs)
+                        for sf, sf_kwargs in special_features:
+                            self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
                     return None
 
                 filtered_records = []
@@ -555,11 +672,47 @@ class Map(Subplot):
                             adjust_labels=adjust_labels,
                         )
 
+                # Clip geometries to the domain extent (in PlateCarree) before
+                # reprojecting. Natural Earth shapefiles are global; for small
+                # domains this can eliminate the vast majority of vertices and
+                # dramatically reduces both reprojection and rasterisation cost.
+                clip_box = None
+                if _domain_key is not None:
+                    from shapely.geometry import box as shapely_box
+                    from shapely.ops import unary_union
+
+                    pad = 5.0  # degrees — avoids excluding features on the boundary
+                    y_min = max(_llbbox.y_min - pad, -90)
+                    y_max = min(_llbbox.y_max + pad, 90)
+                    x_min_pad = _llbbox.x_min - pad
+                    x_max_pad = _llbbox.x_max + pad
+
+                    if x_max_pad > 180:
+                        # Domain is in 0-360 space and wraps the antimeridian
+                        # (e.g. Canada: ~170E-360E). Build two boxes in -180/180 space
+                        # so we don't clip away the eastern part of the domain.
+                        box_east = shapely_box(max(x_min_pad, -180), y_min, 180, y_max)
+                        box_west = shapely_box(-180, y_min, min(x_max_pad - 360, 180), y_max)
+                        clip_box = unary_union([box_east, box_west])
+                    else:
+                        clip_box = shapely_box(
+                            max(x_min_pad, -180),
+                            y_min,
+                            min(x_max_pad, 180),
+                            y_max,
+                        )
+
                 geometries = []
                 for record in filtered_records:
                     geom = record.geometry
 
                     if not geom.is_empty:  # Only keep visible parts
+                        # If a clip box is defined, skip geometries that don't
+                        # intersect the domain at all — but keep the full geometry
+                        # intact to avoid breaking polar or antimeridian-spanning
+                        # features.
+                        if clip_box is not None and not geom.intersects(clip_box):
+                            continue
                         geometries.append(geom)
 
                 # Determine source and target CRS for features.
@@ -567,27 +720,27 @@ class Map(Subplot):
                 src_crs = ccrs.PlateCarree()
                 target_crs = self.crs
 
-                # Apply transform_first optimization if requested and needed.
-                # Only safe for cylindrical projections — pseudo-cylindrical
-                # projections (Robinson, Mollweide, etc.) produce a spurious
-                # line across the globe when antimeridian-crossing geometries
-                # are pre-reprojected, because the straight connector between
-                # the two ends of a split ring maps as a full-width stroke.
-                # Cartopy's own reprojection handles antimeridian splitting
-                # correctly, so we fall back to it for non-cylindrical CRSes.
+                # Apply transform_first optimization if requested and possible.
+                # Pre-reprojecting and bypassing cartopy's feature_artist pipeline
+                # is safe when geometries don't cross the antimeridian — the main
+                # hazard is that straight-line segments connecting the two sides of
+                # a split ring produce spurious strokes across the globe.
+                # With a domain clip box that doesn't straddle ±180°, no geometry
+                # in the set can span the antimeridian, so the fast path is safe
+                # for any projection. Without a clip box (global maps) we restrict
+                # to cylindrical projections only, where cartopy handles the split.
+                _antimeridian_safe = clip_box is not None and x_max_pad <= 180
                 _can_transform_first = (
                     _transform_first
                     and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
-                    and coordinate_reference_systems.is_cylindrical(target_crs)
+                    and (_antimeridian_safe or coordinate_reference_systems.is_cylindrical(target_crs))
                 )
                 if _can_transform_first:
                     from earthkit.plots.geography.geometry import reproject_geometries
 
-                    # Reproject geometries before adding to map for better performance
                     geometries = reproject_geometries(geometries, src_crs, target_crs)
                     feature_crs = target_crs
                 else:
-                    # Let cartopy handle reprojection (needed for proper line interpolation)
                     feature_crs = src_crs
 
                 # Build and cache the ShapelyFeature so subsequent subplots with
@@ -597,27 +750,41 @@ class Map(Subplot):
                 if special_styles is not None:
                     for record, sf_kwargs in special_records:
                         geom = record.geometry
-                        if _can_transform_first:
+                        if clip_box is not None:
+                            geom = geom.intersection(clip_box)
+                        if _can_transform_first and not geom.is_empty:
                             from earthkit.plots.geography.geometry import (
                                 reproject_geometries,
                             )
 
-                            geom = reproject_geometries([geom], src_crs, target_crs)[0]
+                            reprojected = reproject_geometries([geom], src_crs, target_crs)
+                            if not reprojected:
+                                continue
+                            geom = reprojected[0]
                         if not geom.is_empty:
                             special_features.append((
                                 cfeature.ShapelyFeature([geom], feature_crs),
                                 sf_kwargs,
                             ))
 
+                preprojected = _can_transform_first
+
                 if hasattr(self.figure, "_ancillary_cache"):
                     self.figure._ancillary_cache[cache_key] = (
                         feature,
                         special_features,
+                        preprojected,
+                        geometries,
                     )
 
-                self.ax.add_feature(feature, *args, **kwargs)
-                for sf, sf_kwargs in special_features:
-                    self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
+                if preprojected:
+                    _add_preprojected_feature(self.ax, geometries, kwargs, line=line)
+                    for sf, sf_kwargs in special_features:
+                        _add_preprojected_feature(self.ax, list(sf.geometries()), {**kwargs, **sf_kwargs}, line=line)
+                else:
+                    self.ax.add_feature(feature, *args, **kwargs)
+                    for sf, sf_kwargs in special_features:
+                        self.ax.add_feature(sf, *args, **{**kwargs, **sf_kwargs})
                 return None
 
             return wrapper
@@ -987,15 +1154,21 @@ class Map(Subplot):
             feature_crs = src_crs
 
         # Add optimized features
-        feature = cfeature.ShapelyFeature(geometries, feature_crs)
-        self.ax.add_feature(feature, *args, **kwargs)
+        if transform_first and feature_crs is target_crs:
+            _add_preprojected_feature(self.ax, geometries, kwargs)
+        else:
+            feature = cfeature.ShapelyFeature(geometries, feature_crs)
+            self.ax.add_feature(feature, *args, **kwargs)
 
         if special_styles is not None:
             for record, style in special_records:
                 geom = record.geometry
                 if not geom.is_empty:
-                    feature = cfeature.ShapelyFeature([geom], self.crs)
-                    self.ax.add_feature(feature, *args, **{**kwargs, **style})
+                    if transform_first and feature_crs is target_crs:
+                        _add_preprojected_feature(self.ax, [geom], {**kwargs, **style})
+                    else:
+                        sf = cfeature.ShapelyFeature([geom], self.crs)
+                        self.ax.add_feature(sf, *args, **{**kwargs, **style})
 
     @chainable_method
     @schema.land.apply()

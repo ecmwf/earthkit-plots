@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from earthkit.plots.temporal.timeseries import TimeSeries
-
 __all__ = ["TimeSeries"]
+
+
+def __getattr__(name):
+    if name == "TimeSeries":
+        from earthkit.plots.temporal.timeseries import TimeSeries
+
+        return TimeSeries
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

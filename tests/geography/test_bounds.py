@@ -102,7 +102,7 @@ def test_BoundingBox_to_optimised_bbox_europe():
 
 def test_BoundingBox_to_latlon_bbox():
     bbox = bounds.BoundingBox(-2e6, 3e6, 3e6, 7e6, crs=ccrs.LambertAzimuthalEqualArea())
-    new_bbox = bbox.to_latlon_bbox()
+    new_bbox = bbox.to_latlon_bbox
     assert new_bbox.x_min == pytest.approx(-36.64, 1e-2)
     assert new_bbox.x_max == pytest.approx(52.96, 1e-2)
     assert new_bbox.y_min == pytest.approx(26.49, 1e-2)
