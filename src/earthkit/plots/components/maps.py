@@ -1757,11 +1757,13 @@ class Map(Subplot):
         from earthkit.plots.sources import get_source
 
         if style is not None:
-            dummy = [[1, 2], [3, 4]]
-            self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            dummy_x = [[0, 10], [0, 10]]
+            dummy_y = [[0, 0], [10, 10]]
+            dummy_z = [[0, 1], [2, 3]]
+            self.contourf(x=dummy_x, y=dummy_y, z=dummy_z, style=style)
             mappable = self.layers[-1].mappable
             # Create a dummy source for legend creation
-            dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
+            dummy_source = get_source(dummy_z, x=dummy_x, y=dummy_y, z=dummy_z)
             layer = Layer(dummy_source, mappable, self, style)
             return layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:
