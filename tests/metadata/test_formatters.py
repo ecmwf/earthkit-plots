@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -53,7 +53,7 @@ def test_TimeFormatter_single_time():
 
     assert formatter.base_time == [datetime(2024, 1, 1, 0, 0)]
     assert formatter.valid_time == [datetime(2024, 1, 1, 6, 0)]
-    assert formatter.lead_time == [6]
+    assert formatter.lead_time == [timedelta(hours=6)]
 
 
 def test_TimeFormatter_multiple_times():
@@ -80,7 +80,7 @@ def test_TimeFormatter_multiple_times():
         datetime(2024, 1, 1, 12, 0),
         datetime(2024, 1, 1, 18, 0),
     ]
-    expected_lead_times = [6, 12, 18]
+    expected_lead_times = [timedelta(hours=6), timedelta(hours=12), timedelta(hours=18)]
 
     assert formatter.base_time == expected_base_time
     assert formatter.valid_time == expected_valid_times
@@ -108,9 +108,9 @@ def test_TimeFormatter_lead_time_indexing():
     lead_times = formatter.lead_time
 
     # Test indexing
-    assert lead_times[0] == 6
-    assert lead_times[1] == 12
-    assert lead_times[2] == 18
+    assert lead_times[0] == timedelta(hours=6)
+    assert lead_times[1] == timedelta(hours=12)
+    assert lead_times[2] == timedelta(hours=18)
 
     # Test that indexing works for the bug fix
     assert len(lead_times) == 3
@@ -134,7 +134,7 @@ def test_TimeFormatter_lead_time_with_different_base_times():
     ]
     formatter = formatters.TimeFormatter(time_data)
 
-    expected_lead_times = [6]
+    expected_lead_times = [timedelta(hours=6)]
     assert formatter.lead_time == expected_lead_times
 
 
@@ -152,7 +152,7 @@ def test_TimeFormatter_lead_time_with_missing_times():
 
     lead_times = formatter.lead_time
     # Should preserve None values and deduplicate non-None values
-    assert 6 in lead_times  # The valid lead time should be present
+    assert timedelta(hours=6) in lead_times  # The valid lead time should be present
     assert None in lead_times  # None values should be preserved
     assert len(lead_times) >= 2  # Should have at least the valid value and None
 
@@ -244,7 +244,7 @@ def test_TimeFormatter_lead_time_edge_cases():
         }
     ]
     formatter = formatters.TimeFormatter(time_data)
-    assert formatter.lead_time == [-6]
+    assert formatter.lead_time == [timedelta(hours=-6)]
 
     # Test zero lead time
     time_data = [
@@ -254,7 +254,7 @@ def test_TimeFormatter_lead_time_edge_cases():
         }
     ]
     formatter = formatters.TimeFormatter(time_data)
-    assert formatter.lead_time == [0]
+    assert formatter.lead_time == [timedelta(0)]
 
     # Test large lead time
     time_data = [
@@ -264,7 +264,7 @@ def test_TimeFormatter_lead_time_edge_cases():
         }
     ]
     formatter = formatters.TimeFormatter(time_data)
-    assert formatter.lead_time == [24]
+    assert formatter.lead_time == [timedelta(hours=24)]
 
 
 def test_TimeFormatter_named_time_fallback():
@@ -275,7 +275,7 @@ def test_TimeFormatter_named_time_fallback():
     # Should use 'time' as fallback for both base_time and valid_time
     assert formatter.base_time == [datetime(2024, 1, 1, 0, 0)]
     assert formatter.valid_time == [datetime(2024, 1, 1, 0, 0)]
-    assert formatter.lead_time == [0]
+    assert formatter.lead_time == [timedelta(0)]
 
 
 def test_SubplotFormatter_layer_indexing():

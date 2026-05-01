@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import warnings
 
 import numpy as np
 
@@ -283,9 +282,6 @@ def extract(data, attr, default=None, issue_warnings=True, axis=None):
             label = search(item, default=None)
             if label is not None:
                 break
-        else:
-            if issue_warnings:
-                warnings.warn(f'No key "{attr}" found in layer metadata.')
 
         if isinstance(label, list):
             if data.is_vector() and len(label) == 2:

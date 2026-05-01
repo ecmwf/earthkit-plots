@@ -32,9 +32,14 @@ logger = logging.getLogger(__name__)
 # timedelta unit letter.  Examples: "h", "03h", ".1h", ">5d", "D", "H", "M".
 _TIMEDELTA_SPEC_RE = re.compile(r"^(?P<std_prefix>[^a-zA-Z]*)(?P<unit>[dhmsHDMS])$")
 
-_COMPOUND_UNITS = {"D", "H", "M"}
-_SINGLE_UNITS = {"d", "h", "m", "s"}
-_ALL_TIMEDELTA_UNITS = _SINGLE_UNITS | _COMPOUND_UNITS
+_SINGLE_UNITS = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+_COMPOUND_UNITS = {
+    # spec letter -> (units to emit, in descending order)
+    "D": ("d", "h", "m", "s"),
+    "H": ("h", "m", "s"),
+    "M": ("m", "s"),
+}
+_ALL_TIMEDELTA_UNITS = set(_SINGLE_UNITS) | set(_COMPOUND_UNITS)
 
 
 def _coerce_to_timedelta(value):
@@ -47,96 +52,46 @@ def _coerce_to_timedelta(value):
 
 
 def format_timedelta(value, spec):
+    """Format a timedelta using earthkit-plots timedelta specs.
+
+    Single-unit lowercase (d/h/m/s): total in that unit, truncated toward zero
+    (or formatted with the given precision if the prefix includes one).
+    Compound uppercase (D/H/M): largest named unit descending, zero components
+    omitted. Compound specs do not accept a fill/align/width prefix.
     """
-    Format a timedelta (or integer hours) using earthkit-plots timedelta specs.
-
-    Single-unit lowercase (d/h/m/s): total in that unit, truncated toward zero.
-    Compound uppercase (D/H/M): largest named unit descending, zero components omitted.
-
-    A standard fill/align/width prefix (e.g. "03", ">5") is forwarded to the
-    built-in format() for the numeric result of single-unit specs only.
-    Compound specs do not support standard padding (the result is a string).
-
-    Raises ValueError for unrecognised unit codes.
-    """
-    m = _TIMEDELTA_SPEC_RE.match(spec)
-    if m is None or m.group("unit") not in _ALL_TIMEDELTA_UNITS:
+    match = _TIMEDELTA_SPEC_RE.match(spec)
+    unit = match.group("unit") if match else None
+    if unit not in _ALL_TIMEDELTA_UNITS:
         raise ValueError(f"Invalid timedelta format spec {spec!r}. Valid unit codes: {sorted(_ALL_TIMEDELTA_UNITS)}")
+    prefix = match.group("std_prefix")
 
-    td = _coerce_to_timedelta(value)
-    std_prefix = m.group("std_prefix")
-    unit = m.group("unit")
-
-    negative = td.total_seconds() < 0
-    if negative:
-        td = -td
-
-    total_s = int(td.total_seconds())
-    days, rem = divmod(total_s, 86400)
-    hours, rem = divmod(rem, 3600)
-    minutes, seconds = divmod(rem, 60)
+    total_seconds = _coerce_to_timedelta(value).total_seconds()
+    sign = "-" if total_seconds < 0 else ""
+    total_seconds = abs(total_seconds)
 
     if unit in _SINGLE_UNITS:
-        # Determine total in requested unit (truncated toward zero)
-        if "." in std_prefix:
-            # Fractional precision requested, e.g. ".1h"
-            prec_match = re.match(r"\.(\d+)$", std_prefix)
-            if prec_match is None:
-                raise ValueError(f"Invalid timedelta format spec {spec!r}")
-            precision = int(prec_match.group(1))
-            totals = {
-                "d": td.total_seconds() / 86400,
-                "h": td.total_seconds() / 3600,
-                "m": td.total_seconds() / 60,
-                "s": td.total_seconds(),
-            }
-            numeric = round(totals[unit], precision)
-            result = format(numeric, f".{precision}f")
+        amount = total_seconds / _SINGLE_UNITS[unit]
+        # If the prefix specifies precision (".1f"-style), format as float;
+        # otherwise truncate toward zero and let the prefix handle width/fill.
+        if "." in prefix:
+            body = format(amount, prefix + "f")
         else:
-            totals = {
-                "d": total_s // 86400,
-                "h": total_s // 3600,
-                "m": total_s // 60,
-                "s": total_s,
-            }
-            numeric = totals[unit]
-            result = format(numeric, std_prefix) if std_prefix else str(numeric)
-        return f"-{result}" if negative else result
+            body = format(int(amount), prefix) if prefix else str(int(amount))
+        return sign + body
 
-    # Compound specs — std_prefix is not supported
-    if std_prefix:
-        raise ValueError(
-            f"Standard fill/align/width prefix {std_prefix!r} is not supported for compound timedelta spec {spec!r}"
-        )
+    if prefix:
+        raise ValueError(f"Fill/align/width prefix {prefix!r} is not supported for compound timedelta spec {spec!r}")
 
-    # Build components from largest to smallest based on the spec letter
-    if unit == "D":
-        components = [("d", days), ("h", hours), ("m", minutes), ("s", seconds)]
-        zero_unit = "d"
-    elif unit == "H":
-        total_h = days * 24 + hours
-        components = [("h", total_h), ("m", minutes), ("s", seconds)]
-        zero_unit = "h"
-    else:  # "M"
-        total_m = (days * 24 + hours) * 60 + minutes
-        components = [("m", total_m), ("s", seconds)]
-        zero_unit = "m"
-
-    # Skip leading zeros; keep all non-zero interior/trailing components
+    # Compound: walk units largest-to-smallest, taking the integer quotient
+    # and carrying the remainder forward.
+    remaining = int(total_seconds)
     parts = []
-    started = False
-    for suffix, val in components:
-        if val != 0:
-            started = True
-        if started and val != 0:
-            parts.append(f"{val}{suffix}")
-
-    if not parts:
-        result = f"0{zero_unit}"
-    else:
-        result = " ".join(parts)
-
-    return f"-{result}" if negative else result
+    for u in _COMPOUND_UNITS[unit]:
+        qty, remaining = divmod(remaining, _SINGLE_UNITS[u])
+        if qty:
+            parts.append(f"{qty}{u}")
+    body = " ".join(parts) if parts else f"0{_COMPOUND_UNITS[unit][0]}"
+    return sign + body
 
 
 def parse_time(time):
@@ -316,8 +271,11 @@ class BaseFormatter(Formatter):
         if isinstance(value, (datetime.datetime, datetime.date)) and "%" in format_spec:
             return format(value, format_spec)
 
-        # Timedelta format specs (e.g. h, d, D, H, 03h, .1h)
-        if isinstance(value, (int, float, datetime.timedelta)) and format_spec:
+        # Timedelta format specs (e.g. h, d, D, H, 03h, .1h).
+        # With no spec, default to the compound "H" format (e.g. "3 days 6 hours").
+        if isinstance(value, (int, float, datetime.timedelta)):
+            if not format_spec:
+                return format_timedelta(value, "h")
             td_match = _TIMEDELTA_SPEC_RE.match(format_spec)
             if td_match and td_match.group("unit") in _ALL_TIMEDELTA_UNITS:
                 return format_timedelta(value, format_spec)
@@ -560,7 +518,6 @@ class SubplotFormatter(BaseFormatter):
             return f(value, conversion)
 
     def format_key(self, key):
-        import warnings
 
         from earthkit.plots.metadata.labels import LocationInfo
 
@@ -578,8 +535,6 @@ class SubplotFormatter(BaseFormatter):
                 # rather than warning — missing geographic metadata is expected.
                 if key == "location":
                     values = [LocationInfo()]
-                else:
-                    warnings.warn(f'No key "{key}" found in layer metadata.')
         return values
 
     def format_field(self, value, format_spec):
@@ -733,16 +688,10 @@ class TimeFormatter:
         """The lead time of the data, i.e. the time between the base and valid times."""
         lead_times = []
         for time in self.times:
-            # Prefer an explicit step value (earthkit-data "time.step" or "lead_time")
+            # Prefer an explicit step/lead_time value.
             step = time.get("lead_time") or time.get("time.step")
             if step is not None:
-                import datetime as _dt
-
-                if isinstance(step, _dt.timedelta):
-                    step = int(step.total_seconds() / 3600)
-                else:
-                    step = int(step)
-                lead_times.append(step)
+                lead_times.append(_coerce_to_timedelta(step))
                 continue
             btime = self._named_time(time, "base_time")
             vtime = self._named_time(time, "valid_time")
@@ -751,26 +700,22 @@ class TimeFormatter:
             if isinstance(vtime, (list, tuple)):
                 vtime = vtime[0]
             if btime is not None and vtime is not None:
-                lead_time_hours = int((vtime - btime).total_seconds() / 3600)
-                lead_times.append(lead_time_hours)
+                lead_times.append(vtime - btime)
             else:
                 lead_times.append(None)
 
         if len(lead_times) > 1:
             non_none_values = [x for x in lead_times if x is not None]
-
             if non_none_values:
-                # Create result list preserving None values and unique non-None values
                 result = []
                 seen_values = set()
-                for _, value in enumerate(lead_times):
+                for value in lead_times:
                     if value is None:
                         result.append(None)
                     elif value not in seen_values:
                         result.append(value)
                         seen_values.add(value)
             else:
-                # All values are None
                 result = lead_times
         else:
             result = lead_times

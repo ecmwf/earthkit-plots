@@ -884,15 +884,18 @@ class XarrayExtractor(BaseExtractor):
         """
         Extract datetime information from xarray scalar time coordinates.
 
-        Scans for well-known time coordinate names (``valid_time``, ``time``,
-        ``forecast_reference_time``, ``initial_time``) and returns a dict
-        with ``base_time`` and ``valid_time`` keys, or None if none found.
+        Handles three cases:
+        - ``valid_time``/``time`` (+ optional ``forecast_reference_time``/``initial_time``
+          as base): returns ``base_time`` and ``valid_time``.
+        - ``forecast_reference_time`` + ``step``: returns ``base_time``, ``lead_time``
+          (as a timedelta), and the derived ``valid_time``.
+        - ``step`` only: returns ``lead_time`` (as a timedelta) with no absolute times.
 
         Returns
         -------
         dict or None
-            Dict with ``base_time`` and ``valid_time`` datetime values,
-            or None if no scalar/single time coordinate is found.
+            Dict with a subset of ``base_time``, ``valid_time``, ``lead_time`` keys,
+            or None if no recognised time coordinate is found.
         """
         da = self._get_primary_da()
         if da is None:
@@ -903,28 +906,57 @@ class XarrayExtractor(BaseExtractor):
             else:
                 da = self.data
 
-        time_coord_names = [
-            "valid_time",
-            "time",
-            "forecast_reference_time",
-            "initial_time",
-        ]
+        def _scalar_val(coord):
+            return coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+
+        # --- absolute datetime coords ---
+        datetime_coord_names = ["valid_time", "time", "forecast_reference_time", "initial_time"]
         found = {}
-        for name in time_coord_names:
+        for name in datetime_coord_names:
             if name in da.coords:
-                coord = da.coords[name]
-                val = coord.values if coord.ndim == 0 else (coord.values[0] if coord.size == 1 else None)
+                val = _scalar_val(da.coords[name])
                 if val is not None:
                     dt = self._parse_time_value(val)
                     if dt is not None:
                         found[name] = dt
 
-        if not found:
+        # --- step / lead_time coord (timedelta64) ---
+        lead_time = None
+        for step_name in ("step", "lead_time"):
+            if step_name in da.coords:
+                val = _scalar_val(da.coords[step_name])
+                if val is not None:
+                    lead_time = self._parse_timedelta_value(val)
+                    if lead_time is not None:
+                        break
+
+        # Nothing at all found.
+        if not found and lead_time is None:
             return None
 
+        result = {}
+
+        base = found.get("forecast_reference_time") or found.get("initial_time")
         valid = found.get("valid_time") or found.get("time")
-        base = found.get("forecast_reference_time") or found.get("initial_time") or valid
-        return {"base_time": base, "valid_time": valid}
+
+        if base is not None:
+            result["base_time"] = base
+        if valid is not None:
+            result["valid_time"] = valid
+        elif base is not None and lead_time is not None:
+            # Derive valid_time from base + step.
+            result["valid_time"] = base + lead_time
+        if lead_time is not None:
+            result["lead_time"] = lead_time
+        elif base is not None and valid is not None:
+            # Derive lead_time from the two absolute times.
+            result["lead_time"] = valid - base
+
+        # Ensure base_time falls back to valid when no reference time is present.
+        if "base_time" not in result and "valid_time" in result:
+            result["base_time"] = result["valid_time"]
+
+        return result if result else None
 
     @staticmethod
     def _parse_time_value(value):
@@ -948,6 +980,21 @@ class XarrayExtractor(BaseExtractor):
             return dateutil.parser.parse(str(value))
         except (ValueError, TypeError, OverflowError):
             return None
+
+    @staticmethod
+    def _parse_timedelta_value(value):
+        """Parse a numpy timedelta64 or Python timedelta into a datetime.timedelta."""
+        import datetime
+
+        import numpy as np
+
+        if isinstance(value, datetime.timedelta):
+            return value
+        if isinstance(value, np.timedelta64):
+            # Convert via integer nanoseconds to avoid overflow on large steps.
+            ns = int(value.astype("timedelta64[ns]").astype(np.int64))
+            return datetime.timedelta(microseconds=ns // 1000)
+        return None
 
     def get_crs(self) -> Any | None:
         """
