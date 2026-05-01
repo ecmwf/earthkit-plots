@@ -49,10 +49,10 @@ optional-dependencies.healpix = [
   "healpy"
 ]
 optional-dependencies.regridding = [
-  "earthkit-geo>=1.0.0rc0"
+  "earthkit-geo>=1.0.0rc6"
 ]
 optional-dependencies.test = [
-  "earthkit-geo>=1.0.0rc0",
+  "earthkit-geo>=1.0.0rc6",
   "healpy",
   "nbconvert",
   "nbformat",
