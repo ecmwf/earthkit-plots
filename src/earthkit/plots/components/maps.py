@@ -129,7 +129,7 @@ def _add_preprojected_feature(ax, geometries, kwargs, line=False):
         zorder=zorder,
         transform=ax.transData,
     )
-    col.set_clip_box(ax.bbox)
+    col.set_clip_path(ax.patch)
     ax.add_collection(col)
 
 
