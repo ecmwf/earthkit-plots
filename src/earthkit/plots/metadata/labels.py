@@ -158,11 +158,11 @@ TIME_KEYS = [
 #: Magic keys that can be used to extract metadata.
 MAGIC_KEYS = {
     "variable_name": {
-        "preference": ["long_name", "standard_name", "name", "short_name"],
+        "preference": ["long_name", "parameter.long_name", "standard_name", "name", "short_name", "parameter.variable"],
         "remove_underscores": True,
     },
     "short_name": {
-        "preference": ["short_name", "name", "standard_name", "long_name"],
+        "preference": ["short_name", "parameter.variable", "name", "standard_name", "long_name"],
     },
     "location": {
         "function": get_location,
