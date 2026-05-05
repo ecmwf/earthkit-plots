@@ -676,8 +676,12 @@ class Map(Subplot):
                 # reprojecting. Natural Earth shapefiles are global; for small
                 # domains this can eliminate the vast majority of vertices and
                 # dramatically reduces both reprojection and rasterisation cost.
+                # Stereographic projections (e.g. NorthPolarStereo) span all
+                # longitudes so their lat-lon bbox is unreliable for clipping —
+                # skip the clip box entirely and let cartopy handle the extent.
                 clip_box = None
-                if _domain_key is not None:
+                x_max_pad = None
+                if _domain_key is not None and not isinstance(self.crs, ccrs.Stereographic):
                     from shapely.geometry import box as shapely_box
                     from shapely.ops import unary_union
 
@@ -729,7 +733,7 @@ class Map(Subplot):
                 # in the set can span the antimeridian, so the fast path is safe
                 # for any projection. Without a clip box (global maps) we restrict
                 # to cylindrical projections only, where cartopy handles the split.
-                _antimeridian_safe = clip_box is not None and x_max_pad <= 180
+                _antimeridian_safe = clip_box is not None and x_max_pad is not None and x_max_pad <= 180
                 _can_transform_first = (
                     _transform_first
                     and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
@@ -1757,11 +1761,13 @@ class Map(Subplot):
         from earthkit.plots.sources import get_source
 
         if style is not None:
-            dummy = [[1, 2], [3, 4]]
-            self.contourf(x=dummy, y=dummy, z=dummy, style=style)
+            dummy_x = [[0, 10], [0, 10]]
+            dummy_y = [[0, 0], [10, 10]]
+            dummy_z = [[0, 1], [2, 3]]
+            self.contourf(x=dummy_x, y=dummy_y, z=dummy_z, style=style)
             mappable = self.layers[-1].mappable
             # Create a dummy source for legend creation
-            dummy_source = get_source(dummy, x=dummy, y=dummy, z=dummy)
+            dummy_source = get_source(dummy_z, x=dummy_x, y=dummy_y, z=dummy_z)
             layer = Layer(dummy_source, mappable, self, style)
             return layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:

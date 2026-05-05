@@ -46,3 +46,14 @@ def test_named_africa():
     chart.gridlines()
     chart.title("{domain} ({crs})")
     return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_named_arctic():
+    chart = earthkit.plots.Map(domain="Arctic")
+    chart.land()
+    chart.coastlines()
+    chart.gridlines()
+    chart.title("{domain} ({crs})")
+    return chart.fig
