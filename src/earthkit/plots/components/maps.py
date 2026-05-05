@@ -676,8 +676,12 @@ class Map(Subplot):
                 # reprojecting. Natural Earth shapefiles are global; for small
                 # domains this can eliminate the vast majority of vertices and
                 # dramatically reduces both reprojection and rasterisation cost.
+                # Stereographic projections (e.g. NorthPolarStereo) span all
+                # longitudes so their lat-lon bbox is unreliable for clipping —
+                # skip the clip box entirely and let cartopy handle the extent.
                 clip_box = None
-                if _domain_key is not None:
+                x_max_pad = None
+                if _domain_key is not None and not isinstance(self.crs, ccrs.Stereographic):
                     from shapely.geometry import box as shapely_box
                     from shapely.ops import unary_union
 
@@ -729,7 +733,7 @@ class Map(Subplot):
                 # in the set can span the antimeridian, so the fast path is safe
                 # for any projection. Without a clip box (global maps) we restrict
                 # to cylindrical projections only, where cartopy handles the split.
-                _antimeridian_safe = clip_box is not None and x_max_pad <= 180
+                _antimeridian_safe = clip_box is not None and x_max_pad is not None and x_max_pad <= 180
                 _can_transform_first = (
                     _transform_first
                     and not coordinate_reference_systems.crs_equal(target_crs, match_type_only=True)
