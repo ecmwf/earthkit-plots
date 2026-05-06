@@ -1202,3 +1202,244 @@ class TestLongitudeNormalisation1D:
         data = self._make_0_360_points()
         # Should complete without error; cartopy handles the transform itself.
         self._run_scatter_and_capture(data, monkeypatch, crs=ccrs.Robinson())
+
+
+# ---------------------------------------------------------------------------
+# resolve_auto unit tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeAxWithSize:
+    """Matplotlib Axes stub that reports a fixed pixel size via get_window_extent."""
+
+    def __init__(self, width, height):
+        self._width = width
+        self._height = height
+
+    def get_figure(self):
+        return self
+
+    def get_renderer(self):
+        return None
+
+    def canvas(self):
+        return self
+
+    def get_window_extent(self, renderer=None):
+        class _BB:
+            pass
+
+        bb = _BB()
+        bb.width = self._width
+        bb.height = self._height
+        return bb
+
+    # figsize fallback attributes (used when get_window_extent raises)
+    def get_figwidth(self):
+        return self._width / 100.0
+
+    def get_figheight(self):
+        return self._height / 100.0
+
+    dpi = 100
+
+    def get_position(self):
+        class _Pos:
+            width = 1.0
+            height = 1.0
+
+        return _Pos()
+
+
+class _FakeAxFallback:
+    """Axes stub whose get_window_extent raises, forcing the figsize fallback path."""
+
+    def __init__(self, figwidth_px, figheight_px):
+        self._figwidth_px = figwidth_px
+        self._figheight_px = figheight_px
+
+    def get_figure(self):
+        return self
+
+    def get_renderer(self):
+        raise RuntimeError("no renderer")
+
+    def canvas(self):
+        return self
+
+    def get_window_extent(self, renderer=None):
+        raise RuntimeError("no renderer pre-draw")
+
+    def get_figwidth(self):
+        return self._figwidth_px / 100.0
+
+    def get_figheight(self):
+        return self._figheight_px / 100.0
+
+    dpi = 100
+
+    def get_position(self):
+        class _Pos:
+            width = 1.0
+            height = 1.0
+
+        return _Pos()
+
+
+class TestResolveAuto:
+    """Unit tests for _PixelSampler.resolve_auto."""
+
+    _BBOX = (-180, 180, -90, 90)
+    _CRS = None  # not used by resolve_auto currently
+
+    def _sampler(self, nx="auto", ny="auto"):
+        from earthkit.plots.resample import Bilinear
+
+        return Bilinear(nx=nx, ny=ny)
+
+    # --- is_auto property ---------------------------------------------------
+
+    def test_is_auto_true_when_both_auto(self):
+        s = self._sampler()
+        assert s.is_auto is True
+
+    def test_is_auto_false_when_fixed(self):
+        from earthkit.plots.resample import Bilinear
+
+        assert Bilinear(500).is_auto is False
+
+    def test_is_auto_true_when_one_axis_auto(self):
+        s = self._sampler(nx="auto", ny=500)
+        assert s.is_auto is True
+
+    # --- repr ---------------------------------------------------------------
+
+    def test_repr_auto(self):
+        from earthkit.plots.resample import Bilinear
+
+        assert repr(Bilinear("auto")) == "Bilinear(nx='auto', ny='auto')"
+
+    def test_repr_mixed(self):
+        from earthkit.plots.resample import Bilinear
+
+        assert repr(Bilinear(nx="auto", ny=500)) == "Bilinear(nx='auto', ny=500)"
+
+    # --- default cap only (no data, no ax) ----------------------------------
+
+    def test_no_data_no_ax_returns_defaults(self):
+        from earthkit.plots.resample import Bilinear
+
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x_values=None, y_values=None, ax=None)
+        assert nx == s.DEFAULT_NX
+        assert ny == s.DEFAULT_NY
+
+    def test_resolve_dispatches_to_resolve_auto_for_auto_mode(self):
+        """resolve() on an auto sampler must not raise and returns defaults."""
+        from earthkit.plots.resample import Bilinear
+
+        s = Bilinear("auto")
+        nx, ny = s.resolve(self._BBOX)
+        assert nx == s.DEFAULT_NX
+        assert ny == s.DEFAULT_NY
+
+    # --- data cap -----------------------------------------------------------
+
+    def test_data_cap_2d_grid(self):
+        """Auto resolution is capped at source grid size - 1 for 2-D arrays."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.zeros((50, 30))  # ny=50, nx=30
+        y = np.zeros((50, 30))
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == 29  # 30 - 1
+        assert ny == 49  # 50 - 1
+
+    def test_data_cap_1d_scattered(self):
+        """Auto resolution is capped at array length - 1 for 1-D arrays."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.linspace(-10, 10, 100)
+        y = np.linspace(40, 60, 80)
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == 99  # 100 - 1
+        assert ny == 79  # 80 - 1
+
+    def test_data_cap_does_not_go_below_2(self):
+        """Floor of 2 even for tiny source arrays."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.array([0.0, 1.0])  # length 2 → cap = max(1, 2) = 2
+        y = np.array([0.0])  # length 1 → cap = max(0, 2) = 2
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == 2
+        assert ny == 2
+
+    # --- pixel cap (renderer path) -----------------------------------------
+
+    def test_pixel_cap_via_renderer(self):
+        """Subplot pixel size is used when it is smaller than data and default."""
+        from earthkit.plots.resample import Bilinear
+
+        # Source is large (900×900), default is 1000 — pixel cap (200×150) wins.
+        x = np.zeros((900, 900))
+        y = np.zeros((900, 900))
+        ax = _FakeAxWithSize(width=200, height=150)
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=ax)
+        assert nx == 200
+        assert ny == 150
+
+    # --- pixel cap (figsize fallback path) ----------------------------------
+
+    def test_pixel_cap_via_figsize_fallback(self):
+        """figsize×dpi fallback is used when get_window_extent raises."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.zeros((900, 900))
+        y = np.zeros((900, 900))
+        ax = _FakeAxFallback(figwidth_px=300, figheight_px=250)
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=ax)
+        assert nx == 300
+        assert ny == 250
+
+    # --- default cap wins ---------------------------------------------------
+
+    def test_default_cap_wins_when_data_larger(self):
+        """Default (1000) is the binding cap when data > 1000."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.zeros((1500, 1500))
+        y = np.zeros((1500, 1500))
+        s = Bilinear("auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == s.DEFAULT_NX
+        assert ny == s.DEFAULT_NY
+
+    # --- mixed auto / fixed axes --------------------------------------------
+
+    def test_mixed_auto_nx_fixed_ny(self):
+        """nx='auto' is resolved; ny uses the fixed value unchanged."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.zeros((900, 50))
+        y = np.zeros((900, 50))
+        s = Bilinear(nx="auto", ny=300)
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == 49  # data cap 50 - 1
+        assert ny == 300  # fixed, untouched
+
+    def test_mixed_fixed_nx_auto_ny(self):
+        """ny='auto' is resolved; nx uses the fixed value unchanged."""
+        from earthkit.plots.resample import Bilinear
+
+        x = np.zeros((50, 900))
+        y = np.zeros((50, 900))
+        s = Bilinear(nx=400, ny="auto")
+        nx, ny = s.resolve_auto(self._BBOX, self._CRS, x, y, ax=None)
+        assert nx == 400  # fixed, untouched
+        assert ny == 49  # data cap 50 - 1

@@ -1297,6 +1297,8 @@ def plot_1D(method_name=None):
 
             if not by_dims:
                 # Default single-call path — no grouping requested
+                if colors is not None:
+                    kwargs["colors"] = colors
                 extract_plottables_1D(
                     self,
                     method_name or method.__name__,
@@ -1514,7 +1516,7 @@ def plot_2D(method_name=None, extract_domain=False, default_resample=None):
                     resample = False
                 # else: keep _AUTO — the pipeline will resolve it
             elif resample is True:
-                resample = Bilinear()
+                resample = Bilinear("auto")
             elif isinstance(resample, list):
                 from earthkit.plots.resample import Chain
 
