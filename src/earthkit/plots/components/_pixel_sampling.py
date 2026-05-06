@@ -63,11 +63,11 @@ def _auto_resample_policy(
     +--------------------------+-------------------+----------------------------------+
     | Method                   | Grid type         | Auto resample                    |
     +==========================+===================+==================================+
-    | contour / contourf       | structured        | Chain(Regrid(), Bilinear())      |
+    | contour / contourf       | structured        | Chain(Regrid(), Bilinear("auto"))|
     +--------------------------+-------------------+----------------------------------+
     | contour / contourf       | unstructured      | Unstructured()                   |
     +--------------------------+-------------------+----------------------------------+
-    | contour / contourf       | regular           | Bilinear()                       |
+    | contour / contourf       | regular           | Bilinear("auto")                 |
     +--------------------------+-------------------+----------------------------------+
     | pcolormesh               | structured        | error — must be explicit         |
     +--------------------------+-------------------+----------------------------------+
@@ -106,10 +106,10 @@ def _auto_resample_policy(
         if is_structured:
             # Regrid to a regular lat/lon grid first, then pixel-sample onto
             # the target projection for smooth rendering.
-            return Chain(Regrid(), Bilinear())
+            return Chain(Regrid(), Bilinear("auto"))
         if is_unstructured:
             return Unstructured()
-        return Bilinear()
+        return Bilinear("auto")
 
     if is_pcolormesh:
         if is_structured:
@@ -488,7 +488,16 @@ def _apply_pixel_sampling(
         return PixelSamplingResult(x_values, y_values, z_values)
 
     bbox_target = _get_subplot_bbox(subplot, target_crs)
-    nx, ny = pixel_sampler.resolve(bbox_target, crs=target_crs)
+    if getattr(pixel_sampler, "is_auto", False):
+        nx, ny = pixel_sampler.resolve_auto(
+            bbox_target,
+            target_crs,
+            x_values,
+            y_values,
+            ax=getattr(subplot, "ax", None),
+        )
+    else:
+        nx, ny = pixel_sampler.resolve(bbox_target, crs=target_crs)
 
     # NearestNeighbour path: renders via imshow for regular rectilinear grids.
     if isinstance(pixel_sampler, NearestNeighbour):

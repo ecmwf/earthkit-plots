@@ -32,25 +32,32 @@ class _PixelSampler(Resample):
     given bounding box.  Subclasses implement the actual sampling logic and are
     the public API.
 
-    The output grid can be specified in two ways:
+    The output grid can be specified in three ways:
 
     - **Fixed pixel count** (``nx``/``ny``): always produces exactly that many
       pixels regardless of the map extent.
     - **Fixed resolution** (``resolution``): the pixel spacing is fixed in the
       target CRS units (degrees for PlateCarree, metres for projected CRS), so
       the pixel count adapts to the map extent.
+    - **Auto** (``nx="auto"`` / ``ny="auto"``): the pixel count is chosen as
+      ``min(source_grid_size, subplot_pixels, DEFAULT_NX/NY)`` — no finer than
+      the source data or the display can show.
 
     Use the :meth:`at_resolution` class method as a named constructor when
     specifying a resolution is more natural than a pixel count.
 
     Parameters
     ----------
-    nx : int, optional
-        Number of pixels in the x direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
-    ny : int, optional
-        Number of pixels in the y direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
+    nx : int or ``"auto"``, optional
+        Number of pixels in the x direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel width.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
+    ny : int or ``"auto"``, optional
+        Number of pixels in the y direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel height.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
     resolution : float or tuple of float, optional
         Pixel spacing in target CRS units (e.g. degrees or metres).  A single
         value sets the same spacing in both directions; a 2-tuple sets
@@ -68,9 +75,13 @@ class _PixelSampler(Resample):
                     "keyword arguments, but not a combination of both."
                 )
             if len(args) == 1:
-                nx = ny = int(args[0])
+                if args[0] == "auto":
+                    nx = ny = "auto"
+                else:
+                    nx = ny = int(args[0])
             elif len(args) == 2:
-                nx, ny = int(args[0]), int(args[1])
+                nx = "auto" if args[0] == "auto" else int(args[0])
+                ny = "auto" if args[1] == "auto" else int(args[1])
             else:
                 raise ValueError(
                     f"{self.__class__.__name__} accepts at most 2 positional arguments (nx, ny); received {len(args)}."
@@ -84,13 +95,17 @@ class _PixelSampler(Resample):
             else:
                 self._dx = self._dy = float(resolution)
             self._resolution_mode = True
+            self._auto_nx = False
+            self._auto_ny = False
             self.nx = None
             self.ny = None
         else:
             self._dx = self._dy = None
             self._resolution_mode = False
-            self.nx = nx if nx is not None else self.DEFAULT_NX
-            self.ny = ny if ny is not None else self.DEFAULT_NY
+            self._auto_nx = nx == "auto"
+            self._auto_ny = ny == "auto"
+            self.nx = None if self._auto_nx else (nx if nx is not None else self.DEFAULT_NX)
+            self.ny = None if self._auto_ny else (ny if ny is not None else self.DEFAULT_NY)
 
     @classmethod
     def at_resolution(cls, dx, dy=None):
@@ -124,9 +139,19 @@ class _PixelSampler(Resample):
             dy = dx
         return cls(resolution=(float(dx), float(dy)))
 
+    @property
+    def is_auto(self):
+        """True when either axis is in auto mode."""
+        return self._auto_nx or self._auto_ny
+
     def resolve(self, bbox, crs=None):
         """
         Return the concrete ``(nx, ny)`` for the given bounding box.
+
+        For fixed-count and resolution modes this is cheap and stateless.
+        For auto-mode axes, falls back to :meth:`resolve_auto` with no data or
+        axes context, which applies only the default cap — pass data and axes
+        via :meth:`resolve_auto` directly for the full adaptive behaviour.
 
         Parameters
         ----------
@@ -143,6 +168,9 @@ class _PixelSampler(Resample):
         nx, ny : int
         """
         if not self._resolution_mode:
+            if self._auto_nx or self._auto_ny:
+                # No data/axes context here — fall back to the default cap only.
+                return self.resolve_auto(bbox, crs, x_values=None, y_values=None, ax=None)
             return self.nx, self.ny
 
         dx_crs, dy_crs = self._dx, self._dy  # stored in degrees
@@ -204,6 +232,100 @@ class _PixelSampler(Resample):
 
         return nx, ny
 
+    def resolve_auto(self, bbox, crs, x_values, y_values, ax=None):
+        """
+        Return ``(nx, ny)`` for auto-mode axes, bounded by data and pixel resolution.
+
+        For each axis marked ``"auto"``, the target pixel count is:
+
+            min(source_grid_size - 1, subplot_pixels, DEFAULT_NX/NY)
+
+        The ``- 1`` guard is a workaround for a pre-existing bug in
+        ``reproject_to_grid`` where internal coordinate deduplication (e.g.
+        removing the repeated ±180° longitude) shrinks the source but the
+        reshape still uses the original size, causing a mismatch when the
+        output grid matches the source exactly.
+        TODO: fix the reshape in ``reproject.reproject_to_grid`` to use the
+        post-dedup sizes, then remove the ``- 1`` here.
+
+        Source coordinates are counted across the full arrays rather than
+        filtering to the visible bbox.  The coordinates are in the source
+        (data) CRS, which may differ from the target CRS that bbox is
+        expressed in, making bbox-filtering unreliable.  For regional plots
+        this slightly overcounts the visible data density, but the subplot
+        pixel cap remains the binding constraint in those cases anyway.
+
+        Axes with a fixed count are returned unchanged.  When ``x_values`` is
+        ``None`` (called from :meth:`resolve` without data context), the data
+        cap is skipped and only ``DEFAULT_NX/NY`` and the axes pixel cap apply.
+
+        Parameters
+        ----------
+        bbox : tuple
+            ``(xmin, xmax, ymin, ymax)`` in the target CRS units.
+            Reserved for future domain-filtering; not currently used.
+        crs : cartopy CRS
+            The target map CRS.
+            Reserved for future domain-filtering; not currently used.
+        x_values, y_values : np.ndarray or None
+            Source coordinate arrays (1-D or 2-D).  Pass ``None`` to skip the
+            data resolution cap.
+        ax : matplotlib Axes, optional
+            The subplot axes; used to read the pixel dimensions of the plot area.
+            When ``None`` the pixel cap is skipped.
+
+        Returns
+        -------
+        nx, ny : int
+        """
+        # --- data resolution cap -------------------------------------------
+        # Use shape rather than np.unique to avoid an O(n log n) sort copy.
+        # For 1-D scattered data total length ≈ unique count; for 2-D grids
+        # the axis lengths are exact.  Subtract one to guard against the
+        # dedup/reshape mismatch described in the docstring above.
+        if x_values is not None:
+            if x_values.ndim == 2:
+                data_nx = max(x_values.shape[1] - 1, 2)
+                data_ny = max(x_values.shape[0] - 1, 2)
+            else:
+                data_nx = max(x_values.shape[0] - 1, 2)
+                data_ny = max(y_values.shape[0] - 1, 2)
+        else:
+            data_nx = data_ny = None
+
+        # --- pixel resolution cap ------------------------------------------
+        ax_px_width = ax_px_height = None
+        if ax is not None:
+            try:
+                fig = ax.get_figure()
+                renderer = fig.canvas.get_renderer()
+                bb = ax.get_window_extent(renderer=renderer)
+                ax_px_width = max(1, int(bb.width))
+                ax_px_height = max(1, int(bb.height))
+            except Exception:
+                # Pre-draw or headless — fall back to figsize × dpi estimate.
+                try:
+                    fig = ax.get_figure()
+                    fw_px = fig.get_figwidth() * fig.dpi
+                    fh_px = fig.get_figheight() * fig.dpi
+                    pos = ax.get_position()  # fractional Axes position on figure
+                    ax_px_width = max(1, int(fw_px * pos.width))
+                    ax_px_height = max(1, int(fh_px * pos.height))
+                except Exception:
+                    pass
+
+        def _cap(data_n, ax_px, default):
+            caps = [default]
+            if data_n is not None:
+                caps.append(data_n)
+            if ax_px is not None:
+                caps.append(ax_px)
+            return max(2, min(caps))
+
+        nx = _cap(data_nx, ax_px_width, self.DEFAULT_NX) if self._auto_nx else self.nx
+        ny = _cap(data_ny, ax_px_height, self.DEFAULT_NY) if self._auto_ny else self.ny
+        return nx, ny
+
     def apply(self, *args, **kwargs):
         raise NotImplementedError(
             f"{self.__class__.__name__} is a rendering hint; it is handled internally during plotting."
@@ -214,7 +336,9 @@ class _PixelSampler(Resample):
             if self._dx == self._dy:
                 return f"resolution={self._dx}"
             return f"resolution=({self._dx}, {self._dy})"
-        return f"nx={self.nx}, ny={self.ny}"
+        nx_str = "'auto'" if self._auto_nx else str(self.nx)
+        ny_str = "'auto'" if self._auto_ny else str(self.ny)
+        return f"nx={nx_str}, ny={ny_str}"
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self._repr_size()})"
@@ -239,12 +363,16 @@ class Bilinear(_PixelSampler):
 
     Parameters
     ----------
-    nx : int, optional
-        Number of pixels in the x direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
-    ny : int, optional
-        Number of pixels in the y direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
+    nx : int or ``"auto"``, optional
+        Number of pixels in the x direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel width.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
+    ny : int or ``"auto"``, optional
+        Number of pixels in the y direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel height.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
     resolution : float or tuple of float, optional
         Pixel spacing in target CRS units (e.g. degrees or metres).  A single
         value sets the same spacing in both directions; a 2-tuple sets
@@ -253,6 +381,8 @@ class Bilinear(_PixelSampler):
     Examples
     --------
     >>> Bilinear()  # 1000 × 1000 pixels
+    >>> Bilinear("auto")  # automatically sized to data and subplot
+    >>> Bilinear(nx="auto", ny=500)  # auto x, fixed y
     >>> Bilinear(nx=2000, ny=1000)  # fixed pixel count
     >>> Bilinear(resolution=1.0)  # 1-degree pixels (PlateCarree)
     >>> Bilinear(resolution=(1.0, 0.5))  # 1° × 0.5° pixels
@@ -283,12 +413,16 @@ class NearestNeighbour(_PixelSampler):
 
     Parameters
     ----------
-    nx : int, optional
-        Number of pixels in the x direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
-    ny : int, optional
-        Number of pixels in the y direction.  Mutually exclusive with
-        ``resolution``.  Defaults to 1000 when neither is given.
+    nx : int or ``"auto"``, optional
+        Number of pixels in the x direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel width.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
+    ny : int or ``"auto"``, optional
+        Number of pixels in the y direction.  Pass ``"auto"`` to let
+        earthkit-plots choose based on data resolution and subplot pixel height.
+        Mutually exclusive with ``resolution``.  Defaults to 1000 when neither
+        is given.
     resolution : float or tuple of float, optional
         Pixel spacing in target CRS units (e.g. degrees or metres).  A single
         value sets the same spacing in both directions; a 2-tuple sets
@@ -297,6 +431,7 @@ class NearestNeighbour(_PixelSampler):
     Examples
     --------
     >>> NearestNeighbour()  # 1000 × 1000 pixels
+    >>> NearestNeighbour("auto")  # automatically sized to data and subplot
     >>> NearestNeighbour(nx=500, ny=500)  # fixed pixel count
     >>> NearestNeighbour(resolution=1.0)  # 1-degree pixels (PlateCarree)
     >>> NearestNeighbour(resolution=(1.0, 0.5))  # 1° × 0.5° pixels

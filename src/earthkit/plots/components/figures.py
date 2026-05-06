@@ -900,6 +900,33 @@ class Figure:
         """
 
     @iterate_subplots
+    def plot(self, *args, **kwargs):
+        """
+        Plot filled contours on every subplot in the figure.
+
+        Parameters
+        ----------
+        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
+            The data to plot. If None, x, y, and z must be provided.
+        x : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The x values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        y : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The y values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        z : str, list, numpy.ndarray, or xarray.DataArray, optional
+            The z values to plot. If data is provided, this is assumed to be the
+            name of a coordinate in the data. If None, data must be provided.
+        style : earthkit.plots.styles.Style, optional
+            The Style to use for the filled contour plot. If None, a Style is
+            automatically generated based on the data.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        """
+
+    @iterate_subplots
     def contourf(self, *args, **kwargs):
         """
         Plot filled contours on every subplot in the figure.
@@ -993,7 +1020,7 @@ class Figure:
             :meth:`~earthkit.plots.components.subplots.Subplot.multiboxplot`.
         """
 
-    def plot(
+    def _plot(
         self,
         method,
         data,
@@ -1248,7 +1275,7 @@ class Figure:
             )
             if figsize is None:
                 figsize = size
-        self.plot(
+        self._plot(
             plot,
             data,
             *args,
