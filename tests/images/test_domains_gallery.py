@@ -69,11 +69,32 @@ def test_override_crs():
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_domain_union():
     EU_COUNTRIES = [
-        "Austria", "Belgium", "Bulgaria", "Croatia", "Cyprus",
-        "Czech Republic", "Denmark", "Estonia", "Finland", "France",
-        "Germany", "Greece", "Hungary", "Ireland", "Italy", "Latvia",
-        "Lithuania", "Luxembourg", "Netherlands", "Poland", "Portugal",
-        "Romania", "Slovakia", "Slovenia", "Spain", "Sweden",
+        "Austria",
+        "Belgium",
+        "Bulgaria",
+        "Croatia",
+        "Cyprus",
+        "Czech Republic",
+        "Denmark",
+        "Estonia",
+        "Finland",
+        "France",
+        "Germany",
+        "Greece",
+        "Hungary",
+        "Ireland",
+        "Italy",
+        "Latvia",
+        "Lithuania",
+        "Luxembourg",
+        "Netherlands",
+        "Poland",
+        "Portugal",
+        "Romania",
+        "Slovakia",
+        "Slovenia",
+        "Spain",
+        "Sweden",
     ]
     EU = domains.union(EU_COUNTRIES, name="European Union")
     eu_map = ekp.Map(domain=EU)
