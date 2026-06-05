@@ -154,10 +154,12 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
 
 def vector(layer, *args, **kwargs):
     uses_cbar = getattr(layer.mappable, "_colorbar", True)
-    cbar = None
-    if uses_cbar:
-        cbar = colorbar(layer, *args, **kwargs)
-    return cbar
+    if not uses_cbar:
+        return None
+    # quiver/barbs set .cmap = None when not coloured by magnitude — skip colorbar
+    if getattr(layer.mappable, "cmap", None) is None or getattr(layer.mappable, "norm", None) is None:
+        return None
+    return colorbar(layer, *args, **kwargs)
 
 
 def quiverkey(layer, *args, vector_reference=16, **kwargs):
