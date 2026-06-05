@@ -156,8 +156,8 @@ def vector(layer, *args, **kwargs):
     uses_cbar = getattr(layer.mappable, "_colorbar", True)
     if not uses_cbar:
         return None
-    # quiver/barbs set .cmap = None when not coloured by magnitude — skip colorbar
-    if getattr(layer.mappable, "cmap", None) is None or getattr(layer.mappable, "norm", None) is None:
+    # Uncoloured quiver/barbs have no array data assigned — norm.vmin stays None
+    if getattr(getattr(layer.mappable, "norm", None), "vmin", None) is None:
         return None
     return colorbar(layer, *args, **kwargs)
 
