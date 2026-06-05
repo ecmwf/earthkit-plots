@@ -235,10 +235,13 @@ class Map(Subplot):
                 **self._ax_kwargs,
             )
             if self.domain is not None and None not in list(self.domain.bbox):
-                self._ax.set_extent(
-                    self.domain.bbox.to_cartopy_bounds(),
-                    self.domain.bbox.crs,
-                )
+                if self.domain.name == "Global":
+                    self._ax.set_global()
+                else:
+                    self._ax.set_extent(
+                        self.domain.bbox.to_cartopy_bounds(),
+                        self.domain.bbox.crs,
+                    )
         return self._ax
 
     def _plot_kwargs(self, source):
