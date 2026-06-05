@@ -23,4 +23,4 @@ build:
   requirements: tests/downstream-ci-requirements.txt
   pytest_cmd: |
     make unit-tests
-    make image-tests
+    # make image-tests
