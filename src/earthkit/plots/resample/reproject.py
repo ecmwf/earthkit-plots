@@ -128,10 +128,7 @@ def _transform_coordinates_parallel(transformer, x_tgt, y_tgt, num_chunks=4):
 
     # Create chunk ranges; last chunk always extends to ny to avoid dropping
     # tail rows when ny is not divisible by num_chunks.
-    chunks = [
-        (i * chunk_size, ny if i == num_chunks - 1 else (i + 1) * chunk_size)
-        for i in range(num_chunks)
-    ]
+    chunks = [(i * chunk_size, ny if i == num_chunks - 1 else (i + 1) * chunk_size) for i in range(num_chunks)]
 
     # Transform chunks in parallel
     with ThreadPoolExecutor(max_workers=num_chunks) as executor:
