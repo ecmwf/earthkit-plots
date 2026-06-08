@@ -1170,8 +1170,8 @@ class Style:
             m = layer.mappable
             if not hasattr(m, "cmap"):
                 return None
-            # quiver/barbs set .cmap = None when not coloured by magnitude
-            if getattr(m, "cmap", None) is None or getattr(m, "norm", None) is None:
+            # Uncoloured quiver/barbs have no array data assigned — norm.vmin stays None
+            if getattr(getattr(m, "norm", None), "vmin", None) is None:
                 return None
         ticks = self._legend_kwargs.get("ticks")
         if ticks is None and self._levels._levels is not None:

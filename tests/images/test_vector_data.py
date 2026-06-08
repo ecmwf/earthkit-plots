@@ -60,3 +60,31 @@ def test_quiver_with_style():
     chart.gridlines()
     chart.title("Storm Ophelia - {level} hPa wind speed and direction\n{time:%H:%M UTC on %-d %B %Y}")
     return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_quiver_legend_no_colors():
+    """Calling legend() on an uncoloured quiver plot should produce no colorbar."""
+    data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
+    chart = ekp.Map(domain=[-20, 5, 40, 60])
+    chart.quiver(data)
+    chart.coastlines()
+    chart.land()
+    chart.gridlines()
+    chart.legend()
+    return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_barbs_legend_no_colors():
+    """Calling legend() on an uncoloured barbs plot should produce no colorbar."""
+    data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
+    chart = ekp.Map(domain=[-20, 5, 40, 60])
+    chart.barbs(data)
+    chart.coastlines()
+    chart.land()
+    chart.gridlines()
+    chart.legend()
+    return chart.fig

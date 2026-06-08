@@ -337,27 +337,19 @@ def needs_cyclic_point(lons):
     lons_arr = np.asarray(lons)
     if not np.issubdtype(lons_arr.dtype, np.number):
         return False
-    return is_global(lons, np.arange(-90, 90, 2)) and is_structured(lons, np.arange(-90, 90, 2))
 
-    lons = np.asarray(lons)
-    lons_sorted = np.sort(lons)
-    delta = np.median(np.diff(lons_sorted))  # Robust estimate of the longitude step
+    # Extract 1D unique longitudes from a possible 2D meshgrid.
+    lons_1d = np.unique(lons_arr.ravel())
+    if not is_structured(lons_1d, np.arange(-90, 90, 2)):
+        return False
 
-    actual_min, actual_max = np.min(lons), np.max(lons)
+    lons_sorted = np.sort(lons_1d)
+    delta = np.median(np.diff(lons_sorted))
 
-    # Define both possible expected ranges
-    expected_range_360 = [0, 360]
-    expected_range_180 = [-180, 180]
+    actual_min, actual_max = np.min(lons_arr), np.max(lons_arr)
+    tolerance = delta / 2
 
-    # Define the tolerances for each range taking into account the step size
-    tolerance = delta / 2  # Adjust tolerance as a fraction of the longitude step
-
-    # Check if the actual range covers the expected range within tolerance
-    check_360 = np.isclose(actual_min, expected_range_360[0], atol=tolerance) and np.isclose(
-        actual_max, expected_range_360[1] - delta, atol=tolerance
-    )
-    check_180 = np.isclose(actual_min, expected_range_180[0], atol=tolerance) and np.isclose(
-        actual_max, expected_range_180[1] - delta, atol=tolerance
-    )
+    check_360 = np.isclose(actual_min, 0, atol=tolerance) and np.isclose(actual_max, 360 - delta, atol=tolerance)
+    check_180 = np.isclose(actual_min, -180, atol=tolerance) and np.isclose(actual_max, 180 - delta, atol=tolerance)
 
     return check_360 or check_180

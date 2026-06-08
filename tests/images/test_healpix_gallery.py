@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import numpy as np
 import earthkit.data as ekd
+import numpy as np
 import pytest
 
 import earthkit.plots as ekp

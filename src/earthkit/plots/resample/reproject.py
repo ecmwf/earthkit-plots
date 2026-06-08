@@ -549,10 +549,25 @@ def _reproject_nn(
         x_src_reproj = (x_src_reproj - float(x_sorted[0])) % 360.0 + float(x_sorted[0])
 
     # Nearest-neighbour lookup: each pixel maps to the source cell whose centre
-    # is closest.  searchsorted gives the right-insertion index; subtracting 1
-    # gives the cell to the left of the pixel, then we clamp to the valid range.
-    col_idx = np.searchsorted(x_sorted, x_src_reproj) - 1
-    row_idx = np.searchsorted(y_sorted, y_src_reproj) - 1
+    # is closest.  Build cell edges as midpoints between adjacent centres (with
+    # half-step extrapolation at the boundaries), then searchsorted on the edges
+    # gives the correct cell index — matching pcolormesh's cell-centre convention.
+    x_step_left = x_sorted[1] - x_sorted[0] if len(x_sorted) > 1 else 1.0
+    x_step_right = x_sorted[-1] - x_sorted[-2] if len(x_sorted) > 1 else 1.0
+    x_edges = np.concatenate([
+        [x_sorted[0] - x_step_left / 2],
+        (x_sorted[:-1] + x_sorted[1:]) / 2,
+        [x_sorted[-1] + x_step_right / 2],
+    ])
+    y_step_bottom = y_sorted[1] - y_sorted[0] if len(y_sorted) > 1 else 1.0
+    y_step_top = y_sorted[-1] - y_sorted[-2] if len(y_sorted) > 1 else 1.0
+    y_edges = np.concatenate([
+        [y_sorted[0] - y_step_bottom / 2],
+        (y_sorted[:-1] + y_sorted[1:]) / 2,
+        [y_sorted[-1] + y_step_top / 2],
+    ])
+    col_idx = np.searchsorted(x_edges, x_src_reproj) - 1
+    row_idx = np.searchsorted(y_edges, y_src_reproj) - 1
     col_idx = np.clip(col_idx, 0, len(x_sorted) - 1)
     row_idx = np.clip(row_idx, 0, len(y_sorted) - 1)
 
