@@ -174,6 +174,15 @@ def extract_plottables_1D(
     # Step 0: Normalise style/units and emit deprecation warning if needed.
     units, style = _prepare_style_and_units(style, units, auto_style)
 
+    # Step 0.5: matplotlib-style two-positional-arg form: scatter(x, y) / line(x, y).
+    # When exactly two array-like positional args are given and neither x nor y was
+    # supplied as a keyword, treat them as (x_data, y_data) — matching matplotlib's
+    # own convention.  This must happen before get_source() discards args[1].
+    if len(args) == 2 and x is None and y is None and not isinstance(args[0], str):
+        x = args[0]
+        y = args[1]
+        args = ()
+
     # Step 1: Infer context and build the unified Source.
     context = _infer_plot_context(subplot, method_name)
     source = get_source(
