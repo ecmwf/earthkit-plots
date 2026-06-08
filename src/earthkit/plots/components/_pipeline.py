@@ -183,6 +183,14 @@ def extract_plottables_1D(
         y = args[1]
         args = ()
 
+    # Step 0.6: For scatter/point_cloud, 'c' is the scatter-specific alias for 'z'
+    # (the values used to colour points).  Promote it to z so that get_source()
+    # can extract it from structured data (xarray/earthkit coordinate name) or
+    # use it directly (numpy array), exactly as z works for contourf/pcolormesh.
+    # Only applies when z was not already set explicitly.
+    if method_name in ("scatter", "point_cloud") and z is None and "c" in kwargs:
+        z = kwargs.pop("c")
+
     # Step 1: Infer context and build the unified Source.
     context = _infer_plot_context(subplot, method_name)
     source = get_source(

@@ -459,11 +459,7 @@ class Style:
 
     @staticmethod
     def _xy_for_scatter(x, y):
-        if x.ndim == 1 and y.ndim == 1 and len(x) != len(y):
-            x, y = np.meshgrid(x, y)
-            x = x.flatten()
-            y = y.flatten()
-        elif x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
+        if x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
             x = x.flatten()
             y = y.flatten()
         return x, y
