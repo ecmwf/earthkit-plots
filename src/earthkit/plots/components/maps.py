@@ -1776,7 +1776,10 @@ class Map(Subplot):
         else:
             has_non_colourbar = False
             for i, layer in enumerate(self.distinct_legend_layers):
-                if not hasattr(layer.mappable, "cmap"):
+                needs_colourbar = hasattr(layer.mappable, "cmap") and (
+                    not hasattr(layer.mappable, "get_array") or layer.mappable.get_array() is not None
+                )
+                if not needs_colourbar:
                     has_non_colourbar = True
                     continue
                 if isinstance(location, (list, tuple)):
