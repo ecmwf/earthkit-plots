@@ -2191,9 +2191,9 @@ class Subplot:
             # matplotlib's ax.legend() with no arguments only sees the primary
             # axis; labels set on twinx artists are missed.
             all_handles, all_labels = [], []
-            axes_to_check = (
-                [ax for _, ax in self._axis_registry.items()] if self._axis_registry is not None else [self.ax]
-            )
+            axes_to_check = [self.ax]
+            if self._axis_registry is not None:
+                axes_to_check += [ax for _, ax in self._axis_registry.items() if ax is not self.ax]
             for ax in axes_to_check:
                 handles, labels = ax.get_legend_handles_labels()
                 for handle, label in zip(handles, labels):
