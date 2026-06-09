@@ -22,6 +22,9 @@ _RNG = np.random.default_rng(42)
 _DATA = _RNG.random((15, 30))
 _Y = np.linspace(-90, 90, 15)
 _X = np.linspace(-180, 180, 30)
+_LONS = _RNG.uniform(-160, 160, 30)
+_LATS = _RNG.uniform(-70, 70, 30)
+_VALS = _RNG.uniform(0, 100, 30)
 
 
 @pytest.mark.mpl_image
@@ -54,6 +57,28 @@ def test_numpy_point_cloud():
     chart.coastlines()
     chart.gridlines()
     chart.legend(label="")
+    return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_numpy_scatter_label():
+    chart = ekp.Map()
+    chart.scatter(_LONS, _LATS, label="stations")
+    chart.coastlines()
+    chart.gridlines()
+    chart.legend()
+    return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_numpy_scatter_colorbar():
+    chart = ekp.Map()
+    chart.scatter(_LONS, _LATS, c=_VALS, cmap="viridis")
+    chart.coastlines()
+    chart.gridlines()
+    chart.legend(label="value")
     return chart.fig
 
 
