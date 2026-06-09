@@ -820,14 +820,18 @@ class Style:
             nan_mask = np.isnan(values.ravel())
             missing_x = x.ravel()[nan_mask]
             missing_y = y.ravel()[nan_mask]
+            missing_s = s.ravel()[nan_mask]
+
             x = x.ravel()[~nan_mask]
             y = y.ravel()[~nan_mask]
             values = values.ravel()[~nan_mask]
+            s = s.ravel()[~nan_mask]
+
             if missing_values:
                 ax.scatter(
                     missing_x,
                     missing_y,
-                    s=s,
+                    s=missing_s,
                     *args,
                     **{**original_kwargs, **missing_values},
                 )
