@@ -27,3 +27,31 @@ def test_subplots_figure_size_deprecated():
     with pytest.warns(DeprecationWarning, match="figsize"):
         subplot = subplots.Subplot(size=[10, 5])
     assert subplot.figure._figsize == [10, 5]
+
+
+def test_pcolormesh_interpolate_kwarg_with_style_does_not_leak():
+    """The deprecated ``interpolate`` kwarg must not leak to matplotlib.
+
+    Regression test for #183: supplying both a ``style`` and the legacy
+    ``interpolate`` kwarg raised ``AttributeError: QuadMesh.set() got an
+    unexpected keyword argument 'interpolate'`` because the kwarg was passed
+    straight through to ``Axes.pcolormesh`` instead of being translated into a
+    resample step.
+    """
+    import numpy as np
+    import pytest
+    import xarray as xr
+
+    from earthkit.plots.styles import Style
+
+    data = xr.DataArray(
+        np.random.rand(10, 10) * 50 + 250,
+        dims=["lat", "lon"],
+        coords={"lat": np.linspace(-89, 89, 10), "lon": np.linspace(-179, 179, 10)},
+        attrs={"units": "K"},
+    )
+    style = Style(colors="viridis", levels=[250, 270, 290, 310])
+    subplot = subplots.Subplot()
+    with pytest.warns(DeprecationWarning, match="interpolate"):
+        subplot.pcolormesh(data, style=style, interpolate={"distance_threshold": "auto"})
+    assert len(subplot.layers) == 1

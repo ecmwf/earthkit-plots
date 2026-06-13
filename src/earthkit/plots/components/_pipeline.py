@@ -431,20 +431,23 @@ def extract_plottables_2D(
 
     from earthkit.plots.resample import _AUTO, Unstructured
 
-    # Translate the legacy `interpolate` kwarg to `resample`.
-    if "interpolate" in kwargs and resample is None:
+    # Translate the legacy `interpolate` kwarg to `resample`. Always consume it
+    # here so it never leaks through to the matplotlib plotting call; an explicit
+    # `resample=` takes precedence over the deprecated kwarg.
+    if "interpolate" in kwargs:
         interp = kwargs.pop("interpolate")
         warnings.warn(
             "The 'interpolate' keyword argument is deprecated. Use 'resample=Unstructured(...)' instead.",
             DeprecationWarning,
             stacklevel=5,
         )
-        if interp is True:
-            resample = Unstructured()
-        elif isinstance(interp, dict):
-            resample = Unstructured(**interp)
-        elif isinstance(interp, Unstructured):
-            resample = interp
+        if resample is None or resample is False or resample == _AUTO:
+            if interp is True:
+                resample = Unstructured()
+            elif isinstance(interp, dict):
+                resample = Unstructured(**interp)
+            elif isinstance(interp, Unstructured):
+                resample = interp
 
     _resample_is_auto = resample == _AUTO
 
