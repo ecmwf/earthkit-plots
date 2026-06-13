@@ -68,6 +68,8 @@ def expand(colors, levels, extend_colors=0):
             colors = [colors] * (length - 1)
         else:
             colors = [cmap(i) for i in np.linspace(0, 1, length)]
+    elif isinstance(colors, mpl.colors.Colormap):
+        colors = [colors(i) for i in np.linspace(0, 1, length)]
     return colors
 
 

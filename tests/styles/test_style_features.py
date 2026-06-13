@@ -149,6 +149,31 @@ class TestStyleOverrides:
         assert override_style._colors == "plasma"
 
 
+class TestStyleColormapObject:
+    """Test passing a matplotlib Colormap object as ``colors``."""
+
+    @pytest.mark.parametrize("cmap_name", ["RdBu", "viridis"])
+    def test_colormap_object_matches_name(self, cmap_name):
+        """A Colormap object should behave like its registered name.
+
+        Regression test for a ``TypeError: object of type
+        'LinearSegmentedColormap' has no len()`` raised when a Colormap
+        instance (rather than a name) was passed through ``cmap_and_norm``.
+        """
+        import matplotlib.pyplot as plt
+
+        levels = [-3, -2, -1, 0, 1, 2, 3]
+        from_name = Style(colors=cmap_name, levels=levels, extend="both")
+        from_object = Style(colors=plt.get_cmap(cmap_name), levels=levels, extend="both")
+
+        data = np.linspace(-3, 3, 20).reshape(4, 5)
+        kw_name = from_name.to_matplotlib_kwargs(data)
+        kw_object = from_object.to_matplotlib_kwargs(data)
+
+        sample = np.linspace(0, 1, 10)
+        assert np.allclose(kw_name["cmap"](sample), kw_object["cmap"](sample))
+
+
 class TestStyleUnits:
     """Test automatic units from styles."""
 
