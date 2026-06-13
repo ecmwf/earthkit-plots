@@ -40,11 +40,19 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
         data = data.to_numpy()
 
     finite_vals = data[np.isfinite(data)]
-    min_value = np.min(finite_vals)
-    max_value = np.max(finite_vals)
+    if finite_vals.size == 0:
+        # No finite data to derive a range from; fall back to a range around 0.
+        min_value = max_value = 0.0
+    else:
+        min_value = np.min(finite_vals)
+        max_value = np.max(finite_vals)
 
-    if np.isnan(min_value) or min_value == max_value:
-        return [0] * (n_levels + 1)
+    if min_value == max_value:
+        # Constant (or empty) field: matplotlib requires strictly increasing
+        # contour levels, so return a small range centred on the value rather
+        # than a list of identical values.
+        center = float(min_value)
+        return np.linspace(center - 0.5, center + 0.5, n_levels + 1).tolist()
 
     if divergence_point is not None:
         max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
