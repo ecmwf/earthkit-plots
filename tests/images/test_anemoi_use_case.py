@@ -47,7 +47,7 @@
 
 
 # @pytest.mark.mpl_image
-# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 # def test_anemoi_use_single():
 #     temperature, pressure = earthkit.data.from_source(
 #         "sample", "era5-2t-msl-1985122512.grib"
@@ -70,7 +70,7 @@
 
 
 # @pytest.mark.mpl_image
-# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 # def test_anemoi_use_fieldlist():
 #     temperature, pressure = earthkit.data.from_source(
 #         "sample", "era5-2t-msl-1985122512.grib"
@@ -85,7 +85,7 @@
 
 
 # @pytest.mark.mpl_image
-# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+# @pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 # def test_anemoi_use_fieldlist_minimal():
 #     temperature, pressure = earthkit.data.from_source(
 #         "sample", "era5-2t-msl-1985122512.grib"
