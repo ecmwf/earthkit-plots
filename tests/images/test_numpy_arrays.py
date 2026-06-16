@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import cartopy.crs as ccrs
 import numpy as np
 import pytest
 
@@ -79,6 +80,20 @@ def test_numpy_scatter_colorbar():
     chart.coastlines()
     chart.gridlines()
     chart.legend(label="value")
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+def test_numpy_scatter_explicit_transform():
+    laea = ccrs.LambertAzimuthalEqualArea()
+    # Generate points in LAEA projected coordinates (metres)
+    rng = np.random.default_rng(0)
+    x = rng.uniform(-2_000_000, 2_000_000, 200)
+    y = rng.uniform(-2_000_000, 2_000_000, 200)
+    z = rng.random(200)
+    chart = ekp.Map(crs=laea)
+    chart.scatter(z, x=x, y=y, transform=laea)
+    chart.coastlines()
+    chart.legend(label="")
     return chart.fig
 
 

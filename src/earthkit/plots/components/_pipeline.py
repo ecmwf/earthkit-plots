@@ -205,7 +205,7 @@ def extract_plottables_1D(
         z_units=z_units,
         metadata=metadata,
     )
-    kwargs.update(subplot._plot_kwargs(source))
+    kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     # Step 2: Resolve the Style object.
     style = configure_style(method_name, style, source, units, auto_style, kwargs)
@@ -481,7 +481,7 @@ def extract_plottables_2D(
         z_units=z_units,
         metadata=metadata,
     )
-    kwargs.update(subplot._plot_kwargs(source))
+    kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     if grid != "auto":
         source._gridspec_override = grid
@@ -967,7 +967,7 @@ def extract_plottables_vector_2D(
             source._metadata_resolver.user_metadata["long_name"] = cleaned
 
     # Step 2: Inject subplot-level plot kwargs.
-    kwargs.update(subplot._plot_kwargs(source))
+    kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     # Step 2.5: Auto-fit the map extent to the data when no domain is set.
     # Vector resampling calls subplot.ax.get_extent(), so the extent must be
