@@ -16,7 +16,14 @@ import shutil
 import subprocess
 import tempfile
 
+import matplotlib
 import pytest
+
+# Force the non-interactive Agg backend for all tests, on every platform, so
+# image-comparison tests render through the same rasteriser everywhere (e.g.
+# macOS would otherwise default to the MacOSX backend). This must run before
+# matplotlib selects a backend, hence at conftest import time.
+matplotlib.use("Agg", force=True)
 
 
 def pytest_addoption(parser):
