@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_global_ll():
     data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     chart = ekp.Map()
@@ -37,7 +37,7 @@ def test_global_ll():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_global_ll_robinson():
     data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     chart = ekp.Map(crs="Robinson")
@@ -54,7 +54,7 @@ def test_global_ll_robinson():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_global_ll_europe():
     data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.grib")
     chart = ekp.Map(domain="europe")

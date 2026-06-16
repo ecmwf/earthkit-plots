@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_healpix_interpolated():
     data = earthkit.data.from_source("sample", "healpix-h128-nested-2t.grib")
     chart = earthkit.plots.Map()
@@ -35,7 +35,7 @@ def test_healpix_interpolated():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_healpix_pixels():
     data = earthkit.data.from_source("sample", "healpix-h128-nested-2t.grib")
     chart = earthkit.plots.Map(domain=["France", "Spain"])

@@ -55,7 +55,7 @@ _COLORS = [
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_vorticity_over_andes():
     vorticity = ekd.from_source("sample", "ecmwf-vorticity.grib").to_fieldlist()
 
