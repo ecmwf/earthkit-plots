@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import dataclasses
 import glob
 import os
 
@@ -59,13 +60,37 @@ __all__ = [
 ]
 
 
+# The default style sheet uses Roboto. The bundled Roboto faces are registered
+# under this private family name so they cannot be shadowed by a system-installed
+# Roboto (e.g. the ``fonts-roboto`` package on Linux). When both are present and
+# share the same family/weight/style, matplotlib's font scorer breaks the tie by
+# registration order, which is non-deterministic across platforms and cache
+# states and causes rendering (and image-test) differences. A private family name
+# guarantees the bundled faces always win.
+BUNDLED_FONT_FAMILIES = {"Roboto": "Roboto (earthkit-plots)"}
+
+
 def _register_fonts():
-    """Register bundled fonts with matplotlib's font manager."""
+    """Register bundled fonts with matplotlib's font manager.
+
+    Fonts in folders listed in :data:`BUNDLED_FONT_FAMILIES` are registered under
+    a private family name (see the note on that mapping) so the bundled faces are
+    never shadowed by identically-named system fonts.
+    """
     fontpaths = glob.glob(os.path.join(FONTS_DIR, "*"))
     for fontpath in fontpaths:
+        private_family = BUNDLED_FONT_FAMILIES.get(os.path.basename(fontpath))
         font_files = glob.glob(os.path.join(fontpath, "*.ttf"))
         for font_file in font_files:
-            matplotlib.font_manager.fontManager.addfont(font_file)
+            if private_family is None:
+                matplotlib.font_manager.fontManager.addfont(font_file)
+                continue
+            # Register under a private family name, preserving the face's real
+            # weight/style so weight-specific requests still resolve correctly.
+            # FontEntry is a frozen dataclass, so build a renamed copy.
+            entry = matplotlib.font_manager.ttfFontProperty(matplotlib.font_manager.ft2font.FT2Font(font_file))
+            entry = dataclasses.replace(entry, name=private_family)
+            matplotlib.font_manager.fontManager.ttflist.append(entry)
 
 
 def _register_styles():

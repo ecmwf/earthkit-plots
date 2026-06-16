@@ -32,8 +32,10 @@ ytick.color: 333333
 grid.color: F2F2F2
 
 ## Font
-## Note: Roboto is bundled with earthkit-plots and registered at import time.
-font.family: Roboto
+## Note: Roboto is bundled with earthkit-plots and registered at import time
+## under a private family name so the bundled faces are never shadowed by a
+## system-installed Roboto (see BUNDLED_FONT_FAMILIES in earthkit/plots/__init__.py).
+font.family: Roboto (earthkit-plots)
 
 ## Text
 text.color: 333333
