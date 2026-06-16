@@ -50,9 +50,13 @@ class TestStyleAuto:
             chart.pcolormesh(sample_data, auto_style=True)
 
             assert len(w) > 0
-            assert issubclass(w[-1].category, DeprecationWarning)
-            assert "auto_style" in str(w[-1].message)
-            assert "style='auto'" in str(w[-1].message)
+            auto_style_warnings = [
+                warning
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning) and "auto_style" in str(warning.message)
+            ]
+            assert len(auto_style_warnings) == 1
+            assert "style='auto'" in str(auto_style_warnings[0].message)
 
     def test_style_auto_equivalence(self, sample_data):
         """Test that style='auto' and auto_style=True produce equivalent results."""
@@ -405,3 +409,17 @@ class TestVminVmax:
         data = np.random.rand(5, 5) * 100
         kwargs = style.to_matplotlib_kwargs(data)
         assert isinstance(kwargs["norm"], mpl.colors.BoundaryNorm)
+
+
+def test_bundled_styles_registered():
+    """Importing earthkit.plots registers the bundled .mplstyle files in
+    matplotlib's public style library.
+
+    Regression for the use of the private ``matplotlib.style.core``, which was
+    removed in matplotlib 3.11 and made ``import earthkit.plots`` raise
+    ``AttributeError: module 'matplotlib.style' has no attribute 'core'``.
+    """
+    import matplotlib.pyplot as plt
+
+    assert "earthkit" in plt.style.library
+    assert "earthkit" in plt.style.available

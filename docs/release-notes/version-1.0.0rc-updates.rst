@@ -16,6 +16,10 @@ Bug fixes
   or silent garbage output; now a ``ValueError`` is raised immediately with an
   actionable message.
 
+- Fixed ``import earthkit.plots`` crashing under matplotlib 3.11. Style registration
+  used the private ``matplotlib.style.core``, which was removed in matplotlib 3.11;
+  it now uses the public ``matplotlib.style.library`` and ``matplotlib.style.available``.
+
 Version 1.0.0rc0
 ================
 
