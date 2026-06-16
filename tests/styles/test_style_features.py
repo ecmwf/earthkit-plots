@@ -383,3 +383,17 @@ class TestVminVmax:
         data = np.random.rand(5, 5) * 100
         kwargs = style.to_matplotlib_kwargs(data)
         assert isinstance(kwargs["norm"], mpl.colors.BoundaryNorm)
+
+
+def test_bundled_styles_registered():
+    """Importing earthkit.plots registers the bundled .mplstyle files in
+    matplotlib's public style library.
+
+    Regression for the use of the private ``matplotlib.style.core``, which was
+    removed in matplotlib 3.11 and made ``import earthkit.plots`` raise
+    ``AttributeError: module 'matplotlib.style' has no attribute 'core'``.
+    """
+    import matplotlib.pyplot as plt
+
+    assert "earthkit" in plt.style.library
+    assert "earthkit" in plt.style.available
