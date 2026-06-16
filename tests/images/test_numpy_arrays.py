@@ -81,6 +81,7 @@ def test_numpy_scatter_colorbar():
     chart.gridlines()
     chart.legend(label="value")
 
+
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
 def test_numpy_scatter_explicit_transform():
