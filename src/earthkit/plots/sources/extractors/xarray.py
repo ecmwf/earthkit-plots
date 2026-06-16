@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 from typing import Any
 
 import numpy as np
@@ -21,6 +22,8 @@ from earthkit.plots import identifiers
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.sources.coordinates import CoordinateInfo, ExtractedCoordinates
 from earthkit.plots.sources.extractors.base import BaseExtractor
+
+_LOG = logging.getLogger(__name__)
 
 
 def _coord_item(coord):
@@ -1012,24 +1015,87 @@ class XarrayExtractor(BaseExtractor):
         if hasattr(self.data, "attrs") and "crs" in self.data.attrs:
             return self.data.attrs["crs"]
 
-        # Try to use earthkit-data to extract projection from CF conventions.
-        # self.data is a single-variable Dataset (yielded by iter_plot_groups)
-        # that includes the grid_mapping variable, so from_object sees the full
-        # CF grid_mapping info without needing the original multi-var Dataset.
+        # Preferred path: read the CF grid_mapping variable directly and build a
+        # cartopy CRS from it.  self.data is a single-variable Dataset (yielded
+        # by iter_plot_groups) that retains the grid_mapping variable, so its CF
+        # attributes are available here.  Going via the grid_mapping avoids
+        # constructing earthkit-data fields, whose time/step handling can fail on
+        # data with non-timedelta step coordinates (e.g. EFAS ``step=6.0``) under
+        # recent earthkit-data/NumPy.
+        crs = self._crs_from_cf_grid_mapping()
+        if crs is not None:
+            return crs
+
+        # Fallback: let earthkit-data extract the projection from CF conventions.
         try:
             import earthkit.data as ek_data
 
             earthkit_data = ek_data.from_object(self.data).to_fieldlist()
 
-            # Extract projection and convert to cartopy CRS
-            if hasattr(earthkit_data, "geography"):
+            # earthkit-data >= 0.12 exposes the projection on individual fields
+            # (the fieldlist itself no longer carries ``.geography``).
+            projection = None
+            if len(earthkit_data) and hasattr(earthkit_data[0], "projection"):
+                projection = earthkit_data[0].projection()
+            # Legacy earthkit-data: projection lived on the fieldlist's geography.
+            elif hasattr(earthkit_data, "geography"):
                 projection = earthkit_data.geography.projection()
-                if projection is not None and hasattr(projection, "to_cartopy_crs"):
-                    return projection.to_cartopy_crs()
 
-        except (ImportError, AttributeError, Exception):
+            if projection is not None and hasattr(projection, "to_cartopy_crs"):
+                return projection.to_cartopy_crs()
+
+        except ImportError:
+            # earthkit-data not installed: no CRS available, fall back silently.
             pass
+        except Exception:
+            _LOG.warning(
+                "Failed to extract CRS from xarray data via earthkit-data; falling back to default projection.",
+                exc_info=True,
+            )
 
+        return None
+
+    def _crs_from_cf_grid_mapping(self) -> Any | None:
+        """Build a cartopy CRS from a CF ``grid_mapping`` variable, if present.
+
+        Looks up the variable named by a data variable's ``grid_mapping``
+        attribute and converts its CF attributes to a concrete cartopy
+        projection via earthkit-data's CF grid_mapping handler.  This is the
+        same conversion earthkit-data uses internally, but called directly on
+        the grid_mapping attributes so we avoid constructing a time-aware field
+        (whose step handling can fail on data such as EFAS ``step=6.0``).
+
+        Returns ``None`` when no grid_mapping is found or conversion fails (so
+        the caller can fall back to other extraction methods).
+        """
+        data = self.data
+        if not hasattr(data, "data_vars"):
+            return None
+
+        # Find the grid_mapping variable referenced by any data variable.
+        gm_name = None
+        for var in data.data_vars:
+            gm = data[var].attrs.get("grid_mapping")
+            if isinstance(gm, str) and gm:
+                candidate = gm.split()[0]
+                if candidate in data.variables:
+                    gm_name = candidate
+                    break
+        if gm_name is None:
+            return None
+
+        try:
+            from earthkit.data.utils.projections import Projection
+
+            projection = Projection.from_cf_grid_mapping(**data[gm_name].attrs)
+            if hasattr(projection, "to_cartopy_crs"):
+                return projection.to_cartopy_crs()
+        except Exception:
+            _LOG.warning(
+                "Failed to build CRS from CF grid_mapping '%s'.",
+                gm_name,
+                exc_info=True,
+            )
         return None
 
     def get_gridspec(self) -> Any | None:

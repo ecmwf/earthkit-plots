@@ -22,7 +22,7 @@ _DATA_URL = "https://get.ecmwf.int/repository/test-data/earthkit-regrid/test-dat
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_reduced_gg_grid_cells():
     data = ekd.from_source("url", _DATA_URL)
     chart = ekp.Map(domain="Antarctica")
@@ -36,7 +36,7 @@ def test_reduced_gg_grid_cells():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_reduced_gg_interpolated():
     data = ekd.from_source("url", _DATA_URL)
     chart = ekp.Map(domain="Antarctica")
@@ -50,7 +50,7 @@ def test_reduced_gg_interpolated():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_reduced_gg_point_cloud():
     data = ekd.from_source("url", _DATA_URL)
     chart = ekp.Map(domain="Antarctica")
@@ -63,7 +63,7 @@ def test_reduced_gg_point_cloud():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_reduced_gg_all_methods_arctic():
     data = ekd.from_source("url", _DATA_URL).to_fieldlist()
     fig = ekp.Figure(rows=2, columns=2, figsize=(8, 8), domain="Arctic")
