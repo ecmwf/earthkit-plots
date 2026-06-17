@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_quiver():
     data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
     chart = ekp.Map(domain=[-20, 5, 40, 60])
@@ -32,7 +32,7 @@ def test_quiver():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_barbs():
     data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
     chart = ekp.Map(domain=[-20, 5, 40, 60])
@@ -44,7 +44,7 @@ def test_barbs():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_quiver_with_style():
     data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
     chart = ekp.Map(domain=[-20, 5, 40, 60])
@@ -63,7 +63,7 @@ def test_quiver_with_style():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_quiver_legend_no_colors():
     """Calling legend() on an uncoloured quiver plot should produce no colorbar."""
     data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")
@@ -77,7 +77,7 @@ def test_quiver_legend_no_colors():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_barbs_legend_no_colors():
     """Calling legend() on an uncoloured barbs plot should produce no colorbar."""
     data = ekd.from_source("sample", "storm_ophelia_wind_850.grib")

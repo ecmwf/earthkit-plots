@@ -21,7 +21,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_healpix_contourf_with_grid_points():
     data = ekd.from_source("sample", "healpix-h128-nested-2t.grib")
     chart = ekp.Map(domain=["France", "Spain"])
@@ -40,7 +40,7 @@ def test_healpix_contourf_with_grid_points():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_healpix_grid_cells_with_grid_points():
     data = ekd.from_source("sample", "healpix-h128-nested-2t.grib")
     chart = ekp.Map(domain=["France", "Spain"])
@@ -58,7 +58,7 @@ def test_healpix_grid_cells_with_grid_points():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_healpix_point_cloud():
     data = ekd.from_source("sample", "healpix-h128-nested-2t.grib")
     chart = ekp.Map(domain=["France", "Spain"])

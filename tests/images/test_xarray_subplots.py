@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_xaarray_efas():
     ds = ekd.from_source("sample", "efas.nc").to_xarray()
     figure = ekp.geo.plot(ds)
