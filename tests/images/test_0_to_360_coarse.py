@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_0_360_grid_cells():
     ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
 
@@ -32,7 +32,7 @@ def test_0_360_grid_cells():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_0_360_grid_cells_robinson():
     ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
 
@@ -44,7 +44,7 @@ def test_0_360_grid_cells_robinson():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_0_360_point_cloud():
     ds = ekd.from_source("sample", "lsp_step_range.grib2").to_fieldlist()
 

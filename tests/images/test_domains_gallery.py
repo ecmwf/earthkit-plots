@@ -21,7 +21,7 @@ from earthkit.plots.geography import domains
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_builtin_domains_figure():
     fig = ekp.Figure(rows=2, columns=3)
     for domain in ["Brazil", "North Atlantic", "Antarctica", "Africa", "Greenland", "Australia"]:
@@ -35,7 +35,7 @@ def test_builtin_domains_figure():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_custom_domain():
     central_europe = domains.Domain.from_bbox(
         bbox=[2, 24, 45, 55],
@@ -51,7 +51,7 @@ def test_custom_domain():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_override_crs():
     chart = ekp.Map(
         domain="Europe",
@@ -66,7 +66,7 @@ def test_override_crs():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_domain_union():
     EU_COUNTRIES = [
         "Austria",
