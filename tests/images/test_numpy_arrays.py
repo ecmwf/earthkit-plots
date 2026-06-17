@@ -26,7 +26,7 @@ _X = np.linspace(-180, 180, 30)
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_numpy_grid_cells():
     chart = ekp.Map()
     chart.grid_cells(_DATA, x=_X, y=_Y)
@@ -37,7 +37,7 @@ def test_numpy_grid_cells():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_numpy_contourf():
     chart = ekp.Map()
     chart.contourf(_DATA, x=_X, y=_Y)
@@ -48,7 +48,7 @@ def test_numpy_contourf():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_numpy_point_cloud():
     chart = ekp.Map()
     chart.point_cloud(_DATA, x=_X, y=_Y)
@@ -59,7 +59,7 @@ def test_numpy_point_cloud():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_numpy_scatter_explicit_transform():
     laea = ccrs.LambertAzimuthalEqualArea()
     # Generate points in LAEA projected coordinates (metres)
@@ -75,7 +75,7 @@ def test_numpy_scatter_explicit_transform():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_numpy_grid_cells_robinson():
     chart = ekp.Map(crs="Robinson")
     chart.grid_cells(_DATA, x=_X, y=_Y)

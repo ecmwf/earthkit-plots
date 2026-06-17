@@ -49,10 +49,13 @@ class TestStyleAuto:
             warnings.simplefilter("always")
             chart.pcolormesh(sample_data, auto_style=True)
 
-            assert len(w) > 0
-            assert issubclass(w[-1].category, DeprecationWarning)
-            assert "auto_style" in str(w[-1].message)
-            assert "style='auto'" in str(w[-1].message)
+            deprecation_warnings = [
+                warning
+                for warning in w
+                if issubclass(warning.category, DeprecationWarning) and "auto_style" in str(warning.message)
+            ]
+            assert len(deprecation_warnings) > 0
+            assert "style='auto'" in str(deprecation_warnings[-1].message)
 
     def test_style_auto_equivalence(self, sample_data):
         """Test that style='auto' and auto_style=True produce equivalent results."""

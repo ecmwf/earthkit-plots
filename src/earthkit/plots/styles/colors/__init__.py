@@ -151,8 +151,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
             cmap_colors = colors[:-1]
             over_color = colors[-1]
         cmap = colormap(name="", colors=cmap_colors, N=len(color_levels) - 1)
-        cmap.set_over(over_color)
-        cmap.set_under(under_color)
+        cmap = cmap.with_extremes(over=over_color, under=under_color)
 
     norm = None
 
