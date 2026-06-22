@@ -86,6 +86,11 @@ extensions = [
     "sphinx.ext.extlinks",
 ]
 
+# Notebook outputs are stripped from version control (see nbstripout in
+# .pre-commit-config.yaml), so execute every notebook at build time to
+# regenerate their outputs.
+nbsphinx_execute = "always"
+
 # GitHub links configuration
 extlinks = {
     "pr": ("https://github.com/ecmwf/earthkit-plots/pull/%s", "PR #%s"),

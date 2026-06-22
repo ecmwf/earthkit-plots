@@ -266,6 +266,68 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    <div class="ek-section">
+   <h2 class="ek-section-heading">10 metre U wind component</h2>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="10 metre u wind component 10m u-component of wind 10u 10u-rdbu-m-s 165 eastward_wind"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">10u-rdbu-m-s</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '10u-rdbu-m-s')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/10u-rdbu-m-s.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="10 metre u wind component 10m u-component of wind 10u 10u-rdbu-knots 165 eastward_wind"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">10u-rdbu-knots</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '10u-rdbu-knots')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/10u-rdbu-knots.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-section">
+   <h2 class="ek-section-heading">10 metre V wind component</h2>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="10 metre v wind component 10m v-component of wind 10v 10v-rdbu-m-s 166 northward_wind"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">10v-rdbu-m-s</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '10v-rdbu-m-s')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/10v-rdbu-m-s.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="10 metre v wind component 10m v-component of wind 10v 10v-rdbu-knots 166 northward_wind"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">10v-rdbu-knots</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '10v-rdbu-knots')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/10v-rdbu-knots.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-section">
    <h2 class="ek-section-heading">Wind speed</h2>
 
 .. raw:: html
@@ -473,6 +535,48 @@ Click the copy button next to any name to copy it for use in your code::
    <div class="ek-style-block" data-search="130 167 2 metre temperature 2t 500015 500016 air_temperature mean 2 metre temperature near-surface air temperature screen level temperature t temp_scrn temperature transparent-zero-blue"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">transparent-zero-blue</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'transparent-zero-blue')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/transparent-zero-blue.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-section">
+   <h2 class="ek-section-heading">2 metre dewpoint temperature</h2>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="168 2 metre dewpoint temperature 2d 2m dewpoint temperature 2m-dewpoint-spectral-kelvin 2t_dewpoint"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-dewpoint-spectral-kelvin</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-dewpoint-spectral-kelvin')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-dewpoint-spectral-kelvin.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="168 2 metre dewpoint temperature 2d 2m dewpoint temperature 2m-dewpoint-spectral-fahrenheit 2t_dewpoint"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-dewpoint-spectral-fahrenheit</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-dewpoint-spectral-fahrenheit')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-dewpoint-spectral-fahrenheit.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="168 2 metre dewpoint temperature 2d 2m dewpoint temperature 2m-dewpoint-spectral-celsius 2t_dewpoint"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">2m-dewpoint-spectral-celsius</code></div><button class="ek-copy-btn" onclick="ekCopy(this, '2m-dewpoint-spectral-celsius')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/2m-dewpoint-spectral-celsius.png
    :alt: colorbar preview
 
 .. raw:: html
@@ -2261,11 +2365,11 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    <div class="ek-section">
-   <h2 class="ek-section-heading">Total precipitation</h2>
+   <h2 class="ek-section-heading">Mc Tp</h2>
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="228 mc_tp sh-mc-tp-f01t1000 total precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-mc-tp-f01t1000</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-mc-tp-f01t1000')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="228 mc_tp sh-mc-tp-f01t1000 tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">sh-mc-tp-f01t1000</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'sh-mc-tp-f01t1000')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/sh-mc-tp-f01t1000.png
    :alt: colorbar preview
@@ -2276,7 +2380,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="228 ct-mc-tp-f01t1000-black mc_tp total precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-mc-tp-f01t1000-black</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-mc-tp-f01t1000-black')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="228 ct-mc-tp-f01t1000-black mc_tp tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-mc-tp-f01t1000-black</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-mc-tp-f01t1000-black')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/ct-mc-tp-f01t1000-black.png
    :alt: contour line sample
@@ -2287,7 +2391,7 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="228 ct-mc-tp-f01t1000-blue mc_tp total precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-mc-tp-f01t1000-blue</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-mc-tp-f01t1000-blue')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="228 ct-mc-tp-f01t1000-blue mc_tp tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ct-mc-tp-f01t1000-blue</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ct-mc-tp-f01t1000-blue')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
 .. image:: _static/styles/ct-mc-tp-f01t1000-blue.png
    :alt: contour line sample
@@ -3224,6 +3328,26 @@ Click the copy button next to any name to copy it for use in your code::
 .. raw:: html
 
    <div class="ek-section">
+   <h2 class="ek-section-heading">Surface net short-wave (solar) radiation</h2>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="ssr ssr-cividis-j-m2 surface net short-wave (solar) radiation surface_net_downward_shortwave_flux"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">ssr-cividis-j-m2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'ssr-cividis-j-m2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+.. image:: _static/styles/ssr-cividis-j-m2.png
+   :alt: colorbar preview
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-section">
    <h2 class="ek-section-heading">Sea surface temperature</h2>
 
 .. raw:: html
@@ -3596,21 +3720,9 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="228 precipitation-turbo-mm total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-turbo-mm</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-turbo-mm')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="228 precipitation-blue-gradient total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-blue-gradient</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-blue-gradient')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
-.. image:: _static/styles/precipitation-turbo-mm.png
-   :alt: colorbar preview
-
-.. raw:: html
-
-   </div>
-
-.. raw:: html
-
-   <div class="ek-style-block" data-search="228 precipitation-turbo-m total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-turbo-m</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-turbo-m')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
-
-.. image:: _static/styles/precipitation-turbo-m.png
-   :alt: colorbar preview
+*(Levels are determined from data at plot time)*
 
 .. raw:: html
 
@@ -3618,10 +3730,29 @@ Click the copy button next to any name to copy it for use in your code::
 
 .. raw:: html
 
-   <div class="ek-style-block" data-search="228 precipitation-turbo-kg-m2 total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-turbo-kg-m2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-turbo-kg-m2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+   <div class="ek-style-block" data-search="228 precipitation-mm total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-mm</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-mm')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
 
-.. image:: _static/styles/precipitation-turbo-kg-m2.png
-   :alt: colorbar preview
+*(Levels are determined from data at plot time)*
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="228 precipitation-m total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-m</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-m')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+*(Levels are determined from data at plot time)*
+
+.. raw:: html
+
+   </div>
+
+.. raw:: html
+
+   <div class="ek-style-block" data-search="228 precipitation-kg-m2 total precipitation total-precipitation total_precipitation tp"><div class="ek-style-entry"><div class="ek-style-left"><code class="ek-style-name">precipitation-kg-m2</code></div><button class="ek-copy-btn" onclick="ekCopy(this, 'precipitation-kg-m2')"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z" /><path d="M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1" /></svg> Copy this style name</button></div>
+
+*(Levels are determined from data at plot time)*
 
 .. raw:: html
 
