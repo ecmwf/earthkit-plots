@@ -164,6 +164,26 @@ templates_path = ["_templates"]
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
+# Only the notebooks covered by the notebook test suite (see `make
+# notebook-tests`) are executed at build time. Those tests run notebooks nested
+# at least two directories deep under examples/ and gallery/, so the build
+# excludes the un-tested notebooks living directly in the top level of docs/,
+# examples/examples/ and examples/gallery/. The hand-written gallery index
+# pages (examples.ipynb, gallery.ipynb) are markdown-only and are kept, as they
+# form the toctree entry points for the example and gallery sections.
+import glob  # noqa: E402
+
+_KEEP_NOTEBOOKS = {"examples.ipynb", "gallery.ipynb"}
+for _pattern in (
+    "*.ipynb",
+    "examples/examples/*.ipynb",
+    "examples/gallery/*.ipynb",
+):
+    for _path in glob.glob(os.path.join(_docs_dir, _pattern)):
+        if os.path.basename(_path) in _KEEP_NOTEBOOKS:
+            continue
+        exclude_patterns.append(os.path.relpath(_path, _docs_dir))
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
