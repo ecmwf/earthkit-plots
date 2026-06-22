@@ -174,6 +174,23 @@ def extract_plottables_1D(
     # Step 0: Normalise style/units and emit deprecation warning if needed.
     units, style = _prepare_style_and_units(style, units, auto_style)
 
+    # Step 0.5: matplotlib-style two-positional-arg form: scatter(x, y) / line(x, y).
+    # When exactly two array-like positional args are given and neither x nor y was
+    # supplied as a keyword, treat them as (x_data, y_data) — matching matplotlib's
+    # own convention.  This must happen before get_source() discards args[1].
+    if len(args) == 2 and x is None and y is None and not isinstance(args[0], str):
+        x = args[0]
+        y = args[1]
+        args = ()
+
+    # Step 0.6: For scatter/point_cloud, 'c' is the scatter-specific alias for 'z'
+    # (the values used to colour points).  Promote it to z so that get_source()
+    # can extract it from structured data (xarray/earthkit coordinate name) or
+    # use it directly (numpy array), exactly as z works for contourf/pcolormesh.
+    # Only applies when z was not already set explicitly.
+    if method_name in ("scatter", "point_cloud") and z is None and "c" in kwargs:
+        z = kwargs.pop("c")
+
     # Step 1: Infer context and build the unified Source.
     context = _infer_plot_context(subplot, method_name)
     source = get_source(

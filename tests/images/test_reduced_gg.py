@@ -40,7 +40,7 @@ def test_reduced_gg_grid_cells():
 def test_reduced_gg_interpolated():
     data = ekd.from_source("url", _DATA_URL)
     chart = ekp.Map(domain="Antarctica")
-    chart.contourf(data, units="celsius", auto_style=True)
+    chart.contourf(data, units="celsius", style="auto")
     chart.grid_points(data)
     chart.title()
     chart.legend()
@@ -54,7 +54,7 @@ def test_reduced_gg_interpolated():
 def test_reduced_gg_point_cloud():
     data = ekd.from_source("url", _DATA_URL)
     chart = ekp.Map(domain="Antarctica")
-    chart.point_cloud(data, units="celsius", auto_style=True)
+    chart.point_cloud(data, units="celsius", style="auto")
     chart.title()
     chart.legend()
     chart.coastlines()

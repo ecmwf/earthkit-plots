@@ -459,11 +459,7 @@ class Style:
 
     @staticmethod
     def _xy_for_scatter(x, y):
-        if x.ndim == 1 and y.ndim == 1 and len(x) != len(y):
-            x, y = np.meshgrid(x, y)
-            x = x.flatten()
-            y = y.flatten()
-        elif x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
+        if x.ndim == 2 and y.ndim == 2 and x.shape == y.shape:
             x = x.flatten()
             y = y.flatten()
         return x, y
@@ -824,14 +820,18 @@ class Style:
             nan_mask = np.isnan(values.ravel())
             missing_x = x.ravel()[nan_mask]
             missing_y = y.ravel()[nan_mask]
+            missing_s = s.ravel()[nan_mask] if not np.isscalar(s) else s
+
             x = x.ravel()[~nan_mask]
             y = y.ravel()[~nan_mask]
             values = values.ravel()[~nan_mask]
+            s = s.ravel()[~nan_mask] if not np.isscalar(s) else s
+
             if missing_values:
                 ax.scatter(
                     missing_x,
                     missing_y,
-                    s=s,
+                    s=missing_s,
                     *args,
                     **{**original_kwargs, **missing_values},
                 )

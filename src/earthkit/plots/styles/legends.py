@@ -133,6 +133,14 @@ def disjoint(layer, *args, location="bottom", frameon=False, **kwargs):
 
     labels = kwargs.pop("labels", layer.style._bin_labels) or labels
 
+    # legend_elements() can return one more artist than there are labels (e.g.
+    # for categorical styles where the number of colours and labels are fixed).
+    # Trim artists/labels to a common length to avoid matplotlib's mismatch
+    # warning and dropped entries.
+    if len(artists) != len(labels):
+        n = min(len(artists), len(labels))
+        artists, labels = artists[:n], labels[:n]
+
     kwargs["ncols"] = kwargs.get("ncols", estimate_legend_cols(layer.axes, labels, position=location))
 
     legend = source.legend(

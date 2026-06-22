@@ -1774,13 +1774,23 @@ class Map(Subplot):
             layer = Layer(dummy_source, mappable, self, style)
             return layer.style.legend(layer, label=kwargs.pop("label", ""), **kwargs)
         else:
+            has_non_colourbar = False
             for i, layer in enumerate(self.distinct_legend_layers):
+                needs_colourbar = hasattr(layer.mappable, "cmap") and (
+                    not hasattr(layer.mappable, "get_array") or layer.mappable.get_array() is not None
+                )
+                if not needs_colourbar:
+                    has_non_colourbar = True
+                    continue
                 if isinstance(location, (list, tuple)):
                     loc = location[i]
                 else:
                     loc = location
                 if layer.style is not None:
                     layer._generate_legend(location=loc, **kwargs)
+            if has_non_colourbar:
+                mpl_kwargs = {k: v for k, v in kwargs.items() if k not in ("format",)}
+                super().legend(**mpl_kwargs)
             return None
 
     @chainable_method
