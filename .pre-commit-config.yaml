@@ -47,3 +47,7 @@ repos:
   rev: v8.30.0
   hooks:
   - id: gitleaks
+- repo: https://github.com/kynan/nbstripout
+  rev: 0.9.1
+  hooks:
+  - id: nbstripout
