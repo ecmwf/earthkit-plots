@@ -131,11 +131,20 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
     N = len(color_levels) + extend_colors - 1
 
     colormap = LinearSegmentedColormap.from_list
-    if colors is not None and len(colors) == N:
+    is_listed = colors is not None and len(colors) == N
+    if is_listed:
         colormap = ListedColormap
 
+    def _make_cmap(colors, n):
+        # ListedColormap deprecated the 'N' argument in Matplotlib 3.11; passing
+        # a colour list of the required length makes 'N' redundant. from_list
+        # still requires it.
+        if is_listed:
+            return colormap(name="", colors=colors)
+        return colormap(name="", colors=colors, N=n)
+
     if extend_levels:
-        cmap = colormap(name="", colors=colors, N=N)
+        cmap = _make_cmap(colors, N)
     else:
         cmap_colors = colors
         over_color = (0, 0, 0, 0)
@@ -150,7 +159,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         elif extend == "max":
             cmap_colors = colors[:-1]
             over_color = colors[-1]
-        cmap = colormap(name="", colors=cmap_colors, N=len(color_levels) - 1)
+        cmap = _make_cmap(cmap_colors, len(color_levels) - 1)
         cmap = cmap.with_extremes(over=over_color, under=under_color)
 
     norm = None

@@ -80,6 +80,7 @@ def test_numpy_scatter_colorbar():
     chart.coastlines()
     chart.gridlines()
     chart.legend(label="value")
+    return chart.fig
 
 
 @pytest.mark.mpl_image
