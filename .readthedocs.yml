@@ -4,6 +4,17 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.11"
+  jobs:
+    # Notebooks executed at build time pull data from the Copernicus CDS via
+    # earthkit-data's "cds" source, which uses the cdsapi client. cdsapi reads
+    # credentials from ~/.cdsapirc; materialise it from the project's secret
+    # environment variables (set in the Read the Docs dashboard:
+    # Admin -> Environment Variables -> CDSAPI_URL and CDSAPI_KEY).
+    # Fork PR builds don't receive the (private) secret, so this writes an empty
+    # key and the CDS notebooks fail the build, as intended.
+    pre_build:
+    - |
+      printf 'url: %s\nkey: %s\n' "$CDSAPI_URL" "$CDSAPI_KEY" > "$HOME/.cdsapirc"
 python:
   install:
   - requirements: docs/requirements.txt
