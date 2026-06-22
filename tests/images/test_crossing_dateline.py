@@ -20,7 +20,7 @@ from earthkit.plots import schema
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_temperature_pressure_USA():
     temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib").to_fieldlist()
     chart = earthkit.plots.Map(domain="USA")
@@ -38,7 +38,7 @@ def test_temperature_pressure_USA():
 
 
 @pytest.mark.mpl_image
-@pytest.mark.mpl_image_compare(style=schema.to_stylesheet(include_style_sheet=False))
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_temperature_pressure_NewZealand():
     temperature, pressure = earthkit.data.from_source("sample", "era5-2t-msl-1985122512.grib").to_fieldlist()
     chart = earthkit.plots.Map(domain="New Zealand")

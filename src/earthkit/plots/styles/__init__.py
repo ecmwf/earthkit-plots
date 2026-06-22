@@ -420,7 +420,7 @@ class Style:
             else:
                 # List of colours: build a continuous LinearSegmentedColormap.
                 cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
-            cmap.set_bad(alpha=0)
+            cmap = cmap.with_extremes(bad=(0, 0, 0, 0))
             norm = mpl.colors.Normalize(vmin=vmin, vmax=vmax)
             return {**{"cmap": cmap, "norm": norm}, **self._kwargs}
 
@@ -444,7 +444,7 @@ class Style:
             extend_levels=extend_levels,
         )
 
-        cmap.set_bad(alpha=0)
+        cmap = cmap.with_extremes(bad=(0, 0, 0, 0))
 
         return {
             **{"cmap": cmap, "norm": norm, "levels": levels},
@@ -1087,7 +1087,7 @@ class Style:
                 cmap = mpl.colormaps[colors_spec]
             else:
                 cmap = mpl.colors.LinearSegmentedColormap.from_list("", colors_spec)
-            cmap.set_bad(alpha=0)
+            cmap = cmap.with_extremes(bad=(0, 0, 0, 0))
             norm = mpl.colors.Normalize(vmin=-absmax, vmax=absmax)
         else:
             mpl_kwargs = self.to_scatter_kwargs(y)
