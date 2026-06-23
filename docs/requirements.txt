@@ -34,3 +34,4 @@ eckit
 reverse-geocode
 geopandas
 cdsapi
+covjsonkit
