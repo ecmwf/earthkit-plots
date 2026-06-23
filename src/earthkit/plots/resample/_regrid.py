@@ -80,18 +80,29 @@ def _generate_latlon_grid(resolution):
 class _MirRegridExecutor:
     subarea_support = True
 
+    # Records why the last is_valid() check failed, so the eventual error message
+    # can explain the real cause (e.g. a broken `mir` native library) instead of
+    # always blaming earthkit-geo.
+    last_import_error = None
+
     @staticmethod
     def is_valid():
         try:
             from earthkit.geo.grids.array import regrid  # noqa: F401
-
-            try:
-                import mir  # noqa: F401
-            except Exception:
-                return False
-            return True
-        except ImportError:
+        except ImportError as err:
+            _MirRegridExecutor.last_import_error = (
+                f"failed to import earthkit-geo: {err!r}"
+            )
             return False
+
+        try:
+            import mir  # noqa: F401
+        except Exception as err:
+            _MirRegridExecutor.last_import_error = f"failed to import mir: {err!r}"
+            return False
+
+        _MirRegridExecutor.last_import_error = None
+        return True
 
     @staticmethod
     def call(array, in_grid, out_grid):
@@ -220,9 +231,14 @@ class Regrid(Resample):
         """Call the best available executor."""
         executor = Regrid._find_executor()
         if executor is None:
-            raise ImportError(
-                "Regridding not available. Please install the earthkit-geo package at a version >= 1.0.0rc6"
+            detail = _MirRegridExecutor.last_import_error
+            message = (
+                "Regridding not available. Please install the earthkit-geo "
+                "package at a version >= 1.0.0rc6"
             )
+            if detail:
+                message += f" (underlying cause: {detail})"
+            raise ImportError(message)
         return executor.call(array, in_grid, out_grid)
 
     # ------------------------------------------------------------------

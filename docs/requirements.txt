@@ -26,6 +26,6 @@ numpy
 nbconvert
 nbformat
 healpy
-earthkit-geo>=1.0.0rc6
+earthkit-geo>=1rc6
 mir-python
 eckit
