@@ -31,3 +31,4 @@ mir-python
 eckit
 reverse-geocode
 geopandas
+cdsapi
