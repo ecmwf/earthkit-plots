@@ -44,7 +44,7 @@ if rtd_version_type in ("branch", "tag"):
     source_branch = rtd_version
 else:
     source_branch = "main"
-    
+
 
 # Branch for upstream earthkit repo (used for fetching earthkit-packages.yml)
 # Tags will use main
