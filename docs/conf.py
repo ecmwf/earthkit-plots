@@ -91,6 +91,12 @@ extensions = [
 # regenerate their outputs.
 nbsphinx_execute = "always"
 
+# Execute every notebook with the python3 kernel regardless of the kernel name
+# baked into its metadata. Notebooks are often saved with a local environment's
+# kernel name (e.g. "develop"), which does not exist on ReadTheDocs and causes
+# nbsphinx to fail with NoSuchKernel.
+nbsphinx_kernel_name = "python3"
+
 # GitHub links configuration
 extlinks = {
     "pr": ("https://github.com/ecmwf/earthkit-plots/pull/%s", "PR #%s"),
@@ -162,7 +168,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/_*.ipynb"]
 
 # Only the notebooks covered by the notebook test suite (see `make
 # notebook-tests`) are executed at build time. Those tests run notebooks nested
