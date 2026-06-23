@@ -1157,11 +1157,12 @@ class XarrayExtractor(BaseExtractor):
         """
         Extract gridspec from xarray attrs.
 
-        Checks the following attribute keys in order of preference:
-        - ``ek_grid_spec`` (new earthkit/xarray standard, e.g. ``{"grid": "O320"}``)
-        - ``gridSpec`` / ``grid_spec`` (legacy keys)
-        - ``_earthkit`` (a JSON blob written by earthkit-data's xarray engine;
-          its nested ``grid_spec`` is used as a last resort)
+        Checks the following sources in order of preference:
+        - user-supplied ``metadata`` (e.g. an explicit ``{"grid": "H512"}`` override)
+        - earthkit-data's ``.earthkit`` xarray accessor (``data.earthkit.grid_spec``),
+          which derives the grid_spec from the underlying GRIB/CF metadata
+        - ``ek_grid_spec`` attr (earthkit/xarray standard, e.g. ``{"grid": "O320"}``)
+        - ``gridSpec`` / ``grid_spec`` attrs (legacy keys)
 
         For xarray DataArrays, also falls back to the parent Dataset's global
         attributes when the variable-level attrs do not carry the gridspec.
@@ -1184,13 +1185,6 @@ class XarrayExtractor(BaseExtractor):
                     spec = GridSpec._to_dict(raw)
                     if spec:
                         return GridSpec(spec)
-            # Last resort: the earthkit-data xarray engine stashes a JSON blob
-            # under "_earthkit" that carries a nested "grid_spec" alongside other
-            # GRIB metadata (message bytes, bitsPerValue, ...). Pull out just the
-            # grid_spec when the explicit keys above are absent.
-            spec = _grid_spec_from_earthkit_attr(attrs.get("_earthkit"))
-            if spec:
-                return GridSpec(spec)
             return None
 
         # User-supplied metadata takes priority.  Also accept a plain "grid"
@@ -1205,13 +1199,21 @@ class XarrayExtractor(BaseExtractor):
                 if spec:
                     return GridSpec(spec)
 
-        # Check attrs on self.data — covers both DataArrays (variable attrs) and
-        # Datasets (global attrs). xarray DataArrays don't carry a back-reference
-        # to their parent Dataset, so there is no further fallback.
+        # Preferred path: earthkit-data's xarray accessor, which derives the
+        # grid_spec from the underlying GRIB/CF metadata (data.earthkit.grid_spec).
+        spec = _grid_spec_from_earthkit_accessor(self.data)
+        if spec:
+            return GridSpec(spec)
+
+        # Fall back to attrs on self.data — covers both DataArrays (variable
+        # attrs) and Datasets (global attrs). xarray DataArrays don't carry a
+        # back-reference to their parent Dataset, so there is no further fallback.
         if hasattr(self.data, "attrs"):
             result = _extract(self.data.attrs)
             if result is not None:
                 return result
+
+        return None
 
     def _extract_uv_components(
         self,
@@ -1362,31 +1364,30 @@ def _iter_cartesian(da, dims):
         yield sel, da.sel(sel)
 
 
-def _grid_spec_from_earthkit_attr(raw) -> dict | None:
-    """Extract the nested ``grid_spec`` from an ``_earthkit`` attr value.
+def _grid_spec_from_earthkit_accessor(data) -> dict | None:
+    """Read a grid_spec via earthkit-data's xarray ``.earthkit`` accessor.
 
-    earthkit-data's xarray engine writes a ``_earthkit`` attribute containing a
-    JSON object (or a JSON string when round-tripped through NetCDF) with GRIB
-    metadata such as the encoded ``message`` and ``bitsPerValue``. When present,
-    that object also carries a ``grid_spec`` (e.g. ``{"grid": "O320"}``) which is
-    what we want; everything else is ignored. Returns the normalised grid_spec
-    dict, or ``None`` if the attr is missing/unparsable or has no grid_spec.
+    earthkit-data registers an ``.earthkit`` accessor on xarray Datasets and
+    DataArrays which exposes ``grid_spec`` (e.g. ``{"grid": "O320"}``) derived
+    from the underlying GRIB/CF metadata. This is the clean, supported path —
+    preferred over parsing the raw ``_earthkit`` attribute blob ourselves.
+
+    Returns the normalised grid_spec dict, or ``None`` if the accessor is
+    unavailable, raises, or carries no grid_spec.
     """
-    if raw is None:
-        return None
-    if isinstance(raw, str):
-        import json
-
-        try:
-            raw = json.loads(raw)
-        except (json.JSONDecodeError, ValueError):
-            return None
-    if not isinstance(raw, dict):
-        return None
-
     from earthkit.plots.sources.gridspec import GridSpec
 
-    return GridSpec._to_dict(raw.get("grid_spec"))
+    # Accessing the accessor and its grid_spec can raise (missing accessor,
+    # missing attribute, or metadata that can't be resolved); treat any failure
+    # as "no grid_spec available" so we fall through to the attr-based lookup.
+    try:
+        accessor = data.earthkit
+        raw = accessor.grid_spec
+        raw = raw() if callable(raw) else raw
+    except Exception:
+        return None
+
+    return GridSpec._to_dict(raw)
 
 
 def _grid_mapping_vars(ds: xr.Dataset) -> set:

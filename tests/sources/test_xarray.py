@@ -1017,63 +1017,105 @@ def test_gridspec_ek_grid_spec_takes_priority_over_legacy():
     assert gs.to_dict()["grid"] == "O320"
 
 
-def test_gridspec_earthkit_attr_json_string():
-    """grid_spec nested in an '_earthkit' JSON string attr is detected."""
-    import json
+class _FakeAccessor:
+    """Stand-in for earthkit-data's xarray ``.earthkit`` accessor."""
+
+    def __init__(self, grid_spec):
+        self.grid_spec = grid_spec
+
+
+def test_gridspec_from_earthkit_accessor(monkeypatch):
+    """grid_spec is read from data.earthkit.grid_spec when no attr is present."""
+    import xarray as xr
 
     from earthkit.plots.sources.gridspec import GridSpec
 
-    earthkit_blob = {
-        "message": {"__bytes_b64__": "R1JJQg=="},
-        "bitsPerValue": 16,
-        "grid_spec": {"grid": "O320"},
-    }
-    da = _make_1d_da({"_earthkit": json.dumps(earthkit_blob)})
+    da = _make_1d_da({})
+    monkeypatch.setattr(
+        xr.DataArray,
+        "earthkit",
+        property(lambda self: _FakeAccessor({"grid": "O320"})),
+        raising=False,
+    )
     source = get_source(da)
     gs = source.gridspec
     assert isinstance(gs, GridSpec)
     assert gs.name == "reduced_gg"
 
 
-def test_gridspec_earthkit_attr_dict():
-    """grid_spec nested in an '_earthkit' dict attr is detected."""
-    from earthkit.plots.sources.gridspec import GridSpec
-
-    da = _make_1d_da({"_earthkit": {"bitsPerValue": 16, "grid_spec": {"grid": "H256"}}})
-    source = get_source(da)
-    gs = source.gridspec
-    assert isinstance(gs, GridSpec)
-    assert gs.name == "healpix"
-
-
-def test_gridspec_explicit_key_takes_priority_over_earthkit_attr():
-    """ek_grid_spec is preferred over the nested '_earthkit' grid_spec."""
-    import json
+def test_gridspec_earthkit_accessor_takes_priority_over_attr(monkeypatch):
+    """The .earthkit accessor is preferred over an ek_grid_spec attr."""
+    import xarray as xr
 
     from earthkit.plots.sources.gridspec import GridSpec
 
-    da = _make_1d_da({
-        "ek_grid_spec": {"grid": "O320"},
-        "_earthkit": json.dumps({"grid_spec": {"grid": "N80"}}),
-    })
+    da = _make_1d_da({"ek_grid_spec": {"grid": "N80"}})
+    monkeypatch.setattr(
+        xr.DataArray,
+        "earthkit",
+        property(lambda self: _FakeAccessor({"grid": "O320"})),
+        raising=False,
+    )
     source = get_source(da)
     gs = source.gridspec
     assert isinstance(gs, GridSpec)
     assert gs.to_dict()["grid"] == "O320"
 
 
-def test_gridspec_earthkit_attr_without_grid_spec_returns_none():
-    """An '_earthkit' blob carrying no grid_spec does not raise and yields None."""
-    import json
+def test_gridspec_user_metadata_takes_priority_over_earthkit_accessor(monkeypatch):
+    """An explicit metadata override wins over the .earthkit accessor."""
+    import xarray as xr
 
-    da = _make_1d_da({"_earthkit": json.dumps({"bitsPerValue": 16})})
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({})
+    monkeypatch.setattr(
+        xr.DataArray,
+        "earthkit",
+        property(lambda self: _FakeAccessor({"grid": "O320"})),
+        raising=False,
+    )
+    source = get_source(da, metadata={"grid": "H512"})
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.to_dict()["grid"] == "H512"
+
+
+def test_gridspec_falls_back_to_attr_when_accessor_has_no_grid_spec(monkeypatch):
+    """When the accessor yields no grid_spec, the ek_grid_spec attr is used."""
+    import xarray as xr
+
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"ek_grid_spec": {"grid": "O320"}})
+    monkeypatch.setattr(
+        xr.DataArray,
+        "earthkit",
+        property(lambda self: _FakeAccessor(None)),
+        raising=False,
+    )
     source = get_source(da)
-    assert source.gridspec is None
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.to_dict()["grid"] == "O320"
 
 
-def test_gridspec_earthkit_attr_invalid_json_returns_none():
-    """A non-JSON '_earthkit' string does not raise and returns None."""
-    da = _make_1d_da({"_earthkit": "not-valid-json"})
+def test_gridspec_earthkit_accessor_raising_returns_none(monkeypatch):
+    """A raising .earthkit.grid_spec is swallowed and yields None."""
+    import xarray as xr
+
+    class _Raising:
+        @property
+        def grid_spec(self):
+            raise RuntimeError("no grid metadata")
+
+    da = _make_1d_da({})
+    monkeypatch.setattr(
+        xr.DataArray,
+        "earthkit",
+        property(lambda self: _Raising()),
+        raising=False,
+    )
     source = get_source(da)
     assert source.gridspec is None
 
