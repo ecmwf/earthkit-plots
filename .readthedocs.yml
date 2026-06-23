@@ -28,7 +28,10 @@ build:
     # notebooks fetch from URLs rather than queueing on remote services.
     build:
       html:
-      - python -m sphinx -T -b html -j auto -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
+      # Custom build.html commands run from the repository root (unlike RTD's
+      # default, which runs from the docs source dir), so the source argument
+      # must be `docs`, not `.`.
+      - python -m sphinx -T -b html -j auto -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html
 python:
   install:
   - requirements: docs/requirements.txt
