@@ -4,6 +4,13 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.11"
+  # mir-python (pulled in for regridding) ships native libraries that link
+  # against the GNU Fortran runtime. The RTD image does not include it by
+  # default, so `import mir` fails with
+  #   OSError: libgfortran.so.5: cannot open shared object file
+  # Install the system package that provides libgfortran.so.5.
+  apt_packages:
+  - libgfortran5
   jobs:
     # Notebooks executed at build time pull data from the Copernicus CDS via
     # earthkit-data's "cds" source, which uses the cdsapi client. cdsapi reads
