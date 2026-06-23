@@ -90,9 +90,7 @@ class _MirRegridExecutor:
         try:
             from earthkit.geo.grids.array import regrid  # noqa: F401
         except ImportError as err:
-            _MirRegridExecutor.last_import_error = (
-                f"failed to import earthkit-geo: {err!r}"
-            )
+            _MirRegridExecutor.last_import_error = f"failed to import earthkit-geo: {err!r}"
             return False
 
         try:
@@ -232,10 +230,7 @@ class Regrid(Resample):
         executor = Regrid._find_executor()
         if executor is None:
             detail = _MirRegridExecutor.last_import_error
-            message = (
-                "Regridding not available. Please install the earthkit-geo "
-                "package at a version >= 1.0.0rc6"
-            )
+            message = "Regridding not available. Please install the earthkit-geo package at a version >= 1.0.0rc6"
             if detail:
                 message += f" (underlying cause: {detail})"
             raise ImportError(message)
