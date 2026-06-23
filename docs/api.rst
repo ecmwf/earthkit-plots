@@ -1,51 +1,82 @@
 API Reference
 =============
 
-This section contains the API reference for earthkit-plots.
+This section contains the API reference for earthkit-plots. Each class and
+function is documented on its own page; the tables below link through to them.
 
 Core Components
 ---------------
 
-.. automodule:: earthkit.plots.components.figures
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. currentmodule:: earthkit.plots
 
-.. automodule:: earthkit.plots.components.subplots
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
 
-.. automodule:: earthkit.plots.components.maps
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   Figure
+   Subplot
+
+High-level API
+--------------
+
+The shortcut API is exposed through three namespace objects on the top-level
+``earthkit.plots`` package. Each groups the shortcut methods for one chart
+type; the method tables on the pages below link through to the underlying
+:mod:`~earthkit.plots.quickplot` functions.
+
+.. list-table::
+   :widths: 30 70
+   :header-rows: 1
+
+   * - Namespace
+     - Description
+   * - :doc:`ekp.geo <namespaces/geo>`
+     - Geographic / map plots.
+   * - :doc:`ekp.timeseries <namespaces/timeseries>`
+     - Time series plots.
+   * - :doc:`ekp.climatology <namespaces/climatology>`
+     - Climatology (annual-cycle) plots.
+
+.. toctree::
+   :hidden:
+
+   namespaces/geo
+   namespaces/timeseries
+   namespaces/climatology
 
 Quickplot
------------------
+---------
 
-.. automodule:: earthkit.plots.quickplot
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. currentmodule:: earthkit.plots
+
+.. autosummary::
+   :toctree: generated
+
+   quickplot
 
 Styles
 ------
 
-.. automodule:: earthkit.plots.styles
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. currentmodule:: earthkit.plots
+
+.. autosummary::
+   :toctree: generated
+   :nosignatures:
+
+   Style
+
+.. autosummary::
+   :toctree: generated
+
+   load_style
+   list_styles
 
 Metadata
 --------
 
-.. automodule:: earthkit.plots.metadata.formatters
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. autosummary::
+   :toctree: generated
+   :template: module.rst
 
-.. automodule:: earthkit.plots.metadata.labels
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   earthkit.plots.metadata.formatters
+   earthkit.plots.metadata.labels

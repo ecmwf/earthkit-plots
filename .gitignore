@@ -3,6 +3,7 @@ version.py
 
 # Sphinx automatic generation of API
 docs/_api/
+docs/generated/
 
 # Data used in examples
 docs/examples/*.grib
