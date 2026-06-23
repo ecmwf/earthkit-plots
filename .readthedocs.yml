@@ -35,16 +35,14 @@ build:
       # Diagnostics for slow/stalling builds:
       #   PYTHONUNBUFFERED=1  - stream output line-by-line instead of buffering,
       #                         so the log shows progress in real time.
-      #   -v --no-color       - verbose, plain-text Sphinx progress.
-      #   awk timestamper     - prefix every line with elapsed seconds so it is
-      #                         obvious which notebook the build stalls on.
+      #   -v --no-color       - verbose, plain-text Sphinx progress; nbsphinx
+      #                         prints each notebook as it executes it, so the
+      #                         log shows exactly how far the build got.
       # NOTE: building serially (-j 1) keeps the per-notebook progress readable;
       # switch back to `-j auto` for speed once the slow step is identified.
-      - |
-        set -o pipefail
-        PYTHONUNBUFFERED=1 python -m sphinx -T -v --no-color -b html -j 1 \
-          -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html \
-          2>&1 | awk '{ print strftime("[%H:%M:%S]"), $0; fflush() }'
+      # No output pipe is used, so Sphinx's own exit status propagates and a
+      # failed build correctly fails the RTD job.
+      - PYTHONUNBUFFERED=1 python -m sphinx -T -v --no-color -b html -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html
 python:
   install:
   - requirements: docs/requirements.txt
