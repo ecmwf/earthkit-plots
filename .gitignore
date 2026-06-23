@@ -486,3 +486,21 @@ $RECYCLE.BIN/
 
 .conda/
 docs/_static/styles/
+
+# Generated/downloaded data files in example & gallery notebooks.
+# Placed at the end of the file so they take precedence over the generic
+# "!*.svg" un-ignore rule above.
+docs/examples/examples/**/*.png
+docs/examples/examples/**/*.svg
+docs/examples/examples/**/*.pdf
+docs/examples/examples/**/*.csv
+docs/examples/examples/**/*.jpg
+docs/examples/examples/**/*.jpeg
+docs/examples/examples/**/*.zip
+docs/examples/gallery/**/*.png
+docs/examples/gallery/**/*.svg
+docs/examples/gallery/**/*.pdf
+docs/examples/gallery/**/*.csv
+docs/examples/gallery/**/*.jpg
+docs/examples/gallery/**/*.jpeg
+docs/examples/gallery/**/*.zip

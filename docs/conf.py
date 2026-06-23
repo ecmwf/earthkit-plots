@@ -14,6 +14,20 @@ import urllib.request
 import yaml
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
+
+# earthkit-data defaults to cache-policy "off", so every notebook re-downloads
+# its data on every run, which is the dominant cost of the docs build. Enable a
+# persistent "user" cache in a fixed directory and export it via the
+# EARTHKIT_DATA_* environment variables (which take precedence over settings),
+# so it is inherited by the notebook kernels nbsphinx spawns. Notebooks sharing
+# the same url/cds product then download it only once per build (and across
+# builds where the cache directory is preserved).
+os.environ.setdefault("EARTHKIT_DATA_CACHE_POLICY", "user")
+os.environ.setdefault(
+    "EARTHKIT_DATA_USER_CACHE_DIRECTORY",
+    os.path.join(os.path.expanduser("~"), ".cache", "earthkit-data-docs"),
+)
+
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("."))
 
@@ -37,6 +51,8 @@ else:
 # -- Styles gallery generation -----------------------------------------------
 
 
+# Defined unconditionally (not just when the galleries below run), because the
+# notebook exclude_patterns logic further down also relies on it.
 _docs_dir = os.path.dirname(os.path.abspath(__file__))
 generate_styles_page.generate(docs_dir=_docs_dir)
 generate_domains_page.generate(docs_dir=_docs_dir)
@@ -86,6 +102,19 @@ extensions = [
     # Simplifies linking to external resources with short aliases
     "sphinx.ext.extlinks",
 ]
+
+# Notebook outputs are committed to version control (the nbstripout pre-commit
+# hook has been removed), so do not execute notebooks at build time -- render
+# their stored outputs instead. This keeps the docs build fast and independent
+# of network data sources. Re-run the notebooks locally and commit their
+# outputs whenever the examples change.
+nbsphinx_execute = "never"
+
+# Execute every notebook with the python3 kernel regardless of the kernel name
+# baked into its metadata. Notebooks are often saved with a local environment's
+# kernel name (e.g. "develop"), which does not exist on ReadTheDocs and causes
+# nbsphinx to fail with NoSuchKernel.
+nbsphinx_kernel_name = "python3"
 
 # GitHub links configuration
 extlinks = {
@@ -158,7 +187,27 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**/_*.ipynb"]
+
+# Only the notebooks covered by the notebook test suite (see `make
+# notebook-tests`) are executed at build time. Those tests run notebooks nested
+# at least two directories deep under examples/ and gallery/, so the build
+# excludes the un-tested notebooks living directly in the top level of docs/,
+# examples/examples/ and examples/gallery/. The hand-written gallery index
+# pages (examples.ipynb, gallery.ipynb) are markdown-only and are kept, as they
+# form the toctree entry points for the example and gallery sections.
+import glob  # noqa: E402
+
+_KEEP_NOTEBOOKS = {"examples.ipynb", "gallery.ipynb"}
+for _pattern in (
+    "*.ipynb",
+    "examples/examples/*.ipynb",
+    "examples/gallery/*.ipynb",
+):
+    for _path in glob.glob(os.path.join(_docs_dir, _pattern)):
+        if os.path.basename(_path) in _KEEP_NOTEBOOKS:
+            continue
+        exclude_patterns.append(os.path.relpath(_path, _docs_dir))
 
 
 # -- Options for HTML output -------------------------------------------------

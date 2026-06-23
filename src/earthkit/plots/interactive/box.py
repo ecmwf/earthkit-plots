@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+
 import numpy as np
 import plotly.graph_objects as go
 
@@ -71,7 +73,13 @@ def box(*args, quantiles=DEFAULT_QUANTILES, time_axis=0, **kwargs):
     quantile_values = np.quantile(kwargs.pop("y"), quantiles, axis=time_axis)
 
     x = kwargs["x"]
-    width = float(x[1] - x[0]) * 1e-06
+    spacing = x[1] - x[0]
+    if isinstance(spacing, datetime.timedelta):
+        # Plotly date axes are measured in milliseconds.
+        spacing = spacing.total_seconds() * 1e3
+    elif isinstance(spacing, np.timedelta64):
+        spacing = spacing / np.timedelta64(1, "ms")
+    width = float(spacing) * 1e-06
 
     traces = []
     traces.append(
