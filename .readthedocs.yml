@@ -18,5 +18,10 @@ build:
 python:
   install:
   - requirements: docs/requirements.txt
+  # Install the checked-out source so the docs build against this branch rather
+  # than a published earthkit-plots release (which may lag behind fixes such as
+  # the matplotlib 3.11 plt.style.core removal).
+  - method: pip
+    path: .
 sphinx:
   configuration: docs/conf.py

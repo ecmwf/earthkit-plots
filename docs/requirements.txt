@@ -15,8 +15,10 @@ tqdm
 xarray
 filelock
 
-# Additional dependencies for project examples and notebooks
-earthkit-plots>=1rc8
+# Additional dependencies for project examples and notebooks.
+# earthkit-plots itself is installed from the checked-out source (see the
+# `pip install .` entry in .readthedocs.yml), so it is intentionally not pinned
+# here -- pinning the PyPI release would shadow the local build.
 earthkit-data>=1rc9
 matplotlib
 cartopy
