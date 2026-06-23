@@ -1160,6 +1160,8 @@ class XarrayExtractor(BaseExtractor):
         Checks the following attribute keys in order of preference:
         - ``ek_grid_spec`` (new earthkit/xarray standard, e.g. ``{"grid": "O320"}``)
         - ``gridSpec`` / ``grid_spec`` (legacy keys)
+        - ``_earthkit`` (a JSON blob written by earthkit-data's xarray engine;
+          its nested ``grid_spec`` is used as a last resort)
 
         For xarray DataArrays, also falls back to the parent Dataset's global
         attributes when the variable-level attrs do not carry the gridspec.
@@ -1182,6 +1184,13 @@ class XarrayExtractor(BaseExtractor):
                     spec = GridSpec._to_dict(raw)
                     if spec:
                         return GridSpec(spec)
+            # Last resort: the earthkit-data xarray engine stashes a JSON blob
+            # under "_earthkit" that carries a nested "grid_spec" alongside other
+            # GRIB metadata (message bytes, bitsPerValue, ...). Pull out just the
+            # grid_spec when the explicit keys above are absent.
+            spec = _grid_spec_from_earthkit_attr(attrs.get("_earthkit"))
+            if spec:
+                return GridSpec(spec)
             return None
 
         # User-supplied metadata takes priority.  Also accept a plain "grid"
@@ -1351,6 +1360,33 @@ def _iter_cartesian(da, dims):
     for combo in itertools.product(*all_vals):
         sel = {d: v for d, v in zip(dims, combo)}
         yield sel, da.sel(sel)
+
+
+def _grid_spec_from_earthkit_attr(raw) -> dict | None:
+    """Extract the nested ``grid_spec`` from an ``_earthkit`` attr value.
+
+    earthkit-data's xarray engine writes a ``_earthkit`` attribute containing a
+    JSON object (or a JSON string when round-tripped through NetCDF) with GRIB
+    metadata such as the encoded ``message`` and ``bitsPerValue``. When present,
+    that object also carries a ``grid_spec`` (e.g. ``{"grid": "O320"}``) which is
+    what we want; everything else is ignored. Returns the normalised grid_spec
+    dict, or ``None`` if the attr is missing/unparsable or has no grid_spec.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        import json
+
+        try:
+            raw = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            return None
+    if not isinstance(raw, dict):
+        return None
+
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    return GridSpec._to_dict(raw.get("grid_spec"))
 
 
 def _grid_mapping_vars(ds: xr.Dataset) -> set:

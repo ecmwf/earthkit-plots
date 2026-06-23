@@ -1017,6 +1017,67 @@ def test_gridspec_ek_grid_spec_takes_priority_over_legacy():
     assert gs.to_dict()["grid"] == "O320"
 
 
+def test_gridspec_earthkit_attr_json_string():
+    """grid_spec nested in an '_earthkit' JSON string attr is detected."""
+    import json
+
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    earthkit_blob = {
+        "message": {"__bytes_b64__": "R1JJQg=="},
+        "bitsPerValue": 16,
+        "grid_spec": {"grid": "O320"},
+    }
+    da = _make_1d_da({"_earthkit": json.dumps(earthkit_blob)})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "reduced_gg"
+
+
+def test_gridspec_earthkit_attr_dict():
+    """grid_spec nested in an '_earthkit' dict attr is detected."""
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({"_earthkit": {"bitsPerValue": 16, "grid_spec": {"grid": "H256"}}})
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.name == "healpix"
+
+
+def test_gridspec_explicit_key_takes_priority_over_earthkit_attr():
+    """ek_grid_spec is preferred over the nested '_earthkit' grid_spec."""
+    import json
+
+    from earthkit.plots.sources.gridspec import GridSpec
+
+    da = _make_1d_da({
+        "ek_grid_spec": {"grid": "O320"},
+        "_earthkit": json.dumps({"grid_spec": {"grid": "N80"}}),
+    })
+    source = get_source(da)
+    gs = source.gridspec
+    assert isinstance(gs, GridSpec)
+    assert gs.to_dict()["grid"] == "O320"
+
+
+def test_gridspec_earthkit_attr_without_grid_spec_returns_none():
+    """An '_earthkit' blob carrying no grid_spec does not raise and yields None."""
+    import json
+
+    da = _make_1d_da({"_earthkit": json.dumps({"bitsPerValue": 16})})
+    source = get_source(da)
+    assert source.gridspec is None
+
+
+def test_gridspec_earthkit_attr_invalid_json_returns_none():
+    """A non-JSON '_earthkit' string does not raise and returns None."""
+    da = _make_1d_da({"_earthkit": "not-valid-json"})
+    source = get_source(da)
+    assert source.gridspec is None
+
+
 def test_gridspec_none_when_no_attr():
     """Gridspec is None when no relevant attribute is present."""
     da = _make_1d_da({"units": "K", "long_name": "temperature"})
