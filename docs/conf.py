@@ -13,6 +13,20 @@ import sys
 import yaml
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
+
+# earthkit-data defaults to cache-policy "off", so every notebook re-downloads
+# its data on every run, which is the dominant cost of the docs build. Enable a
+# persistent "user" cache in a fixed directory and export it via the
+# EARTHKIT_DATA_* environment variables (which take precedence over settings),
+# so it is inherited by the notebook kernels nbsphinx spawns. Notebooks sharing
+# the same url/cds product then download it only once per build (and across
+# builds where the cache directory is preserved).
+os.environ.setdefault("EARTHKIT_DATA_CACHE_POLICY", "user")
+os.environ.setdefault(
+    "EARTHKIT_DATA_USER_CACHE_DIRECTORY",
+    os.path.join(os.path.expanduser("~"), ".cache", "earthkit-data-docs"),
+)
+
 sys.path.insert(0, os.path.abspath("../"))
 sys.path.insert(0, os.path.abspath("."))
 
