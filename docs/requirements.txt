@@ -30,3 +30,4 @@ earthkit-geo>=1rc6
 mir-python
 eckit
 reverse-geocode
+geopandas
