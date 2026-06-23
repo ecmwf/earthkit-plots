@@ -27,6 +27,8 @@ nbconvert
 nbformat
 healpy
 earthkit-geo>=1rc6
+earthkit-transforms>=1rc6
+earthkit-meteo>=1rc3
 mir-python
 eckit
 reverse-geocode
