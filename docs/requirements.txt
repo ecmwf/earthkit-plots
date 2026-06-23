@@ -25,3 +25,5 @@ cartopy
 numpy
 nbconvert
 nbformat
+healpy
+earthkit-geo>=1.0.0rc6
