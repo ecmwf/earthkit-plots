@@ -22,6 +22,13 @@ build:
     pre_build:
     - |
       printf 'url: %s\nkey: %s\n' "$CDSAPI_URL" "$CDSAPI_KEY" > "$HOME/.cdsapirc"
+    # Override RTD's default HTML build to run the read phase (which is where
+    # nbsphinx executes notebooks) in parallel across all available cores. This
+    # is the main lever for staying within the build-time budget now that the
+    # notebooks fetch from URLs rather than queueing on remote services.
+    build:
+      html:
+      - python -m sphinx -T -b html -j auto -d _build/doctrees -D language=en . $READTHEDOCS_OUTPUT/html
 python:
   install:
   - requirements: docs/requirements.txt
