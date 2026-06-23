@@ -31,7 +31,20 @@ build:
       # Custom build.html commands run from the repository root (unlike RTD's
       # default, which runs from the docs source dir), so the source argument
       # must be `docs`, not `.`.
-      - python -m sphinx -T -b html -j auto -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html
+      #
+      # Diagnostics for slow/stalling builds:
+      #   PYTHONUNBUFFERED=1  - stream output line-by-line instead of buffering,
+      #                         so the log shows progress in real time.
+      #   -v --no-color       - verbose, plain-text Sphinx progress.
+      #   awk timestamper     - prefix every line with elapsed seconds so it is
+      #                         obvious which notebook the build stalls on.
+      # NOTE: building serially (-j 1) keeps the per-notebook progress readable;
+      # switch back to `-j auto` for speed once the slow step is identified.
+      - |
+        set -o pipefail
+        PYTHONUNBUFFERED=1 python -m sphinx -T -v --no-color -b html -j 1 \
+          -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html \
+          2>&1 | awk '{ print strftime("[%H:%M:%S]"), $0; fflush() }'
 python:
   install:
   - requirements: docs/requirements.txt

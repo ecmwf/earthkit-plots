@@ -50,9 +50,9 @@ else:
 # -- Styles gallery generation -----------------------------------------------
 
 
-_docs_dir = os.path.dirname(os.path.abspath(__file__))
-generate_styles_page.generate(docs_dir=_docs_dir)
-generate_domains_page.generate(docs_dir=_docs_dir)
+# _docs_dir = os.path.dirname(os.path.abspath(__file__))
+# generate_styles_page.generate(docs_dir=_docs_dir)
+# generate_domains_page.generate(docs_dir=_docs_dir)
 
 # -- Project information -----------------------------------------------------
 
