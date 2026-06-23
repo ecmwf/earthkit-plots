@@ -4,52 +4,8 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.11"
-  # mir-python (pulled in for regridding) ships native libraries that link
-  # against the GNU Fortran runtime. The RTD image does not include it by
-  # default, so `import mir` fails with
-  #   OSError: libgfortran.so.5: cannot open shared object file
-  # Install the system package that provides libgfortran.so.5.
-  apt_packages:
-  - libgfortran5
-  jobs:
-    # Notebooks executed at build time pull data from the Copernicus CDS via
-    # earthkit-data's "cds" source, which uses the cdsapi client. cdsapi reads
-    # credentials from ~/.cdsapirc; materialise it from the project's secret
-    # environment variables (set in the Read the Docs dashboard:
-    # Admin -> Environment Variables -> CDSAPI_URL and CDSAPI_KEY).
-    # Fork PR builds don't receive the (private) secret, so this writes an empty
-    # key and the CDS notebooks fail the build, as intended.
-    pre_build:
-    - |
-      printf 'url: %s\nkey: %s\n' "$CDSAPI_URL" "$CDSAPI_KEY" > "$HOME/.cdsapirc"
-    # Override RTD's default HTML build to run the read phase (which is where
-    # nbsphinx executes notebooks) in parallel across all available cores. This
-    # is the main lever for staying within the build-time budget now that the
-    # notebooks fetch from URLs rather than queueing on remote services.
-    build:
-      html:
-      # Custom build.html commands run from the repository root (unlike RTD's
-      # default, which runs from the docs source dir), so the source argument
-      # must be `docs`, not `.`.
-      #
-      # Diagnostics for slow/stalling builds:
-      #   PYTHONUNBUFFERED=1  - stream output line-by-line instead of buffering,
-      #                         so the log shows progress in real time.
-      #   -v --no-color       - verbose, plain-text Sphinx progress; nbsphinx
-      #                         prints each notebook as it executes it, so the
-      #                         log shows exactly how far the build got.
-      # NOTE: building serially (-j 1) keeps the per-notebook progress readable;
-      # switch back to `-j auto` for speed once the slow step is identified.
-      # No output pipe is used, so Sphinx's own exit status propagates and a
-      # failed build correctly fails the RTD job.
-      - PYTHONUNBUFFERED=1 python -m sphinx -T -v --no-color -b html -d docs/_build/doctrees -D language=en docs $READTHEDOCS_OUTPUT/html
 python:
   install:
   - requirements: docs/requirements.txt
-  # Install the checked-out source so the docs build against this branch rather
-  # than a published earthkit-plots release (which may lag behind fixes such as
-  # the matplotlib 3.11 plt.style.core removal).
-  - method: pip
-    path: .
 sphinx:
   configuration: docs/conf.py

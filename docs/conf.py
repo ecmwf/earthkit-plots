@@ -53,8 +53,8 @@ else:
 # Defined unconditionally (not just when the galleries below run), because the
 # notebook exclude_patterns logic further down also relies on it.
 _docs_dir = os.path.dirname(os.path.abspath(__file__))
-# generate_styles_page.generate(docs_dir=_docs_dir)
-# generate_domains_page.generate(docs_dir=_docs_dir)
+generate_styles_page.generate(docs_dir=_docs_dir)
+generate_domains_page.generate(docs_dir=_docs_dir)
 
 # -- Project information -----------------------------------------------------
 
@@ -102,10 +102,12 @@ extensions = [
     "sphinx.ext.extlinks",
 ]
 
-# Notebook outputs are stripped from version control (see nbstripout in
-# .pre-commit-config.yaml), so execute every notebook at build time to
-# regenerate their outputs.
-nbsphinx_execute = "always"
+# Notebook outputs are committed to version control (the nbstripout pre-commit
+# hook has been removed), so do not execute notebooks at build time -- render
+# their stored outputs instead. This keeps the docs build fast and independent
+# of network data sources. Re-run the notebooks locally and commit their
+# outputs whenever the examples change.
+nbsphinx_execute = "never"
 
 # Execute every notebook with the python3 kernel regardless of the kernel name
 # baked into its metadata. Notebooks are often saved with a local environment's
