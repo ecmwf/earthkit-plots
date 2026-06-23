@@ -50,7 +50,9 @@ else:
 # -- Styles gallery generation -----------------------------------------------
 
 
-# _docs_dir = os.path.dirname(os.path.abspath(__file__))
+# Defined unconditionally (not just when the galleries below run), because the
+# notebook exclude_patterns logic further down also relies on it.
+_docs_dir = os.path.dirname(os.path.abspath(__file__))
 # generate_styles_page.generate(docs_dir=_docs_dir)
 # generate_domains_page.generate(docs_dir=_docs_dir)
 
