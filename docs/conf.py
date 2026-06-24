@@ -8,6 +8,7 @@
 
 import os
 import sys
+import datetime
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
 
@@ -71,7 +72,7 @@ generate_domains_page.generate(docs_dir=_docs_dir)
 sys.path.insert(0, os.path.abspath("../../src"))
 
 project = "earthkit-plots"
-copyright = "2025, European Centre for Medium-Range Weather Forecasts (ECMWF)"
+copyright = f"{datetime.datetime.now().year}, European Centre for Medium-Range Weather Forecasts (ECMWF)"
 author = "European Centre for Medium-Range Weather Forecasts (ECMWF)"
 
 # -- General configuration ---------------------------------------------------
