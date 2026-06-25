@@ -6,12 +6,9 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-import json
 import os
 import sys
-import urllib.request
-
-import yaml
+import datetime
 
 on_rtd = os.environ.get("READTHEDOCS") == "True"
 
@@ -48,6 +45,19 @@ if rtd_version_type in ("branch", "tag"):
     source_branch = rtd_version
 else:
     source_branch = "main"
+
+
+# Branch for upstream earthkit repo (used for fetching earthkit-packages.yml)
+# Tags will use main
+if rtd_version_type in ("tag"):
+    ek_branch = "main"
+# Pull requests and unknmown versions will use develop
+# Not sure how you get unknown, but its a valid value of rtd_version_type
+elif rtd_version_type in ("external", "unknown"):
+    ek_branch = "develop"
+else:
+    ek_branch = rtd_version
+
 # -- Styles gallery generation -----------------------------------------------
 
 
@@ -62,7 +72,7 @@ generate_domains_page.generate(docs_dir=_docs_dir)
 sys.path.insert(0, os.path.abspath("../../src"))
 
 project = "earthkit-plots"
-copyright = "2025, European Centre for Medium-Range Weather Forecasts (ECMWF)"
+copyright = f"{datetime.datetime.now().year}, European Centre for Medium-Range Weather Forecasts (ECMWF)"
 author = "European Centre for Medium-Range Weather Forecasts (ECMWF)"
 
 # -- General configuration ---------------------------------------------------
@@ -360,6 +370,7 @@ def _rename_namespace_signatures(app, doctree, docname):
 
 
 def setup(app):
-    app.connect("builder-inited", _write_earthkit_packages_js)
+    from earthkit_packages import _write_earthkit_packages_js
+    app.connect("builder-inited", lambda app: _write_earthkit_packages_js(app, ek_branch))
     app.connect("autodoc-process-signature", _blank_namespace_signature)
     app.connect("doctree-resolved", _rename_namespace_signatures)
