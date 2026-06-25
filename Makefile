@@ -21,5 +21,5 @@ unit-tests:
 	python -m pytest -vv -m 'not notebook and not mpl_image' --cov=. --cov-report=$(COV_REPORT)
 
 notebook-tests:
-	find docs/examples/examples docs/examples/gallery -mindepth 2 -name '*.ipynb' -not -name '_*' -not -path '*/.ipynb_checkpoints/*' -print0 \
+	find docs/source/examples/examples docs/source/examples/gallery -mindepth 2 -name '*.ipynb' -not -name '_*' -not -path '*/.ipynb_checkpoints/*' -print0 \
 		| PYDEVD_DISABLE_FILE_VALIDATION=1 xargs -0 jupyter nbconvert --to notebook --execute --stdout > /dev/null
