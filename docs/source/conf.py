@@ -247,6 +247,8 @@ html_theme = "furo"
 
 html_static_path = ["_static"]
 
+html_favicon = "./_static/earthkit-plots-notext.svg"
+
 html_css_files = [
     "custom.css",
 ]
