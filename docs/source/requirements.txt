@@ -1,0 +1,38 @@
+# These are the requirements for readthedocs
+ipykernel
+docutils
+Pygments>=2.6.1
+Sphinx
+sphinx-rtd-theme
+nbsphinx
+setuptools
+sphinx-autoapi
+sphinxcontrib-bibtex
+sphinx-design
+furo
+entrypoints
+pandas
+tqdm
+xarray
+filelock
+
+# Additional dependencies for project examples and notebooks.
+# earthkit-plots itself is installed from the checked-out source (see the
+# `pip install .` entry in .readthedocs.yml), so it is intentionally not pinned
+# here -- pinning the PyPI release would shadow the local build.
+earthkit-data>=1rc9
+matplotlib
+cartopy
+numpy
+nbconvert
+nbformat
+healpy
+earthkit-geo>=1rc6
+earthkit-transforms>=1rc6
+earthkit-meteo>=1rc3
+mir-python
+eckit
+reverse-geocode
+geopandas
+cdsapi
+covjsonkit
