@@ -101,13 +101,7 @@ def _list_countries():
     reader = shpreader.Reader(shpfilename)
     names = []
     for record in reader.records():
-        attrs = record.attributes
-        name = (
-          attrs.get("NAME_LONG")
-          or attrs.get("NAME_EN")
-          or attrs.get("NAME")
-          or ""
-      )
+        name = record.attributes.get("NAME_LONG") or ""
         name = name.replace("\x00", "").strip()
         if name:
             names.append(name)
