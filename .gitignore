@@ -505,3 +505,5 @@ docs/examples/gallery/**/*.csv
 docs/examples/gallery/**/*.jpg
 docs/examples/gallery/**/*.jpeg
 docs/examples/gallery/**/*.zip
+
+.cache-version
