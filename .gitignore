@@ -1,17 +1,36 @@
 # setuptools-scm
 version.py
 
-# Sphinx automatic generation of API
-docs/_api/
-docs/generated/
+# Sphinx documentation
+docs/_build/
+docs/source/_static/domains/
+docs/source/_static/styles/
+docs/source/generated/
 
 # Data used in examples
-docs/examples/*.grib
-docs/examples/*.nc
-docs/examples/*.csv
-docs/examples/*.png
-docs/examples/*.svg
-docs/examples/*.txt
+docs/source/examples/*.grib
+docs/source/examples/*.nc
+docs/source/examples/*.csv
+docs/source/examples/*.png
+docs/source/examples/*.svg
+docs/source/examples/*.txt
+# Generated/downloaded data files in example & gallery notebooks.
+# Placed at the end of the file so they take precedence over the generic
+# "!*.svg" un-ignore rule above.
+docs/source/examples/examples/**/*.png
+docs/source/examples/examples/**/*.svg
+docs/source/examples/examples/**/*.pdf
+docs/source/examples/examples/**/*.csv
+docs/source/examples/examples/**/*.jpg
+docs/source/examples/examples/**/*.jpeg
+docs/source/examples/examples/**/*.zip
+docs/source/examples/gallery/**/*.png
+docs/source/examples/gallery/**/*.svg
+docs/source/examples/gallery/**/*.pdf
+docs/source/examples/gallery/**/*.csv
+docs/source/examples/gallery/**/*.jpg
+docs/source/examples/gallery/**/*.jpeg
+docs/source/examples/gallery/**/*.zip
 
 # Combined environments
 ci/combined-environment-*.yml
@@ -312,10 +331,6 @@ instance/
 
 # Scrapy stuff:
 .scrapy
-
-# Sphinx documentation
-docs/_build/
-docs/_static/domains/
 
 # PyBuilder
 .pybuilder/

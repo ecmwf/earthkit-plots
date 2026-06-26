@@ -73,6 +73,7 @@ generate_domains_page.generate(docs_dir=_docs_dir)
 # -- Project information -----------------------------------------------------
 
 sys.path.insert(0, os.path.join(_conf_dir, "..", "..", "src"))
+sys.path.insert(0, os.path.abspath("./"))
 
 project = "earthkit-plots"
 copyright = f"{datetime.datetime.now().year}, European Centre for Medium-Range Weather Forecasts (ECMWF)"
@@ -301,31 +302,6 @@ html_theme_options = {
         },
     ],
 }
-
-
-_EARTHKIT_PACKAGES_URL = (
-    "https://raw.githubusercontent.com/ecmwf/earthkit/refs/heads/develop/docs/earthkit-packages.yml"
-)
-
-def _write_earthkit_packages_js(app):
-    """Fetch earthkit-packages.yml from remote and write a JS data file into the output _static dir.
-
-    Falls back to the local copy if the remote fetch fails.
-    """
-    try:
-        with urllib.request.urlopen(_EARTHKIT_PACKAGES_URL, timeout=10) as response:
-            config = yaml.safe_load(response.read())
-    except Exception:
-        config_path = os.path.join(os.path.dirname(__file__), "earthkit-packages.yml")
-        with open(config_path, encoding="utf-8") as fh:
-            config = yaml.safe_load(fh)
-    packages = config.get("packages", [])
-    static_dir = os.path.join(app.outdir, "_static")
-    os.makedirs(static_dir, exist_ok=True)
-    js_path = os.path.join(static_dir, "earthkit-packages.js")
-    with open(js_path, "w", encoding="utf-8") as fh:
-        fh.write(f"window.earthkitPackages = {json.dumps(packages)};\n")
-
 
 # The high-level API namespaces (ekp.geo, ekp.timeseries, ekp.climatology) are
 # singleton instances of private classes (_GeoNamespace, ...). We document them
