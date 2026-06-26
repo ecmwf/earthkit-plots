@@ -40,11 +40,22 @@ def auto_range(data, divergence_point=None, n_levels=schema.default_style_levels
         data = data.to_numpy()
 
     finite_vals = data[np.isfinite(data)]
+
+    # No finite values (e.g. an all-NaN or fully-masked field) means there is
+    # no data range to derive levels from. Return a trivial increasing range so
+    # matplotlib accepts the levels; nothing will actually be drawn.
+    if finite_vals.size == 0:
+        return [0.0, 1.0]
+
     min_value = np.min(finite_vals)
     max_value = np.max(finite_vals)
 
+    # A constant field has no range to spread levels across. Bracket the
+    # constant value with a single, strictly-increasing interval so that
+    # matplotlib (which requires increasing levels) accepts them.
     if np.isnan(min_value) or min_value == max_value:
-        return [0] * (n_levels + 1)
+        value = 0.0 if np.isnan(min_value) else float(min_value)
+        return [value - 0.5, value + 0.5]
 
     if divergence_point is not None:
         max_diff = max(abs(max_value - divergence_point), abs(divergence_point - min_value))
