@@ -73,128 +73,23 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* ── Release candidate badge over sidebar logo ────────────────────────── */
-
-.sidebar-logo-container {
-  position: relative;
-  display: inline-block;
-}
-
-.ek-rc-badge {
-  position: absolute;
-  bottom: 4px;
-  right: -6px;
-  background: #FCE54B;
-  color: #1a1a2e;
-  font-family: "Nunito", sans-serif;
-  font-size: 0.55em;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 3px;
-  transform: rotate(-2deg);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-  pointer-events: none;
-  white-space: nowrap;
-}
-
-/* ── Sidebar top padding ───────────────────────────────────────────────── */
-
-.sidebar-brand {
-  padding-top: 2rem;
-}
-
-/* ── Earthkit ecosystem logo dropdown ─────────────────────────────────── */
-
-.ek-logo-dropdown {
-  position: relative;
-  display: inline-block;
-  z-index: 10;
-  margin-top: 0.5rem;
-}
-
-.ek-ecosystem-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: none;
-  border: none;
-  padding: 4px 0;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.72em;
-  color: rgba(255, 255, 255, 0.55);
-  transition: color 0.15s;
-  white-space: nowrap;
-}
-
-.ek-logo-dropdown:hover .ek-ecosystem-btn {
-  color: rgba(255, 255, 255, 0.95);
-}
-
-/* SVG chevron inline in the button */
-.ek-dropdown-chevron {
-  width: 7px;
-  height: 11px;
-  flex-shrink: 0;
-  transition: color 0.15s;
-}
-
-/* Invisible bridge: extends rightward from button to keep hover alive */
-.ek-ecosystem-btn::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 100%;
-  width: 12px;
-  height: 100%;
-}
-
-/* The dropdown panel */
-.ek-dropdown-menu {
-  display: none;
-  position: absolute;
-  top: 0;
-  left: calc(100% + 6px);
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 6px;
-  padding: 8px;
-  min-width: 210px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  z-index: 100;
-}
-
-.ek-logo-dropdown:hover .ek-dropdown-menu {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ek-dropdown-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: background 0.15s;
-}
-
-.ek-dropdown-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.ek-dropdown-item img {
-  display: block;
-  height: 44px;
-  width: auto;
-}
-
-.ek-ext-icon {
-  flex-shrink: 0;
-  opacity: 0.85;
+/* ── xarray dark-mode fix for Furo "auto" theme ──────────────────────
+   xarray's inline <style> only targets explicit body[data-theme="dark"],
+   but Furo's auto mode keeps data-theme="auto" and relies on
+   @media (prefers-color-scheme: dark).  Mirror the dark palette here
+   so xarray widgets remain readable when the OS is in dark mode.
+   ─────────────────────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  body:not([data-theme="light"]) {
+    --xr-font-color0: rgba(255, 255, 255, 1);
+    --xr-font-color2: rgba(255, 255, 255, 0.54);
+    --xr-font-color3: rgba(255, 255, 255, 0.38);
+    --xr-border-color: #555;
+    --xr-disabled-color: #888;
+    --xr-background-color: var(--color-background-primary, #131416);
+    --xr-background-color-row-even: var(--color-background-secondary, #1a1c1e);
+    --xr-background-color-row-odd: var(--color-background-hover, #1e2124);
+  }
 }
 
 /* Dropdown container in the brand slot (above search bar) */
