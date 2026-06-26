@@ -269,9 +269,9 @@ chosen automatically for each domain, along with the code snippet to reproduce i
       {name: "Northwest Europe", slug: "northwest_europe"},
       {name: "Oceania", slug: "oceania"},
       {name: "South America", slug: "south_america"},
+      {name: "Southeast Europe", slug: "southeast_europe"},
       {name: "Southwest Europe", slug: "southwest_europe"},
-      {name: "Svalbard", slug: "svalbard"},
-      {name: "southeast Europe", slug: "southeast_europe"}
+      {name: "Svalbard", slug: "svalbard"}
      ]
    };
    function ekPopulate(category) {
