@@ -395,9 +395,22 @@ class Schema(dict):
             # ... create and populate figure ...
             ctx.__exit__(None, None, None)
         """
+        import matplotlib as mpl
         import matplotlib.pyplot as plt
 
-        return plt.style.context(self.to_stylesheet())
+        spec = self.to_stylesheet()
+
+        if isinstance(spec, dict):
+            return plt.style.context(spec)
+
+        merged: dict = {}
+        for layer in spec:
+            if isinstance(layer, dict):
+                merged.update(layer)
+            else:
+                # A style sheet name/path: parse it to rcParams and merge.
+                merged.update(mpl.rc_params_from_file(layer, use_default_template=False))
+        return plt.style.context(merged)
 
     def _reset(self, **kwargs):
         self.clear()
