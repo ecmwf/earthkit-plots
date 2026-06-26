@@ -22,8 +22,8 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: PyPy"
 ]
 dependencies = [
-  "earthkit-utils>=1.0.0rc0",
-  "earthkit-data>=1.0.0rc0",
+  "earthkit-utils~=1",
+  "earthkit-data~=1",
   "cartopy>=0.22.0",
   "pint",
   "matplotlib",
@@ -49,10 +49,10 @@ optional-dependencies.healpix = [
   "healpy"
 ]
 optional-dependencies.regridding = [
-  "earthkit-geo>=1.0.0rc6"
+  "earthkit-geo~=1"
 ]
 optional-dependencies.test = [
-  "earthkit-geo>=1.0.0rc6",
+  "earthkit-geo~=1",
   "healpy",
   "nbconvert",
   "nbformat",
