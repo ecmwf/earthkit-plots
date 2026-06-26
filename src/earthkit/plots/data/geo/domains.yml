@@ -19,7 +19,7 @@ domains:
   Central Europe: [2, 24, 45, 55]
   Northeast Europe: [15, 40, 45, 72]
   Northwest Europe: [-25, 15, 45, 72]
-  southeast Europe: [15, 40, 34, 45]
+  Southeast Europe: [15, 40, 34, 45]
   Southwest Europe: [-25, 15, 34, 45]
   Mediterranean: [-8, 36, 28, 44]
 
@@ -58,6 +58,11 @@ alternate_names:
   Russian Federation: [Russia]
   Republic of Korea: [South Korea]
   Dem. Rep. Korea: [North Korea, DPRK]
+  Turkey: [Turkiye, Türkiye]
+  Kingdom of Eswatini: [Eswatini]
+  Czech Republic: [Czechia]
+  Brunei Darussalam: [Brunei]
+  Lao PDR: [Laos]
 
 # Countries whose names are usually prefixed with "the"
 the_countries:
