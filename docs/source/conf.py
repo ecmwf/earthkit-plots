@@ -300,7 +300,7 @@ html_theme_options = {
     "footer_icons": [
         {
             "name": "GitHub",
-            "url": "https://github.com/ecmwf/earthkit-data",
+            "url": "https://github.com/ecmwf/earthkit-plots",
             "html": f"""
                 <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 16 16">
                     <path fill-rule="evenodd" d="{d_thing}"></path>
