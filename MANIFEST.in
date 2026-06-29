@@ -1,8 +1,4 @@
-# Keep the sdist lean: ship the source, packaged data, licence and readme only.
-# Docs (especially example notebooks with embedded image outputs) add ~57MB and
-# are not needed to build or install the package.
 prune docs
-prune tests
 prune mpl-results
 prune htmlcov
 prune .github
