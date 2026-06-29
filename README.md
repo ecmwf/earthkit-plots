@@ -10,7 +10,7 @@
     <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE/foundation_badge.svg" alt="ECMWF Software EnginE">
   </a>
   <a href="https://github.com/ecmwf/codex/raw/refs/heads/main/Project Maturity">
-    <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/Project Maturity/incubating_badge.svg" alt="Maturity Level">
+    <img src="https://github.com/ecmwf/codex/raw/refs/heads/main/Project Maturity/graduated_badge.svg" alt="Maturity Level">
   </a>
   <!-- <a href="https://codecov.io/gh/ecmwf/earthkit-plots">
     <img src="https://codecov.io/gh/ecmwf/earthkit-plots/branch/main/graph/badge.svg" alt="Code Coverage">
@@ -35,7 +35,7 @@
 </p>
 
 > [!IMPORTANT]
-> This software is **Incubating** and subject to ECMWF's guidelines on [Software Maturity](https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity).
+> This software is **Graduated** and subject to ECMWF's guidelines on [Software Maturity](https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity).
 
 **earthkit-plots** leverages the power of the [earthkit](https://github.com/ecmwf/earthkit) ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
 
