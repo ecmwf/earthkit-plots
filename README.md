@@ -39,15 +39,15 @@
 
 **earthkit-plots** leverages the power of the [earthkit](https://github.com/ecmwf/earthkit) ecosystem to make producing publication-quality scientific graphics as simple and convenient as possible.
 
-⚡ **Concise, high-level API** – Generate high-quality visualisations with minimal code.
+✨ **Concise API** - generate complex visualisations in just a few lines.
 
-🧠 **Intelligent formatting** – Titles and labels automatically adapt based on common metadata standards.
+🔍 **Automatic data extraction** - reads GRIB, netCDF, and zarr data; works with xarray DataArrays and NumPy arrays; handles geographic coordinates, grids, and CRS automatically.
 
-🎨 **Customisable style libraries** – Easily swap styles to match your organisation, project, or personal preferences.
+🧠 **Intelligent formatting** - titles, labels, and colour scales adapt based on detected metadata, variables, and units.
 
-🔍 **Automatic data styling** – Detects metadata like variables and units to optionally apply appropriate formatting and styling.
+🎨 **Style libraries** - swap styles to match your organisation, project, or preferences.
 
-🌍 **Complex grids supported out-of-the-box** - Visualise grids like HEALPix and reduced Gaussian without any extra legwork.
+🌐 **Complex grids out of the box** - HEALPix, reduced Gaussian, and more with no extra legwork.
 
 ## Installation
 
