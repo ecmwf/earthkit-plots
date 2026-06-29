@@ -5,7 +5,7 @@ Welcome to the earthkit-plots documentation
 
 .. |Static Badge| image:: https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE/foundation_badge.svg
    :target: https://github.com/ecmwf/codex/raw/refs/heads/main/ESEE
-.. |image1| image:: https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity/incubating_badge.svg
+.. |image1| image:: https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity/graduated_badge.svg
    :target: https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity
 .. |License: Apache 2.0| image:: https://img.shields.io/badge/License-Apache%202.0-blue.svg
    :target: https://opensource.org/licenses/apache-2-0
@@ -86,7 +86,7 @@ configuration.
 
 .. important::
 
-    This software is **Incubating** and subject to ECMWF's guidelines on `Software Maturity <https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity>`_.
+    This software is **Graduated** and subject to ECMWF's guidelines on `Software Maturity <https://github.com/ecmwf/codex/raw/refs/heads/main/Project%20Maturity>`_.
 
 **Support**
 
