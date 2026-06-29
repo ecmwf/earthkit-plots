@@ -1,0 +1,15 @@
+prune docs
+prune tests
+prune mpl-results
+prune htmlcov
+prune .github
+
+exclude .coverage
+exclude .pre-commit-config.yaml
+exclude .readthedocs.yml
+exclude pytest.ini
+exclude setup.cfg
+exclude Makefile
+
+global-exclude *.py[cod]
+global-exclude __pycache__
