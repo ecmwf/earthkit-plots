@@ -1,4 +1,5 @@
 prune docs
+prune tests
 prune mpl-results
 prune htmlcov
 prune .github
