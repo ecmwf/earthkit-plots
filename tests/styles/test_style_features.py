@@ -293,6 +293,86 @@ class TestCmapAlias:
             base_style.with_overrides(cmap="plasma", colors="coolwarm")
 
 
+class TestColormapObject:
+    """Test that matplotlib Colormap objects work as colors/cmap arguments."""
+
+    def test_colormap_object_via_colors(self):
+        """A Colormap object passed as ``colors`` produces valid cmap/norm."""
+        import matplotlib as mpl
+
+        style = Style(colors=mpl.cm.viridis, levels=[0, 10, 20, 30])
+        kwargs = style.to_matplotlib_kwargs(np.random.rand(10, 10) * 30)
+        assert isinstance(kwargs["cmap"], mpl.colors.Colormap)
+        assert kwargs["norm"] is not None
+
+    def test_colormap_object_via_cmap_alias(self):
+        """A Colormap object passed as ``cmap`` produces valid cmap/norm."""
+        import matplotlib as mpl
+
+        style = Style(cmap=mpl.cm.viridis, levels=[0, 10, 20, 30])
+        kwargs = style.to_matplotlib_kwargs(np.random.rand(10, 10) * 30)
+        assert isinstance(kwargs["cmap"], mpl.colors.Colormap)
+        assert kwargs["norm"] is not None
+
+    def test_colormap_object_with_extend_both(self):
+        """Issue #204 repro: Colormap object with extend='both' and levels."""
+        import matplotlib as mpl
+
+        style = Style(
+            cmap=mpl.cm.RdBu,
+            levels=[-3, -1, 1, 3],
+            normalize=False,
+            extend="both",
+        )
+        kwargs = style.to_matplotlib_kwargs(np.random.rand(10, 10) * 6 - 3)
+        assert isinstance(kwargs["cmap"], mpl.colors.Colormap)
+
+    def test_linear_segmented_colormap_object(self):
+        """A LinearSegmentedColormap object (e.g. plt.cm.RdBu) works."""
+        import matplotlib as mpl
+
+        assert isinstance(mpl.cm.RdBu, mpl.colors.LinearSegmentedColormap)
+        style = Style(cmap=mpl.cm.RdBu, levels=[-3, -1, 1, 3])
+        kwargs = style.to_matplotlib_kwargs(np.random.rand(10, 10) * 6 - 3)
+        assert isinstance(kwargs["cmap"], mpl.colors.Colormap)
+        assert kwargs["norm"] is not None
+
+    def test_listed_colormap_object(self):
+        """A ListedColormap object (e.g. plt.cm.viridis) works."""
+        import matplotlib as mpl
+
+        assert isinstance(mpl.cm.viridis, mpl.colors.ListedColormap)
+        style = Style(cmap=mpl.cm.viridis, levels=[0, 10, 20, 30])
+        kwargs = style.to_matplotlib_kwargs(np.random.rand(10, 10) * 30)
+        assert isinstance(kwargs["cmap"], mpl.colors.Colormap)
+        assert kwargs["norm"] is not None
+
+    def test_colormap_object_matches_named_string(self):
+        """A Colormap object samples identically to its registered name."""
+        import matplotlib as mpl
+
+        from earthkit.plots.styles.colors import expand
+
+        levels = [0, 10, 20, 30]
+        from_object = expand(mpl.cm.viridis, levels)
+        from_name = expand("viridis", levels)
+        assert np.allclose(np.array(from_object), np.array(from_name))
+
+    def test_colormap_object_plots_without_error(self):
+        """End-to-end: a Colormap object plots through pcolormesh."""
+        import matplotlib as mpl
+
+        sample_data = xr.DataArray(
+            np.random.rand(10, 10) * 50 + 250,
+            dims=["lat", "lon"],
+            coords={"lat": np.linspace(-90, 90, 10), "lon": np.linspace(-180, 180, 10)},
+            attrs={"units": "K"},
+        )
+        style = Style(cmap=mpl.cm.plasma, levels=[250, 260, 270, 280, 290])
+        chart = Subplot()
+        chart.pcolormesh(sample_data, style=style)
+
+
 class TestVminVmax:
     """Test vmin/vmax support on Style."""
 

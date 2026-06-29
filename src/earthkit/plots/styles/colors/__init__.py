@@ -61,7 +61,9 @@ def expand(colors, levels, extend_colors=0):
 
     if isinstance(colors, (list, tuple)) and len(colors) == 1:
         colors *= length - 1
-    if isinstance(colors, str):
+    if isinstance(colors, mpl.colors.Colormap):
+        colors = [colors(i) for i in np.linspace(0, 1, length)]
+    elif isinstance(colors, str):
         try:
             cmap = mpl.colormaps[colors]
         except KeyError:
