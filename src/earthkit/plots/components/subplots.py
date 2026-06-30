@@ -1357,7 +1357,42 @@ class Subplot:
         for label, x, y in zip(labels, source.x.values, source.y.values):
             self.ax.annotate(label, (x, y), **kwargs)
 
-    def plot(self, data, style=None, units=None, **kwargs):
+    def _resolve_style_method(self, source, style, units, **kwargs):
+        """
+        Resolve the plot method and style argument for a given style.
+
+        Parameters
+        ----------
+        source
+            The data source, as returned by :func:`get_source`.
+        style : earthkit.plots.styles.Style or str or None
+            The style specification. ``"auto"`` detects a style from the data
+            metadata, a string is treated as the name of a registered style, a
+            :class:`~earthkit.plots.styles.Style` is used directly, and ``None``
+            skips style detection entirely.
+        units : str or None
+            Target units for value conversion.
+        **kwargs
+            Additional keyword arguments forwarded to the style detection.
+
+        Returns
+        -------
+        tuple
+            A ``(method, style_arg)`` pair, where ``method`` is the bound plot
+            method to call and ``style_arg`` is the value to pass as its
+            ``style`` argument.
+        """
+        if style == "auto":
+            resolved_style = auto.guess_style(source, units=units, **kwargs)
+            if resolved_style is not None:
+                return getattr(self, resolved_style._preferred_method), "auto"
+            return getattr(self, "grid_cells", self.pcolormesh), "auto"
+        if style is None:
+            return getattr(self, "grid_cells", self.pcolormesh), None
+        resolved_style = auto.load_style(style) if isinstance(style, str) else style
+        return getattr(self, resolved_style._preferred_method), resolved_style
+
+    def plot(self, data, style="auto", units=None, **kwargs):
         """
         Auto-detect the best plot type and render the data.
 
@@ -1369,9 +1404,11 @@ class Subplot:
         ----------
         data : xarray.DataArray or earthkit.data.core.Base
             The data to plot.
-        style : earthkit.plots.styles.Style, optional
-            An explicit :class:`~earthkit.plots.styles.Style` to use.
-            If ``None``, a style is detected automatically from the data metadata.
+        style : earthkit.plots.styles.Style or str, optional
+            An explicit :class:`~earthkit.plots.styles.Style` to use, or the
+            name of a registered style. Defaults to ``"auto"``, which detects a
+            style automatically from the data metadata. Pass ``None`` to skip
+            style detection entirely.
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). See
             :doc:`/examples/examples/introduction/08-unit-conversion` for
@@ -1379,18 +1416,9 @@ class Subplot:
         **kwargs
             Additional keyword arguments forwarded to the resolved plot method.
         """
-        if not kwargs.pop("auto_style", True):
-            warnings.warn("`auto_style` cannot be switched off for `plot`.")
         source = get_source(data)
-        if style is None:
-            auto_style = auto.guess_style(source, units=units, **kwargs)
-            if auto_style is not None:
-                method = getattr(self, auto_style._preferred_method)
-            else:
-                method = getattr(self, "grid_cells", self.pcolormesh)
-        else:
-            method = getattr(self, style._preferred_method)
-        return method(data, style=style if style is not None else "auto", units=units, **kwargs)
+        method, style_arg = self._resolve_style_method(source, style, units, **kwargs)
+        return method(data, style=style_arg, units=units, **kwargs)
 
     def quickplot(self, data, style="auto", units=None, **kwargs):
         """
@@ -1416,29 +1444,10 @@ class Subplot:
         y = kwargs.get("y", None)
         metadata = kwargs.get("metadata", None)
         source = get_source(data, x=x, y=y, metadata=metadata)
-        if style == "auto":
-            resolved_style = auto.guess_style(source, units=units, **kwargs)
-            if resolved_style is not None:
-                method = getattr(self, resolved_style._preferred_method)
-            else:
-                method = getattr(self, "grid_cells", self.pcolormesh)
-            use_auto_style = True
-        elif style is None:
-            resolved_style = None
-            method = getattr(self, "grid_cells", self.pcolormesh)
-            use_auto_style = False
-        else:
-            if isinstance(style, str):
-                from earthkit.plots.styles import auto as _auto
-
-                resolved_style = _auto.load_style(style)
-            else:
-                resolved_style = style
-            method = getattr(self, resolved_style._preferred_method)
-            use_auto_style = False
+        method, style_arg = self._resolve_style_method(source, style, units, **kwargs)
         zorder = LAYER_ZORDERS.get(method.__name__, 10)
         kwargs.setdefault("zorder", zorder)
-        return method(data, style="auto" if use_auto_style else resolved_style, units=units, **kwargs)
+        return method(data, style=style_arg, units=units, **kwargs)
 
     @chainable_method
     def hsv_composite(self, *args):
