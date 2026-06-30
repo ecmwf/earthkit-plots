@@ -1,6 +1,32 @@
 Version 1.0 Updates
 ///////////////////
 
+Version 1.0.2
+=============
+
+- Fixed a bug which caused ``style="auto"`` to fail when plotting with ``Subplot.plot()``. (:pr:`226`)
+
+- Fixed a bug which caused GRIB data with longitudes 0-360 to sometimes only display over the eastern
+  hemisphere. (:pr:`227`)
+
+Bug fixes
++++++++++
+
+- Made a transparent fix to the earthkit-plots sdist to ensure that the docs are not included
+  in the source distribution, reducing the size of the tarball by 95%.
+
+Version 1.0.1
+=============
+
+Packaging
++++++++++
+
+- Made a transparent fix to the earthkit-plots sdist to ensure that the docs are not included
+  in the source distribution, reducing the size of the tarball by 95%.
+
+Version 1.0.0
+=============
+
 Version 1.0.0 is the first stable release of earthkit-plots. It
 introduces a high-level functional API, a built-in styles library, support for
 new grid types and plot types, and a large number of performance improvements
