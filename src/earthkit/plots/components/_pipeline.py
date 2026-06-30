@@ -669,6 +669,35 @@ def extract_plottables_2D(
         if _domain_suppressed:
             extract_domain = False
 
+        # Step 6.6: Normalise 0–360 longitudes to –180..+180 for structured grids
+        # (HEALPix, reduced Gaussian, ORCA) that were regridded onto a regular
+        # lat/lon grid in Step 6.5.  Step 6.1 deliberately skips these grids
+        # because their *native* coordinates are irregular; after regridding the
+        # longitudes form a regular 0–360 grid that still needs wrapping.  Without
+        # this, data west of 0° is clipped whenever the map CRS does not compare
+        # exactly equal to the data CRS — e.g. ``domain="Global"`` supplies a
+        # PlateCarree built from the domain's optimised bbox (no ``+datum``),
+        # which defeats cartopy's implicit longitude wrapping under
+        # ``transform_first=True`` even though it is numerically identical.
+        if not _lon_normalised and not _is_regular_latlon and x_values.ndim == 2 and np.any(x_values > 180):
+            import cartopy.crs as _ccrs
+
+            _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
+            if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(
+                _src_crs, _ccrs._CylindricalProjection
+            ):
+                from earthkit.plots.geography.domains import (
+                    force_minus_180_to_180,
+                    roll_from_0_360_to_minus_180_180,
+                )
+
+                _roll_by = roll_from_0_360_to_minus_180_180(x_values[0])
+                x_values = np.roll(x_values, _roll_by, axis=1)
+                y_values = np.roll(y_values, _roll_by, axis=1)
+                z_values = np.roll(z_values, _roll_by, axis=1)
+                x_values = np.where(np.isclose(x_values, 180), -180, force_minus_180_to_180(x_values))
+                _lon_normalised = True
+
         # Step 7: no_style path — inject 'c' kwarg as z values.
         if no_style and z_values is None:
             z_values = kwargs.pop("c", None)
