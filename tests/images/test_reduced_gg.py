@@ -85,4 +85,3 @@ def test_reduced_gg_global_domain():
     data = ekd.from_source("sample", "O32_t2.grib2").to_fieldlist()
     result = ekp.geo.plot(data[1], domain="Global", style="auto")
     return result.fig
-
