@@ -75,3 +75,13 @@ def test_reduced_gg_all_methods_arctic():
     fig.coastlines()
     fig.gridlines()
     return fig.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
+def test_reduced_gg_global_domain():
+    # Regression test: 0–360° structured-grid data plotted with domain="Global"
+    # must render the full globe, not just the eastern hemisphere.
+    data = ekd.from_source("sample", "O32_t2.grib2").to_fieldlist()
+    result = ekp.geo.plot(data[1], domain="Global", style="auto")
+    return result.fig
