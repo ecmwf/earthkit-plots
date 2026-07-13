@@ -25,7 +25,8 @@ is responsible for:
   and target CRS differ (``_handle_regular_grid_nn``).
 - Wrapping coordinates at the antimeridian for global contour plots
   (``_handle_cyclic_points``).
-- Adjusting transform-first settings for projections that do not support it
+- Resolving ``transform_first="auto"`` from the data/target CRS pair and
+  disabling it for projections that do not support it
   (``_handle_transform_settings``).
 """
 
@@ -359,15 +360,61 @@ def _handle_transform_settings(
     kwargs: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Disable ``transform_first`` for projections that do not support it.
+    Resolve ``transform_first="auto"`` and disable it where unsupported.
 
-    Some cartopy projections cannot apply ``transform_first=True``; passing it
-    raises an error at render time.  This guard silently flips the flag to
-    ``False`` for those projections.
+    ``transform_first`` trades off two very different cartopy code paths:
+
+    * ``True`` pre-projects the raw grid points in one vectorised
+      ``transform_points`` call and contours in projected space — fast, but
+      on *curved* (non-cylindrical) target projections a fine lat/lon mesh
+      collapses into vertical-sliver artifacts.
+    * ``False`` contours in data space and then transforms each contour
+      polygon through the projection — always correct, but per-path,
+      per-vertex work that is very slow for dense grids with many levels.
+
+    Neither is a safe global default, so the schema ships ``"auto"`` and this
+    function resolves it per-plot from the data/target CRS pair:
+
+    * **Equal CRS** (``crs_equal``): rewrite ``kwargs["transform"]`` to the
+      axes' own CRS object so cartopy's ``transform == self.projection``
+      short-circuit fires and no reprojection happens at all.  Separately
+      constructed but equivalent CRS objects can fail cartopy's ``==`` (e.g.
+      a domain-optimised PlateCarree without ``+datum``), which would
+      otherwise force the slow path even though no transform is needed.
+    * **Cylindrical → cylindrical**: ``True`` — point pre-projection is
+      numerically benign (essentially a longitude shift) and much faster.
+    * **Anything → curved projection**: ``False`` — correctness first; the
+      default resample path (``Chain(Regrid(), Bilinear)``) already avoids
+      the cost by reprojecting onto the target grid before rendering.
+
+    Explicit user values (``True``/``False``) are passed through untouched.
+    Finally, projections in ``CANNOT_TRANSFORM_FIRST`` (where cartopy raises
+    at render time) force the flag to ``False`` regardless of the above.
     """
-    if "transform_first" in kwargs:
-        from earthkit.plots.geography import coordinate_reference_systems
+    if "transform_first" not in kwargs:
+        return kwargs
 
-        if subplot.crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
+    from earthkit.plots.geography import coordinate_reference_systems
+
+    target_crs = subplot.crs
+
+    if kwargs["transform_first"] == "auto":
+        data_crs = kwargs.get("transform")
+        if target_crs is None or data_crs is None:
+            # Non-geographic axes or no data transform: nothing to pre-project,
+            # and plain matplotlib axes do not accept the kwarg at all.
+            kwargs.pop("transform_first")
+            return kwargs
+        if coordinate_reference_systems.crs_equal(data_crs, target_crs):
+            kwargs["transform"] = target_crs
             kwargs["transform_first"] = False
+        elif coordinate_reference_systems.is_cylindrical(data_crs) and coordinate_reference_systems.is_cylindrical(
+            target_crs
+        ):
+            kwargs["transform_first"] = True
+        else:
+            kwargs["transform_first"] = False
+
+    if target_crs.__class__ in coordinate_reference_systems.CANNOT_TRANSFORM_FIRST:
+        kwargs["transform_first"] = False
     return kwargs

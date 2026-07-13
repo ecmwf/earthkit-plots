@@ -119,17 +119,22 @@ line:
   linewidth: 1
 envelope:
   zorder: 2
+# transform_first: auto resolves at render time based on the data/target CRS
+# pair (see components._grid_handlers._handle_transform_settings):
+#   - equal CRS        → no transform at all (fastest)
+#   - both cylindrical → true (fast point pre-projection, artifact-free)
+#   - curved target    → false (pre-projection corrupts fine lat/lon meshes)
 contour:
   regrid: true
   labels: true
-  transform_first: true
+  transform_first: auto
 isolines:
   regrid: true
-  transform_first: true
+  transform_first: auto
   labels: true
 contourf:
   regrid: true
-  transform_first: true
+  transform_first: auto
 point:
   marker: o
 legend:
