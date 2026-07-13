@@ -28,7 +28,7 @@ of plot call.  They share a numbered step convention:
   Step 7   domain extraction          — clip to subplot domain if requested
   Step 8   _apply_pixel_sampling      — Bilinear / NearestNeighbour reprojection
   Step 9   _handle_cyclic_points      — antimeridian wrapping for contour plots
-  Step 10  _handle_transform_settings — disable transform_first where unsupported
+  Step 10  _handle_transform_settings — resolve transform_first="auto"
   Step 11  matplotlib call            — via style.method_name(ax, x, y, z, ...)
   Step 12  Layer creation             — wrap mappable + source in a Layer
 
@@ -740,7 +740,8 @@ def extract_plottables_2D(
                 # normalisation, so force the closing column directly.
                 x_values, y_values, z_values = _add_pcolormesh_wrap_column(x_values, y_values, z_values)
 
-        # Step 10: Disable transform_first for unsupported projections.
+        # Step 10: Resolve transform_first="auto" from the data/target CRS
+        # pair and disable it for unsupported projections.
         kwargs = _handle_transform_settings(subplot, kwargs)
 
         # Step 11: Render the plot.
