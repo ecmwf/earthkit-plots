@@ -46,8 +46,9 @@ def expand(colors, levels, extend_colors=0):
 
     Parameters
     ----------
-    colors : str or list
-        The name of a matplotlib colormap or a list of colours.
+    colors : str or list or matplotlib.colors.Colormap
+        The name of a matplotlib colormap, a list of colours, or a matplotlib
+        colormap object (e.g. a ``ListedColormap``).
     levels : list
         The levels for which to generate colours.
     extend_colors : int, optional
@@ -68,6 +69,8 @@ def expand(colors, levels, extend_colors=0):
             colors = [colors] * (length - 1)
         else:
             colors = [cmap(i) for i in np.linspace(0, 1, length)]
+    elif isinstance(colors, mpl.colors.Colormap):
+        colors = [colors(i) for i in np.linspace(0, 1, length)]
     return colors
 
 
