@@ -192,7 +192,7 @@ borders:
   linewidth: 0.5
   edgecolor: "#999999"
   facecolor: none
-  zorder: 1
+  zorder: 2
   special_styles:
   - key: BRK_A3
     values: ["B57"]
@@ -203,7 +203,7 @@ borders:
     kwargs:
       alpha: 0
 countries:
-  zorder: 0
+  zorder: 1
   linestyle: "-"
   linewidth: 0.5
   edgecolor: white
@@ -213,20 +213,20 @@ unit_boundaries:
   linewidth: 0.5
   edgecolor: [0.3, 0.3, 0.3]
   facecolor: none
-  zorder: 1
+  zorder: 2
 disputed_boundaries:
   linestyle: [0, [5, 1]]
   linewidth: 0.5
   edgecolor: [0.75, 0.2, 0.2]
   facecolor: none
-  zorder: 1
+  zorder: 2
 administrative_areas:
   linestyle: "-"
   linewidth: 0.25
   edgecolor: [0.6, 0.6, 0.6]
   resolution: high
   facecolor: none
-  zorder: 1
+  zorder: 2
 roads:
   linestyle: "-"
   linewidth: 0.5
@@ -238,15 +238,16 @@ land:
   color: "#e8e8e8"
 urban_areas:
   color: "#d1d1d1"
+  zorder: 2
 ocean:
   color: "#f9f9f9"
 rivers:
   edgecolor: "#97B6E1"
-  zorder: 1
+  zorder: 2
 lakes:
   facecolor: "#A5D5F2"
   edgecolor: "#97B6E1"
-  zorder: 1
+  zorder: 2
 shapes:
   facecolor: steelblue
   linewidth: 0.5
