@@ -187,10 +187,12 @@ coastlines:
   linewidth: 0.75
   edgecolor: "#555555"
   facecolor: none
+  zorder: 2
 borders:
   linewidth: 0.5
   edgecolor: "#999999"
   facecolor: none
+  zorder: 1
   special_styles:
   - key: BRK_A3
     values: ["B57"]
@@ -211,17 +213,20 @@ unit_boundaries:
   linewidth: 0.5
   edgecolor: [0.3, 0.3, 0.3]
   facecolor: none
+  zorder: 1
 disputed_boundaries:
   linestyle: [0, [5, 1]]
   linewidth: 0.5
   edgecolor: [0.75, 0.2, 0.2]
   facecolor: none
+  zorder: 1
 administrative_areas:
   linestyle: "-"
   linewidth: 0.25
   edgecolor: [0.6, 0.6, 0.6]
   resolution: high
   facecolor: none
+  zorder: 1
 roads:
   linestyle: "-"
   linewidth: 0.5
@@ -237,9 +242,11 @@ ocean:
   color: "#f9f9f9"
 rivers:
   edgecolor: "#97B6E1"
+  zorder: 1
 lakes:
   facecolor: "#A5D5F2"
   edgecolor: "#97B6E1"
+  zorder: 1
 shapes:
   facecolor: steelblue
   linewidth: 0.5
