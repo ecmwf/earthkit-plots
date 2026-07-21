@@ -19,6 +19,10 @@ import numpy as np
 
 from earthkit.plots.geography import coordinate_reference_systems, optimisers
 
+# Number of samples taken along each bbox edge when reprojecting between CRSs.
+# Matches the densification pyproj's transform_bounds uses by default.
+DENSIFY_POINTS = 21
+
 
 class BoundingBox:
     @classmethod
@@ -110,7 +114,6 @@ class BoundingBox:
             return cls(*bounds, source_crs)
 
         x_min, x_max, y_min, y_max = bounds
-        x_centre = x_max - (x_max - x_min) / 2
 
         corners = [
             target_crs.transform_point(x_min, y_min, source_crs),
@@ -119,16 +122,45 @@ class BoundingBox:
             target_crs.transform_point(x_max, y_min, source_crs),
         ]
 
-        x_centre_min = target_crs.transform_point(x_centre, y_min, source_crs)
-        x_centre_max = target_crs.transform_point(x_centre, y_max, source_crs)
+        # A bbox with x_min > x_max wraps the antimeridian. Interpolating
+        # linearly between them would sweep the long way around the globe and
+        # report a grossly inflated extent, so leave those to the corner-based
+        # path below, which handles the wrap explicitly.
+        wraps_antimeridian = x_min > x_max
 
-        x_min = min([corner[0] for corner in corners[:2]])
-        x_max = max([corner[0] for corner in corners[2:4]])
-        y_min = min([corner[1] for corner in [corners[0], corners[-1]]])
-        y_max = max([corner[1] for corner in corners[1:3]])
+        # A straight edge in the source CRS is generally curved in the target,
+        # so the extreme values usually lie along an edge rather than at a
+        # corner. Sampling the corners alone understates - and for projections
+        # like polar stereographic degenerates - the true extent: every corner
+        # of a [-180, 180] domain maps onto the same meridian, collapsing the
+        # box to zero width. Sample along each edge instead.
+        edge = np.linspace(0, 1, DENSIFY_POINTS)
+        xs_span = x_min + (x_max - x_min) * edge
+        ys_span = y_min + (y_max - y_min) * edge
+        ones_x = np.ones_like(xs_span)
+        ones_y = np.ones_like(ys_span)
 
-        y_min = min(y_min, x_centre_min[1])
-        y_max = max(y_max, x_centre_max[1])
+        edge_x = np.concatenate([xs_span, xs_span, x_min * ones_y, x_max * ones_y])
+        edge_y = np.concatenate([y_min * ones_x, y_max * ones_x, ys_span, ys_span])
+
+        points = target_crs.transform_points(source_crs, edge_x, edge_y)
+        px, py = points[:, 0], points[:, 1]
+
+        # Points that cannot be represented in the target CRS come back as NaN;
+        # they carry no information about the extent, so drop them rather than
+        # letting them poison the min/max.
+        finite = np.isfinite(px) & np.isfinite(py)
+        if finite.any() and not wraps_antimeridian:
+            px, py = px[finite], py[finite]
+            x_min, x_max = float(px.min()), float(px.max())
+            y_min, y_max = float(py.min()), float(py.max())
+        else:
+            # Nothing transformed cleanly; fall back to the corner values so
+            # the caller still gets a usable (if approximate) box.
+            x_min = min(corner[0] for corner in corners[:2])
+            x_max = max(corner[0] for corner in corners[2:4])
+            y_min = min(corner[1] for corner in [corners[0], corners[-1]])
+            y_max = max(corner[1] for corner in corners[1:3])
 
         if coordinate_reference_systems.is_cylindrical(target_crs):
             if (abs(corners[2][0] - corners[3][0]) > 180) or (abs(corners[0][0] - corners[1][0]) > 180):
