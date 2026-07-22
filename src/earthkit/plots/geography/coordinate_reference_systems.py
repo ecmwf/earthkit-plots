@@ -30,6 +30,13 @@ CANNOT_TRANSFORM_FIRST = [
 
 CRS_MAPPING = {
     "EPSG:4326": ccrs.PlateCarree,
+    # Web Mercator. Map it onto the concrete ``ccrs.Mercator`` (GOOGLE is
+    # numerically EPSG:3857) rather than letting ``parse_crs`` build a generic
+    # ``ccrs.epsg(3857)`` ``_EPSGProjection``: the latter is not recognised by
+    # ``is_cylindrical``, so Web Mercator tiles would fall onto the cartopy
+    # GeoAxes path and lose antimeridian multi-wrap support - a domain panned
+    # past ±180 then clamps to the world edge or fails in ``set_extent``.
+    "EPSG:3857": lambda: ccrs.Mercator.GOOGLE,
     "cylindrical": ccrs.PlateCarree,
 }
 

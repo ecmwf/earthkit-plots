@@ -146,6 +146,46 @@ class BoundingBox:
         points = target_crs.transform_points(source_crs, edge_x, edge_y)
         px, py = points[:, 0], points[:, 1]
 
+        # Dateline handling when projecting lon/lat into a cylindrical target
+        # (e.g. Web Mercator). ``transform_points`` wraps every longitude back
+        # into [-180, 180] before projecting, so a bbox addressed with
+        # longitudes beyond the seam - lon [-211, -15], really +149°E round to
+        # -15°E - is torn apart: -211° wraps to +149° (large +x) while -15°
+        # stays near 0, and the px.min()/px.max() below then span almost the
+        # whole world instead of the requested window. Projected x on a
+        # cylindrical CRS is monotonic in longitude with a fixed world width,
+        # so undo the wrap by adding whole world-widths back onto every edge
+        # point whose *source* longitude ran past ±180, recovering an x range
+        # that matches the unwrapped input.
+        # The target must be a global cylindrical projection for the unwrap to
+        # be valid: its x must be a monotonic function of longitude that spans
+        # exactly one world-width. We can't rely on ``is_cylindrical`` here -
+        # it matches by concrete cartopy class, and the CRS a tile server hands
+        # in for EPSG:3857 is an ``_EPSGProjection``, not ``ccrs.Mercator`` -
+        # so detect the shape directly from ``x_limits``.
+        if isinstance(source_crs, ccrs._CylindricalProjection):
+            try:
+                x_lo, x_hi = target_crs.x_limits
+                world_width = x_hi - x_lo
+            except (AttributeError, TypeError, ValueError):
+                world_width = None
+            # A global cylindrical CRS has x_limits symmetric about 0 (the
+            # antimeridian sits at ±world_width/2). Anything else - a regional
+            # projection, a metre grid with an offset origin - must not be
+            # unwrapped this way.
+            is_global_cylindrical = (
+                world_width is not None
+                and np.isfinite(world_width)
+                and world_width > 0
+                and np.isclose(x_lo, -x_hi)
+            )
+            if is_global_cylindrical:
+                # ``edge_x`` are degrees here (source is a lon/lat cylindrical
+                # CRS); this counts how many 360° wraps cartopy folded away.
+                wraps = np.round((edge_x + 180.0) / 360.0 - 0.5)
+                with np.errstate(invalid="ignore"):
+                    px = px + wraps * world_width
+
         # Points that cannot be represented in the target CRS come back as NaN;
         # they carry no information about the extent, so drop them rather than
         # letting them poison the min/max.

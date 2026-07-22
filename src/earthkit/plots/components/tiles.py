@@ -113,6 +113,16 @@ class Tile(Map):
         # Flag to track if we're using matplotlib-only rendering for cylindrical projections
         self._use_matplotlib_only = False
 
+    # When False, the plain-matplotlib-axes path for cylindrical projections
+    # (below) is bypassed and every tile is built on a cartopy GeoAxes, exactly
+    # as non-cylindrical tiles already are. The plain-axes path only adds
+    # >360deg longitude multi-wrap support, which the earthkit-server tile
+    # pipeline never exercises (single tiles are always <=360deg wide); it also
+    # produces a bare Axes with no `.projection`, which breaks the HEALPix
+    # nnshow / grid_cells backend. Kept as a flag (not a code deletion) so the
+    # multi-wrap path can be re-enabled without reverting anything.
+    _ALLOW_MATPLOTLIB_ONLY_AXES = False
+
     def _ensure_axes(self):
         """Build the tile axes, handling cylindrical projections specially."""
         if self._ax is not None:
@@ -120,7 +130,11 @@ class Tile(Map):
 
         # Check if we should use matplotlib-only rendering for cylindrical projections
         # This allows multi-wrap support (e.g., domains like [-380, 240, -90, 90])
-        if self._crs is not None and is_cylindrical(self._crs):
+        if (
+            self._ALLOW_MATPLOTLIB_ONLY_AXES
+            and self._crs is not None
+            and is_cylindrical(self._crs)
+        ):
             self._use_matplotlib_only = True
             self._create_matplotlib_axes()
         else:
