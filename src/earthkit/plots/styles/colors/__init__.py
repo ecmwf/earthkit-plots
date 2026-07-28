@@ -98,8 +98,9 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
 
     Parameters
     ----------
-    colors : str or list
-        The name of a matplotlib colormap or a list of colours.
+    colors : str or list or matplotlib.colors.Colormap
+        The name of a matplotlib colormap, a list of colours, or a matplotlib
+        colormap object (e.g. a ``ListedColormap``).
     levels : list
         The levels for which to generate colours.
     normalize : bool, optional
