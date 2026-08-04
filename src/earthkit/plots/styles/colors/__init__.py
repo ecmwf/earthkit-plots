@@ -69,6 +69,8 @@ def expand(colors, levels, extend_colors=0):
             colors = [colors] * (length - 1)
         else:
             colors = [cmap(i) for i in np.linspace(0, 1, length)]
+    elif isinstance(colors, ListedColormap):
+        colors = list(colors.colors)
     elif isinstance(colors, mpl.colors.Colormap):
         colors = [colors(i) for i in np.linspace(0, 1, length)]
     return colors
@@ -96,8 +98,9 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
 
     Parameters
     ----------
-    colors : str or list
-        The name of a matplotlib colormap or a list of colours.
+    colors : str or list or matplotlib.colors.Colormap
+        The name of a matplotlib colormap, a list of colours, or a matplotlib
+        colormap object (e.g. a ``ListedColormap``).
     levels : list
         The levels for which to generate colours.
     normalize : bool, optional
@@ -108,6 +111,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         Whether to extend the levels. If False, the levels will be used as is.
         If True, the levels will be extended to include the under and over values.
     """
+    is_listed = isinstance(colors, ListedColormap)
     levels = list(levels)
     extend_colors = 0
     color_levels = levels
@@ -134,7 +138,6 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
     N = len(color_levels) + extend_colors - 1
 
     colormap = LinearSegmentedColormap.from_list
-    is_listed = colors is not None and len(colors) == N
     if is_listed:
         colormap = ListedColormap
 
