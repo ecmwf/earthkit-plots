@@ -153,8 +153,8 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         cmap = _make_cmap(colors, N)
     else:
         cmap_colors = colors
-        over_color = (0, 0, 0, 0)
-        under_color = (0, 0, 0, 0)
+        over_color = colors[-1]  # Use last color as over-color (not transparent)
+        under_color = colors[0]  # Use first color as under-color (not transparent)
         if extend == "both":
             cmap_colors = colors[1:-1]
             over_color = colors[-1]
