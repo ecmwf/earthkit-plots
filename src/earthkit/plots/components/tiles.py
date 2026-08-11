@@ -17,6 +17,12 @@ import functools
 import numpy as np
 import matplotlib.pyplot as plt
 
+# set_timing_hook is re-exported here for backwards compatibility: hosts
+# (earthkit-server) install their benchmark hook via this module. The
+# implementation lives in earthkit.plots._timing so the plotting pipeline
+# (_pipeline.py) can use the same hook without an import cycle.
+from earthkit.plots._timing import set_timing_hook  # noqa: F401
+from earthkit.plots._timing import step as _step
 from earthkit.plots.components.maps import Map
 from earthkit.plots.geography.coordinate_reference_systems import is_cylindrical
 from earthkit.plots.schemas import schema
@@ -128,6 +134,14 @@ class Tile(Map):
         if self._ax is not None:
             return  # Axes already exist
 
+        # Timed as a distinct step: axes construction pulls in cartopy's
+        # GeoAxes and the domain->CRS setup, which is frequently a big slice
+        # of what looks like "drawing" time from the caller's side (it
+        # happens lazily on the first plot call).
+        with _step("plots.axes"):
+            self._build_axes()
+
+    def _build_axes(self):
         # Check if we should use matplotlib-only rendering for cylindrical projections
         # This allows multi-wrap support (e.g., domains like [-380, 240, -90, 90])
         if (
@@ -604,8 +618,11 @@ class Tile(Map):
 
         self.ax.axis('off')
 
-        # Use the figure's savefig directly instead of plt.savefig
-        self._fig.savefig(filename, **kwargs)
+        # Use the figure's savefig directly instead of plt.savefig. Timed as
+        # its own step: savefig triggers the actual matplotlib draw + PNG
+        # encode, which is separate from building the contours.
+        with _step("plots.savefig"):
+            self._fig.savefig(filename, **kwargs)
 
     def show(self):
         """

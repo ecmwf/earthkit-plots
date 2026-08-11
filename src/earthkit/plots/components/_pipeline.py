@@ -38,11 +38,13 @@ two component arrays (u, v) and reproject each independently.
 
 from __future__ import annotations
 
+import logging
 import warnings
 from typing import Any
 
 import numpy as np
 
+from earthkit.plots._timing import step as _step
 from earthkit.plots.components._grid_handlers import (
     _add_pcolormesh_wrap_column,
     _handle_cyclic_points,
@@ -64,6 +66,8 @@ from earthkit.plots.metadata.units import are_equal as _units_are_equal
 from earthkit.plots.sources import get_source
 from earthkit.plots.sources.context import PlotContext
 from earthkit.plots.styles import Style
+
+logger = logging.getLogger(__name__)
 
 
 def _infer_plot_context(subplot: Any, method_name: str) -> PlotContext:
@@ -469,18 +473,19 @@ def extract_plottables_2D(
     context = _infer_plot_context(subplot, method_name)
 
     # Step 2: Build the unified Source.
-    source = get_source(
-        *args,
-        x=x,
-        y=y,
-        z=z,
-        context=context,
-        units=units,
-        x_units=x_units,
-        y_units=y_units,
-        z_units=z_units,
-        metadata=metadata,
-    )
+    with _step("plots.source"):
+        source = get_source(
+            *args,
+            x=x,
+            y=y,
+            z=z,
+            context=context,
+            units=units,
+            x_units=x_units,
+            y_units=y_units,
+            z_units=z_units,
+            metadata=metadata,
+        )
     kwargs = {**subplot._plot_kwargs(source), **kwargs}
 
     if grid != "auto":
@@ -582,7 +587,8 @@ def extract_plottables_2D(
         resample = _auto_resample_policy(method_name, _healpix_structured, is_unstructured=_unstructured)
 
     # Step 3: Resolve the Style object.
-    style = configure_style(method_name, style, source, units, auto_style, kwargs)
+    with _step("plots.style"):
+        style = configure_style(method_name, style, source, units, auto_style, kwargs)
 
     # Step 3.5: If the style carries preferred units (use_preferred_units path),
     # update the source so that unit conversion is applied when .z is accessed.
@@ -598,25 +604,36 @@ def extract_plottables_2D(
     proxy_label = kwargs.pop("label", None)
     proxy_color = kwargs.get("colors") or kwargs.get("color")
 
-    # Step 4: Apply style scale factor.
-    z_values = apply_scale_factor(style, source, z)
+    # Step 4: Apply style scale factor. This is where the source's data
+    # values are first materialised (e.g. the GRIB message is decoded), so
+    # its time is dominated by the z-value read, not the multiply.
+    with _step("plots.values"):
+        z_values = apply_scale_factor(style, source, z)
 
     # Step 5: Dispatch to specialized grid handlers (HEALPix, octahedral).
     # Returns a mappable when the handler renders the plot; None otherwise.
-    mappable = _handle_specialized_grids(
-        subplot,
-        source,
-        z_values,
-        style,
-        method_name,
-        kwargs,
-        resample=resample,
-        use_nn_sampling=use_nn_sampling,
-    )
+    # For HEALPix / octahedral sources this handler renders the whole plot
+    # itself, so on those grids this step absorbs what would otherwise be
+    # coords/crop/draw below.
+    with _step("plots.grids"):
+        mappable = _handle_specialized_grids(
+            subplot,
+            source,
+            z_values,
+            style,
+            method_name,
+            kwargs,
+            resample=resample,
+            use_nn_sampling=use_nn_sampling,
+        )
 
     if mappable is None:
         # Step 6: Extract coordinate arrays and apply stride-based thinning.
-        x_values, y_values = source.x.values, source.y.values
+        # Note: these are the FULL source coordinate arrays - the domain crop
+        # (Step 8) has not happened yet, so on a global source this reads and
+        # (in Step 6.1) potentially rolls every point.
+        with _step("plots.coords"):
+            x_values, y_values = source.x.values, source.y.values
 
         # Step 6.1: Normalise 0–360 longitudes to –180..+180 for cylindrical CRS
         # (e.g. PlateCarree).  Without this, data west of 0° is invisible because
@@ -624,48 +641,53 @@ def extract_plottables_2D(
         # x_values may be 1D (earthkit) or 2D (meshgrid); z_values is always 2D.
         _lon_normalised = False
         _is_regular_latlon = source.gridspec is None or source.gridspec.name not in ("healpix", "reduced_gg", "orca")
-        if _is_regular_latlon and hasattr(subplot, "crs") and np.any(x_values > 180):
-            import cartopy.crs as _ccrs
+        # Timed separately because the scan + rolls below touch every point
+        # of the (still uncropped) source arrays - on a global 0-360 grid
+        # this is three full-array copies before any cropping happens.
+        with _step("plots.lonwrap"):
+            if _is_regular_latlon and hasattr(subplot, "crs") and np.any(x_values > 180):
+                import cartopy.crs as _ccrs
 
-            _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
-            if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(
-                _src_crs, _ccrs._CylindricalProjection
-            ):
-                from earthkit.plots.geography.domains import (
-                    force_minus_180_to_180,
-                    roll_from_0_360_to_minus_180_180,
-                )
+                _src_crs = source.crs or kwargs.get("transform") or _ccrs.PlateCarree()
+                if isinstance(subplot.crs, _ccrs._CylindricalProjection) and isinstance(
+                    _src_crs, _ccrs._CylindricalProjection
+                ):
+                    from earthkit.plots.geography.domains import (
+                        force_minus_180_to_180,
+                        roll_from_0_360_to_minus_180_180,
+                    )
 
-                _ref = x_values[0] if x_values.ndim == 2 else x_values
-                _roll_by = roll_from_0_360_to_minus_180_180(_ref)
-                if x_values.ndim == 2:
-                    x_values = np.roll(x_values, _roll_by, axis=1)
-                    y_values = np.roll(y_values, _roll_by, axis=1)
-                    z_values = np.roll(z_values, _roll_by, axis=1)
-                else:
-                    x_values = np.roll(x_values, _roll_by)
-                    z_values = np.roll(z_values, _roll_by)
-                # force_minus_180_to_180 preserves +180 as-is to avoid
-                # collapsing the east edge; here we want -180 so the result
-                # is sorted and the 180/−180 antimeridian column sits at index 0.
-                x_values = np.where(np.isclose(x_values, 180), -180, force_minus_180_to_180(x_values))
-                _lon_normalised = True
+                    _ref = x_values[0] if x_values.ndim == 2 else x_values
+                    _roll_by = roll_from_0_360_to_minus_180_180(_ref)
+                    if x_values.ndim == 2:
+                        x_values = np.roll(x_values, _roll_by, axis=1)
+                        y_values = np.roll(y_values, _roll_by, axis=1)
+                        z_values = np.roll(z_values, _roll_by, axis=1)
+                    else:
+                        x_values = np.roll(x_values, _roll_by)
+                        z_values = np.roll(z_values, _roll_by)
+                    # force_minus_180_to_180 preserves +180 as-is to avoid
+                    # collapsing the east edge; here we want -180 so the result
+                    # is sorted and the 180/−180 antimeridian column sits at index 0.
+                    x_values = np.where(np.isclose(x_values, 180), -180, force_minus_180_to_180(x_values))
+                    _lon_normalised = True
 
         x_values, y_values, z_values = apply_sampling(x_values, y_values, z_values, every)
 
         # Step 6.5: Data-space resampling (Regrid, Unstructured, generic).
         # Pixel-samplers (Bilinear, NearestNeighbour) are deferred to Step 8.5.
-        x_values, y_values, z_values, _domain_suppressed = _apply_data_resampling(
-            x_values,
-            y_values,
-            z_values,
-            resample,
-            source,
-            subplot,
-            method_name,
-            allow_pixel_samplers=True,
-            kwargs=kwargs,
-        )
+        with _step("plots.resample"):
+            x_values, y_values, z_values, _domain_suppressed = _apply_data_resampling(
+                x_values,
+                y_values,
+                z_values,
+                resample,
+                source,
+                subplot,
+                method_name,
+                allow_pixel_samplers=True,
+                kwargs=kwargs,
+            )
         if _domain_suppressed:
             extract_domain = False
 
@@ -704,24 +726,43 @@ def extract_plottables_2D(
 
         # Step 8: Clip data to the subplot domain.
         if subplot.domain and extract_domain and not no_style:
-            x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
+            with _step("plots.crop"):
+                _size_before = np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size
+                x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
+                _size_after = np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size
+                logger.debug(
+                    "[TIMING] crop_domain: %d -> %d points (%.1f%% kept)",
+                    _size_before,
+                    _size_after,
+                    100.0 * _size_after / max(_size_before, 1),
+                )
+        elif subplot.domain and not no_style:
+            # Crop was requested off (or suppressed by a resampler): the full
+            # source goes to the draw. Logged so a benchmark run can tell
+            # "crop didn't fire" apart from "crop kept everything".
+            logger.debug(
+                "[TIMING] crop_domain skipped (extract_domain=%s): %d points to draw",
+                extract_domain,
+                np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size,
+            )
 
         # Step 8.5: Pixel-space resampling (Bilinear / NearestNeighbour).
         # Deferred from Step 6.5 because these samplers need subplot/CRS/bbox
         # context that is unavailable at Source-construction time.
-        ps_result = _apply_pixel_sampling(
-            subplot,
-            source,
-            x_values,
-            y_values,
-            z_values,
-            resample=resample,
-            method_name=method_name,
-            no_style=no_style,
-            style=style,
-            data_crs=source.crs or kwargs.get("transform"),
-            kwargs=kwargs,
-        )
+        with _step("plots.pixel"):
+            ps_result = _apply_pixel_sampling(
+                subplot,
+                source,
+                x_values,
+                y_values,
+                z_values,
+                resample=resample,
+                method_name=method_name,
+                no_style=no_style,
+                style=style,
+                data_crs=source.crs or kwargs.get("transform"),
+                kwargs=kwargs,
+            )
         x_values, y_values, z_values = ps_result.x, ps_result.y, ps_result.z
         if ps_result.mappable is not None:
             mappable = ps_result.mappable
@@ -748,10 +789,16 @@ def extract_plottables_2D(
         # Skipped when _apply_pixel_sampling already produced a mappable
         # (i.e. the NearestNeighbour imshow path was taken).
         if mappable is None:
-            if not no_style:
-                mappable = getattr(style, method_name)(subplot.current_ax, x_values, y_values, z_values, **kwargs)
-            else:
-                mappable = getattr(subplot.current_ax, method_name)(x_values, y_values, z_values, **kwargs)
+            # The actual matplotlib/cartopy call: contour generation plus
+            # (when transform is set) coordinate reprojection. Its cost
+            # scales with the points that SURVIVED the Step 8 crop - compare
+            # with plots.crop's debug log to see whether the draw is
+            # operating on cropped or full-globe data.
+            with _step("plots.draw"):
+                if not no_style:
+                    mappable = getattr(style, method_name)(subplot.current_ax, x_values, y_values, z_values, **kwargs)
+                else:
+                    mappable = getattr(subplot.current_ax, method_name)(x_values, y_values, z_values, **kwargs)
 
     # Step 12: Create the Layer and attach it to the subplot.
     from earthkit.plots.components.layers import Layer
