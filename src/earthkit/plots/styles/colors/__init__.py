@@ -109,60 +109,37 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         If True, the levels will be extended to include the under and over values.
     """
     levels = list(levels)
-    extend_colors = 0
-    color_levels = levels
-    if extend == "both":
-        if extend_levels:
-            levels = [-np.inf] + levels + [np.inf]
-        extend_colors = 2
-        color_levels = [min(levels) - 1] + levels + [max(levels) + 1]
-    elif extend == "max":
-        if extend_levels:
-            levels += [np.inf]
-        extend_colors = 1
-        color_levels = levels + [max(levels) + 1]
-    elif extend == "min":
-        if extend_levels:
+    n_under = 1 if extend in ("min", "both") else 0
+    n_over = 1 if extend in ("max", "both") else 0
+    n_bins = len(levels) - 1
+    n_colors = n_bins + n_under + n_over
+
+    colors = expand(colors, levels, n_under + n_over)
+
+    # When extend is set, the first/last entries of the colour list are the
+    # under/over colours, so a list of exactly one colour per bin (including
+    # extension bins) needs no interpolation: preserve it verbatim in a
+    # ListedColormap. (ListedColormap deprecated the 'N' argument in
+    # Matplotlib 3.11; from_list still requires it.)
+    is_listed = isinstance(colors, (list, tuple)) and len(colors) == n_colors
+
+    if extend_levels:
+        if n_under:
             levels = [-np.inf] + levels
-        extend_colors = 1
-        color_levels = [min(levels) - 1] + levels
-
-    if extend_levels:
-        color_levels = levels
-
-    colors = expand(colors, color_levels, extend_colors)
-    N = len(color_levels) + extend_colors - 1
-
-    colormap = LinearSegmentedColormap.from_list
-    is_listed = colors is not None and len(colors) == N
-    if is_listed:
-        colormap = ListedColormap
-
-    def _make_cmap(colors, n):
-        # ListedColormap deprecated the 'N' argument in Matplotlib 3.11; passing
-        # a colour list of the required length makes 'N' redundant. from_list
-        # still requires it.
+        if n_over:
+            levels = levels + [np.inf]
         if is_listed:
-            return colormap(name="", colors=colors)
-        return colormap(name="", colors=colors, N=n)
-
-    if extend_levels:
-        cmap = _make_cmap(colors, N)
+            cmap = ListedColormap(colors)
+        else:
+            cmap = LinearSegmentedColormap.from_list(name="", colors=colors, N=n_colors)
     else:
-        cmap_colors = colors
-        over_color = (0, 0, 0, 0)
-        under_color = (0, 0, 0, 0)
-        if extend == "both":
-            cmap_colors = colors[1:-1]
-            over_color = colors[-1]
-            under_color = colors[0]
-        elif extend == "min":
-            cmap_colors = colors[1:]
-            under_color = colors[0]
-        elif extend == "max":
-            cmap_colors = colors[:-1]
-            over_color = colors[-1]
-        cmap = _make_cmap(cmap_colors, len(color_levels) - 1)
+        under_color = colors[0] if n_under else (0, 0, 0, 0)
+        over_color = colors[-1] if n_over else (0, 0, 0, 0)
+        inner_colors = colors[n_under : len(colors) - n_over]
+        if is_listed:
+            cmap = ListedColormap(inner_colors)
+        else:
+            cmap = LinearSegmentedColormap.from_list(name="", colors=inner_colors, N=n_bins)
         cmap = cmap.with_extremes(over=over_color, under=under_color)
 
     norm = None
