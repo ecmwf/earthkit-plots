@@ -40,6 +40,25 @@ CRS_MAPPING = {
     "cylindrical": ccrs.PlateCarree,
 }
 
+EPSG_EXCEPTIONS = {
+    "32661": lambda: ccrs.Stereographic(
+        central_latitude=90,
+        central_longitude=0,
+        false_easting=2000000,
+        false_northing=2000000,
+        true_scale_latitude=81.114528,  # Corresponds to scale factor k=0.994
+        globe=ccrs.Globe(ellipse='WGS84')
+    ),
+    "32761": lambda: ccrs.Stereographic(
+        central_latitude=-90,
+        central_longitude=0,
+        false_easting=2000000,
+        false_northing=2000000,
+        true_scale_latitude=-81.114528,  # Corresponds to scale factor k=0.994
+        globe=ccrs.Globe(ellipse='WGS84')
+    ),
+}
+
 
 def dict_to_crs(kwargs):
     """
@@ -179,8 +198,12 @@ def parse_crs(crs):
             if crs in CRS_MAPPING:
                 crs = CRS_MAPPING[crs]()
             elif crs.upper().startswith("EPSG"):
-                crs = crs.upper().lstrip("EPSG:")
-                crs = ccrs.epsg(crs)
+                epsg_code = crs.upper().lstrip("EPSG:")
+                # Check if this EPSG code needs special handling
+                if epsg_code in EPSG_EXCEPTIONS:
+                    crs = EPSG_EXCEPTIONS[epsg_code]()
+                else:
+                    crs = ccrs.epsg(epsg_code)
             else:
                 crs = string_to_crs(crs)
 
