@@ -168,7 +168,7 @@ class Regrid(Resample):
     >>> Regrid.at_resolution(0.1)
     """
 
-    DEFAULT_RESOLUTION = 0.2
+    DEFAULT_RESOLUTION = 0.5
 
     def __init__(self, resolution=None, out_grid=None, method="linear", in_grid=None):
         if out_grid is not None and resolution is None:
