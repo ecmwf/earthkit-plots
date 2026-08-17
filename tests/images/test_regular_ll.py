@@ -68,3 +68,24 @@ def test_global_ll_europe():
     chart.legend(label="{variable_name} ({units})")
 
     return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
+def test_global_ll_europe_netcdf():
+    # Regression test: NetCDF-sourced fields must have their units converted
+    # (K -> celsius) the same way as GRIB-sourced fields.
+    data = ekd.from_source("sample", "era5-monthly-mean-2t-199312.nc").to_fieldlist()
+    data = data.sel({"parameter.variable": ["2t", "t2m"]})
+
+    chart = ekp.Map(domain="europe")
+    chart.contourf(data, units="celsius", style="auto")
+    chart.title("ERA5 monthly averaged {variable_name} over {domain} - {time:%B %Y}")
+
+    chart.coastlines()
+    chart.borders()
+    chart.gridlines()
+
+    chart.legend(label="{variable_name} ({units})")
+
+    return chart.fig
