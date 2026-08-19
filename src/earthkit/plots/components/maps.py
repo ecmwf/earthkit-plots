@@ -689,10 +689,18 @@ class Map(Subplot):
                     from shapely.ops import unary_union
 
                     pad = 5.0  # degrees — avoids excluding features on the boundary
-                    y_min = max(_llbbox.y_min - pad, -90)
-                    y_max = min(_llbbox.y_max + pad, 90)
-                    x_min_pad = _llbbox.x_min - pad
-                    x_max_pad = _llbbox.x_max + pad
+                    # Normalise in case the domain bbox has south/north (or
+                    # west/east) reversed — shapely.geometry.box() silently
+                    # reorders min/max, which would otherwise build a clip box
+                    # over the wrong latitude/longitude range entirely.
+                    llbbox_y_min = min(_llbbox.y_min, _llbbox.y_max)
+                    llbbox_y_max = max(_llbbox.y_min, _llbbox.y_max)
+                    llbbox_x_min = min(_llbbox.x_min, _llbbox.x_max)
+                    llbbox_x_max = max(_llbbox.x_min, _llbbox.x_max)
+                    y_min = max(llbbox_y_min - pad, -90)
+                    y_max = min(llbbox_y_max + pad, 90)
+                    x_min_pad = llbbox_x_min - pad
+                    x_max_pad = llbbox_x_max + pad
 
                     if x_max_pad > 180:
                         # Domain is in 0-360 space and wraps the antimeridian
