@@ -97,6 +97,11 @@ UNIT_STR_ALIASES = {"(0 - 1)": "percent"}
 def _pintify(unit_str):
     if unit_str is None:
         unit_str = "dimensionless"
+    elif not isinstance(unit_str, str):
+        # earthkit-data's parameter.units() can return a units wrapper
+        # object (e.g. PintUnits) rather than a plain string.
+        # TODO: Consider whether we should instead be using the units wrapper object directly
+        unit_str = str(unit_str)
 
     if unit_str in UNIT_STR_ALIASES:
         unit_str = UNIT_STR_ALIASES[unit_str]
