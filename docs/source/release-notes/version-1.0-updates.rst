@@ -1,19 +1,51 @@
 Version 1.0 Updates
 ///////////////////
 
+Version 1.0.4
+=============
+
+Bug fixes
++++++++++
+
+- Fixed a bug which caused borders which do not fall within the plotted domain to be drawn
+  incorrectly, in particular for custom domains with reversed latitude bounds. (:pr:`248`)
+
+- Fixed a bug which prevented unit conversion from working with netCDF data, where
+  earthkit-data returns a units wrapper object rather than a plain string. (:pr:`247`)
+
+- Fixed handling of ``ListedColormap`` objects in ``expand`` and ``cmap_and_norm``. (:pr:`241`)
+
+- Matplotlib colormap objects which are not otherwise handled explicitly are now handled
+  generically, rather than raising an error. (:pr:`236`)
+
+Other changes
++++++++++++++
+
+- Tweaked the default zorders of map features so that lines and overlays (coastlines, borders,
+  unit and disputed boundaries, administrative areas, urban areas, rivers and lakes) are drawn
+  above plotted data by default, and land is drawn below it. (:pr:`238`, :pr:`235`)
+
+- Reduced the log level of reprojection messages from info to debug, so that they no longer
+  appear during normal use. (:pr:`237`)
+
+Version 1.0.3
+=============
+
+Bug fixes
++++++++++
+
+- Fixed a bug which caused regridded data to warp on non-cylindrical projections. (:pr:`232`)
+
 Version 1.0.2
 =============
+
+Bug fixes
++++++++++
 
 - Fixed a bug which caused ``style="auto"`` to fail when plotting with ``Subplot.plot()``. (:pr:`226`)
 
 - Fixed a bug which caused GRIB data with longitudes 0-360 to sometimes only display over the eastern
   hemisphere. (:pr:`227`)
-
-Bug fixes
-+++++++++
-
-- Made a transparent fix to the earthkit-plots sdist to ensure that the docs are not included
-  in the source distribution, reducing the size of the tarball by 95%.
 
 Version 1.0.1
 =============
