@@ -152,21 +152,15 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
     if extend_levels:
         cmap = _make_cmap(colors, N)
     else:
-        cmap_colors = colors
-        over_color = (0, 0, 0, 0)
-        under_color = (0, 0, 0, 0)
-        if extend == "both":
-            cmap_colors = colors[1:-1]
-            over_color = colors[-1]
-            under_color = colors[0]
-        elif extend == "min":
-            cmap_colors = colors[1:]
-            under_color = colors[0]
-        elif extend == "max":
-            cmap_colors = colors[:-1]
-            over_color = colors[-1]
-        cmap = _make_cmap(cmap_colors, len(color_levels) - 1)
-        cmap = cmap.with_extremes(over=over_color, under=under_color)
+        # Colours reserved for out-of-range values are sliced off the ends of
+        # the colour list, so that they are not also used as in-range bins.
+        start = 1 if extend in ("both", "min") else None
+        stop = -1 if extend in ("both", "max") else None
+        cmap = _make_cmap(colors[start:stop], len(color_levels) - 1)
+        # Out-of-range values take the colour of the nearest end of the
+        # colormap, matching matplotlib's default Colormap behaviour. Where the
+        # colormap is extended, that end is the dedicated extend colour.
+        cmap = cmap.with_extremes(over=colors[-1], under=colors[0])
 
     norm = None
 
