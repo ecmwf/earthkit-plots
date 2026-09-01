@@ -728,7 +728,9 @@ def extract_plottables_2D(
         if subplot.domain and extract_domain and not no_style:
             with _step("plots.crop"):
                 _size_before = np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size
-                x_values, y_values, z_values = subplot.domain.extract(x_values, y_values, z_values, source_crs=source.crs)
+                x_values, y_values, z_values = subplot.domain.extract(
+                    x_values, y_values, z_values, source_crs=source.crs
+                )
                 _size_after = np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size
                 logger.debug(
                     "[TIMING] crop_domain: %d -> %d points (%.1f%% kept)",

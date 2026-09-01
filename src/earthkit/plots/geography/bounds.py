@@ -174,10 +174,7 @@ class BoundingBox:
             # projection, a metre grid with an offset origin - must not be
             # unwrapped this way.
             is_global_cylindrical = (
-                world_width is not None
-                and np.isfinite(world_width)
-                and world_width > 0
-                and np.isclose(x_lo, -x_hi)
+                world_width is not None and np.isfinite(world_width) and world_width > 0 and np.isclose(x_lo, -x_hi)
             )
             if is_global_cylindrical:
                 # ``edge_x`` are degrees here (source is a lon/lat cylindrical

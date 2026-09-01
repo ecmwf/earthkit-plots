@@ -14,8 +14,8 @@
 
 import functools
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 # set_timing_hook is re-exported here for backwards compatibility: hosts
 # (earthkit-server) install their benchmark hook via this module. The
@@ -79,7 +79,17 @@ class Tile(Map):
     >>> tile.save("tile.png")
     """
 
-    def __init__(self, domain=None, size=(256, 256), crs=None, domain_crs=None, dpi=100, rasterization_dpi=None, crop=True, **kwargs):
+    def __init__(
+        self,
+        domain=None,
+        size=(256, 256),
+        crs=None,
+        domain_crs=None,
+        dpi=100,
+        rasterization_dpi=None,
+        crop=True,
+        **kwargs,
+    ):
         self._pixel_size = size
         self._dpi = dpi
         self._crop = crop
@@ -144,11 +154,7 @@ class Tile(Map):
     def _build_axes(self):
         # Check if we should use matplotlib-only rendering for cylindrical projections
         # This allows multi-wrap support (e.g., domains like [-380, 240, -90, 90])
-        if (
-            self._ALLOW_MATPLOTLIB_ONLY_AXES
-            and self._crs is not None
-            and is_cylindrical(self._crs)
-        ):
+        if self._ALLOW_MATPLOTLIB_ONLY_AXES and self._crs is not None and is_cylindrical(self._crs):
             self._use_matplotlib_only = True
             self._create_matplotlib_axes()
         else:
@@ -195,10 +201,10 @@ class Tile(Map):
             self._fill_tile()
         else:
             # No domain specified, use auto aspect
-            self._ax.set_aspect('auto')
+            self._ax.set_aspect("auto")
 
         # Hide axes decorations
-        self._ax.axis('off')
+        self._ax.axis("off")
 
         # Replay queued method calls
         # self._replay_method_queue()
@@ -235,7 +241,7 @@ class Tile(Map):
         behaviour.
         """
         self._ax.set_position([0, 0, 1, 1])
-        self._ax.set_aspect('auto')
+        self._ax.set_aspect("auto")
 
     def _pad_to_aspect(self, x_min, x_max, y_min, y_max):
         """
@@ -266,7 +272,7 @@ class Tile(Map):
             axes_left = (1 - axes_width) / 2
             self._ax.set_position([axes_left, 0, axes_width, 1])
 
-        self._ax.set_aspect('equal', adjustable='box')
+        self._ax.set_aspect("equal", adjustable="box")
 
     def _transform_bounds_to_display(self, bounds):
         """
@@ -290,8 +296,9 @@ class Tile(Map):
         # Use cartopy to transform if needed
         if self._crs is not None:
             import cartopy.crs as ccrs
+
             # Get the domain's CRS (usually PlateCarree for lat/lon)
-            domain_crs = self.domain.bbox.crs if hasattr(self.domain.bbox, 'crs') else ccrs.PlateCarree()
+            domain_crs = self.domain.bbox.crs if hasattr(self.domain.bbox, "crs") else ccrs.PlateCarree()
 
             # Check if CRSs are the same type - if so, no transformation needed
             if type(self._crs).__name__ == type(domain_crs).__name__:
@@ -305,12 +312,16 @@ class Tile(Map):
             xs = np.linspace(x_min, x_max, n)
             ys = np.linspace(y_min, y_max, n)
             x_coords = np.concatenate([
-                xs, xs,                       # bottom, top edges
-                np.full(n, x_min), np.full(n, x_max),  # left, right edges
+                xs,
+                xs,  # bottom, top edges
+                np.full(n, x_min),
+                np.full(n, x_max),  # left, right edges
             ])
             y_coords = np.concatenate([
-                np.full(n, y_min), np.full(n, y_max),
-                ys, ys,
+                np.full(n, y_min),
+                np.full(n, y_max),
+                ys,
+                ys,
             ])
 
             transformed = self._crs.transform_points(domain_crs, x_coords, y_coords)
@@ -324,15 +335,11 @@ class Tile(Map):
             # or Inf", so keep only the finite ones.
             finite = np.isfinite(x_transformed) & np.isfinite(y_transformed)
             if not finite.any():
-                raise ValueError(
-                    "domain does not project into the target CRS: no finite "
-                    "bounds after transformation"
-                )
+                raise ValueError("domain does not project into the target CRS: no finite bounds after transformation")
             x_transformed = x_transformed[finite]
             y_transformed = y_transformed[finite]
 
-            return (x_transformed.min(), x_transformed.max(),
-                    y_transformed.min(), y_transformed.max())
+            return (x_transformed.min(), x_transformed.max(), y_transformed.min(), y_transformed.max())
 
         return bounds
 
@@ -385,6 +392,7 @@ class Tile(Map):
             return x, y
 
         import cartopy.crs as ccrs
+
         if source_crs is None:
             source_crs = ccrs.PlateCarree()
 
@@ -497,7 +505,7 @@ class Tile(Map):
 
         # Signal to extractors that we're in matplotlib-only mode
         if self._use_matplotlib_only:
-            kwargs['_tile_matplotlib_only'] = True
+            kwargs["_tile_matplotlib_only"] = True
 
         return kwargs
 
@@ -507,7 +515,7 @@ class Tile(Map):
         self._ensure_axes()
 
         # If using matplotlib-only mode, wrap the axes to intercept plotting calls
-        if self._use_matplotlib_only and not hasattr(self._ax, '_tile_wrapped'):
+        if self._use_matplotlib_only and not hasattr(self._ax, "_tile_wrapped"):
             self._ax = _TileAxesWrapper(self._ax, self._crs)
             self._ax._tile_wrapped = True
 
@@ -521,8 +529,6 @@ class Tile(Map):
         this clips to valid bounds and positions the map correctly within
         the tile, leaving out-of-bounds areas transparent.
         """
-        import cartopy.crs as ccrs
-
         # Get the requested domain bounds
         domain_bounds = self.domain.bbox.to_cartopy_bounds()
         x_min, x_max, y_min, y_max = domain_bounds
@@ -531,7 +537,7 @@ class Tile(Map):
         # For PlateCarree and similar, latitude is limited to [-90, 90]
         crs_name = self.crs.__class__.__name__
 
-        if crs_name == 'PlateCarree' or crs_name == 'Geodetic':
+        if crs_name == "PlateCarree" or crs_name == "Geodetic":
             # Clip to valid latitude range
             valid_y_min = max(y_min, -90)
             valid_y_max = min(y_max, 90)
@@ -552,14 +558,9 @@ class Tile(Map):
 
         # If bounds were clipped, we need to adjust the axes position
         # to maintain the correct pixel dimensions
-        if (valid_y_min != y_min or valid_y_max != y_max or
-            valid_x_min != x_min or valid_x_max != x_max):
-
+        if valid_y_min != y_min or valid_y_max != y_max or valid_x_min != x_min or valid_x_max != x_max:
             # Set extent to valid bounds only
-            self._ax.set_extent(
-                [valid_x_min, valid_x_max, valid_y_min, valid_y_max],
-                self.domain.bbox.crs
-            )
+            self._ax.set_extent([valid_x_min, valid_x_max, valid_y_min, valid_y_max], self.domain.bbox.crs)
 
             # Calculate the fraction of the tile that the valid area occupies
             # This ensures the valid map area is positioned correctly
@@ -577,9 +578,12 @@ class Tile(Map):
                 # Set axes position directly in figure coordinates
                 # Since we set subplots_adjust(0, 1, 0, 1), the axes should fill the figure
                 # We adjust to position the valid area correctly
-                self._ax.set_position([x_start_frac, y_start_frac,
-                                      x_end_frac - x_start_frac,
-                                      y_end_frac - y_start_frac])
+                self._ax.set_position([
+                    x_start_frac,
+                    y_start_frac,
+                    x_end_frac - x_start_frac,
+                    y_end_frac - y_start_frac,
+                ])
 
     def save(self, filename, **kwargs):
         """
@@ -599,24 +603,24 @@ class Tile(Map):
         None
         """
         # Override settings to ensure exact pixel dimensions
-        kwargs['bbox_inches'] = None
-        kwargs['pad_inches'] = 0
-        kwargs['dpi'] = self._dpi
-        kwargs['transparent'] = kwargs.get('transparent', True)
+        kwargs["bbox_inches"] = None
+        kwargs["pad_inches"] = 0
+        kwargs["dpi"] = self._dpi
+        kwargs["transparent"] = kwargs.get("transparent", True)
 
         # Enable figure-level antialiasing for smoother rendering
         # This is the default but we make it explicit
-        if 'facecolor' not in kwargs:
-            kwargs['facecolor'] = 'none'  # Transparent background
-        if 'edgecolor' not in kwargs:
-            kwargs['edgecolor'] = 'none'
+        if "facecolor" not in kwargs:
+            kwargs["facecolor"] = "none"  # Transparent background
+        if "edgecolor" not in kwargs:
+            kwargs["edgecolor"] = "none"
 
         # Set rasterization DPI for better quality of vector elements
         # This affects how cartopy features (coastlines, etc.) are rasterized
-        if 'metadata' not in kwargs:
-            kwargs['metadata'] = {}
+        if "metadata" not in kwargs:
+            kwargs["metadata"] = {}
 
-        self.ax.axis('off')
+        self.ax.axis("off")
 
         # Use the figure's savefig directly instead of plt.savefig. Timed as
         # its own step: savefig triggers the actual matplotlib draw + PNG
@@ -715,10 +719,10 @@ class _TileAxesWrapper:
     def _remove_cartopy_kwargs(self, kwargs):
         """Remove any cartopy-specific kwargs that would break matplotlib."""
         # Remove transform kwarg completely (cartopy-specific)
-        kwargs.pop('transform', None)
-        kwargs.pop('transform_first', None)
+        kwargs.pop("transform", None)
+        kwargs.pop("transform_first", None)
         # Remove our internal marker
-        source_crs = kwargs.pop('_source_crs', None)
+        source_crs = kwargs.pop("_source_crs", None)
         return source_crs
 
     def contour(self, *args, **kwargs):
