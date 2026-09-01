@@ -345,6 +345,14 @@ class EarthkitExtractor(BaseExtractor):
             except (AttributeError, KeyError, NotImplementedError):
                 pass
 
+        if "units" not in metadata_dict and hasattr(self.data, "parameter"):
+            try:
+                units = self.data.parameter.units()
+                if units is not None:
+                    metadata_dict["units"] = units
+            except (AttributeError, KeyError, NotImplementedError):
+                pass
+
         return metadata_dict
 
     def get_metadata(self, key: str, default: Any = None) -> Any:
@@ -374,6 +382,14 @@ class EarthkitExtractor(BaseExtractor):
         if hasattr(self.data, "get"):
             try:
                 value = self.data.get(key)
+                if value is not None:
+                    return value
+            except (AttributeError, KeyError, NotImplementedError):
+                pass
+
+        if key == "units" and hasattr(self.data, "parameter"):
+            try:
+                value = self.data.parameter.units()
                 if value is not None:
                     return value
             except (AttributeError, KeyError, NotImplementedError):

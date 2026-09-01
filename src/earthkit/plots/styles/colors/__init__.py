@@ -69,6 +69,8 @@ def expand(colors, levels, extend_colors=0):
             colors = [colors] * (length - 1)
         else:
             colors = [cmap(i) for i in np.linspace(0, 1, length)]
+    elif isinstance(colors, ListedColormap):
+        colors = list(colors.colors)
     elif isinstance(colors, mpl.colors.Colormap):
         colors = [colors(i) for i in np.linspace(0, 1, length)]
     return colors
@@ -96,8 +98,9 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
 
     Parameters
     ----------
-    colors : str or list
-        The name of a matplotlib colormap or a list of colours.
+    colors : str or list or matplotlib.colors.Colormap
+        The name of a matplotlib colormap, a list of colours, or a matplotlib
+        colormap object (e.g. a ``ListedColormap``).
     levels : list
         The levels for which to generate colours.
     normalize : bool, optional
@@ -108,6 +111,7 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         Whether to extend the levels. If False, the levels will be used as is.
         If True, the levels will be extended to include the under and over values.
     """
+    is_listed = isinstance(colors, ListedColormap)
     levels = list(levels)
     n_under = 1 if extend in ("min", "both") else 0
     n_over = 1 if extend in ("max", "both") else 0
@@ -116,12 +120,17 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
 
     colors = expand(colors, levels, n_under + n_over)
 
-    # When extend is set, the first/last entries of the colour list are the
-    # under/over colours, so a list of exactly one colour per bin (including
-    # extension bins) needs no interpolation: preserve it verbatim in a
-    # ListedColormap. (ListedColormap deprecated the 'N' argument in
-    # Matplotlib 3.11; from_list still requires it.)
-    is_listed = isinstance(colors, (list, tuple)) and len(colors) == n_colors
+    colormap = LinearSegmentedColormap.from_list
+    if is_listed:
+        colormap = ListedColormap
+
+    def _make_cmap(colors, n):
+        # ListedColormap deprecated the 'N' argument in Matplotlib 3.11; passing
+        # a colour list of the required length makes 'N' redundant. from_list
+        # still requires it.
+        if is_listed:
+            return colormap(name="", colors=colors)
+        return colormap(name="", colors=colors, N=n)
 
     if extend_levels:
         if n_under:
@@ -133,14 +142,15 @@ def cmap_and_norm(colors, levels, normalize=True, extend=None, extend_levels=Tru
         else:
             cmap = LinearSegmentedColormap.from_list(name="", colors=colors, N=n_colors)
     else:
-        under_color = colors[0] if n_under else (0, 0, 0, 0)
-        over_color = colors[-1] if n_over else (0, 0, 0, 0)
-        inner_colors = colors[n_under : len(colors) - n_over]
-        if is_listed:
-            cmap = ListedColormap(inner_colors)
-        else:
-            cmap = LinearSegmentedColormap.from_list(name="", colors=inner_colors, N=n_bins)
-        cmap = cmap.with_extremes(over=over_color, under=under_color)
+        # Colours reserved for out-of-range values are sliced off the ends of
+        # the colour list, so that they are not also used as in-range bins.
+        start = 1 if extend in ("both", "min") else None
+        stop = -1 if extend in ("both", "max") else None
+        cmap = _make_cmap(colors[start:stop], len(color_levels) - 1)
+        # Out-of-range values take the colour of the nearest end of the
+        # colormap, matching matplotlib's default Colormap behaviour. Where the
+        # colormap is extended, that end is the dedicated extend colour.
+        cmap = cmap.with_extremes(over=colors[-1], under=colors[0])
 
     norm = None
 

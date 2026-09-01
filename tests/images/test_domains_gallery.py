@@ -52,6 +52,21 @@ def test_custom_domain():
 
 @pytest.mark.mpl_image
 @pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
+def test_custom_domain_reversed_latitude():
+    # Regression test: bbox given with y_min > y_max (south/north reversed)
+    # used to produce a mislocated clip box, silently dropping borders that
+    # are actually within the domain (see issue #239).
+    horn_of_africa = domains.Domain(bbox=[26.75, 50.75, 21.0, -3.0])
+    chart = ekp.Map(domain=horn_of_africa)
+    chart.borders()
+    chart.coastlines()
+    chart.gridlines()
+    chart.title("{domain}")
+    return chart.fig
+
+
+@pytest.mark.mpl_image
+@pytest.mark.mpl_image_compare(style=schema.to_stylesheet())
 def test_override_crs():
     chart = ekp.Map(
         domain="Europe",
