@@ -30,7 +30,33 @@ CANNOT_TRANSFORM_FIRST = [
 
 CRS_MAPPING = {
     "EPSG:4326": ccrs.PlateCarree,
+    # Web Mercator. Map it onto the concrete ``ccrs.Mercator`` (GOOGLE is
+    # numerically EPSG:3857) rather than letting ``parse_crs`` build a generic
+    # ``ccrs.epsg(3857)`` ``_EPSGProjection``: the latter is not recognised by
+    # ``is_cylindrical``, so Web Mercator tiles would fall onto the cartopy
+    # GeoAxes path and lose antimeridian multi-wrap support - a domain panned
+    # past ±180 then clamps to the world edge or fails in ``set_extent``.
+    "EPSG:3857": lambda: ccrs.Mercator.GOOGLE,
     "cylindrical": ccrs.PlateCarree,
+}
+
+EPSG_EXCEPTIONS = {
+    "32661": lambda: ccrs.Stereographic(
+        central_latitude=90,
+        central_longitude=0,
+        false_easting=2000000,
+        false_northing=2000000,
+        true_scale_latitude=81.114528,  # Corresponds to scale factor k=0.994
+        globe=ccrs.Globe(ellipse="WGS84"),
+    ),
+    "32761": lambda: ccrs.Stereographic(
+        central_latitude=-90,
+        central_longitude=0,
+        false_easting=2000000,
+        false_northing=2000000,
+        true_scale_latitude=-81.114528,  # Corresponds to scale factor k=0.994
+        globe=ccrs.Globe(ellipse="WGS84"),
+    ),
 }
 
 
@@ -172,8 +198,12 @@ def parse_crs(crs):
             if crs in CRS_MAPPING:
                 crs = CRS_MAPPING[crs]()
             elif crs.upper().startswith("EPSG"):
-                crs = crs.upper().lstrip("EPSG:")
-                crs = ccrs.epsg(crs)
+                epsg_code = crs.upper().lstrip("EPSG:")
+                # Check if this EPSG code needs special handling
+                if epsg_code in EPSG_EXCEPTIONS:
+                    crs = EPSG_EXCEPTIONS[epsg_code]()
+                else:
+                    crs = ccrs.epsg(epsg_code)
             else:
                 crs = string_to_crs(crs)
 
