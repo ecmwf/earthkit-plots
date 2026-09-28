@@ -1784,8 +1784,15 @@ class Map(Subplot):
         else:
             has_non_colourbar = False
             for i, layer in enumerate(self.distinct_legend_layers):
-                needs_colourbar = hasattr(layer.mappable, "cmap") and (
-                    not hasattr(layer.mappable, "get_array") or layer.mappable.get_array() is not None
+                # A layer needs a colourbar if its mappable has a colormap and a
+                # populated norm. We check the norm rather than ``get_array()``
+                # because some mappables (e.g. cartopy's FeatureArtist from
+                # ``add_geometries``, used by choropleth) are coloured via
+                # explicit facecolors and never have an array set, while
+                # uncoloured quiver/barbs have a cmap but a norm with no vmin.
+                mappable = layer.mappable
+                needs_colourbar = hasattr(mappable, "cmap") and (
+                    getattr(getattr(mappable, "norm", None), "vmin", None) is not None
                 )
                 if not needs_colourbar:
                     has_non_colourbar = True
