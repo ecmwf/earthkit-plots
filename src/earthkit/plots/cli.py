@@ -109,13 +109,10 @@ def plot(filename, save, index, domain, method, crs, style, units, groupby, size
     
     data = ekd.from_source("file", filename)
     if index is not None:
-        if not index.isdigit():
-            islice = slice(*map(int, index.split("/")))  
-            data = data.to_fieldlist()[islice]
-        else:
-            data = data.to_fieldlist()[int(index)]
+        data = data.to_fieldlist()[_parse_index(index)]
     
-    chart = getattr(ekp.geo, method)(data, domain=domain, crs=crs, style=style, units=units, groupby=groupby, figsize=size.split("/"), rows=rows, columns=cols)
+    figsize = tuple(map(int, size.split("/"))) if size is not None else None
+    chart = getattr(ekp.geo, method)(data, domain=domain, crs=crs, style=style, units=units, groupby=groupby, figsize=figsize, rows=rows, columns=cols)
     if title is not None:
         chart.title(title)
     if subtitles is not None:
@@ -124,6 +121,16 @@ def plot(filename, save, index, domain, method, crs, style, units, groupby, size
         chart.save(save)
     else:
         chart.show()
+
+
+def _parse_index(index):
+    """Parse an index string: a slice ("1:7", "::2"), list ("4,5,8") or int ("3")."""
+    if ":" in index:
+        parts = [int(p) if p.strip() else None for p in index.split(":")]
+        return slice(*parts)
+    if "," in index:
+        return [int(p) for p in index.split(",")]
+    return int(index)
 
 
 COMMANDS = {
