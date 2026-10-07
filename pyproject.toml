@@ -26,6 +26,7 @@ dependencies = [
   "earthkit-data~=1.0",
   "cartopy>=0.22.0",
   "pint",
+  "click",
   "matplotlib",
   "pandas",
   "plotly",
@@ -37,6 +38,7 @@ description = "Visualisation tools for earth science data"
 dynamic = [
   "version"
 ]
+entry-points."earthkit.cli".data = "earthkit.plots.cli:COMMANDS"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 name = "earthkit-plots"

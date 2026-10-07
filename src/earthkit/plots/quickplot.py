@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 import warnings
 
 from earthkit.plots.components import layouts
@@ -37,25 +38,110 @@ def _coerce_to_fieldlist(*args):
     return FieldList.from_fields(field_list)
 
 
-_DEFAULT_SINGLE_SIZE = (7, 8)
-_MULTI_PANEL_WIDTH = 5.0
-_MULTI_PANEL_HEIGHT = 4.0
+#: Maximum ``(width, height)`` in inches of the map area of a single-panel figure.
+_SINGLE_PANEL_BOX = (7.0, 7.0)
+#: Maximum ``(width, height)`` in inches of each map panel in a multi-panel figure.
+_MULTI_PANEL_BOX = (5.0, 4.0)
 _MAX_FIGURE_SIZE = (40.0, 40.0)
+#: Vertical space in inches reserved above each row of panels for titles.
+_TITLE_HEIGHT = 0.5
+#: Space in inches reserved for a horizontal (bottom/top) or vertical (left/right) colorbar.
+_LEGEND_HEIGHT = 0.9
+_LEGEND_WIDTH = 1.2
+#: Width / height ratio assumed when the map aspect ratio is not yet known (a global lat-lon map).
+_DEFAULT_MAP_ASPECT = 2.0
 
 
-def _auto_figure_size(rows, columns):
+def _legend_is_vertical():
+    """Return True if the schema places legends to the left or right of the map."""
+    try:
+        location = str(schema.legend.location).lower()
+    except Exception:
+        return False
+    return location in ("left", "right")
+
+
+def _auto_figure_size(rows, columns, aspect=None, legend=True):
     """
-    Return a ``(width, height)`` tuple scaled to the panel grid.
+    Return a ``(width, height)`` tuple in inches sized to the panel grid.
 
-    Single panels use ``_DEFAULT_SINGLE_SIZE``.  Multi-panel layouts use
-    ``_MULTI_PANEL_WIDTH × _MULTI_PANEL_HEIGHT`` per panel, capped at
-    ``_MAX_FIGURE_SIZE``.
+    Each map panel is fitted inside a bounding box (``_SINGLE_PANEL_BOX`` for a
+    single panel, ``_MULTI_PANEL_BOX`` otherwise) while preserving *aspect*, the
+    width / height ratio of the map in projected coordinates.  Room is then
+    added for panel titles and, if *legend* is True, for a colorbar, so that
+    the figure has no large blank areas around a map whose shape does not match
+    the box.  The result is capped at ``_MAX_FIGURE_SIZE``.
+
+    Parameters
+    ----------
+    rows, columns : int
+        The shape of the panel grid.
+    aspect : float, optional
+        The width / height ratio of a map panel.  If None or invalid,
+        ``_DEFAULT_MAP_ASPECT`` (a global lat-lon map) is assumed.
+    legend : bool, optional
+        Whether to reserve space for a colorbar.
     """
-    if rows == 1 and columns == 1:
-        return _DEFAULT_SINGLE_SIZE
-    width = min(_MULTI_PANEL_WIDTH * columns, _MAX_FIGURE_SIZE[0])
-    height = min(_MULTI_PANEL_HEIGHT * rows, _MAX_FIGURE_SIZE[1])
-    return (width, height)
+    if aspect is None or not math.isfinite(aspect) or aspect <= 0:
+        aspect = _DEFAULT_MAP_ASPECT
+    rows, columns = max(1, rows), max(1, columns)
+
+    box_width, box_height = _SINGLE_PANEL_BOX if rows == 1 and columns == 1 else _MULTI_PANEL_BOX
+    panel_width = min(box_width, box_height * aspect)
+    panel_height = panel_width / aspect
+
+    width = columns * panel_width
+    height = rows * (panel_height + _TITLE_HEIGHT)
+    if legend:
+        if _legend_is_vertical():
+            width += _LEGEND_WIDTH
+        else:
+            height += _LEGEND_HEIGHT
+
+    scale = min(1.0, _MAX_FIGURE_SIZE[0] / width, _MAX_FIGURE_SIZE[1] / height)
+    return (round(width * scale, 2), round(height * scale, 2))
+
+
+def _map_aspect_ratio(figure):
+    """
+    Return the mean width / height ratio of the map panels of *figure*.
+
+    The ratio is measured from the axes limits in projected coordinates, so it
+    reflects the domain (explicit or derived from the data) and the projection.
+    Map axes have a fixed ``equal`` aspect, so this is also the ratio of the
+    box the axes will occupy on the figure.  Returns None if no panel has a
+    usable extent.
+    """
+    ratios = []
+    for subplot in figure.subplots:
+        ax = getattr(subplot, "_ax", None)
+        if ax is None:
+            continue
+        try:
+            x0, x1 = ax.get_xlim()
+            y0, y1 = ax.get_ylim()
+        except Exception:
+            continue
+        width, height = abs(x1 - x0), abs(y1 - y0)
+        if width > 0 and height > 0 and math.isfinite(width) and math.isfinite(height):
+            ratios.append(width / height)
+    if not ratios:
+        return None
+    return sum(ratios) / len(ratios)
+
+
+def _fit_figure_to_maps(figure, rows, columns, legend=True):
+    """
+    Resize *figure* so that its map panels fill it without excess whitespace.
+
+    Called after the data has been plotted and the figure decorated, when the
+    extent of every panel is known.  Only used when the caller did not supply
+    an explicit ``figsize``.
+    """
+    size = _auto_figure_size(rows, columns, aspect=_map_aspect_ratio(figure), legend=legend)
+    figure.fig.set_size_inches(*size)
+    figure._figsize = list(size)
+    return size
 
 
 def _iter_plot_groups(args, groupby, mode, combine_vectors=False):
@@ -186,10 +272,15 @@ def plot(
     columns : int, optional
         Number of columns in the panel grid.  Ignored when *column* is a
         dimension name.
-    size : tuple of float, optional
+    figsize : tuple of float, optional
         Explicit ``(width, height)`` in inches for the whole figure.  When not
-        provided the size is chosen automatically based on the panel grid
-        (approximately 5 × 4 inches per panel, capped at 40 inches).
+        provided the size is chosen automatically once the data has been
+        plotted: each map panel is fitted inside a box (7 × 7 inches for a
+        single panel, 5 × 4 inches per panel otherwise) while preserving the
+        aspect ratio of its projected extent, and room is added for titles and
+        the legend.  The result is capped at 40 inches in each direction.
+    size : tuple of float, optional
+        Deprecated alias for *figsize*.
     units : str or list of str, optional
         Units to convert the data to at plot time (e.g. ``"celsius"``). See
         :doc:`/examples/examples/introduction/08-unit-conversion` for
@@ -290,6 +381,8 @@ def plot(
                     )
                     raise
         _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
+        if figsize is None:
+            _fit_figure_to_maps(figure, n_rows, n_cols, legend=legend)
         return _unwrap_if_single(figure)
 
     # --- Flat layout (original behaviour) ---
@@ -339,6 +432,8 @@ def plot(
             )
             raise
     _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
+    if figsize is None:
+        _fit_figure_to_maps(figure, rows, columns, legend=legend)
     return _unwrap_if_single(figure)
 
 
@@ -434,7 +529,8 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
     title = kwargs.pop("title", True)
     legend = kwargs.pop("legend", True)
     coastlines = kwargs.pop("coastlines", True)
-    figure = Figure(rows=1, columns=1, chainable=True)
+    figsize = kwargs.pop("figsize", None)
+    figure = Figure(rows=1, columns=1, figsize=figsize or _auto_figure_size(1, 1), chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
     if not data_args:
         getattr(subplot, method_name)(**kwargs)
@@ -444,6 +540,8 @@ def _single_map_function(method_name, data_args, domain, crs, kwargs):
         fields = _coerce_to_fieldlist(*data_args)
         getattr(subplot, method_name)(fields, **kwargs)
     _apply_map_decoration(figure, title=title, legend=legend, coastlines=coastlines)
+    if figsize is None:
+        _fit_figure_to_maps(figure, 1, 1, legend=legend)
     return _unwrap_if_single(figure)
 
 
