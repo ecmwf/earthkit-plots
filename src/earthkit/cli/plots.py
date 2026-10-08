@@ -6,18 +6,25 @@
 # granted to it by virtue of its status as an intergovernmental organisation
 # nor does it submit to any jurisdiction.
 
-"""Commands contributed by earthkit-data to the shared ``earthkit`` command line interface.
+"""Commands contributed by earthkit-plots to the shared ``earthkit`` command line interface.
 
-The ``earthkit`` console script itself lives in :mod:`earthkit.utils.cli`. The commands
-defined here are registered with it through the ``earthkit.cli`` entry point group in
-``pyproject.toml``, so ``earthkit ls <file>`` becomes available once earthkit-data is installed.
+The ``earthkit`` console script itself lives in :mod:`earthkit.cli.main` (earthkit-utils). This module is
+part of the ``earthkit.cli`` namespace package, which is shared by all earthkit packages, and registers its
+commands on the shared ``earthkit`` group with ``@earthkit.command()``, so ``earthkit plot <file>`` becomes
+available once earthkit-plots is installed.
+
+This module lives outside of ``earthkit.plots`` on purpose, so that listing the commands does not import
+``earthkit.plots``. Only import :mod:`click` and light standard library modules at module level, and import
+everything else inside the command functions.
 """
 
 import click
+from earthkit.cli.main import earthkit
+from earthkit.cli.standard_args import add_options, source_options
 
 
-@click.command()
-@click.argument("filename", type=click.Path(exists=True, dir_okay=False))
+@earthkit.command()
+@add_options([source_options(positional=True)])
 @click.option(
     "-s",
     "--save",
@@ -102,12 +109,20 @@ import click
     default=None,
     help="Number of columns in the plot.",
 )
-def plot(filename, save, index, domain, method, crs, style, units, groupby, size, title, subtitles, rows, cols):
-    """List the contents of FILENAME as a metadata summary table."""
-    import earthkit.data as ekd
+def plot(source, save, index, domain, method, crs, style, units, groupby, size, title, subtitles, rows, cols):
+    """Plot data on a map.
+
+    SOURCE is the earthkit-data source to read, as [NAME:]VALUE, e.g. a file path (GRIB, NetCDF, ...),
+    'url:https://myhost.int/file.nc' or a JSON request such as 'cds:{"dataset": ..., ...}'.
+    NAME is 'file' if not given. Several sources are merged.
+
+    \b
+    Example:
+        earthkit plot input.grib --index 0:4 --save plot.png
+    """  # noqa: D301 (\b is a Click paragraph marker)
     import earthkit.plots as ekp
-    
-    data = ekd.from_source("file", filename)
+
+    data = source
     if index is not None:
         data = data.to_fieldlist()[_parse_index(index)]
     
@@ -131,8 +146,3 @@ def _parse_index(index):
     if "," in index:
         return [int(p) for p in index.split(",")]
     return int(index)
-
-
-COMMANDS = {
-    "plot": plot,
-}

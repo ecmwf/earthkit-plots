@@ -38,7 +38,6 @@ description = "Visualisation tools for earth science data"
 dynamic = [
   "version"
 ]
-entry-points."earthkit.cli".data = "earthkit.plots.cli:COMMANDS"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 name = "earthkit-plots"
@@ -123,7 +122,8 @@ select = [
 [tool.setuptools.packages.find]
 include = [
   "earthkit.plots",
-  "earthkit.plots.*"
+  "earthkit.plots.*",
+  "earthkit.cli"
 ]
 where = [
   "src/"
