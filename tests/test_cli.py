@@ -65,6 +65,9 @@ def test_cli_plot_help():
     output = _invoke("plot", "--help").output
     assert "[OPTIONS] SOURCE\n" in output
     assert "-i, --index" in output
+    # Only the common options of earthkit-utils have short flags
+    for flag in ("-s,", "-d,", "-m,", "-u,", "-g,"):
+        assert flag not in output
     # The shared description from earthkit-utils, rewrapped by click
     assert " ".join(SOURCE_HELP.split()) in " ".join(output.split())
 

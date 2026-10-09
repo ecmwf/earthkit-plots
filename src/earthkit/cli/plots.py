@@ -35,21 +35,18 @@ Example:
 )
 @add_options([source_options(positional=True), index_option])
 @click.option(
-    "-s",
     "--save",
     type=str,
     default=None,
     help="Target file to save the plot to.",
 )
 @click.option(
-    "-d",
     "--domain",
     type=str,
     default=None,
     help="Domain of the data to plot.",
 )
 @click.option(
-    "-m",
     "--method",
     type=str,
     default="plot",
@@ -68,14 +65,12 @@ Example:
     help="Style of the plot.",
 )
 @click.option(
-    "-u",
     "--units",
     type=str,
     default=None,
     help="Units of the plot.",
 )
 @click.option(
-    "-g",
     "--groupby",
     type=str,
     default=None,
