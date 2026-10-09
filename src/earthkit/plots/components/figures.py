@@ -902,28 +902,26 @@ class Figure:
     @iterate_subplots
     def plot(self, *args, **kwargs):
         """
-        Plot filled contours on every subplot in the figure.
+        Auto-detect the best plot type and render data on every subplot.
+
+        Iterates over data items and subplots simultaneously, calling
+        :meth:`~earthkit.plots.components.subplots.Subplot.plot` on each.
 
         Parameters
         ----------
-        data : list, numpy.ndarray, xarray.DataArray, or earthkit.data.core.Base, optional
-            The data to plot. If None, x, y, and z must be provided.
-        x : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The x values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
-        y : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The y values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
-        z : str, list, numpy.ndarray, or xarray.DataArray, optional
-            The z values to plot. If data is provided, this is assumed to be the
-            name of a coordinate in the data. If None, data must be provided.
-        style : earthkit.plots.styles.Style, optional
-            The Style to use for the filled contour plot. If None, a Style is
-            automatically generated based on the data.
+        data : xarray.DataArray, xarray.Dataset, or earthkit.data.core.Base
+            The data to plot.
+        style : earthkit.plots.styles.Style or str, optional
+            An explicit :class:`~earthkit.plots.styles.Style` to use, or the
+            name of a registered style. Defaults to ``"auto"``, which detects a
+            style automatically from the data metadata.
         units : str, optional
             Target units for value conversion (e.g. ``"celsius"``). See
             :doc:`/examples/examples/introduction/08-unit-conversion` for
             examples.
+        **kwargs
+            Additional keyword arguments forwarded to each subplot's
+            :meth:`~earthkit.plots.components.subplots.Subplot.plot`.
         """
 
     @iterate_subplots

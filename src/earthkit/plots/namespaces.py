@@ -40,6 +40,8 @@ Climatology (annual-cycle) plots:
 >>> ekp.climatology.bar(data, color="steelblue")
 """
 
+import warnings
+
 from earthkit.plots import quickplot as _qp
 
 
@@ -56,10 +58,17 @@ class _GeoNamespace:
 
     def quickplot(self, *args, **kwargs):
         """
-        Alias for :meth:`plot`.
+        Deprecated alias for :meth:`plot`.
 
-        See :func:`earthkit.plots.quickplot.plot` for full documentation.
+        .. deprecated:: 1.1.0
+            Use ``ekp.geo.plot()`` instead. This alias will be removed in
+            earthkit-plots 2.0.
         """
+        warnings.warn(
+            "ekp.geo.quickplot() is deprecated and will be removed in earthkit-plots 2.0. Use ekp.geo.plot() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return _qp.plot(*args, **kwargs)
 
     def contourf(self, *args, **kwargs):
