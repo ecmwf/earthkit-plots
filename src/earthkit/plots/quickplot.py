@@ -28,11 +28,15 @@ def _coerce_to_fieldlist(*args):
 
     field_list = []
     for arg in args:
+        if not isinstance(arg, Base):
+            arg = earthkit.data.from_object(arg)
+        # Expand multi-field wrappers (e.g. an ensemble DataArray) so each
+        # field is handled individually
+        if not isinstance(arg, FieldList) and hasattr(arg, "to_fieldlist"):
+            arg = arg.to_fieldlist()
         if isinstance(arg, FieldList):
             field_list.extend(list(arg))
         else:
-            if not isinstance(arg, Base):
-                arg = earthkit.data.from_object(arg)
             field_list.append(arg)
     return FieldList.from_fields(field_list)
 
@@ -691,7 +695,9 @@ def spaghetti(
     ...     highlight_label="Control",
     ... ).show()
     """
-    fields = _coerce_to_fieldlist(*args)
+    # Pass a single argument through untouched so that ``highlight`` can use
+    # the original object's own ``sel`` (e.g. xarray)
+    fields = args[0] if len(args) == 1 else _coerce_to_fieldlist(*args)
 
     figure = Figure(rows=1, columns=1, chainable=True)
     subplot = figure.add_map(domain=domain, crs=crs)
