@@ -29,9 +29,7 @@ LEVEL = 273.15
 
 @pytest.fixture
 def ensemble_da():
-    """
-    An ensemble DataArray with dims (number, latitude, longitude).
-    """
+    """An ensemble DataArray with dims (number, latitude, longitude)."""
     lat, lon = np.linspace(80, 20, 13), np.linspace(-40, 40, 17)
     values = 270 + np.random.default_rng(0).normal(0, 3, (N_MEMBERS, 13, 17))
     return xr.DataArray(
