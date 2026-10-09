@@ -20,24 +20,26 @@ everything else inside the command functions.
 
 import click
 from earthkit.cli.main import earthkit
-from earthkit.cli.standard_args import add_options, source_options
+from earthkit.cli.standard_args import SOURCE_HELP, add_options, index_option, source_options
 
 
-@earthkit.command()
-@add_options([source_options(positional=True)])
+@earthkit.command(
+    help=f"""Plot data on a map.
+
+SOURCE: {SOURCE_HELP}
+
+\b
+Example:
+    earthkit plot input.grib --index 0:4 --save plot.png
+"""
+)
+@add_options([source_options(positional=True), index_option])
 @click.option(
     "-s",
     "--save",
     type=str,
     default=None,
     help="Target file to save the plot to.",
-)
-@click.option(
-    "-i",
-    "--index",
-    type=str,
-    default=None,
-    help="Index of the data to plot.",
 )
 @click.option(
     "-d",
@@ -110,24 +112,24 @@ from earthkit.cli.standard_args import add_options, source_options
     help="Number of columns in the plot.",
 )
 def plot(source, save, index, domain, method, crs, style, units, groupby, size, title, subtitles, rows, cols):
-    """Plot data on a map.
-
-    SOURCE is the earthkit-data source to read, as [NAME:]VALUE, e.g. a file path (GRIB, NetCDF, ...),
-    'url:https://myhost.int/file.nc' or a JSON request such as 'cds:{"dataset": ..., ...}'.
-    NAME is 'file' if not given. Several sources are merged.
-
-    \b
-    Example:
-        earthkit plot input.grib --index 0:4 --save plot.png
-    """  # noqa: D301 (\b is a Click paragraph marker)
     import earthkit.plots as ekp
 
     data = source
     if index is not None:
-        data = data.to_fieldlist()[_parse_index(index)]
-    
+        data = data.to_fieldlist()[index]
+
     figsize = tuple(map(int, size.split("/"))) if size is not None else None
-    chart = getattr(ekp.geo, method)(data, domain=domain, crs=crs, style=style, units=units, groupby=groupby, figsize=figsize, rows=rows, columns=cols)
+    chart = getattr(ekp.geo, method)(
+        data,
+        domain=domain,
+        crs=crs,
+        style=style,
+        units=units,
+        groupby=groupby,
+        figsize=figsize,
+        rows=rows,
+        columns=cols,
+    )
     if title is not None:
         chart.title(title)
     if subtitles is not None:
@@ -136,13 +138,3 @@ def plot(source, save, index, domain, method, crs, style, units, groupby, size, 
         chart.save(save)
     else:
         chart.show()
-
-
-def _parse_index(index):
-    """Parse an index string: a slice ("1:7", "::2"), list ("4,5,8") or int ("3")."""
-    if ":" in index:
-        parts = [int(p) if p.strip() else None for p in index.split(":")]
-        return slice(*parts)
-    if "," in index:
-        return [int(p) for p in index.split(",")]
-    return int(index)
