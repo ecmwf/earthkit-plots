@@ -186,10 +186,12 @@ def plot(
     columns : int, optional
         Number of columns in the panel grid.  Ignored when *column* is a
         dimension name.
-    size : tuple of float, optional
+    figsize : tuple of float, optional
         Explicit ``(width, height)`` in inches for the whole figure.  When not
         provided the size is chosen automatically based on the panel grid
         (approximately 5 × 4 inches per panel, capped at 40 inches).
+    size : tuple of float, optional
+        Deprecated alias for *figsize*.  Emits a ``DeprecationWarning``.
     units : str or list of str, optional
         Units to convert the data to at plot time (e.g. ``"celsius"``). See
         :doc:`/examples/examples/introduction/08-unit-conversion` for
@@ -203,6 +205,14 @@ def plot(
         When *groupby* is set this defaults to ``"{<groupby key>}"``.
     method : str, optional
         The plotting method to call on each subplot (default ``"quickplot"``).
+    mode : str, optional
+        How to arrange multiple fields or variables.  ``"auto"`` (default)
+        decides from the data, ``"overlay"`` draws every field on the same
+        panel, and ``"split"`` gives each field its own panel.
+    combine_vectors : bool, optional
+        If ``True``, u/v wind component pairs found in the data are combined
+        and drawn as a single vector layer rather than as separate scalar
+        panels.  Default ``False``.
     title : bool or str, optional
         ``True`` (default) adds an automatic title from the data metadata.
         Pass a string to use a custom title.  ``False`` suppresses the title.
@@ -231,19 +241,19 @@ def plot(
     Single panel:
 
     >>> import earthkit.plots as ekp
-    >>> ekp.plot(data, domain="Europe", units="celsius").show()
+    >>> ekp.geo.plot(data, domain="Europe", units="celsius").show()
 
     Grid of panels, one per forecast step:
 
-    >>> ekp.plot(data, groupby="step", domain="Europe", columns=4).show()
+    >>> ekp.geo.plot(data, groupby="step", domain="Europe", columns=4).show()
 
     Structured 2-D grid — variables in columns, time steps in rows:
 
-    >>> ekp.plot(ds, row="valid_time", column="variable").show()
+    >>> ekp.geo.plot(ds, row="valid_time", column="variable").show()
 
     Override the plot method:
 
-    >>> ekp.plot(data, method="contourf", domain="Europe").show()
+    >>> ekp.geo.plot(data, method="contourf", domain="Europe").show()
     """
     if size is not None:
         warnings.warn(
@@ -284,7 +294,7 @@ def plot(
                     getattr(subplot, method)(target, units=unit, style=style, **kwargs)
                 except Exception as err:
                     warnings.warn(
-                        f"ekp.plot: failed to call '{method}' on panel ({r},{c}):\n"
+                        f"ekp.geo.plot: failed to call '{method}' on panel ({r},{c}):\n"
                         f"{err}\n\n"
                         "Consider building the plot manually using ekp.Figure and ekp.Map."
                     )
@@ -333,7 +343,7 @@ def plot(
                     getattr(subplot, method)(target, units=unit, style=style, **kwargs)
         except Exception as err:
             warnings.warn(
-                f"ekp.plot: failed to call '{method}' on panel {i} with:\n"
+                f"ekp.geo.plot: failed to call '{method}' on panel {i} with:\n"
                 f"{err}\n\n"
                 "Consider building the plot manually using ekp.Figure and ekp.Map."
             )
@@ -346,7 +356,7 @@ def contourf(*args, style=None, **kwargs):
     """
     Plot filled contours on a map.
 
-    A shortcut for ``ekp.plot(*args, method="contourf", **kwargs)``.
+    A shortcut for ``ekp.geo.plot(*args, method="contourf", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
 
     The filled contours are rendered via
@@ -362,7 +372,7 @@ def contour(*args, style=None, **kwargs):
     """
     Plot contour lines on a map.
 
-    A shortcut for ``ekp.plot(*args, method="contour", **kwargs)``.
+    A shortcut for ``ekp.geo.plot(*args, method="contour", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
 
     The contour lines are rendered via
@@ -378,7 +388,7 @@ def pcolormesh(*args, style=None, **kwargs):
     """
     Plot a pseudocolor mesh on a map.
 
-    A shortcut for ``ekp.plot(*args, method="pcolormesh", **kwargs)``.
+    A shortcut for ``ekp.geo.plot(*args, method="pcolormesh", **kwargs)``.
     Accepts all the same arguments as :func:`plot`.
 
     The mesh is rendered via
@@ -678,11 +688,11 @@ def spaghetti(
     Single contour level across all members:
 
     >>> import earthkit.plots as ekp
-    >>> ekp.spaghetti(data, levels=5400, domain="Europe").show()
+    >>> ekp.geo.spaghetti(data, levels=5400, domain="Europe").show()
 
     Multiple levels, with control forecast highlighted and a legend:
 
-    >>> ekp.spaghetti(
+    >>> ekp.geo.spaghetti(
     ...     data,
     ...     levels=[5400, 5700],
     ...     domain="Europe",
@@ -743,7 +753,18 @@ def barbs(*args, domain=None, crs=None, **kwargs):
 
 
 def quickplot(*args, **kwargs):
-    """Alias for :func:`plot`. Use ``ekp.plot()`` instead."""
+    """
+    Deprecated alias for :func:`plot`.
+
+    .. deprecated:: 1.1.0
+        Use ``ekp.geo.plot()`` instead. This alias will be removed in
+        earthkit-plots 2.0.
+    """
+    warnings.warn(
+        "ekp.quickplot() is deprecated and will be removed in earthkit-plots 2.0. Use ekp.geo.plot() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return plot(*args, **kwargs)
 
 
@@ -931,6 +952,23 @@ def timeseries(
     Returns
     -------
     TimeSeries or Figure
+        A :class:`~earthkit.plots.temporal.timeseries.TimeSeries` when a
+        single panel is produced, or a
+        :class:`~earthkit.plots.components.figures.Figure` for multi-panel
+        layouts.  Both support ``.show()`` and ``.save()``.
+
+    Examples
+    --------
+    >>> import earthkit.plots as ekp
+    >>> ekp.timeseries.line(da, units="celsius").show()
+
+    One panel per ensemble member:
+
+    >>> ekp.timeseries.line(da, groupby="number", columns=5).show()
+
+    All variables of a Dataset on one axis (a twin y-axis is added per unit):
+
+    >>> ekp.timeseries.line(ds, overlay=True).show()
     """
     import xarray as xr
 
