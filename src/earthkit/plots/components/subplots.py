@@ -2108,6 +2108,10 @@ class Subplot:
         original_data = data_list
         if not isinstance(data_list, earthkit.data.core.Base):
             data_list = earthkit.data.from_object(data_list)
+        # Expand multi-field wrappers (e.g. an ensemble DataArray) into a
+        # FieldList so each member is plotted individually
+        if not isinstance(data_list, earthkit.data.FieldList) and hasattr(data_list, "to_fieldlist"):
+            data_list = data_list.to_fieldlist()
 
         # Set up contour parameters
         if levels is not None:
@@ -2143,7 +2147,9 @@ class Subplot:
             else:
                 highlighted_data = data_list.sel(**highlight)
 
-            if highlighted_data is not None and bool(highlighted_data):
+            # len() works for both FieldLists and xarray objects, whereas
+            # bool() is ambiguous for multi-element arrays
+            if highlighted_data is not None and len(highlighted_data) > 0:
                 # Create highlight-specific kwargs
                 highlight_kwargs = highlight_kwargs or dict()
                 highlight_color = highlight_kwargs.pop("color", highlight_color)

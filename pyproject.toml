@@ -7,7 +7,7 @@ requires = [
 
 [project]
 authors = [
-  { name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int" }
+  {name = "European Centre for Medium-Range Weather Forecasts (ECMWF)", email = "software.support@ecmwf.int"}
 ]
 classifiers = [
   "Development Status :: 4 - Beta",
@@ -40,6 +40,8 @@ dynamic = [
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 name = "earthkit-plots"
+readme = "README.md"
+requires-python = ">=3.10"
 optional-dependencies.geocoding = [
   "reverse-geocode"
 ]
@@ -60,8 +62,6 @@ optional-dependencies.test = [
   "pytest-forked",
   "pytest-timeout"
 ]
-readme = "README.md"
-requires-python = ">=3.10"
 urls.Documentation = "https://earthkit-plots.readthedocs.io/"
 urls.Homepage = "https://github.com/ecmwf/earthkit-plots/"
 urls.Issues = "https://github.com/ecmwf/earthkit-plots.issues"
