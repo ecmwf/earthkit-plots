@@ -1422,21 +1422,29 @@ class Subplot:
 
     def quickplot(self, data, style="auto", units=None, **kwargs):
         """
-        Generate a convenient plot from the given data with optional grouping.
+        Auto-detect the best plot type and render the data.
+
+        Like :meth:`plot`, this inspects the data metadata to choose the most
+        appropriate method (e.g. :meth:`contourf`, :meth:`grid_cells`,
+        :meth:`pcolormesh`). In addition, it passes any ``x``, ``y`` and
+        ``metadata`` keyword arguments through to source detection and applies
+        the default layer ``zorder`` for the resolved method.
 
         Parameters
         ----------
-        *args : list
-            The data to be plotted. Can be a single xarray or earthkit data object,
-            or separate x, y, z, u, v arguments.
-        methods : string or list, optional
-            The plot method(s) to apply.
-        style : earthkit.plots.styles.Style, optional
-            The Style to use for the data.
-        units : string or list, optional
-            Units to convert the data to.
-        **kwargs : dict
-            Additional arguments for the plot method(s).
+        data : xarray.DataArray or earthkit.data.core.Base
+            The data to plot.
+        style : earthkit.plots.styles.Style or str, optional
+            An explicit :class:`~earthkit.plots.styles.Style` to use, or the
+            name of a registered style. Defaults to ``"auto"``, which detects a
+            style automatically from the data metadata. Pass ``None`` to skip
+            style detection entirely.
+        units : str, optional
+            Target units for value conversion (e.g. ``"celsius"``). See
+            :doc:`/examples/examples/introduction/08-unit-conversion` for
+            examples.
+        **kwargs
+            Additional keyword arguments forwarded to the resolved plot method.
         """
         if not kwargs.pop("auto_style", True):
             warnings.warn("`auto_style` cannot be switched off for `quickplot`.")

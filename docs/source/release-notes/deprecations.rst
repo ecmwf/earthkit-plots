@@ -1,6 +1,24 @@
 Deprecations
 =============
 
+.. _deprecated-1.1.0:
+
+Version 1.1.0
+-----------------
+
+.. _deprecated-quickplot-function:
+
+`ekp.quickplot` → `ekp.geo.plot`
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+The top-level ``earthkit.plots.quickplot`` function (and the ``ekp.geo.quickplot``
+alias) is deprecated and will be removed in earthkit-plots 2.0. Calling it now
+raises a ``DeprecationWarning``. Use ``ekp.geo.plot`` instead, which accepts
+exactly the same arguments and returns the same objects. See the
+:doc:`ekp.geo </namespaces/geo>` namespace for the full set of map shortcuts.
+``ekp.quickplot`` has been deprecated to avoid confusion when plotting arbitrary
+input data. Now, namespace-specific plotting functions like ``ekp.geo.plot``
+and ``ekp.timeseries.plot`` improve clarity and understanding of the plotting context.
 .. _deprecated-0.3.0:
 
 Version 0.3.0
@@ -40,6 +58,12 @@ The API for quickplot has changed:
 
 The `plot` method on `earthkit.plots.Map` objects has been deprecated and will be
 removed in a future release. The `quickplot` function should be used instead.
+
+.. note::
+
+   This guidance has since been reversed. As of version 1.0, `Map.plot` is the
+   auto-detecting plot method and the top-level `quickplot` function is itself
+   deprecated in favour of `ekp.geo.plot`; see :ref:`deprecated-quickplot-function`.
 
 .. list-table::
    :header-rows: 0
