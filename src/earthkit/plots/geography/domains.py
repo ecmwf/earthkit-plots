@@ -229,10 +229,7 @@ class Domain:
             elif domain_crs is not None:
                 bbox = BoundingBox(*bounds, crs=domain_crs)
             else:
-                bbox = BoundingBox.from_bbox(
-                    bounds,
-                    source_crs=domain_crs,
-                ).to_optimised_bbox()
+                bbox = BoundingBox.from_bbox(bounds, source_crs=domain_crs)
             crs = bbox.crs
             bounds = list(bbox)
 
