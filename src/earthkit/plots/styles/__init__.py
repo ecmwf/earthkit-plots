@@ -573,6 +573,13 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
+        if kwargs.get("algorithm") == "akima":
+            from earthkit.plots.resample import Akima
+
+            kwargs.pop("algorithm")
+            akima = Akima(nx="auto", ny="auto")
+            nx, ny = akima.resolve(ax=ax)
+            x, y, values = akima.apply(x, y, values, nx=nx, ny=ny)
         if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontourf(ax, x, y, values, *args, **kwargs)
 
@@ -740,6 +747,13 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
+        if kwargs.get("algorithm") == "akima":
+            from earthkit.plots.resample import Akima
+
+            kwargs.pop("algorithm")
+            akima = Akima(nx="auto", ny="auto")
+            nx, ny = akima.resolve(ax=ax)
+            x, y, values = akima.apply(x, y, values, nx=nx, ny=ny)
         if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontour(ax, x, y, values, *args, **kwargs)
 

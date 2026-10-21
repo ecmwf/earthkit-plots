@@ -144,6 +144,7 @@ def _apply_data_resampling(
     *,
     allow_pixel_samplers: bool = True,
     kwargs: dict | None = None,
+    defer_akima: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
     """
     Apply data-space resampling steps to ``(x, y, z)`` coordinate arrays.
@@ -175,6 +176,9 @@ def _apply_data_resampling(
         The live ``kwargs`` dict forwarded from the caller.  Modified
         in-place when an ``Unstructured`` step pops ``transform`` /
         ``transform_first`` keys.
+    defer_akima:
+        When ``True``, leave any Akima step for the caller to apply after
+        domain cropping. Other data steps still run in their usual order.
 
     Returns
     -------
@@ -189,6 +193,7 @@ def _apply_data_resampling(
     # Lazily imported here to avoid a circular dependency at module level.
     from earthkit.plots.components._pipeline import _infer_plot_context
     from earthkit.plots.resample import (
+        Akima,
         Chain,
         Regrid,
         Resample,
@@ -221,6 +226,8 @@ def _apply_data_resampling(
         data_steps = [resample]
 
     for step in data_steps:
+        if defer_akima and isinstance(step, Akima):
+            continue
         if isinstance(step, Regrid):
             context = _infer_plot_context(subplot, method_name)
             x, y, z = step.apply(x, y, z, gridspec=source.gridspec, context=context)

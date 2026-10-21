@@ -26,7 +26,8 @@ of plot call.  They share a numbered step convention:
   Step 5   apply_sampling             — stride-based data thinning
   Step 6   _apply_data_resampling     — Regrid / Unstructured / generic Resample
   Step 7   domain extraction          — clip to subplot domain if requested
-  Step 8   _apply_pixel_sampling      — Bilinear / NearestNeighbour reprojection
+  Step 8   Akima (when requested)     — upscale after clipping to domain
+  Step 8.5 _apply_pixel_sampling      — Bilinear / NearestNeighbour reprojection
   Step 9   _handle_cyclic_points      — antimeridian wrapping for contour plots
   Step 10  _handle_transform_settings — resolve transform_first="auto"
   Step 11  matplotlib call            — via style.method_name(ax, x, y, z, ...)
@@ -450,7 +451,7 @@ def extract_plottables_2D(
     # Step 0: Normalise style/units.
     units, style = _prepare_style_and_units(style, units, auto_style)
 
-    from earthkit.plots.resample import _AUTO, Unstructured
+    from earthkit.plots.resample import _AUTO, Akima, Chain, NearestNeighbour, Regrid, Unstructured
 
     # Translate the legacy `interpolate` kwarg to `resample`.
     if "interpolate" in kwargs and resample is None:
@@ -487,6 +488,12 @@ def extract_plottables_2D(
             metadata=metadata,
         )
     kwargs = {**subplot._plot_kwargs(source), **kwargs}
+
+    # "akima" is an earthkit-plots interpolation option, not a ContourPy
+    # algorithm. Consume it here so neither Style nor matplotlib sees it.
+    akima_contour = method_name in ("contour", "contourf") and kwargs.get("algorithm") == "akima"
+    if akima_contour:
+        kwargs.pop("algorithm")
 
     if grid != "auto":
         source._gridspec_override = grid
@@ -584,7 +591,23 @@ def extract_plottables_2D(
 
         from earthkit.plots.components._pixel_sampling import _auto_resample_policy
 
-        resample = _auto_resample_policy(method_name, _healpix_structured, is_unstructured=_unstructured)
+        if akima_contour:
+            # Default bilinear pixel sampling can downsample the upscaled data;
+            # structured grids still need a regular lat/lon grid first.
+            resample = Regrid() if _healpix_structured else False
+        else:
+            resample = _auto_resample_policy(method_name, _healpix_structured, is_unstructured=_unstructured)
+
+    if akima_contour:
+        pixel_step = resample.pixel_step if isinstance(resample, Chain) else resample
+        if isinstance(pixel_step, NearestNeighbour):
+            raise ValueError("algorithm='akima' cannot be combined with NearestNeighbour pixel sampling")
+
+    # Akima must run on the cropped grid: a global 0.25° field expands to
+    # millions of points even when only a small regional domain is visible.
+    data_steps = resample.data_steps if isinstance(resample, Chain) else [resample]
+    explicit_akima = next((step for step in data_steps if isinstance(step, Akima)), None)
+    akima_step = (explicit_akima or Akima(nx="auto", ny="auto")) if akima_contour else explicit_akima
 
     # Step 3: Resolve the Style object.
     with _step("plots.style"):
@@ -687,6 +710,7 @@ def extract_plottables_2D(
                 method_name,
                 allow_pixel_samplers=True,
                 kwargs=kwargs,
+                defer_akima=akima_step is not None,
             )
         if _domain_suppressed:
             extract_domain = False
@@ -725,7 +749,7 @@ def extract_plottables_2D(
             z_values = kwargs.pop("c", None)
 
         # Step 8: Clip data to the subplot domain.
-        if subplot.domain and extract_domain and not no_style:
+        if subplot.domain and extract_domain and (not no_style or akima_step is not None):
             with _step("plots.crop"):
                 _size_before = np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size
                 x_values, y_values, z_values = subplot.domain.extract(
@@ -747,6 +771,17 @@ def extract_plottables_2D(
                 extract_domain,
                 np.asarray(z_values).size if z_values is not None else np.asarray(x_values).size,
             )
+
+        # Domain.extract keeps a padded rectangular slice of structured grids,
+        # giving Akima neighboring cells for its edge slopes without upscaling
+        # the whole source field. Pixel reprojection follows as before.
+        if akima_step is not None:
+            with _step("plots.akima"):
+                if akima_step.nx is not None or akima_step.ny is not None:
+                    nx, ny = akima_step.resolve(ax=subplot.current_ax)
+                    x_values, y_values, z_values = akima_step.apply(x_values, y_values, z_values, nx=nx, ny=ny)
+                else:
+                    x_values, y_values, z_values = akima_step.apply(x_values, y_values, z_values)
 
         # Step 8.5: Pixel-space resampling (Bilinear / NearestNeighbour).
         # Deferred from Step 6.5 because these samplers need subplot/CRS/bbox
