@@ -184,6 +184,15 @@ class Levels:
         mostly useful for parameters which use diverging colors in their style,
         such as anomalies.
     """
+    
+    def to_dict(self):
+        return {
+            "levels": self._levels,
+            "step": self._step,
+            "reference": self._reference,
+            "divergence_point": self._divergence_point,
+            "categorical": self._categorical,
+        }
 
     @classmethod
     def from_config(cls, config):

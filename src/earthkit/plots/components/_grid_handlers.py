@@ -208,6 +208,34 @@ def _handle_regular_grid_nn(
     return subplot.ax.imshow(image, extent=extent, origin="lower", **plot_kwargs)
 
 
+def _axes_pixel_size(ax: Any) -> tuple[int, int] | None:
+    """Return the ``(width, height)`` of *ax*'s draw area in device pixels.
+
+    Reads the drawn window extent when available, falling back to a
+    ``figsize x dpi x axes-fraction`` estimate before the figure has been
+    rendered (Agg / headless).  Returns ``None`` when neither is obtainable.
+
+    Mirrors the pixel-cap logic in
+    :meth:`earthkit.plots.resample._pixel_sampler._PixelSampler.resolve_auto`
+    so the HEALPix ``nnshow`` path is bounded by the same tile resolution the
+    Bilinear path already respects.
+    """
+    try:
+        fig = ax.get_figure()
+        renderer = fig.canvas.get_renderer()
+        bb = ax.get_window_extent(renderer=renderer)
+        return max(1, int(bb.width)), max(1, int(bb.height))
+    except Exception:
+        try:
+            fig = ax.get_figure()
+            fw_px = fig.get_figwidth() * fig.dpi
+            fh_px = fig.get_figheight() * fig.dpi
+            pos = ax.get_position()  # fractional Axes position on the figure
+            return max(1, int(fw_px * pos.width)), max(1, int(fh_px * pos.height))
+        except Exception:
+            return None
+
+
 def _plot_healpix(
     subplot: Any,
     source: Any,
@@ -230,6 +258,19 @@ def _plot_healpix(
         ordering = source.metadata("orderingConvention", default=None)
     nest = str(ordering).lower() == "nested" if ordering is not None else False
     kwargs["transform"] = subplot.crs
+
+    # Bound the nnshow sampling grid to the axes' pixel size. nnshow otherwise
+    # defaults to a flat 1000x1000 regardless of how large the output actually
+    # is, so a 512px tile samples ~3.8x more points than it can display (and
+    # the surplus is discarded on imshow downscale). Only set nx/ny when the
+    # caller has not already fixed them, and never upsample past nnshow's own
+    # 1000 default. When the pixel size can't be read, leave nnshow's defaults
+    # in place.
+    px = _axes_pixel_size(subplot.ax)
+    if px is not None:
+        kwargs.setdefault("nx", min(px[0], 1000))
+        kwargs.setdefault("ny", min(px[1], 1000))
+
     return healpix.nnshow(z_values, ax=subplot.ax, nest=nest, style=style, **kwargs)
 
 

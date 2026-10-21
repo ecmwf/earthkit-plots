@@ -158,10 +158,12 @@ class Map(Subplot):
         Additional keyword arguments to pass to the :class:`matplotlib.axes.Axes` object.
     """
 
-    def __init__(self, *args, domain=None, crs=None, ax=None, **kwargs):
+    def __init__(self, *args, domain=None, crs=None, domain_crs=None, ax=None, **kwargs):
         super().__init__(*args, ax=ax, **kwargs)
         if isinstance(crs, str):
             crs = coordinate_reference_systems.parse_crs(crs)
+        if isinstance(domain_crs, str):
+            domain_crs = coordinate_reference_systems.parse_crs(domain_crs)
         # When an existing GeoAxes is supplied, read its projection back so
         # self.crs is consistent and _plot_kwargs() returns the right transform.
         if ax is not None and crs is None and hasattr(ax, "projection"):
@@ -174,9 +176,14 @@ class Map(Subplot):
                 if isinstance(domain[0], str):
                     self.domain = domains.union(domain)
                 else:
+                    # Domain coordinates are lat/lon unless the caller says
+                    # otherwise. A caller that already holds bounds in the map's
+                    # own CRS - a tile server handing on a request bbox, say -
+                    # passes domain_crs to skip the reprojection, which would
+                    # otherwise be a lossy round-trip back to where it started.
                     self.domain = domains.Domain.from_bbox(
                         bbox=domain,
-                        source_crs=ccrs.PlateCarree(),
+                        source_crs=domain_crs or ccrs.PlateCarree(),
                         target_crs=crs,
                     )
             elif isinstance(domain, str):

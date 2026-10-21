@@ -916,8 +916,7 @@ def from_magics(**magics_params) -> "Style":
 
     ek_params.update(_convert_line_properties(magics_params))
 
-    if _magics_bool(magics_params.get("contour_label", "off")):
-        ek_params["labels"] = True
+    ek_params["labels"] = _magics_bool(magics_params.get("contour_label", "off"))
 
     if not _magics_bool(magics_params.get("legend", "on")):
         ek_params["legend_style"] = None

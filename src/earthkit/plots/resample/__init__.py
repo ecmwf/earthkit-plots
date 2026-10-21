@@ -18,6 +18,7 @@ earthkit-plots resampling pipeline.
 Public API
 ----------
 Resample         -- base class for all resamplers
+Akima            -- data-space Akima upscaling for rectilinear grids
 Subsample        -- stride/fixed subsampling of coordinate arrays
 Regrid           -- regrid HEALPix / reduced Gaussian data to regular lat/lon
 Chain            -- apply two or more resamplers in sequence
@@ -34,6 +35,7 @@ _convert_spec    -- normalise a gridspec to a plain dict
 _call_regrid_compat -- legacy shim for geo.regrid module
 """
 
+from earthkit.plots.resample._akima import Akima
 from earthkit.plots.resample._base import _AUTO, Resample, Subsample
 from earthkit.plots.resample._chain import Chain
 from earthkit.plots.resample._pixel_sampler import (
@@ -53,6 +55,7 @@ from earthkit.plots.resample._regrid import (
 __all__ = [
     # Public resamplers
     "Resample",
+    "Akima",
     "Subsample",
     "Regrid",
     "Chain",
