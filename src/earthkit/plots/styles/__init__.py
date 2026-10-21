@@ -394,7 +394,7 @@ class Style:
 
         return metadata.units.convert(values, source_units, self._units)
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, any]:
         """
         Convert this `Style` to a dictionary representation.
 
