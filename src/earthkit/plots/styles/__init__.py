@@ -404,8 +404,7 @@ class Style:
             A dictionary containing the style's properties.
         """
         return {
-            "levels": self._levels._levels,
-            "step": self._levels._step,
+            "levels": self._levels.to_dict(),
             "colors": self._colors,
             "vmin": self._vmin,
             "vmax": self._vmax,
