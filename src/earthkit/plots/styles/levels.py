@@ -185,7 +185,7 @@ class Levels:
         such as anomalies.
     """
     
-    def __dict__(self):
+    def to_dict(self):
         return {
             "levels": self._levels,
             "step": self._step,
