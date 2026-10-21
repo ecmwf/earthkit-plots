@@ -394,6 +394,28 @@ class Style:
 
         return metadata.units.convert(values, source_units, self._units)
 
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert this `Style` to a dictionary representation.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the style's properties.
+        """
+        return {
+            "levels": self._levels._levels,
+            "step": self._levels._step,
+            "colors": self._colors,
+            "vmin": self._vmin,
+            "vmax": self._vmax,
+            "extend": self.extend,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            **self._kwargs,
+        }
+
     def to_matplotlib_kwargs(self, data, extend_levels=True):
         """
         Generate matplotlib arguments required for plotting data in this `Style`.
