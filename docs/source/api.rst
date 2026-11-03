@@ -44,16 +44,6 @@ type; the method tables on the pages below link through to the underlying
    namespaces/timeseries
    namespaces/climatology
 
-Quickplot
----------
-
-.. currentmodule:: earthkit.plots
-
-.. autosummary::
-   :toctree: generated
-
-   quickplot
-
 Styles
 ------
 
