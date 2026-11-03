@@ -1760,6 +1760,12 @@ class Subplot:
             :class:`~earthkit.plots.resample.NearestNeighbour` instance (or ``True`` for
             defaults) to reproject onto a regular target grid, or ``False`` to
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels).
+        algorithm : str, optional
+            ``"akima"`` interpolates rectilinear data to roughly the axes'
+            pixel resolution before contouring. Pass ``resample=Akima(nx=...,
+            ny=...)`` to set a fixed output size. Other values are forwarded
+            to Matplotlib unchanged. SciPy is required (install
+            ``earthkit-plots[akima]``).
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.contour`.
@@ -1803,6 +1809,12 @@ class Subplot:
             disable. Default is ``Bilinear()`` (1000 × 1000 pixels). Pass an
             :class:`~earthkit.plots.resample.Unstructured` instance to interpolate
             unstructured data onto a structured grid instead.
+        algorithm : str, optional
+            ``"akima"`` interpolates rectilinear data to roughly the axes'
+            pixel resolution before contouring. Pass ``resample=Akima(nx=...,
+            ny=...)`` to set a fixed output size. Other values are forwarded
+            to Matplotlib unchanged. SciPy is required (install
+            ``earthkit-plots[akima]``).
         **kwargs
             Additional keyword arguments passed to
             :meth:`matplotlib.axes.Axes.contourf`.

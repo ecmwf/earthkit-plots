@@ -45,6 +45,9 @@ requires-python = ">=3.10"
 optional-dependencies.geocoding = [
   "reverse-geocode"
 ]
+optional-dependencies.akima = [
+  "scipy>=1.8"
+]
 optional-dependencies.healpix = [
   "healpy"
 ]

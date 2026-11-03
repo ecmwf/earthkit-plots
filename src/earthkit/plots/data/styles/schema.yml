@@ -97,7 +97,7 @@ timeseries:
 # Disabled by default: cartopy clips out-of-bounds data during rendering, and
 # cropping in the source CRS before reprojection can cause data to be cut off
 # incorrectly when the source and target projections differ.
-crop_domain: false
+crop_domain: true
 
 # The assumed CRS for geospatial visualisation when none is found
 reference_crs: PlateCarree

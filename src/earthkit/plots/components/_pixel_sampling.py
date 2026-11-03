@@ -144,6 +144,7 @@ def _apply_data_resampling(
     *,
     allow_pixel_samplers: bool = True,
     kwargs: dict | None = None,
+    defer_akima: bool = False,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, bool]:
     """
     Apply data-space resampling steps to ``(x, y, z)`` coordinate arrays.
@@ -175,6 +176,9 @@ def _apply_data_resampling(
         The live ``kwargs`` dict forwarded from the caller.  Modified
         in-place when an ``Unstructured`` step pops ``transform`` /
         ``transform_first`` keys.
+    defer_akima:
+        When ``True``, leave any Akima step for the caller to apply after
+        domain cropping. Other data steps still run in their usual order.
 
     Returns
     -------
@@ -189,6 +193,7 @@ def _apply_data_resampling(
     # Lazily imported here to avoid a circular dependency at module level.
     from earthkit.plots.components._pipeline import _infer_plot_context
     from earthkit.plots.resample import (
+        Akima,
         Chain,
         Regrid,
         Resample,
@@ -221,6 +226,8 @@ def _apply_data_resampling(
         data_steps = [resample]
 
     for step in data_steps:
+        if defer_akima and isinstance(step, Akima):
+            continue
         if isinstance(step, Regrid):
             context = _infer_plot_context(subplot, method_name)
             x, y, z = step.apply(x, y, z, gridspec=source.gridspec, context=context)
@@ -481,11 +488,11 @@ def _apply_pixel_sampling(
     target_crs = subplot.crs
     resolved_data_crs = data_crs or ccrs.PlateCarree()
 
-    # Only reproject when the CRS differs OR the data is scattered (1-D arrays).
+    if target_crs is None:
+        return PixelSamplingResult(x_values, y_values, z_values)
+
     is_scattered = x_values.ndim == 1 and z_values is not None and z_values.ndim == 1
     crs_differs = type(resolved_data_crs).__name__ != type(target_crs).__name__
-    if target_crs is None or (not crs_differs and not is_scattered):
-        return PixelSamplingResult(x_values, y_values, z_values)
 
     bbox_target = _get_subplot_bbox(subplot, target_crs)
     if getattr(pixel_sampler, "is_auto", False):
@@ -498,6 +505,19 @@ def _apply_pixel_sampling(
         )
     else:
         nx, ny = pixel_sampler.resolve(bbox_target, crs=target_crs)
+
+    # When source and target CRS match and the data is gridded, matplotlib can
+    # draw the arrays natively with full fidelity, so sampling is skipped -
+    # UNLESS the source grid is much denser than the output pixel grid. Then
+    # sampling is pure decimation: it bounds the draw cost by the output pixel
+    # count instead of the source point count (a 0.1 degree global source on a
+    # 256px tile is ~100x more points than pixels) at no visible cost. The 2x
+    # margin keeps the native path, and its exact contour placement, whenever
+    # drawing the full grid is affordable.
+    if not crs_differs and not is_scattered:
+        z_shape = z_values.shape if z_values is not None and z_values.ndim == 2 else None
+        if z_shape is None or (z_shape[1] <= 2 * nx and z_shape[0] <= 2 * ny):
+            return PixelSamplingResult(x_values, y_values, z_values)
 
     # NearestNeighbour path: renders via imshow for regular rectilinear grids.
     if isinstance(pixel_sampler, NearestNeighbour):
