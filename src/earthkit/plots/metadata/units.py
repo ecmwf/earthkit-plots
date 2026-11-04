@@ -106,9 +106,6 @@ def _pintify(unit_str):
     if unit_str in UNIT_STR_ALIASES:
         unit_str = UNIT_STR_ALIASES[unit_str]
 
-    # Replace spaces with dots
-    unit_str = unit_str.replace(" ", ".")
-
     # Insert ^ between characters and numbers (including negative numbers)
     unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
 
@@ -133,12 +130,6 @@ TEMPERATURE_ANOM_UNITS = [
 ]
 
 
-#: Unit equivalences.
-UNIT_EQUIVALENCE = {
-    "kg m-2": "mm",
-}
-
-
 def are_equal(unit_1, unit_2):
     """
     Check if two units are equivalent.
@@ -150,7 +141,9 @@ def are_equal(unit_1, unit_2):
     unit_2 : str
         The second unit.
     """
-    return _pintify(unit_1) == _pintify(unit_2)
+    from earthkit.utils.units import are_equal as _are_equal
+
+    return _are_equal(unit_1, unit_2)
 
 
 def anomaly_equivalence(units):
@@ -180,23 +173,15 @@ def convert(data, source_units, target_units):
         The units of the data.
     target_units : str
         The units to convert to.
-    """
-    source_units = _pintify(source_units)
-    target_units = _pintify(target_units)
 
-    try:
-        result = (data * source_units).to(target_units).magnitude
-    except ValueError as err:
-        for units in UNIT_EQUIVALENCE:
-            if source_units == _pintify(units):
-                try:
-                    equal_units = _pintify(UNIT_EQUIVALENCE[units])
-                    result = (data * equal_units).to(target_units)
-                except ValueError:
-                    raise err
-                else:
-                    break
-    return result
+    Raises
+    ------
+    ValueError
+        If the data cannot be converted, e.g. the units are incompatible or unrecognised.
+    """
+    from earthkit.utils.units import convert_array
+
+    return convert_array(data, target_units=target_units, source_units=source_units, errors="raise")
 
 
 def format_units(units, format=None):
