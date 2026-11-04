@@ -106,9 +106,6 @@ def _pintify(unit_str):
     if unit_str in UNIT_STR_ALIASES:
         unit_str = UNIT_STR_ALIASES[unit_str]
 
-    # Replace spaces with dots
-    unit_str = unit_str.replace(" ", ".")
-
     # Insert ^ between characters and numbers (including negative numbers)
     unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
 
