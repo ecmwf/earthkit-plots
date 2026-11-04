@@ -106,8 +106,8 @@ def _pintify(unit_str):
     if unit_str in UNIT_STR_ALIASES:
         unit_str = UNIT_STR_ALIASES[unit_str]
 
-    # Replace spaces with dots
-    unit_str = unit_str.replace(" ", ".")
+    # Spaces are left as-is, as pint treats them as implicit multiplication
+    # (replacing them with "." breaks with pint >= 0.26.2)
 
     # Insert ^ between characters and numbers (including negative numbers)
     unit_str = re.sub(r"([a-zA-Z])(-?\d+)", r"\1^\2", unit_str)
