@@ -56,7 +56,7 @@ optional-dependencies.test = [
   "healpy",
   "nbconvert",
   "nbformat",
-  "pytest",
+  "pytest<9.2",
   "pytest-mpl",
   "pytest-cov",
   "pytest-forked",
