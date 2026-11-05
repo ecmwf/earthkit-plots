@@ -303,56 +303,7 @@ html_theme_options = {
     ],
 }
 
-# The high-level API namespaces (ekp.geo, ekp.timeseries, ekp.climatology) are
-# singleton instances of private classes (_GeoNamespace, ...). We document them
-# via ``.. autoclass:: _GeoNamespace`` so their methods are auto-discovered (no
-# hand-maintained method list), but the user-facing name is the *instance*, e.g.
-# ``ekp.geo``. The two hooks below rewrite the rendered class signature so the
-# private class name is replaced with the public ``earthkit.plots.geo`` name and
-# the spurious ``class`` prefix / empty ``()`` argument list are dropped.
-_NAMESPACE_CLASS_TO_PUBLIC = {
-    "_GeoNamespace": "earthkit.plots.geo",
-    "_TimeSeriesNamespace": "earthkit.plots.timeseries",
-    "_ClimatologyNamespace": "earthkit.plots.climatology",
-}
-
-
-def _blank_namespace_signature(app, what, name, obj, options, signature, return_annotation):
-    """Drop the ``(...)`` argument list from the namespace class signatures."""
-    if what == "class" and name.rsplit(".", 1)[-1] in _NAMESPACE_CLASS_TO_PUBLIC:
-        return ("", None)
-    return None
-
-
-def _rename_namespace_signatures(app, doctree, docname):
-    """Rewrite the rendered namespace class name to its public ``ekp.*`` form."""
-    from docutils import nodes
-    from sphinx import addnodes
-
-    for sig in doctree.findall(addnodes.desc_signature):
-        ids = sig.get("ids", [])
-        cls = next(
-            (
-                _NAMESPACE_CLASS_TO_PUBLIC[i.rsplit(".", 1)[-1]]
-                for i in ids
-                if i.rsplit(".", 1)[-1] in _NAMESPACE_CLASS_TO_PUBLIC
-            ),
-            None,
-        )
-        if cls is None:
-            continue
-        # Drop the leading "class " annotation (desc_annotation) and the module
-        # prefix (desc_addname), then set the name to the public dotted path.
-        for child in list(sig.children):
-            if isinstance(child, (addnodes.desc_annotation, addnodes.desc_addname)):
-                sig.remove(child)
-        for name_node in sig.findall(addnodes.desc_name):
-            name_node.children = [nodes.Text(cls)]
-            break
-
 
 def setup(app):
     from earthkit_packages import _write_earthkit_packages_js
     app.connect("builder-inited", lambda app: _write_earthkit_packages_js(app, ek_branch))
-    app.connect("autodoc-process-signature", _blank_namespace_signature)
-    app.connect("doctree-resolved", _rename_namespace_signatures)

@@ -23,8 +23,6 @@ Examples
 >>> ekp.geo.spaghetti(data, levels=5400, domain="Europe")
 """
 
-import warnings
-
 from earthkit.plots.quickplot import (
     barbs,
     choropleth,
@@ -35,6 +33,7 @@ from earthkit.plots.quickplot import (
     pcolormesh,
     plot,
     point_cloud,
+    quickplot,
     quiver,
     rgb_composite,
     spaghetti,
@@ -57,19 +56,3 @@ __all__ = [
     "barbs",
     "quickplot",
 ]
-
-
-def quickplot(*args, **kwargs):
-    """
-    Deprecated alias for :func:`plot`.
-
-    .. deprecated:: 1.1.0
-        Use ``ekp.geo.plot()`` instead. This alias will be removed in
-        earthkit-plots 2.0.
-    """
-    warnings.warn(
-        "ekp.geo.quickplot() is deprecated and will be removed in earthkit-plots 2.0. Use ekp.geo.plot() instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return plot(*args, **kwargs)
