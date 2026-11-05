@@ -759,18 +759,7 @@ def barbs(*args, domain=None, crs=None, **kwargs):
 
 
 def quickplot(*args, **kwargs):
-    """
-    Deprecated alias for :func:`plot`.
-
-    .. deprecated:: 1.1.0
-        Use ``ekp.geo.plot()`` instead. This alias will be removed in
-        earthkit-plots 2.0.
-    """
-    warnings.warn(
-        "ekp.quickplot() is deprecated and will be removed in earthkit-plots 2.0. Use ekp.geo.plot() instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
+    """Alias for :func:`plot`, also available as ``ekp.geo.plot()``."""
     return plot(*args, **kwargs)
 
 

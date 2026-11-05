@@ -1,6 +1,43 @@
 Version 1.0 Updates
 ///////////////////
 
+Version 1.0.5
+=============
+
+Bug fixes
++++++++++
+
+- Fixed unit conversion and unit comparison failures with pint 0.26 and later. Both are now
+  delegated to earthkit-utils. (:pr:`259`)
+
+- Fixed a ``DefinitionSyntaxError`` raised with pint 0.26.2 and later when formatting compound
+  units containing spaces (e.g. ``"K days"`` or ``"mm d-1"``) for titles, labels and colourbars.
+  (:pr:`275`)
+
+- Fixed the built-in ``domain="North America"``, which was not displaying North America
+  correctly. (:pr:`269`)
+
+- Fixed ``Map.spaghetti`` and ``ekp.geo.spaghetti`` with xarray input, so that an ensemble
+  ``DataArray`` or ``Dataset`` now draws one contour per member, and ``highlight`` no longer
+  fails on multi-element arrays. (:pr:`263`)
+
+- Fixed ``Map.legend()`` silently drawing nothing for choropleth layers; a colorbar is now
+  added, as it is for other coloured layers. (:pr:`257`)
+
+Documentation
++++++++++++++
+
+- Updated docstrings and documentation examples to use ``ekp.geo.plot()`` in place of the
+  non-existent ``ekp.plot()``, and documented the ``figsize``, ``mode`` and ``combine_vectors``
+  arguments of ``ekp.geo.plot()``. (:pr:`264`)
+
+- Removed the release-candidate warning from the documentation home page. (:pr:`256`)
+
+Packaging
++++++++++
+
+- earthkit-plots now requires ``earthkit-utils>=1.0.4``. (:pr:`259`)
+
 Version 1.0.4
 =============
 
