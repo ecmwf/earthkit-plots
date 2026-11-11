@@ -41,6 +41,11 @@ The API for quickplot has changed:
 The `plot` method on `earthkit.plots.Map` objects has been deprecated and will be
 removed in a future release. The `quickplot` function should be used instead.
 
+.. note::
+
+   This guidance has since been reversed. As of version 1.0, `Map.plot` is the
+   auto-detecting plot method and is no longer deprecated.
+
 .. list-table::
    :header-rows: 0
 
