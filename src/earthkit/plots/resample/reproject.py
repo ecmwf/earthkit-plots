@@ -451,6 +451,12 @@ def reproject_to_grid(
     if ENABLE_TIMING:
         logger.debug(f"  [TIMING] reproject: TOTAL interpolation: {(time.time() - t0) * 1000:.2f}ms")
 
+    # Linear interpolation can overshoot the source range by a few ULPs (e.g.
+    # 100.00000000000003 for a field whose maximum is 100), which pushes those
+    # points outside the top contour level and leaves them unfilled.
+    if z_tgt.size and not xp.all(xp.isnan(z_tgt)):
+        z_tgt = xp.clip(z_tgt, xp.nanmin(z_src_gpu), xp.nanmax(z_src_gpu))
+
     # Convert GPU arrays back to CPU for return
     if gpu_enabled:
         t0 = time.time() if ENABLE_TIMING else None
