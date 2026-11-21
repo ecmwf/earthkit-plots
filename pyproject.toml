@@ -26,6 +26,7 @@ dependencies = [
   "earthkit-data~=1.0",
   "cartopy>=0.22.0",
   "pint",
+  "click",
   "matplotlib",
   "pandas",
   "plotly",
@@ -121,7 +122,8 @@ select = [
 [tool.setuptools.packages.find]
 include = [
   "earthkit.plots",
-  "earthkit.plots.*"
+  "earthkit.plots.*",
+  "earthkit.cli"
 ]
 where = [
   "src/"
