@@ -394,6 +394,27 @@ class Style:
 
         return metadata.units.convert(values, source_units, self._units)
 
+    def to_dict(self) -> dict[str, any]:
+        """
+        Convert this `Style` to a dictionary representation.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the style's properties.
+        """
+        return {
+            "levels": self._levels.to_dict(),
+            "colors": self._colors,
+            "vmin": self._vmin,
+            "vmax": self._vmax,
+            "extend": self.extend,
+            "normalize": self.normalize,
+            "units": self._units,
+            "scale_factor": self.scale_factor,
+            **self._kwargs,
+        }
+
     def to_matplotlib_kwargs(self, data, extend_levels=True):
         """
         Generate matplotlib arguments required for plotting data in this `Style`.
@@ -573,6 +594,13 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contourf`.
         """
+        if kwargs.get("algorithm") == "akima":
+            from earthkit.plots.resample import Akima
+
+            kwargs.pop("algorithm")
+            akima = Akima(nx="auto", ny="auto")
+            nx, ny = akima.resolve(ax=ax)
+            x, y, values = akima.apply(x, y, values, nx=nx, ny=ny)
         if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontourf(ax, x, y, values, *args, **kwargs)
 
@@ -740,6 +768,13 @@ class Style:
         **kwargs
             Any additional arguments accepted by `matplotlib.axes.Axes.contour`.
         """
+        if kwargs.get("algorithm") == "akima":
+            from earthkit.plots.resample import Akima
+
+            kwargs.pop("algorithm")
+            akima = Akima(nx="auto", ny="auto")
+            nx, ny = akima.resolve(ax=ax)
+            x, y, values = akima.apply(x, y, values, nx=nx, ny=ny)
         if kwargs.get("interpolate") is None and values.ndim == 1:
             return self.tricontour(ax, x, y, values, *args, **kwargs)
 
