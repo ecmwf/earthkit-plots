@@ -1,0 +1,49 @@
+[[deps]]
+compiler-inputs = []
+package = "earthkit-data"
+python-version-input = "python-version"
+ref = "develop"
+repo = "ecmwf/earthkit-data"
+
+[[deps]]
+compiler-inputs = []
+package = "earthkit-geo"
+python-version-input = "python-version"
+ref = "develop"
+repo = "ecmwf/earthkit-geo"
+
+[matrix.test]
+triggers = ["upstream-change", "rebuild-request"]
+
+# The container and compiler of the eccodes, odc, and fdb builds, whose libraries the tests load.
+[matrix.test.defaults]
+build-type = "RelWithDebInfo"
+c-compiler = "gcc-13"
+container = "eccr.ecmwf.int/public-ci-images/ubuntu24.04-gcc13-gfortran13"
+cxx-compiler = "g++-13"
+extras = "healpix,test"
+job-script = "./.ci/test.sh.j2"
+platform = "ubuntu-24.04"
+runs-on = "ubuntu-latest"
+
+[[matrix.test.include]]
+python-version = "3.11"
+
+[[matrix.test.include]]
+python-version = "3.12"
+
+[[matrix.test.include]]
+python-version = "3.13"
+
+[package]
+ci-pre-commit = false
+compiler-inputs = []
+fork-pull-requests = false
+full-history = true
+name = "earthkit-plots"
+repo = "ecmwf/earthkit-plots"
+visibility = "public"
+
+[[trigger-downstream]]
+ref = "develop"
+repo = "ecmwf/earthkit"
