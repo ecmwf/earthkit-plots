@@ -8,6 +8,7 @@ on:
     branches:
     - "main"
     - "develop"
+    - "experimental"
 
   # Trigger the workflow manually
   workflow_dispatch:
