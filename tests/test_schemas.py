@@ -429,3 +429,29 @@ def test_style_context_is_scoped():
 
     # Outside the context the original value must be restored.
     assert matplotlib.rcParams["axes.edgecolor"] == before
+
+
+def test_schema_apply_respells_a_matplotlib_alias_of_a_default():
+    """A caller's alias of a default replaces it rather than joining it (#283)."""
+    schema = Schema(parent="scatter", s=36, edgecolors="black", linewidths=0.5)
+
+    with mock.patch("earthkit.plots.schemas.schema") as mock_global:
+        mock_global.__contains__ = lambda self, key: False
+        mock_global.get.return_value = Schema()
+
+        @schema.apply()
+        def mock_function(**kwargs):
+            return kwargs
+
+        result = mock_function(edgecolor="white", lw=0.2)
+        assert result == {"s": 36, "edgecolors": "white", "linewidths": 0.2}
+
+        # The default's own spelling and unrelated keywords are untouched.
+        result = mock_function(edgecolors="white", c=[1, 2])
+        assert result == {"s": 36, "edgecolors": "white", "linewidths": 0.5, "c": [1, 2]}
+
+        # Two spellings from the caller are left for Matplotlib to refuse.
+        result = mock_function(edgecolor="white", ec="red")
+        assert result["edgecolor"] == "white"
+        assert result["ec"] == "red"
+        assert result["edgecolors"] == "black"
