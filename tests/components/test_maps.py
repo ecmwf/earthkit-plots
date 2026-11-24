@@ -67,3 +67,19 @@ def test_uncoloured_quiver_legend_adds_no_colorbar():
     chart.legend()
 
     assert len(chart.fig.axes) == n_axes_before
+
+
+@pytest.mark.parametrize(
+    "kwargs, check",
+    [
+        ({"edgecolor": "white"}, lambda c: np.allclose(c.get_edgecolor(), [[1, 1, 1, 1]])),
+        ({"linewidth": 0.2}, lambda c: np.allclose(c.get_linewidth(), [0.2])),
+        ({"ec": "white", "lw": 0.2}, lambda c: np.allclose(c.get_linewidth(), [0.2])),
+    ],
+)
+def test_scatter_accepts_singular_matplotlib_aliases(kwargs, check):
+    """Map.scatter takes edgecolor/linewidth as well as edgecolors/linewidths (#283)."""
+    chart = Map(domain=[0, 20, 40, 50])
+    collection = chart.scatter(x=[8.5], y=[46.0], s=15, **kwargs)
+
+    assert check(collection)

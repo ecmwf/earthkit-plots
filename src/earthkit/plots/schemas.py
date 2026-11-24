@@ -86,6 +86,35 @@ class _set:
             self.schema.pop(key, None)
 
 
+#: Matplotlib spellings of the same property. A style default and a caller can use
+#: different ones (``edgecolors`` in the scatter schema, ``edgecolor`` in a call),
+#: and Matplotlib refuses a call that gets both. ``c`` is not listed: for
+#: ``scatter`` it is the data to colour by, not an alias of ``color``.
+_MATPLOTLIB_ALIASES = (
+    ("edgecolor", "edgecolors", "ec"),
+    ("facecolor", "facecolors", "fc"),
+    ("linewidth", "linewidths", "lw"),
+    ("linestyle", "linestyles", "ls"),
+    ("antialiased", "antialiaseds", "aa"),
+)
+
+
+def _respell_aliases(kwargs, defaults):
+    """Spell a caller's alias of a default the way the default is spelled.
+
+    The caller's value then replaces the default rather than being passed next to
+    it. A caller who passes two spellings of one property keeps both, and
+    Matplotlib reports the clash as it would without earthkit-plots.
+    """
+    respelled = dict(kwargs)
+    for names in _MATPLOTLIB_ALIASES:
+        default = next((name for name in names if name in defaults), None)
+        given = [name for name in names if name in respelled]
+        if default is not None and len(given) == 1 and given[0] != default:
+            respelled[default] = respelled.pop(given[0])
+    return respelled
+
+
 class Schema(dict):
     """Class for containing and maintaining global style settings."""
 
@@ -183,7 +212,7 @@ class Schema(dict):
 
         if keys:
             schema_kwargs = {key: schema_kwargs[key] for key in keys if key not in Schema.PROTECTED_KEYS}
-        return recursive_dict_update(schema_kwargs, kwargs)
+        return recursive_dict_update(schema_kwargs, _respell_aliases(kwargs, schema_kwargs))
 
     def to_stylesheet(
         self,
