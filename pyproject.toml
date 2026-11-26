@@ -54,6 +54,9 @@ optional-dependencies.healpix = [
 optional-dependencies.regridding = [
   "earthkit-geo~=1.0"
 ]
+optional-dependencies.thermo = [
+  "earthkit-meteo>=1.4"
+]
 optional-dependencies.test = [
   "earthkit-geo~=1.0",
   "healpy",

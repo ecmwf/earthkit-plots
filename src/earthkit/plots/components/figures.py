@@ -528,6 +528,87 @@ class Figure:
         self.subplots.append(subplot)
         return subplot
 
+    def _add_thermo_diagram(self, cls_name, row, column, **kwargs):
+        from earthkit.plots.thermodynamic import diagrams
+
+        row, column = self._determine_row_column(row, column)
+        subplot = getattr(diagrams, cls_name)(
+            row=row,
+            column=column,
+            figure=self,
+            chainable=self._chainable,
+            **kwargs,
+        )
+        self.subplots.append(subplot)
+        return subplot
+
+    def add_tephigram(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.thermodynamic.diagrams.Tephigram` subplot to the figure.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Passed to the :class:`~earthkit.plots.thermodynamic.diagrams.Tephigram`
+            constructor, e.g. ``temperature_range`` and ``pressure_range``.
+
+        Returns
+        -------
+        Tephigram
+
+        Examples
+        --------
+        >>> fig = ekp.Figure(rows=1, columns=2)
+        >>> tephi = fig.add_tephigram(pressure_range=(1050, 100))
+        >>> tephi.temperature(t_profile)
+        >>> fig.show()
+        """
+        return self._add_thermo_diagram("Tephigram", row, column, **kwargs)
+
+    def add_skewt(self, row=None, column=None, **kwargs):
+        """
+        Add a :class:`~earthkit.plots.thermodynamic.diagrams.SkewT` subplot to the figure.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Passed to the :class:`~earthkit.plots.thermodynamic.diagrams.SkewT`
+            constructor, e.g. ``temperature_range``, ``pressure_range`` and ``skew``.
+
+        Returns
+        -------
+        SkewT
+        """
+        return self._add_thermo_diagram("SkewT", row, column, **kwargs)
+
+    def add_emagram(self, row=None, column=None, **kwargs):
+        """
+        Add an :class:`~earthkit.plots.thermodynamic.diagrams.Emagram` subplot to the figure.
+
+        Parameters
+        ----------
+        row : int, optional
+            The row in which to place the subplot.
+        column : int, optional
+            The column in which to place the subplot.
+        **kwargs :
+            Passed to the :class:`~earthkit.plots.thermodynamic.diagrams.Emagram`
+            constructor, e.g. ``temperature_range`` and ``pressure_range``.
+
+        Returns
+        -------
+        Emagram
+        """
+        return self._add_thermo_diagram("Emagram", row, column, **kwargs)
+
     def subplot_titles(self, *args, **kwargs):
         """
         Set the titles of all subplots.

@@ -55,6 +55,9 @@ __all__ = [
     "TimeSeries",
     "climatology",
     "Climatology",
+    "Tephigram",
+    "SkewT",
+    "Emagram",
     "quickplot",
 ]
 
@@ -93,4 +96,8 @@ def __getattr__(name):
         from earthkit.plots.temporal.climatology import Climatology
 
         return Climatology
+    if name in ("Tephigram", "SkewT", "Emagram"):
+        from earthkit.plots.thermodynamic import diagrams
+
+        return getattr(diagrams, name)
     raise AttributeError(f"module 'earthkit.plots' has no attribute {name!r}")
