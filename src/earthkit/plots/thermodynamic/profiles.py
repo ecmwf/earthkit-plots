@@ -167,3 +167,55 @@ def dewpoint_from_relative_humidity(t, r):
 
     with np.errstate(all="ignore"):
         return thermo_backend().dewpoint_from_relative_humidity(t + T_C2K, r) - T_C2K
+
+
+#: Conversion factor from m/s to knots.
+KNOTS_PER_MS = 3600.0 / 1852.0
+
+
+def wind_components(u=None, v=None, p=None, speed=None, direction=None, p_units="hPa", units="m/s", knots=True):
+    """
+    Extract a wind profile as ``(u, v, p)`` arrays for :meth:`matplotlib.axes.Axes.barbs`.
+
+    Parameters
+    ----------
+    u, v : xarray.DataArray or array-like, optional
+        Wind components.
+    p : xarray.DataArray or array-like, optional
+        Pressure of the profile, required for plain arrays.
+    speed, direction : xarray.DataArray or array-like, optional
+        Wind speed and meteorological direction (degrees, the direction the
+        wind blows from), used instead of ``u`` and ``v``.
+    p_units : str
+        Units of ``p`` when it is a plain array. Default hPa.
+    units : {"m/s", "knots"}
+        Units of the wind. Default ``"m/s"``.
+    knots : bool
+        Return the components in knots (as usual for barbs) rather than m/s.
+
+    Returns
+    -------
+    u, v, p : numpy.ndarray
+        The components and the pressure (hPa), ordered from the bottom up.
+    """
+    if u is not None and v is not None:
+        u, p_hpa = extract(u, p=p, kind="raw", p_units=p_units)
+        v, p_v = extract(v, p=p, kind="raw", p_units=p_units)
+    elif speed is not None and direction is not None:
+        from earthkit.meteo.wind import array as wind
+
+        speed, p_hpa = extract(speed, p=p, kind="raw", p_units=p_units)
+        direction, p_v = extract(direction, p=p, kind="raw", p_units=p_units)
+        u, v = wind.polar_to_xy(speed, direction)
+    else:
+        raise ValueError("Provide u and v, or speed and direction")
+    if not np.array_equal(p_hpa, p_v):
+        raise ValueError("The wind components must be on the same pressure levels")
+
+    if units not in ("m/s", "knots"):
+        raise ValueError(f"units must be 'm/s' or 'knots', got {units!r}")
+    if knots and units == "m/s":
+        u, v = u * KNOTS_PER_MS, v * KNOTS_PER_MS
+    elif not knots and units == "knots":
+        u, v = u / KNOTS_PER_MS, v / KNOTS_PER_MS
+    return u, v, p_hpa

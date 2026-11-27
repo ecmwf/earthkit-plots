@@ -24,8 +24,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # pragma: no cover
     from earthkit.plots.thermodynamic.diagrams import Emagram, SkewT, Tephigram, ThermoDiagram
     from earthkit.plots.thermodynamic.grid import LineFamily, ThermoGrid
+    from earthkit.plots.thermodynamic.side_panel import SidePanel
 
-__all__ = ["ThermoDiagram", "Tephigram", "SkewT", "Emagram", "ThermoGrid", "LineFamily"]
+__all__ = ["ThermoDiagram", "Tephigram", "SkewT", "Emagram", "ThermoGrid", "LineFamily", "SidePanel"]
 
 _LAZY = {
     "ThermoDiagram": "earthkit.plots.thermodynamic.diagrams",
@@ -34,6 +35,7 @@ _LAZY = {
     "Emagram": "earthkit.plots.thermodynamic.diagrams",
     "ThermoGrid": "earthkit.plots.thermodynamic.grid",
     "LineFamily": "earthkit.plots.thermodynamic.grid",
+    "SidePanel": "earthkit.plots.thermodynamic.side_panel",
 }
 
 

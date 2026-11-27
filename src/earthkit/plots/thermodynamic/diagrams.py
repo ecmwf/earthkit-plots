@@ -32,8 +32,11 @@ PARCEL_COLOR = "#333333"
 #: Default colour of single highlighted background lines.
 HIGHLIGHT_COLOR = "#333333"
 
+#: Default colour of wind barbs.
+WIND_COLOR = "#1a6b1a"
+
 #: Conversion factor from m/s to knots.
-KNOTS_PER_MS = 3600.0 / 1852.0
+KNOTS_PER_MS = profiles.KNOTS_PER_MS
 
 
 class ThermoDiagram(Subplot):
@@ -92,6 +95,7 @@ class ThermoDiagram(Subplot):
         self.geometry = ax.geometry if ax is not None else self._make_geometry()
         self.thermo_grid = self._parse_grid(grid)
         self._grid_artists = []
+        self._side_panels = []
         if ax is not None:
             self._setup_axes()
 
@@ -140,6 +144,9 @@ class ThermoDiagram(Subplot):
         self._grid_artists = []
         if self.thermo_grid is not None:
             self._grid_artists = self.thermo_grid.draw(self._ax, self.extent)
+        # The side panels follow the extent and the isobars of the diagram
+        for panel in self._side_panels:
+            panel._setup()
 
     def set_extent(self, temperature_range=None, pressure_range=None):
         """
@@ -333,13 +340,14 @@ class ThermoDiagram(Subplot):
         knots=True,
         position=0.95,
         every=1,
+        panel=False,
         **kwargs,
     ):
         """
-        Plot a column of wind barbs alongside the diagram.
+        Plot a column of wind barbs on the diagram or in a side panel.
 
-        The barbs are drawn at a fixed horizontal position, at the height where
-        each isobar crosses it.
+        On the diagram the barbs are drawn at a fixed horizontal position, at
+        the height where each isobar crosses it.
 
         Parameters
         ----------
@@ -359,30 +367,41 @@ class ThermoDiagram(Subplot):
             Default ``True``.
         position : float, optional
             Horizontal position of the column as a fraction of the diagram width.
+            Not used when the barbs are drawn in a panel.
         every : int, optional
             Plot every n-th level.
+        panel : bool or SidePanel, optional
+            Where to draw the barbs. ``False`` (default) draws them on the
+            diagram; ``True`` in a new narrow :meth:`side_panel` without an x
+            axis; a :class:`SidePanel` (from :meth:`side_panel`) in that panel,
+            e.g. alongside the dewpoint depression.
         **kwargs
             Passed to :meth:`matplotlib.axes.Axes.barbs`.
+
+        Examples
+        --------
+        >>> tephi.wind(u, v, p=p)  # on the diagram
+        >>> tephi.wind(u, v, p=p, panel=True)  # in a side panel
         """
-        if u is not None and v is not None:
-            u, p_hpa = profiles.extract(u, p=p, kind="raw", p_units=p_units)
-            v, _ = profiles.extract(v, p=p, kind="raw", p_units=p_units)
-        elif speed is not None and direction is not None:
-            from earthkit.meteo.wind import array as wind
-
-            speed, p_hpa = profiles.extract(speed, p=p, kind="raw", p_units=p_units)
-            direction, _ = profiles.extract(direction, p=p, kind="raw", p_units=p_units)
-            u, v = wind.polar_to_xy(speed, direction)
-        else:
-            raise ValueError("Provide u and v, or speed and direction")
-
-        if units not in ("m/s", "knots"):
-            raise ValueError(f"units must be 'm/s' or 'knots', got {units!r}")
-        if knots and units == "m/s":
-            u, v = u * KNOTS_PER_MS, v * KNOTS_PER_MS
-        elif not knots and units == "knots":
-            u, v = u / KNOTS_PER_MS, v / KNOTS_PER_MS
-
+        if panel is not False and panel is not None:
+            if panel is True:
+                panel = self.side_panel(width=0.14, pad=0.02, xaxis=False)
+            kwargs.setdefault("color", WIND_COLOR)
+            return panel.wind(
+                u=u,
+                v=v,
+                p=p,
+                speed=speed,
+                direction=direction,
+                p_units=p_units,
+                units=units,
+                knots=knots,
+                every=every,
+                **kwargs,
+            )
+        u, v, p_hpa = profiles.wind_components(
+            u=u, v=v, p=p, speed=speed, direction=direction, p_units=p_units, units=units, knots=knots
+        )
         sel = slice(None, None, max(1, int(every)))
         u, v, p_hpa = u[sel], v[sel], p_hpa[sel]
 
@@ -390,8 +409,63 @@ class ThermoDiagram(Subplot):
         x = x0 + float(position) * (x1 - x0)
         y = np.asarray(self.geometry.isobar_y(p_hpa, x), dtype=float)
         ok = np.isfinite(y) & np.isfinite(u) & np.isfinite(v) & (y >= y0) & (y <= y1)
-        style = {"length": 6, "linewidth": 0.8, "color": "#1a6b1a", "zorder": 3, "clip_on": False, **kwargs}
+        style = {"length": 6, "linewidth": 0.8, "color": WIND_COLOR, "zorder": 3, "clip_on": False, **kwargs}
         return self.ax.barbs(np.full(ok.sum(), x), y[ok], u[ok], v[ok], transform=self.ax.transData, **style)
+
+    def side_panel(self, width=0.25, pad=0.05, xlim=None, xlabel=None, isobars=True, pressure_labels=True, xaxis=True):
+        """
+        Add a panel alongside the right edge of the diagram.
+
+        The panel shares the pressure scale of the diagram and plots other
+        quantities against pressure, e.g. the dewpoint depression or the wind.
+        Each pressure level is at the height where its isobar meets the right
+        edge of the diagram, so the isobars continue horizontally into the panel.
+
+        Parameters
+        ----------
+        width : float, optional
+            Width of the panel as a fraction of the width of the diagram. Default 0.25.
+        pad : float, optional
+            Gap between the diagram and the panel as a fraction of the width of
+            the diagram. Default 0.05, which leaves room for the tick labels.
+        xlim : tuple of float, optional
+            Limits of the x axis of the panel. By default they fit the data.
+        xlabel : str, optional
+            Label of the x axis of the panel.
+        isobars : bool, optional
+            Continue the isobars of the background lines into the panel. Default ``True``.
+        pressure_labels : bool, optional
+            Label the pressure levels on the right edge of the panel. Default ``True``.
+        xaxis : bool, optional
+            Show the x axis of the panel. Set it to ``False`` for a panel of wind
+            barbs only (see also ``wind(..., panel=True)``). Default ``True``.
+
+        Returns
+        -------
+        SidePanel
+            The panel, with :meth:`~SidePanel.line`, :meth:`~SidePanel.envelope`
+            and :meth:`~SidePanel.wind` methods. Its matplotlib axes is ``panel.ax``.
+
+        Examples
+        --------
+        >>> panel = tephi.side_panel(xlim=(0, 20), xlabel="T - Td (K)")
+        >>> panel.line(t - td)
+        >>> panel.wind(u, v)
+        """
+        from earthkit.plots.thermodynamic.side_panel import SidePanel
+
+        panel = SidePanel(
+            self,
+            width=width,
+            pad=pad,
+            xlim=xlim,
+            xlabel=xlabel,
+            isobars=isobars,
+            pressure_labels=pressure_labels,
+            xaxis=xaxis,
+        )
+        self._side_panels.append(panel)
+        return panel
 
     # ------------------------------------------------------------------
     # Parcel ascent
