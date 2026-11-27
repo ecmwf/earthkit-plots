@@ -193,8 +193,16 @@ class ThermoDiagram(Subplot):
     # Profiles
     # ------------------------------------------------------------------
 
-    def _profile_line(self, data, p, kind, units, p_units, defaults, kwargs):
+    def _profile_line(self, data, p, kind, units, p_units, defaults, kwargs, column=None):
         style = {**defaults, **kwargs}
+        if profiles.is_pandas(data):
+            # Keep the whole frame (e.g. the constant latitude and longitude
+            # columns of a station) for titles and labels by going through the
+            # standard plotting pipeline, with the profile indexed by pressure.
+            frame, column, p_name = profiles.pandas_profile(
+                data, column=column, p=p, kind=kind, units=units, p_units=p_units
+            )
+            return self.line(frame, x=column, y=p_name, x_units="celsius", y_units="hPa", **style)
         if profiles._is_xarray(data) and p is None and units is None:
             # Keep the xarray metadata (for titles and labels) by going
             # through the standard plotting pipeline.
@@ -204,27 +212,40 @@ class ThermoDiagram(Subplot):
         values, p_hpa = profiles.extract(data, p=p, kind=kind, units=units, p_units=p_units)
         return self.line(x=values, y=p_hpa, **style)
 
-    def temperature(self, data, p=None, units=None, p_units="hPa", **kwargs):
+    def temperature(self, data, p=None, units=None, p_units="hPa", column=None, **kwargs):
         """
         Plot a temperature profile.
 
         Parameters
         ----------
-        data : xarray.DataArray or array-like
+        data : xarray.DataArray, pandas.DataFrame, pandas.Series or array-like
             Temperature profile. For xarray objects the units are read from the
             ``units`` attribute and the pressure from the pressure coordinate.
-        p : xarray.DataArray or array-like, optional
+        p : str, xarray.DataArray or array-like, optional
             Pressure of the profile, required when ``data`` is a plain array.
+            For pandas objects it may be the name of a column, and defaults to
+            the index when it is named.
         units : str, optional
             Units of ``data`` when it is a plain array (default °C) or has no
             ``units`` attribute, e.g. ``"K"``.
         p_units : str, optional
-            Units of ``p`` when it is a plain array. Default ``"hPa"``.
+            Units of ``p`` when it is a plain array or has no units attribute.
+            Default ``"hPa"``.
+        column : str, optional
+            For a pandas DataFrame, the column holding the temperature. Levels
+            with missing values are dropped, and the other columns provide
+            metadata for titles: e.g. constant ``latitude`` and ``longitude``
+            columns give ``{latitude}`` and ``{longitude}``.
         **kwargs
             Passed to :meth:`line` (e.g. ``color``, ``linewidth``, ``label``).
+
+        Examples
+        --------
+        >>> tephi.temperature(df, column="airTemperature", p="pressure", units="K", p_units="Pa")
+        >>> tephi.title("Station at {latitude:%Lt}, {longitude:%Ln}")
         """
         defaults = {"color": TEMPERATURE_COLOR, "linewidth": 2, "label": "Temperature", "zorder": 3}
-        return self._profile_line(data, p, "temperature", units, p_units, defaults, kwargs)
+        return self._profile_line(data, p, "temperature", units, p_units, defaults, kwargs, column=column)
 
     def dewpoint(
         self,
@@ -235,6 +256,7 @@ class ThermoDiagram(Subplot):
         specific_humidity=None,
         relative_humidity=None,
         temperature=None,
+        column=None,
         **kwargs,
     ):
         """
@@ -245,7 +267,7 @@ class ThermoDiagram(Subplot):
 
         Parameters
         ----------
-        data : xarray.DataArray or array-like, optional
+        data : xarray.DataArray, pandas.DataFrame, pandas.Series or array-like, optional
             Dewpoint profile.
         p : xarray.DataArray or array-like, optional
             Pressure of the profile, required for plain arrays.
@@ -260,6 +282,9 @@ class ThermoDiagram(Subplot):
             Relative humidity profile (%), used together with ``temperature``.
         temperature : xarray.DataArray or array-like, optional
             Temperature profile, used together with ``relative_humidity``.
+        column : str, optional
+            For a pandas DataFrame, the column holding the dewpoint, see
+            :meth:`temperature`.
         **kwargs
             Passed to :meth:`line`.
         """
@@ -271,7 +296,7 @@ class ThermoDiagram(Subplot):
             "zorder": 3,
         }
         if data is not None:
-            return self._profile_line(data, p, "temperature", units, p_units, defaults, kwargs)
+            return self._profile_line(data, p, "temperature", units, p_units, defaults, kwargs, column=column)
 
         if specific_humidity is not None:
             q, p_hpa = profiles.extract(specific_humidity, p=p, kind="raw", p_units=p_units)
@@ -286,7 +311,7 @@ class ThermoDiagram(Subplot):
             raise ValueError("Provide the dewpoint, specific_humidity, or relative_humidity and temperature")
         return self.line(x=td, y=p_hpa, **{**defaults, **kwargs})
 
-    def envelope(self, lower, upper, p=None, units=None, p_units="hPa", alpha=0.4, **kwargs):
+    def envelope(self, lower, upper, p=None, units=None, p_units="hPa", alpha=0.4, column=None, **kwargs):
         """
         Shade the band between two temperature (or dewpoint) profiles.
 
@@ -308,6 +333,8 @@ class ThermoDiagram(Subplot):
             Units of ``p`` when it is a plain array. Default ``"hPa"``.
         alpha : float, optional
             Opacity of the band. Default 0.4.
+        column : str, optional
+            For pandas DataFrames, the column holding the profiles.
         **kwargs
             Passed to :meth:`matplotlib.axes.Axes.fill_betweenx`, e.g. ``color``
             and ``label``.
@@ -321,8 +348,8 @@ class ThermoDiagram(Subplot):
         >>> q = t_ens.quantile([0.25, 0.75], dim="member", keep_attrs=True)
         >>> tephi.envelope(q.sel(quantile=0.25), q.sel(quantile=0.75), color="red")
         """
-        lo, p_lo = profiles.extract(lower, p=p, kind="temperature", units=units, p_units=p_units)
-        hi, p_hi = profiles.extract(upper, p=p, kind="temperature", units=units, p_units=p_units)
+        lo, p_lo = profiles.extract(lower, p=p, kind="temperature", units=units, p_units=p_units, column=column)
+        hi, p_hi = profiles.extract(upper, p=p, kind="temperature", units=units, p_units=p_units, column=column)
         if p_lo.shape != p_hi.shape or not np.allclose(p_lo, p_hi):
             raise ValueError("lower and upper must be on the same pressure levels")
         style = {"color": TEMPERATURE_COLOR, "alpha": alpha, "linewidth": 0, "zorder": 1.2, **kwargs}

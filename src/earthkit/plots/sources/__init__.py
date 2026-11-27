@@ -683,6 +683,13 @@ def _is_xarray_backed_earthkit(data: Any) -> bool:
     return "netcdf" in module
 
 
+def _is_array_like(value: Any) -> bool:
+    """Whether ``value`` is an array of coordinates or values (not a name or ``None``)."""
+    from earthkit.plots.sources.extractors.pandas import is_pandas
+
+    return isinstance(value, (np.ndarray, list, tuple)) or is_pandas(value)
+
+
 def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     """
     Factory to create appropriate extractor for data type.
@@ -702,6 +709,12 @@ def _get_extractor(data: Any, metadata: dict | None = None) -> DataExtractor:
     # No data object — coordinate-only call (e.g. line(x=lons, y=lats))
     if data is None:
         return NumpyExtractor(None)
+
+    # Check for pandas types
+    from earthkit.plots.sources.extractors.pandas import PandasExtractor, is_pandas
+
+    if is_pandas(data):
+        return PandasExtractor(data, metadata=metadata)
 
     # Check for xarray types
     if data.__class__.__name__ in ("DataArray", "Dataset"):
@@ -825,9 +838,9 @@ def get_source(
         c = kwargs.pop("c", None)
         if c is not None:
             data_obj = c
-        elif isinstance(z, (np.ndarray, list)):
+        elif _is_array_like(z):
             data_obj = z
-        elif not isinstance(x, (np.ndarray, list)) and not isinstance(y, (np.ndarray, list)):
+        elif not _is_array_like(x) and not _is_array_like(y):
             # No positional data and no coordinate arrays — nothing to plot.
             raise ValueError("No data provided to get_source()")
 

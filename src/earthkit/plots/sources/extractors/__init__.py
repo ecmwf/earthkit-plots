@@ -15,7 +15,7 @@
 from earthkit.plots.sources.extractors.base import BaseExtractor
 from earthkit.plots.sources.extractors.numpy import NumpyExtractor
 
-__all__ = ["BaseExtractor", "NumpyExtractor", "XarrayExtractor", "EarthkitExtractor"]
+__all__ = ["BaseExtractor", "NumpyExtractor", "XarrayExtractor", "EarthkitExtractor", "PandasExtractor"]
 
 
 def __getattr__(name):
@@ -23,6 +23,10 @@ def __getattr__(name):
         from earthkit.plots.sources.extractors.xarray import XarrayExtractor
 
         return XarrayExtractor
+    if name == "PandasExtractor":
+        from earthkit.plots.sources.extractors.pandas import PandasExtractor
+
+        return PandasExtractor
     if name == "EarthkitExtractor":
         from earthkit.plots.sources.extractors.earthkit import EarthkitExtractor
 

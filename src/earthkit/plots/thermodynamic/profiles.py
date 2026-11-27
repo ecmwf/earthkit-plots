@@ -38,6 +38,128 @@ def _is_xarray(data):
     return hasattr(data, "dims") and hasattr(data, "coords")
 
 
+def is_pandas(data):
+    """Whether ``data`` is a pandas DataFrame or Series."""
+    from earthkit.plots.sources.extractors.pandas import is_pandas as _is_pandas
+
+    return _is_pandas(data)
+
+
+def _pandas_units(data, name):
+    """Units of the column ``name`` from pandas ``attrs`` (a string, or a mapping from column names)."""
+    from earthkit.plots.sources.extractors.pandas import _units_from_attrs
+
+    return _units_from_attrs(data.attrs, name)
+
+
+#: Name of the pressure column added to a profile when the pressure is given as an array.
+PRESSURE_COLUMN = "pressure"
+
+
+def pandas_profile(data, column=None, p=None, kind="temperature", units=None, p_units="hPa"):
+    """
+    Prepare a profile from a pandas object for plotting through the standard pipeline.
+
+    The returned DataFrame keeps all the columns of ``data``, so that its
+    metadata (e.g. the constant latitude and longitude columns of a station)
+    remain available to titles. The plotted values are converted to diagram
+    units, the levels with missing values are dropped, and the frame is
+    indexed by pressure (hPa), ordered from the bottom up.
+
+    Parameters
+    ----------
+    data : pandas.DataFrame or pandas.Series
+        The profile. For a DataFrame, ``column`` names the plotted column
+        (it may be omitted when there is a single column besides the pressure).
+    column : str, optional
+        The column of ``data`` holding the profile values.
+    p : str, pandas.Series or array-like, optional
+        The pressure: the name of a column, or the values. Defaults to the
+        index of ``data`` when it is named.
+    kind : {"temperature", "raw"}
+        How the values are converted: temperatures to °C.
+    units : str, optional
+        Units of the values. Read from ``attrs["units"]`` when not given;
+        temperatures default to °C.
+    p_units : str
+        Units of the pressure when ``attrs["units"]`` does not give them. Default hPa.
+
+    Returns
+    -------
+    frame : pandas.DataFrame
+        The profile, indexed by pressure.
+    column : str
+        The name of the plotted column.
+    p_name : str
+        The name of the pressure index.
+    """
+    # Units of the columns, from attrs["units"]
+    units_map = _units_mapping(data)
+    if type(data).__name__ == "Series":
+        column = data.name if data.name is not None else "values"
+        frame = data.to_frame(name=column)
+    else:
+        frame = data.copy()
+
+    # The pressure
+    if isinstance(p, str):
+        if p in frame.columns:
+            p_name = p
+        elif p == frame.index.name:
+            frame = frame.reset_index()
+            p_name = p
+        else:
+            raise ValueError(f"Pressure column {p!r} not found; available columns are {list(frame.columns)}")
+    elif p is not None:
+        p_name = getattr(p, "name", None) or PRESSURE_COLUMN
+        if p_name == column:
+            p_name = "__pressure__"
+        values = p.to_numpy() if is_pandas(p) else np.asarray(p, dtype=float)
+        if len(values) != len(frame):
+            raise ValueError(f"p has {len(values)} values but the profile has {len(frame)}")
+        frame[p_name] = values
+        units_map[p_name] = (_pandas_units(p, p.name) if is_pandas(p) else None) or p_units
+    elif frame.index.name is not None:
+        p_name = frame.index.name
+        frame = frame.reset_index()
+    else:
+        raise ValueError("Give the pressure with p=: the name of a column, or the values")
+
+    # The plotted column
+    if column is None:
+        others = [c for c in frame.columns if c != p_name]
+        if len(others) != 1:
+            raise ValueError(f"The DataFrame has several columns {others}; name the plotted one with column=...")
+        column = others[0]
+    elif column not in frame.columns:
+        raise ValueError(f"Column {column!r} not found; available columns are {list(frame.columns)}")
+
+    values = frame[column].to_numpy(dtype=float)
+    pressure = pressure_to_hpa(frame[p_name].to_numpy(dtype=float), units_map.get(p_name) or p_units)
+    value_units = units or units_map.get(column)
+    if kind == "temperature":
+        values = temperature_to_celsius(values, value_units or "celsius")
+        value_units = "celsius"
+
+    frame[column] = values
+    frame[p_name] = pressure
+    frame = frame[np.isfinite(values) & np.isfinite(pressure)]
+    frame = frame.sort_values(p_name, ascending=False, kind="stable").set_index(p_name)
+    units_map.update({column: value_units, p_name: "hPa"})
+    frame.attrs = {**data.attrs, "units": {k: v for k, v in units_map.items() if v is not None}}
+    return frame, column, p_name
+
+
+def _units_mapping(data):
+    """The ``attrs["units"]`` of a pandas object as a mapping from column names."""
+    units = data.attrs.get("units")
+    if isinstance(units, dict):
+        return dict(units)
+    if isinstance(units, str) and type(data).__name__ == "Series":
+        return {data.name: units}
+    return {}
+
+
 def _units(obj):
     return str(getattr(obj, "attrs", {}).get("units", "")).strip()
 
@@ -90,7 +212,7 @@ def pressure_units(data, name):
     return "Pa" if name == "isobaricInPa" else "hPa"
 
 
-def extract(data, p=None, kind="temperature", units=None, p_units="hPa"):
+def extract(data, p=None, kind="temperature", units=None, p_units="hPa", column=None):
     """
     Extract a profile as numpy arrays in diagram units.
 
@@ -109,12 +231,26 @@ def extract(data, p=None, kind="temperature", units=None, p_units="hPa"):
         for plain arrays temperatures default to °C.
     p_units : str
         Units of ``p`` when it is a plain array. Default hPa.
+    column : str, optional
+        For a pandas DataFrame, the column holding the values; ``p`` may then
+        be a column name too. See :func:`pandas_profile`.
 
     Returns
     -------
     values, p : numpy.ndarray
         The values and the pressure (hPa), ordered from the bottom up.
     """
+    if is_pandas(data) and (column is not None or isinstance(p, str) or type(data).__name__ == "DataFrame"):
+        frame, column, _ = pandas_profile(
+            data,
+            column=column,
+            p=p,
+            kind="temperature" if kind == "temperature" else "raw",
+            units=units,
+            p_units=p_units,
+        )
+        return frame[column].to_numpy(dtype=float), frame.index.to_numpy(dtype=float)
+
     if _is_xarray(data):
         if p is None:
             name = find_pressure_coord(data)

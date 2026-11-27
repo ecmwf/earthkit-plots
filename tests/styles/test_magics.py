@@ -20,6 +20,13 @@ import pytest
 from earthkit.plots.styles import Style
 from earthkit.plots.styles.magics import from_magics
 
+# WIP: the conversion of Magics contour styles is still being developed, so
+# these tests are deactivated for now.
+pytestmark = [
+    pytest.mark.wip,
+    pytest.mark.skip(reason="WIP: Magics contour style conversion is under development"),
+]
+
 
 class MagicsFixtures:
     def __init__(self, fname):

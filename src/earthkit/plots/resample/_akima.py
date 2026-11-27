@@ -47,8 +47,10 @@ class Akima(Resample):
         self.factor = int(factor)
         self.max_points = int(max_points)
         for size, name in ((nx, "nx"), (ny, "ny")):
-            if size is not None and size != "auto" and (
-                isinstance(size, (bool, np.bool_)) or not isinstance(size, (int, np.integer)) or size < 2
+            if (
+                size is not None
+                and size != "auto"
+                and (isinstance(size, (bool, np.bool_)) or not isinstance(size, (int, np.integer)) or size < 2)
             ):
                 raise ValueError(f"Akima {name} must be 'auto' or an integer of at least 2")
         self.nx = nx

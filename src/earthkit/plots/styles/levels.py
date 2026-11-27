@@ -184,7 +184,7 @@ class Levels:
         mostly useful for parameters which use diverging colors in their style,
         such as anomalies.
     """
-    
+
     def to_dict(self):
         return {
             "levels": self._levels,
