@@ -293,3 +293,55 @@ def test_tephigram_bottom_isobar_level(temperature_range):
 
 def test_tephigram_explicit_a():
     assert Tephigram(a=273.15).geometry.a == 273.15
+
+
+def _fill_tp(collection):
+    """The (T, p) vertices of the polygons of a fill on a ThermoAxes."""
+    return np.concatenate([path.vertices for path in collection.get_paths()])
+
+
+@pytest.mark.parametrize("cls", DIAGRAMS)
+def test_envelope_numpy(cls):
+    d = cls()
+    band = d.envelope(T - 2.0, T + 3.0, p=P, color="green", label="spread")
+    verts = _fill_tp(band)
+    # the band spans the pressure levels and the two bounding profiles
+    assert verts[:, 1].min() == pytest.approx(P.min())
+    assert verts[:, 1].max() == pytest.approx(P.max())
+    for t_lo, t_hi, p in zip(T - 2.0, T + 3.0, P):
+        at_p = verts[np.isclose(verts[:, 1], p), 0]
+        assert at_p.min() == pytest.approx(t_lo)
+        assert at_p.max() == pytest.approx(t_hi)
+    assert band.get_label() == "spread"
+    # drawn in (T, p) data coordinates through the diagram transform
+    assert band.get_transform() == d.ax.transThermoData or band.get_transform().contains_branch(d.ax.transThermo)
+
+
+def test_envelope_xarray_kelvin_pa():
+    d = SkewT()
+    lo = _profile_da(T + 273.15 - 1.0, "K", p_units="Pa")
+    hi = _profile_da(T + 273.15 + 1.0, "K", p_units="Pa")
+    verts = _fill_tp(d.envelope(lo, hi))
+    np.testing.assert_allclose(sorted(set(np.round(verts[:, 1], 6))), sorted(P))
+    assert verts[:, 0].min() == pytest.approx(T.min() - 1.0)
+    assert verts[:, 0].max() == pytest.approx(T.max() + 1.0)
+
+
+def test_envelope_numpy_units():
+    d = SkewT()
+    verts = _fill_tp(d.envelope(T + 273.15, T + 274.15, p=P * 100.0, units="K", p_units="Pa"))
+    assert verts[:, 0].min() == pytest.approx(T.min())
+    assert verts[:, 1].max() == pytest.approx(P.max())
+
+
+def test_envelope_requires_same_levels():
+    d = SkewT()
+    lower = _profile_da(T, "degC")
+    upper = _profile_da(T + 1.0, "degC").assign_coords(pressure_level=P - 5.0)
+    with pytest.raises(ValueError, match="same pressure levels"):
+        d.envelope(lower, upper)
+
+
+def test_envelope_numpy_requires_pressure():
+    with pytest.raises(ValueError):
+        SkewT().envelope(T, T + 1.0)

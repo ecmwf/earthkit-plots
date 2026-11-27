@@ -146,11 +146,6 @@ class ThermoGrid:
     ----------
     isobars, isotherms, dry_adiabats, saturated_adiabats, mixing_ratios
         Settings of the line families.
-    isotherm_reference : float, optional
-        Temperature (°C) of an isotherm drawn with ``isotherm_reference_style``
-        (e.g. 0 °C).
-    isotherm_reference_style : dict, optional
-        Line properties of the reference isotherm.
     layer : {"background", "foreground"}
         Whether the lines are drawn below or above the data.
 
@@ -168,8 +163,6 @@ class ThermoGrid:
         dry_adiabats=True,
         saturated_adiabats=True,
         mixing_ratios=True,
-        isotherm_reference=None,
-        isotherm_reference_style=None,
         layer="background",
     ):
         if layer not in ("background", "foreground"):
@@ -183,10 +176,6 @@ class ThermoGrid:
             "mixing_ratios": mixing_ratios,
         }
         self.families = {name: defaults[name].update(settings[name]) for name in self.FAMILIES}
-        self.isotherm_reference = isotherm_reference
-        self.isotherm_reference_style = {"color": "#1f77b4", "linewidth": 1.2}
-        if isotherm_reference_style:
-            self.isotherm_reference_style.update(isotherm_reference_style)
         self.layer = layer
 
     @property
@@ -210,12 +199,6 @@ class ThermoGrid:
                 continue
             lines = LINE_GENERATORS[name](family, ranges)
             artists += _draw_family(ax, extent, family, lines, self.zorder)
-
-        if self.isotherm_reference is not None:
-            p = _pressure_samples(ranges)
-            t = np.full_like(p, float(self.isotherm_reference))
-            style = {"zorder": self.zorder + 0.1, **self.isotherm_reference_style}
-            artists += ax.plot(t, p, **style)
         return artists
 
 
@@ -321,6 +304,43 @@ def _mixing_ratios(family, ranges):
         t = thermo.dewpoint_from_mixing_ratio(v / 1000.0, p * 100.0) - T_C2K
         lines.append((v, t, p))
     return lines
+
+
+#: Ranges covering every diagram, used for single lines that must not depend
+#: on the extent of the diagram.
+FULL_RANGES = VisibleRanges(t=(-160.0, 70.0), p=(1100.0, 1.0), theta=(-100.0, 500.0), theta_w=(-60.0, 50.0))
+
+
+def single_line(family, value, top_pressure=None):
+    """
+    Compute one background line over the full range of the diagrams.
+
+    Parameters
+    ----------
+    family : str
+        One of :attr:`ThermoGrid.FAMILIES`.
+    value : float
+        The value of the line: pressure (hPa) for ``"isobars"``, temperature
+        (°C) for ``"isotherms"``, potential temperature (°C) for
+        ``"dry_adiabats"``, wet-bulb potential temperature (°C) for
+        ``"saturated_adiabats"`` and saturation mixing ratio (g/kg) for
+        ``"mixing_ratios"``.
+    top_pressure : float, optional
+        Pressure (hPa) where the line ends.
+
+    Returns
+    -------
+    t, p : numpy.ndarray
+        Temperature (°C) and pressure (hPa) along the line, from the bottom up.
+    """
+    if family not in LINE_GENERATORS:
+        raise ValueError(f"Unknown line family {family!r}; expected one of {list(LINE_GENERATORS)}")
+    lines = LINE_GENERATORS[family](LineFamily(values=[float(value)], top_pressure=top_pressure), FULL_RANGES)
+    if not lines:
+        raise ValueError(f"{family} value {value} is outside the range of the diagrams")
+    _, t, p = lines[0]
+    ok = np.isfinite(t) & np.isfinite(p)
+    return t[ok], p[ok]
 
 
 LINE_GENERATORS = {

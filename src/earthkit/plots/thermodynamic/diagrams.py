@@ -17,7 +17,7 @@
 import numpy as np
 
 from earthkit.plots.components.subplots import Subplot
-from earthkit.plots.thermodynamic import profiles
+from earthkit.plots.thermodynamic import grid, parcel, profiles
 from earthkit.plots.thermodynamic.axes import ThermoAxes
 from earthkit.plots.thermodynamic.grid import ThermoGrid
 from earthkit.plots.thermodynamic.ticks import apply_ticks
@@ -25,6 +25,12 @@ from earthkit.plots.thermodynamic.transforms import T_C2K, EmagramGeometry, Skew
 
 #: Default colour of the temperature and dewpoint profiles.
 TEMPERATURE_COLOR = "#e41a1c"
+
+#: Default colour of parcel paths.
+PARCEL_COLOR = "#333333"
+
+#: Default colour of single highlighted background lines.
+HIGHLIGHT_COLOR = "#333333"
 
 #: Conversion factor from m/s to knots.
 KNOTS_PER_MS = 3600.0 / 1852.0
@@ -273,6 +279,48 @@ class ThermoDiagram(Subplot):
             raise ValueError("Provide the dewpoint, specific_humidity, or relative_humidity and temperature")
         return self.line(x=td, y=p_hpa, **{**defaults, **kwargs})
 
+    def envelope(self, lower, upper, p=None, units=None, p_units="hPa", alpha=0.4, **kwargs):
+        """
+        Shade the band between two temperature (or dewpoint) profiles.
+
+        Typically used for the spread of an ensemble, e.g. its minimum and
+        maximum or two of its quantiles at each pressure level.
+
+        Parameters
+        ----------
+        lower, upper : xarray.DataArray or array-like
+            The profiles bounding the band, on the same pressure levels. For
+            xarray objects the units are read from the ``units`` attribute and
+            the pressure from the pressure coordinate.
+        p : xarray.DataArray or array-like, optional
+            Pressure of the profiles, required when they are plain arrays.
+        units : str, optional
+            Units of the profiles when they are plain arrays (default °C) or have
+            no ``units`` attribute, e.g. ``"K"``.
+        p_units : str, optional
+            Units of ``p`` when it is a plain array. Default ``"hPa"``.
+        alpha : float, optional
+            Opacity of the band. Default 0.4.
+        **kwargs
+            Passed to :meth:`matplotlib.axes.Axes.fill_betweenx`, e.g. ``color``
+            and ``label``.
+
+        Returns
+        -------
+        matplotlib.collections.PolyCollection
+
+        Examples
+        --------
+        >>> q = t_ens.quantile([0.25, 0.75], dim="member", keep_attrs=True)
+        >>> tephi.envelope(q.sel(quantile=0.25), q.sel(quantile=0.75), color="red")
+        """
+        lo, p_lo = profiles.extract(lower, p=p, kind="temperature", units=units, p_units=p_units)
+        hi, p_hi = profiles.extract(upper, p=p, kind="temperature", units=units, p_units=p_units)
+        if p_lo.shape != p_hi.shape or not np.allclose(p_lo, p_hi):
+            raise ValueError("lower and upper must be on the same pressure levels")
+        style = {"color": TEMPERATURE_COLOR, "alpha": alpha, "linewidth": 0, "zorder": 1.2, **kwargs}
+        return self.ax.fill_betweenx(p_lo, lo, hi, **style)
+
     def wind(
         self,
         u=None,
@@ -344,6 +392,202 @@ class ThermoDiagram(Subplot):
         ok = np.isfinite(y) & np.isfinite(u) & np.isfinite(v) & (y >= y0) & (y <= y1)
         style = {"length": 6, "linewidth": 0.8, "color": "#1a6b1a", "zorder": 3, "clip_on": False, **kwargs}
         return self.ax.barbs(np.full(ok.sum(), x), y[ok], u[ok], v[ok], transform=self.ax.transData, **style)
+
+    # ------------------------------------------------------------------
+    # Parcel ascent
+    # ------------------------------------------------------------------
+
+    def parcel(self, path, virtual=True, **kwargs):
+        """
+        Plot the path of a lifted parcel.
+
+        Parameters
+        ----------
+        path : earthkit.meteo.thermo.array.cape_cin.ParcelPath
+            The parcel ascent of a single profile, computed with earthkit-meteo:
+            ``extras["parcel_path"]`` from
+            :func:`earthkit.meteo.thermo.surface_cape_cin`,
+            :func:`~earthkit.meteo.thermo.mixed_layer_cape_cin` or
+            :func:`~earthkit.meteo.thermo.most_unstable_cape_cin` called with
+            ``extra_outputs=["parcel_path"]``.
+        virtual : bool, optional
+            Plot the virtual temperature of the parcel (default), which is what
+            CAPE and CIN are computed from and what bounds the areas shaded by
+            :meth:`cape_cin`. If ``False`` the temperature is plotted.
+        **kwargs
+            Passed to :meth:`line`.
+
+        Examples
+        --------
+        >>> from earthkit.meteo import thermo
+        >>> cape, cin, extras = thermo.surface_cape_cin(
+        ...     p, t, q, zh, p_sfc, t_sfc, q_sfc, zh_sfc, extra_outputs=["parcel_path"]
+        ... )
+        >>> tephi.cape_cin(extras["parcel_path"])
+        >>> tephi.parcel(extras["parcel_path"])
+        """
+        prof = parcel.ParcelProfiles.from_path(path)
+        defaults = {"color": PARCEL_COLOR, "linestyle": "--", "linewidth": 2.5, "label": "Parcel", "zorder": 3}
+        return self.line(x=prof.tv if virtual else prof.t, y=prof.p, **{**defaults, **kwargs})
+
+    def cape_cin(self, path, positive_color="red", negative_color="blue", alpha=0.6, **kwargs):
+        """
+        Shade the positive (CAPE) and negative (CIN) buoyancy areas of a lifted parcel.
+
+        The areas lie between the virtual temperature of the parcel and that of
+        the environment, from the start of the ascent up to the equilibrium
+        level. The parcel is warmer than its environment in the positive areas
+        and colder in the negative ones. Nothing is shaded when the parcel has no
+        level of free convection.
+
+        Parameters
+        ----------
+        path : earthkit.meteo.thermo.array.cape_cin.ParcelPath
+            The parcel ascent of a single profile, see :meth:`parcel`.
+        positive_color : str, optional
+            Colour of the positive areas. Default ``"red"``.
+        negative_color : str, optional
+            Colour of the negative areas. Default ``"blue"``.
+        alpha : float, optional
+            Opacity of the areas. Default 0.6.
+        **kwargs
+            Passed to :meth:`matplotlib.axes.Axes.fill_betweenx` for both areas.
+
+        Returns
+        -------
+        tuple of matplotlib.collections.PolyCollection or None
+            The positive and negative areas (``None`` when nothing is shaded).
+        """
+        prof = parcel.ParcelProfiles.from_path(path)
+        top = parcel.shading_top(path)
+        if top is None or len(prof.p) < 2:
+            return None, None
+        in_layer = prof.p >= top
+        style = {"alpha": alpha, "linewidth": 0, "zorder": 1, **kwargs}
+        areas = []
+        for color, mask in (
+            (positive_color, prof.tv > prof.tv_env),
+            (negative_color, prof.tv < prof.tv_env),
+        ):
+            areas.append(
+                self.ax.fill_betweenx(
+                    prof.p, prof.tv_env, prof.tv, where=mask & in_layer, interpolate=True, color=color, **style
+                )
+            )
+        return tuple(areas)
+
+    # ------------------------------------------------------------------
+    # Annotations
+    # ------------------------------------------------------------------
+
+    def info_box(self, content, loc="upper right", fontsize=8, **kwargs):
+        """
+        Add a box of text, e.g. a summary of a parcel computation.
+
+        Parameters
+        ----------
+        content : dict, list of str or str
+            The text. A dict is written as ``label: value`` lines with the labels
+            right-aligned on the colons; the values are written with ``str`` so
+            format numbers before passing them. A list is written one item per line.
+        loc : str, optional
+            Location of the box, as for :meth:`legend`, e.g. ``"upper right"``.
+        fontsize : float, optional
+            Font size of the text. The font is monospaced so that the lines align.
+        **kwargs
+            Passed to :class:`matplotlib.offsetbox.AnchoredText`.
+
+        Returns
+        -------
+        matplotlib.offsetbox.AnchoredText
+
+        Examples
+        --------
+        >>> tephi.info_box({"CAPE": f"{cape:.0f} J/kg", "CIN": f"{cin:.0f} J/kg"})
+        """
+        from matplotlib.offsetbox import AnchoredText
+
+        if isinstance(content, dict):
+            width = max((len(str(k)) for k in content), default=0)
+            text = "\n".join(f"{str(k):>{width}}: {v}" for k, v in content.items())
+        elif isinstance(content, str):
+            text = content
+        else:
+            text = "\n".join(str(line) for line in content)
+
+        prop = {"family": "monospace", "size": fontsize, **kwargs.pop("prop", {})}
+        box = AnchoredText(text, loc=loc, prop=prop, **kwargs)
+        box.patch.set_boxstyle("square,pad=0.3")
+        box.patch.set_edgecolor("#333333")
+        box.set_zorder(5)
+        self.ax.add_artist(box)
+        return box
+
+    # ------------------------------------------------------------------
+    # Single background lines
+    # ------------------------------------------------------------------
+
+    def _background_line(self, family, value, top_pressure, kwargs):
+        t, p = grid.single_line(family, value, top_pressure=top_pressure)
+        style = {"color": HIGHLIGHT_COLOR, "linewidth": 1.5, "zorder": 1.5, **kwargs}
+        (line,) = self.ax.plot(t, p, **style)
+        return line
+
+    def isotherm(self, t, **kwargs):
+        """
+        Draw (e.g. highlight) the isotherm of temperature ``t`` (°C).
+
+        Parameters
+        ----------
+        t : float
+            Temperature (°C).
+        **kwargs
+            Passed to :meth:`matplotlib.axes.Axes.plot`.
+
+        Examples
+        --------
+        >>> tephi.isotherm(0, color="red")
+        """
+        return self._background_line("isotherms", t, None, kwargs)
+
+    def isobar(self, p, **kwargs):
+        """
+        Draw the isobar of pressure ``p`` (hPa).
+
+        **kwargs are passed to :meth:`matplotlib.axes.Axes.plot`.
+        """
+        return self._background_line("isobars", p, None, kwargs)
+
+    def dry_adiabat(self, theta, **kwargs):
+        """
+        Draw the dry adiabat of potential temperature ``theta`` (°C).
+
+        **kwargs are passed to :meth:`matplotlib.axes.Axes.plot`.
+        """
+        return self._background_line("dry_adiabats", theta, None, kwargs)
+
+    def saturated_adiabat(self, theta_w, **kwargs):
+        """
+        Draw the saturated (pseudo) adiabat of wet-bulb potential temperature ``theta_w`` (°C).
+
+        **kwargs are passed to :meth:`matplotlib.axes.Axes.plot`.
+        """
+        return self._background_line("saturated_adiabats", theta_w, None, kwargs)
+
+    def mixing_ratio_line(self, w, top_pressure=None, **kwargs):
+        """
+        Draw the saturation mixing-ratio line of ``w`` (g/kg).
+
+        Parameters
+        ----------
+        w : float
+            Saturation mixing ratio (g/kg).
+        top_pressure : float, optional
+            Pressure (hPa) where the line ends. By default it reaches the top of the diagram.
+        **kwargs
+            Passed to :meth:`matplotlib.axes.Axes.plot`.
+        """
+        return self._background_line("mixing_ratios", w, top_pressure, kwargs)
 
 
 class Tephigram(ThermoDiagram):
